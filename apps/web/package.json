@@ -11,15 +11,15 @@
     "check-types": "vite build && tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/react": "^3.0.179",
-    "@hookform/resolvers": "^5.2.2",
+    "@ai-sdk/react": "^4.0.37",
+    "@hookform/resolvers": "^5.4.0",
     "@orpc/client": "catalog:",
     "@orpc/server": "catalog:",
-    "@orpc/tanstack-query": "^1.14.2",
-    "@tailwindcss/vite": "^4.3.0",
-    "@tanstack/react-form": "^1.29.3",
-    "@tanstack/react-query": "^5.100.9",
-    "@tanstack/react-router": "^1.169.2",
+    "@orpc/tanstack-query": "^1.14.8",
+    "@tailwindcss/vite": "^4.3.3",
+    "@tanstack/react-form": "^1.33.2",
+    "@tanstack/react-query": "^5.101.4",
+    "@tanstack/react-router": "^1.170.18",
     "@workspace/api": "workspace:*",
     "@workspace/env": "workspace:*",
     "@workspace/ui": "workspace:*",
@@ -31,21 +31,21 @@
     "react": "catalog:",
     "react-dom": "catalog:",
     "sonner": "catalog:",
-    "streamdown": "^1.6.11",
+    "streamdown": "^2.5.0",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@tanstack/react-query-devtools": "^5.100.9",
-    "@tanstack/react-router-devtools": "^1.166.13",
-    "@tanstack/router-plugin": "^1.167.35",
-    "@types/node": "^22.19.18",
+    "@tanstack/react-query-devtools": "^5.101.4",
+    "@tanstack/react-router-devtools": "^1.167.0",
+    "@tanstack/router-plugin": "^1.168.23",
+    "@types/node": "^26.1.1",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "@vitejs/plugin-react": "^6.0.1",
+    "@vitejs/plugin-react": "^6.0.4",
     "@workspace/config": "workspace:*",
-    "postcss": "^8.5.14",
+    "postcss": "^8.5.22",
     "tailwindcss": "catalog:",
     "typescript": "catalog:",
-    "vite": "^8.0.11"
+    "vite": "^8.1.5"
   }
 }
