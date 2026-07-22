@@ -1,8 +1,5 @@
-import * as React from "react"
-import { Menu as MenuPrimitive } from "@base-ui/react/menu"
-import { Menubar as MenubarPrimitive } from "@base-ui/react/menubar"
-
-import { cn } from "@workspace/ui/lib/utils"
+import { Menu as MenuPrimitive } from "@base-ui/react/menu";
+import { Menubar as MenubarPrimitive } from "@base-ui/react/menubar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,8 +14,10 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "@workspace/ui/components/dropdown-menu"
-import { CheckIcon } from "lucide-react"
+} from "@workspace/ui/components/dropdown-menu";
+import { cn } from "@workspace/ui/lib/utils";
+import { CheckIcon } from "lucide-react";
+import * as React from "react";
 
 function Menubar({ className, ...props }: MenubarPrimitive.Props) {
   return (
@@ -30,23 +29,23 @@ function Menubar({ className, ...props }: MenubarPrimitive.Props) {
       )}
       {...props}
     />
-  )
+  );
 }
 
 function MenubarMenu({ ...props }: React.ComponentProps<typeof DropdownMenu>) {
-  return <DropdownMenu data-slot="menubar-menu" {...props} />
+  return <DropdownMenu data-slot="menubar-menu" {...props} />;
 }
 
 function MenubarGroup({
   ...props
 }: React.ComponentProps<typeof DropdownMenuGroup>) {
-  return <DropdownMenuGroup data-slot="menubar-group" {...props} />
+  return <DropdownMenuGroup data-slot="menubar-group" {...props} />;
 }
 
 function MenubarPortal({
   ...props
 }: React.ComponentProps<typeof DropdownMenuPortal>) {
-  return <DropdownMenuPortal data-slot="menubar-portal" {...props} />
+  return <DropdownMenuPortal data-slot="menubar-portal" {...props} />;
 }
 
 function MenubarTrigger({
@@ -62,7 +61,7 @@ function MenubarTrigger({
       )}
       {...props}
     />
-  )
+  );
 }
 
 function MenubarContent({
@@ -78,10 +77,13 @@ function MenubarContent({
       align={align}
       alignOffset={alignOffset}
       sideOffset={sideOffset}
-      className={cn("min-w-36 rounded-none bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95", className )}
+      className={cn(
+        "min-w-36 rounded-none bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95",
+        className
+      )}
       {...props}
     />
-  )
+  );
 }
 
 function MenubarItem({
@@ -101,7 +103,7 @@ function MenubarItem({
       )}
       {...props}
     />
-  )
+  );
 }
 
 function MenubarCheckboxItem({
@@ -111,7 +113,7 @@ function MenubarCheckboxItem({
   inset,
   ...props
 }: MenuPrimitive.CheckboxItem.Props & {
-  inset?: boolean
+  inset?: boolean;
 }) {
   return (
     <MenuPrimitive.CheckboxItem
@@ -126,19 +128,18 @@ function MenubarCheckboxItem({
     >
       <span className="pointer-events-none absolute left-1.5 flex size-4 items-center justify-center [&_svg:not([class*='size-'])]:size-4">
         <MenuPrimitive.CheckboxItemIndicator>
-          <CheckIcon
-          />
+          <CheckIcon />
         </MenuPrimitive.CheckboxItemIndicator>
       </span>
       {children}
     </MenuPrimitive.CheckboxItem>
-  )
+  );
 }
 
 function MenubarRadioGroup({
   ...props
 }: React.ComponentProps<typeof DropdownMenuRadioGroup>) {
-  return <DropdownMenuRadioGroup data-slot="menubar-radio-group" {...props} />
+  return <DropdownMenuRadioGroup data-slot="menubar-radio-group" {...props} />;
 }
 
 function MenubarRadioItem({
@@ -147,7 +148,7 @@ function MenubarRadioItem({
   inset,
   ...props
 }: MenuPrimitive.RadioItem.Props & {
-  inset?: boolean
+  inset?: boolean;
 }) {
   return (
     <MenuPrimitive.RadioItem
@@ -161,13 +162,12 @@ function MenubarRadioItem({
     >
       <span className="pointer-events-none absolute left-1.5 flex size-4 items-center justify-center [&_svg:not([class*='size-'])]:size-4">
         <MenuPrimitive.RadioItemIndicator>
-          <CheckIcon
-          />
+          <CheckIcon />
         </MenuPrimitive.RadioItemIndicator>
       </span>
       {children}
     </MenuPrimitive.RadioItem>
-  )
+  );
 }
 
 function MenubarLabel({
@@ -175,7 +175,7 @@ function MenubarLabel({
   inset,
   ...props
 }: React.ComponentProps<typeof DropdownMenuLabel> & {
-  inset?: boolean
+  inset?: boolean;
 }) {
   return (
     <DropdownMenuLabel
@@ -184,7 +184,7 @@ function MenubarLabel({
       className={cn("px-2 py-2 text-xs data-inset:pl-8", className)}
       {...props}
     />
-  )
+  );
 }
 
 function MenubarSeparator({
@@ -197,7 +197,7 @@ function MenubarSeparator({
       className={cn("-mx-1 my-1 h-px bg-border", className)}
       {...props}
     />
-  )
+  );
 }
 
 function MenubarShortcut({
@@ -213,13 +213,13 @@ function MenubarShortcut({
       )}
       {...props}
     />
-  )
+  );
 }
 
 function MenubarSub({
   ...props
 }: React.ComponentProps<typeof DropdownMenuSub>) {
-  return <DropdownMenuSub data-slot="menubar-sub" {...props} />
+  return <DropdownMenuSub data-slot="menubar-sub" {...props} />;
 }
 
 function MenubarSubTrigger({
@@ -227,7 +227,7 @@ function MenubarSubTrigger({
   inset,
   ...props
 }: React.ComponentProps<typeof DropdownMenuSubTrigger> & {
-  inset?: boolean
+  inset?: boolean;
 }) {
   return (
     <DropdownMenuSubTrigger
@@ -239,7 +239,7 @@ function MenubarSubTrigger({
       )}
       {...props}
     />
-  )
+  );
 }
 
 function MenubarSubContent({
@@ -249,10 +249,13 @@ function MenubarSubContent({
   return (
     <DropdownMenuSubContent
       data-slot="menubar-sub-content"
-      className={cn("min-w-32 rounded-none bg-popover text-popover-foreground shadow-lg ring-1 ring-foreground/10 duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95", className )}
+      className={cn(
+        "min-w-32 rounded-none bg-popover text-popover-foreground shadow-lg ring-1 ring-foreground/10 duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+        className
+      )}
       {...props}
     />
-  )
+  );
 }
 
 export {
@@ -272,4 +275,4 @@ export {
   MenubarSub,
   MenubarSubTrigger,
   MenubarSubContent,
-}
+};

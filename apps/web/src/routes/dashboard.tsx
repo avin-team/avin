@@ -1,25 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  redirect,
+  useRouteContext,
+} from "@tanstack/react-router";
 
 import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
 
-export const Route = createFileRoute("/dashboard")({
-  component: RouteComponent,
-  beforeLoad: async () => {
-    const session = await authClient.getSession();
-    if (!session.data) {
-      redirect({
-        to: "/login",
-        throw: true,
-      });
-    }
-    return { session };
-  },
-});
-
-function RouteComponent() {
-  const { session } = Route.useRouteContext();
+const RouteComponent = () => {
+  const { session } = useRouteContext({ from: "/dashboard" });
 
   const privateData = useQuery(orpc.privateData.queryOptions());
 
@@ -30,4 +20,18 @@ function RouteComponent() {
       <p>API: {privateData.data?.message}</p>
     </div>
   );
-}
+};
+
+export const Route = createFileRoute("/dashboard")({
+  beforeLoad: async () => {
+    const session = await authClient.getSession();
+    if (!session.data) {
+      redirect({
+        throw: true,
+        to: "/login",
+      });
+    }
+    return { session };
+  },
+  component: RouteComponent,
+});

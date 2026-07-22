@@ -1,41 +1,6 @@
 {
-  "dependencies": {
-    "@workspace/env": "workspace:*",
-    "dotenv": "^17.4.2",
-    "zod": "^4.4.3"
-  },
-  "devDependencies": {
-    "@types/bun": "^1.3.14",
-    "@workspace/config": "workspace:*",
-    "eslint-plugin-github": "6.0.0",
-    "lefthook": "^2.1.10",
-    "oxfmt": "^0.60.0",
-    "oxlint": "^1.75.0",
-    "oxlint-plugin-react-doctor": "^0.7.1",
-    "turbo": "^2.10.5",
-    "typescript": "^7.0.2",
-    "ultracite": "7.9.4"
-  },
   "name": "workspace",
-  "scripts": {
-    "dev": "turbo dev",
-    "build": "turbo build",
-    "check-types": "turbo check-types",
-    "dev:web": "turbo -F web dev",
-    "dev:server": "turbo -F server dev",
-    "db:push": "turbo -F @workspace/db db:push",
-    "db:studio": "turbo -F @workspace/db db:studio",
-    "db:generate": "turbo -F @workspace/db db:generate",
-    "db:migrate": "turbo -F @workspace/db db:migrate",
-    "db:start": "turbo -F @workspace/db db:start",
-    "db:watch": "turbo -F @workspace/db db:watch",
-    "db:stop": "turbo -F @workspace/db db:stop",
-    "db:down": "turbo -F @workspace/db db:down",
-    "check": "ultracite check",
-    "fix": "ultracite fix",
-    "prepare": "lefthook install"
-  },
-  "type": "module",
+  "private": true,
   "workspaces": {
     "packages": [
       "apps/*",
@@ -60,9 +25,48 @@
       "react-dom": "^19.2.8",
       "sonner": "^2.0.7",
       "@types/react": "^19.2.17",
-      "tailwindcss": "^4.3.3"
+      "tailwindcss": "^4.3.3",
+      "playwright": "^1.61.1",
+      "vitest": "^4.1.10"
     }
   },
-  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "check-types": "turbo check-types",
+    "dev:web": "turbo -F web dev",
+    "dev:server": "turbo -F server dev",
+    "db:push": "turbo -F @workspace/db db:push",
+    "db:studio": "turbo -F @workspace/db db:studio",
+    "db:generate": "turbo -F @workspace/db db:generate",
+    "db:migrate": "turbo -F @workspace/db db:migrate",
+    "db:start": "turbo -F @workspace/db db:start",
+    "db:watch": "turbo -F @workspace/db db:watch",
+    "db:stop": "turbo -F @workspace/db db:stop",
+    "db:down": "turbo -F @workspace/db db:down",
+    "check": "ultracite check",
+    "fix": "ultracite fix",
+    "prepare": "lefthook install"
+  },
+  "dependencies": {
+    "@workspace/env": "workspace:*",
+    "dotenv": "^17.4.2",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14",
+    "@workspace/config": "workspace:*",
+    "eslint-plugin-github": "6.0.0",
+    "lefthook": "^2.1.10",
+    "oxfmt": "^0.60.0",
+    "oxlint": "^1.75.0",
+    "oxlint-plugin-react-doctor": "^0.7.1",
+    "playwright": "catalog:",
+    "turbo": "^2.10.5",
+    "typescript": "catalog:",
+    "ultracite": "7.9.4",
+    "vitest": "catalog:"
+  },
   "packageManager": "bun@1.3.13"
 }

@@ -5,14 +5,11 @@ import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { DefaultChatTransport } from "ai";
 import { Send } from "lucide-react";
-import { useRef, useEffect, useState, type FormEvent } from "react";
+import { useRef, useEffect, useState } from "react";
+import type { FormEvent } from "react";
 import { Streamdown } from "streamdown";
 
-export const Route = createFileRoute("/ai")({
-  component: RouteComponent,
-});
-
-function RouteComponent() {
+const RouteComponent = () => {
   const [input, setInput] = useState("");
   const { messages, sendMessage, status } = useChat({
     transport: new DefaultChatTransport({
@@ -29,7 +26,9 @@ function RouteComponent() {
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const text = input.trim();
-    if (!text) return;
+    if (!text) {
+      return;
+    }
     sendMessage({ text });
     setInput("");
   };
@@ -46,7 +45,9 @@ function RouteComponent() {
             <div
               key={message.id}
               className={`p-3 rounded-lg ${
-                message.role === "user" ? "bg-primary/10 ml-8" : "bg-secondary/20 mr-8"
+                message.role === "user"
+                  ? "bg-primary/10 ml-8"
+                  : "bg-secondary/20 mr-8"
               }`}
             >
               <p className="text-sm font-semibold mb-1">
@@ -56,8 +57,10 @@ function RouteComponent() {
                 if (part.type === "text") {
                   return (
                     <Streamdown
-                      key={index}
-                      isAnimating={status === "streaming" && message.role === "assistant"}
+                      key={`${message.id}-part-${index}`}
+                      isAnimating={
+                        status === "streaming" && message.role === "assistant"
+                      }
                     >
                       {part.text}
                     </Streamdown>
@@ -71,7 +74,10 @@ function RouteComponent() {
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="w-full flex items-center space-x-2 pt-2 border-t">
+      <form
+        onSubmit={handleSubmit}
+        className="w-full flex items-center space-x-2 pt-2 border-t"
+      >
         <Input
           name="prompt"
           value={input}
@@ -87,4 +93,8 @@ function RouteComponent() {
       </form>
     </div>
   );
-}
+};
+
+export const Route = createFileRoute("/ai")({
+  component: RouteComponent,
+});

@@ -20,32 +20,32 @@ app.use(logger());
 app.use(
   "/*",
   cors({
-    origin: env.CORS_ORIGIN,
-    allowMethods: ["GET", "POST", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
+    allowMethods: ["GET", "POST", "OPTIONS"],
     credentials: true,
-  }),
+    origin: env.CORS_ORIGIN,
+  })
 );
 
 app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 
 export const apiHandler = new OpenAPIHandler(appRouter, {
+  interceptors: [
+    onError((cause) => {
+      console.error(cause);
+    }),
+  ],
   plugins: [
     new OpenAPIReferencePlugin({
       schemaConverters: [new ZodToJsonSchemaConverter()],
-    }),
-  ],
-  interceptors: [
-    onError((error) => {
-      console.error(error);
     }),
   ],
 });
 
 export const rpcHandler = new RPCHandler(appRouter, {
   interceptors: [
-    onError((error) => {
-      console.error(error);
+    onError((cause) => {
+      console.error(cause);
     }),
   ],
 });
@@ -54,8 +54,8 @@ app.use("/*", async (c, next) => {
   const context = await createContext({ context: c });
 
   const rpcResult = await rpcHandler.handle(c.req.raw, {
+    context,
     prefix: "/rpc",
-    context: context,
   });
 
   if (rpcResult.matched) {
@@ -63,34 +63,32 @@ app.use("/*", async (c, next) => {
   }
 
   const apiResult = await apiHandler.handle(c.req.raw, {
+    context,
     prefix: "/api-reference",
-    context: context,
   });
 
   if (apiResult.matched) {
     return c.newResponse(apiResult.response.body, apiResult.response);
   }
 
-  await next();
+  return next();
 });
 
 app.post("/ai", async (c) => {
   const body = await c.req.json();
   const uiMessages = body.messages || [];
   const model = wrapLanguageModel({
-    model: google("gemini-2.5-flash"),
     middleware: devToolsMiddleware(),
+    model: google("gemini-2.5-flash"),
   });
   const result = streamText({
-    model,
     messages: await convertToModelMessages(uiMessages),
+    model,
   });
 
   return result.toUIMessageStreamResponse();
 });
 
-app.get("/", (c) => {
-  return c.text("OK");
-});
+app.get("/", (c) => c.text("OK"));
 
 export default app;

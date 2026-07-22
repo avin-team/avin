@@ -1,16 +1,19 @@
 import { defineConfig } from "oxlint";
 import core from "ultracite/oxlint/core";
+import jsPlugins from "ultracite/oxlint/js-plugins";
 import react from "ultracite/oxlint/react";
 import tanstack from "ultracite/oxlint/tanstack";
-import jsPlugins from "ultracite/oxlint/js-plugins";
-const selectedJsPluginNames = new Set(["react-doctor","github"]);
-const selectedJsPluginRulePrefixes = new Set(["react-doctor","github"]);
+
+const selectedJsPluginNames = new Set(["react-doctor", "github"]);
+const selectedJsPluginRulePrefixes = new Set(["react-doctor", "github"]);
 
 const selectedJsPlugins = {
   ...jsPlugins,
-  jsPlugins: jsPlugins.jsPlugins?.filter((plugin) =>
-    selectedJsPluginNames.has(plugin.name)
-  ),
+  jsPlugins: jsPlugins.jsPlugins?.filter((plugin) => {
+    const name =
+      typeof plugin === "string" ? plugin : (plugin.name ?? plugin.specifier);
+    return selectedJsPluginNames.has(name);
+  }),
   overrides: jsPlugins.overrides?.map((override) => ({
     ...override,
     rules: Object.fromEntries(
@@ -28,5 +31,9 @@ const selectedJsPlugins = {
 
 export default defineConfig({
   extends: [core, react, tanstack, selectedJsPlugins],
-  ignorePatterns: core.ignorePatterns,
+  ignorePatterns: [...(core.ignorePatterns ?? []), "packages/ui/**"],
+  rules: {
+    "github/filenames-match-regex": "off",
+    "oxc/no-barrel-file": "off",
+  },
 });

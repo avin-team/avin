@@ -1,23 +1,23 @@
-import * as React from "react"
-import { mergeProps } from "@base-ui/react/merge-props"
-import { useRender } from "@base-ui/react/use-render"
-import { cva, type VariantProps } from "class-variance-authority"
-
-import { cn } from "@workspace/ui/lib/utils"
+import { mergeProps } from "@base-ui/react/merge-props";
+import { useRender } from "@base-ui/react/use-render";
+import { cn } from "@workspace/ui/lib/utils";
+import { cva } from "class-variance-authority";
+import type { VariantProps } from "class-variance-authority";
+import * as React from "react";
 
 const markerVariants = cva(
   "group/marker relative flex min-h-4 w-full items-center gap-2 text-left text-xs text-muted-foreground [&_svg:not([class*='size-'])]:size-3.5 [a]:underline [a]:underline-offset-3 [a]:hover:text-foreground",
   {
     variants: {
       variant: {
+        border: "border-b border-border pb-2",
         default: "",
         separator:
           "before:mr-1 before:h-px before:min-w-0 before:flex-1 before:bg-border after:ml-1 after:h-px after:min-w-0 after:flex-1 after:bg-border",
-        border: "border-b border-border pb-2",
       },
     },
   }
-)
+);
 
 function Marker({
   className,
@@ -29,7 +29,7 @@ function Marker({
     defaultTagName: "div",
     props: mergeProps<"div">(
       {
-        className: cn(markerVariants({ variant, className })),
+        className: cn(markerVariants({ className, variant })),
       },
       props
     ),
@@ -38,7 +38,7 @@ function Marker({
       slot: "marker",
       variant,
     },
-  })
+  });
 }
 
 function MarkerIcon({ className, ...props }: React.ComponentProps<"span">) {
@@ -52,7 +52,7 @@ function MarkerIcon({ className, ...props }: React.ComponentProps<"span">) {
       )}
       {...props}
     />
-  )
+  );
 }
 
 function MarkerContent({ className, ...props }: React.ComponentProps<"span">) {
@@ -65,7 +65,7 @@ function MarkerContent({ className, ...props }: React.ComponentProps<"span">) {
       )}
       {...props}
     />
-  )
+  );
 }
 
-export { Marker, MarkerIcon, MarkerContent, markerVariants }
+export { Marker, MarkerIcon, MarkerContent, markerVariants };
