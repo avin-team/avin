@@ -1,5 +1,5 @@
 {
-  "name": "@workspace/ui",
+  "name": "@avin/ui",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -36,9 +36,9 @@
     "vaul": "^1.1.2"
   },
   "devDependencies": {
+    "@avin/config": "workspace:*",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "@workspace/config": "workspace:*",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2"
   }

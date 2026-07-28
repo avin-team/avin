@@ -1,6 +1,6 @@
-import { createDb } from "@workspace/db";
-import * as schema from "@workspace/db/schema/auth";
-import { env } from "@workspace/env/server";
+import { createDb } from "@avin/db";
+import * as schema from "@avin/db/schema/auth";
+import { env } from "@avin/env/server";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 

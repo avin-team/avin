@@ -1,17 +1,17 @@
-name: workspace
+name: avin
 
 services:
   postgres:
     image: postgres
-    container_name: workspace-postgres
+    container_name: avin-postgres
     environment:
-      POSTGRES_DB: workspace
+      POSTGRES_DB: avin
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
     ports:
       - "5432:5432"
     volumes:
-      - workspace_postgres_data:/var/lib/postgresql
+      - avin_postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -20,4 +20,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  workspace_postgres_data:
+  avin_postgres_data:

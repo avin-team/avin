@@ -1,5 +1,5 @@
 {
-  "name": "@workspace/env",
+  "name": "@avin/env",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -13,8 +13,8 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@avin/config": "workspace:*",
     "@types/bun": "catalog:",
-    "@workspace/config": "workspace:*",
     "typescript": "catalog:"
   }
 }

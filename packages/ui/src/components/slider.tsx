@@ -1,5 +1,5 @@
+import { cn } from "@avin/ui/lib/utils";
 import { Slider as SliderPrimitive } from "@base-ui/react/slider";
-import { cn } from "@workspace/ui/lib/utils";
 
 function Slider({
   className,

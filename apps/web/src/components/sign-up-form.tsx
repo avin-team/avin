@@ -1,8 +1,8 @@
+import { Button } from "@avin/ui/components/button";
+import { Input } from "@avin/ui/components/input";
+import { Label } from "@avin/ui/components/label";
 import { useForm } from "@tanstack/react-form";
 import { useNavigate } from "@tanstack/react-router";
-import { Button } from "@workspace/ui/components/button";
-import { Input } from "@workspace/ui/components/input";
-import { Label } from "@workspace/ui/components/label";
 import { toast } from "sonner";
 import z from "zod";
 

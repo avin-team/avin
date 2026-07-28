@@ -1,5 +1,5 @@
 {
-  "name": "@workspace/db",
+  "name": "@avin/db",
   "type": "module",
   "exports": {
     ".": {
@@ -20,15 +20,15 @@
     "db:down": "docker compose down"
   },
   "dependencies": {
-    "@workspace/env": "workspace:*",
+    "@avin/env": "workspace:*",
     "dotenv": "catalog:",
     "drizzle-orm": "^0.45.2",
     "pg": "^8.22.0",
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@avin/config": "workspace:*",
     "@types/pg": "^8.20.0",
-    "@workspace/config": "workspace:*",
     "drizzle-kit": "^0.31.10",
     "typescript": "catalog:"
   }

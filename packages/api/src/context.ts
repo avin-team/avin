@@ -1,4 +1,4 @@
-import { auth } from "@workspace/auth";
+import { auth } from "@avin/auth";
 import type { Context as HonoContext } from "hono";
 
 export interface CreateContextOptions {

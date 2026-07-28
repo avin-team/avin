@@ -1,9 +1,9 @@
 "use client";
 
+import { toggleVariants } from "@avin/ui/components/toggle";
+import { cn } from "@avin/ui/lib/utils";
 import { Toggle as TogglePrimitive } from "@base-ui/react/toggle";
 import { ToggleGroup as ToggleGroupPrimitive } from "@base-ui/react/toggle-group";
-import { toggleVariants } from "@workspace/ui/components/toggle";
-import { cn } from "@workspace/ui/lib/utils";
 import type { VariantProps } from "class-variance-authority";
 import * as React from "react";
 

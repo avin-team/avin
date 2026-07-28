@@ -1,5 +1,5 @@
+import { cn } from "@avin/ui/lib/utils";
 import { Avatar as AvatarPrimitive } from "@base-ui/react/avatar";
-import { cn } from "@workspace/ui/lib/utils";
 import * as React from "react";
 
 function Avatar({

@@ -1,3 +1,5 @@
+import { Toaster } from "@avin/ui/components/sonner";
+import { TooltipProvider } from "@avin/ui/components/tooltip";
 import type { QueryClient } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import {
@@ -6,8 +8,6 @@ import {
   createRootRouteWithContext,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
-import { Toaster } from "@workspace/ui/components/sonner";
-import { TooltipProvider } from "@workspace/ui/components/tooltip";
 
 import Header from "@/components/header";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -53,10 +53,10 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
     ],
     meta: [
       {
-        title: "workspace",
+        title: "avin",
       },
       {
-        content: "workspace is a web application",
+        content: "avin is a web application",
         name: "description",
       },
     ],

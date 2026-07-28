@@ -1,8 +1,8 @@
 import { useChat } from "@ai-sdk/react";
+import { env } from "@avin/env/web";
+import { Button } from "@avin/ui/components/button";
+import { Input } from "@avin/ui/components/input";
 import { createFileRoute } from "@tanstack/react-router";
-import { env } from "@workspace/env/web";
-import { Button } from "@workspace/ui/components/button";
-import { Input } from "@workspace/ui/components/input";
 import { DefaultChatTransport } from "ai";
 import { Send } from "lucide-react";
 import { useRef, useEffect, useState } from "react";

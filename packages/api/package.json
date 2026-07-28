@@ -1,5 +1,5 @@
 {
-  "name": "@workspace/api",
+  "name": "@avin/api",
   "type": "module",
   "exports": {
     ".": {
@@ -11,18 +11,18 @@
   },
   "scripts": {},
   "dependencies": {
+    "@avin/auth": "workspace:*",
+    "@avin/db": "workspace:*",
+    "@avin/env": "workspace:*",
     "@orpc/client": "catalog:",
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
     "@orpc/zod": "catalog:",
-    "@workspace/auth": "workspace:*",
-    "@workspace/db": "workspace:*",
-    "@workspace/env": "workspace:*",
     "dotenv": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@workspace/config": "workspace:*",
+    "@avin/config": "workspace:*",
     "hono": "catalog:",
     "typescript": "catalog:"
   }

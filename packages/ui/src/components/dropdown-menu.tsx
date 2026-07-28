@@ -1,5 +1,5 @@
+import { cn } from "@avin/ui/lib/utils";
 import { Menu as MenuPrimitive } from "@base-ui/react/menu";
-import { cn } from "@workspace/ui/lib/utils";
 import { ChevronRightIcon, CheckIcon } from "lucide-react";
 import * as React from "react";
 

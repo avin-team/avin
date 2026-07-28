@@ -12,13 +12,13 @@
   "dependencies": {
     "@ai-sdk/devtools": "^1.0.6",
     "@ai-sdk/google": "^4.0.21",
+    "@avin/api": "workspace:*",
+    "@avin/auth": "workspace:*",
+    "@avin/db": "workspace:*",
+    "@avin/env": "workspace:*",
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
     "@orpc/zod": "catalog:",
-    "@workspace/api": "workspace:*",
-    "@workspace/auth": "workspace:*",
-    "@workspace/db": "workspace:*",
-    "@workspace/env": "workspace:*",
     "ai": "catalog:",
     "better-auth": "catalog:",
     "dotenv": "catalog:",
@@ -26,8 +26,8 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@avin/config": "workspace:*",
     "@types/bun": "catalog:",
-    "@workspace/config": "workspace:*",
     "tsdown": "^0.22.13",
     "typescript": "catalog:"
   }

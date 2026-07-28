@@ -1,7 +1,7 @@
 "use client";
 
+import { cn } from "@avin/ui/lib/utils";
 import { Select as SelectPrimitive } from "@base-ui/react/select";
-import { cn } from "@workspace/ui/lib/utils";
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react";
 import * as React from "react";
 

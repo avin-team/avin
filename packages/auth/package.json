@@ -1,5 +1,5 @@
 {
-  "name": "@workspace/auth",
+  "name": "@avin/auth",
   "type": "module",
   "exports": {
     ".": {
@@ -11,14 +11,14 @@
   },
   "scripts": {},
   "dependencies": {
-    "@workspace/db": "workspace:*",
-    "@workspace/env": "workspace:*",
+    "@avin/db": "workspace:*",
+    "@avin/env": "workspace:*",
     "better-auth": "catalog:",
     "dotenv": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@workspace/config": "workspace:*",
+    "@avin/config": "workspace:*",
     "typescript": "catalog:"
   }
 }

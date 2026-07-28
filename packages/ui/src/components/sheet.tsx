@@ -1,6 +1,6 @@
+import { Button } from "@avin/ui/components/button";
+import { cn } from "@avin/ui/lib/utils";
 import { Dialog as SheetPrimitive } from "@base-ui/react/dialog";
-import { Button } from "@workspace/ui/components/button";
-import { cn } from "@workspace/ui/lib/utils";
 import { XIcon } from "lucide-react";
 import * as React from "react";
 

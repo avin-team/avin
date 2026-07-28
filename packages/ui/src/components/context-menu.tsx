@@ -1,7 +1,7 @@
 "use client";
 
+import { cn } from "@avin/ui/lib/utils";
 import { ContextMenu as ContextMenuPrimitive } from "@base-ui/react/context-menu";
-import { cn } from "@workspace/ui/lib/utils";
 import { ChevronRightIcon, CheckIcon } from "lucide-react";
 import * as React from "react";
 

@@ -1,10 +1,10 @@
 {
-  "extends": "@workspace/config/tsconfig.base.json",
+  "extends": "@avin/config/tsconfig.base.json",
   "compilerOptions": {
     "jsx": "react-jsx",
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "paths": {
-      "@workspace/ui/*": ["./src/*"]
+      "@avin/ui/*": ["./src/*"]
     },
     "strictNullChecks": true
   },

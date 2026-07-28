@@ -1,5 +1,5 @@
+import { cn } from "@avin/ui/lib/utils";
 import { Tabs as TabsPrimitive } from "@base-ui/react/tabs";
-import { cn } from "@workspace/ui/lib/utils";
 import { cva } from "class-variance-authority";
 import type { VariantProps } from "class-variance-authority";
 

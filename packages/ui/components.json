@@ -12,11 +12,11 @@
   },
   "iconLibrary": "lucide",
   "aliases": {
-    "components": "@workspace/ui/components",
-    "utils": "@workspace/ui/lib/utils",
-    "hooks": "@workspace/ui/hooks",
-    "lib": "@workspace/ui/lib",
-    "ui": "@workspace/ui/components"
+    "components": "@avin/ui/components",
+    "utils": "@avin/ui/lib/utils",
+    "hooks": "@avin/ui/hooks",
+    "lib": "@avin/ui/lib",
+    "ui": "@avin/ui/components"
   },
   "rtl": false,
   "menuColor": "default",

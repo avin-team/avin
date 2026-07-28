@@ -4,12 +4,9 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@workspace/ui/components/dialog";
-import {
-  InputGroup,
-  InputGroupAddon,
-} from "@workspace/ui/components/input-group";
-import { cn } from "@workspace/ui/lib/utils";
+} from "@avin/ui/components/dialog";
+import { InputGroup, InputGroupAddon } from "@avin/ui/components/input-group";
+import { cn } from "@avin/ui/lib/utils";
 import { Command as CommandPrimitive } from "cmdk";
 import { SearchIcon, CheckIcon } from "lucide-react";
 import * as React from "react";
