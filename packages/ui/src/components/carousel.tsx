@@ -1,10 +1,9 @@
-"use client";
-
 import { Button } from "@avin/ui/components/button";
 import { cn } from "@avin/ui/lib/utils";
-import useEmblaCarousel from "embla-carousel-react";
-import type { UseEmblaCarouselType } from "embla-carousel-react";
-import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
+import useEmblaCarousel, {
+  type UseEmblaCarouselType,
+} from "embla-carousel-react";
 import * as React from "react";
 
 type CarouselApi = UseEmblaCarouselType[1];
@@ -12,12 +11,12 @@ type UseCarouselParameters = Parameters<typeof useEmblaCarousel>;
 type CarouselOptions = UseCarouselParameters[0];
 type CarouselPlugin = UseCarouselParameters[1];
 
-interface CarouselProps {
+type CarouselProps = {
   opts?: CarouselOptions;
   plugins?: CarouselPlugin;
   orientation?: "horizontal" | "vertical";
   setApi?: (api: CarouselApi) => void;
-}
+};
 
 type CarouselContextProps = {
   carouselRef: ReturnType<typeof useEmblaCarousel>[0];
@@ -60,9 +59,7 @@ function Carousel({
   const [canScrollNext, setCanScrollNext] = React.useState(false);
 
   const onSelect = React.useCallback((api: CarouselApi) => {
-    if (!api) {
-      return;
-    }
+    if (!api) return;
     setCanScrollPrev(api.canScrollPrev());
     setCanScrollNext(api.canScrollNext());
   }, []);
@@ -89,16 +86,12 @@ function Carousel({
   );
 
   React.useEffect(() => {
-    if (!api || !setApi) {
-      return;
-    }
+    if (!api || !setApi) return;
     setApi(api);
   }, [api, setApi]);
 
   React.useEffect(() => {
-    if (!api) {
-      return;
-    }
+    if (!api) return;
     onSelect(api);
     api.on("reInit", onSelect);
     api.on("select", onSelect);
@@ -111,15 +104,15 @@ function Carousel({
   return (
     <CarouselContext.Provider
       value={{
-        api: api,
-        canScrollNext,
-        canScrollPrev,
         carouselRef,
+        api: api,
         opts,
         orientation:
           orientation || (opts?.axis === "y" ? "vertical" : "horizontal"),
-        scrollNext,
         scrollPrev,
+        scrollNext,
+        canScrollPrev,
+        canScrollNext,
       }}
     >
       <div
@@ -189,7 +182,7 @@ function CarouselPrevious({
       variant={variant}
       size={size}
       className={cn(
-        "absolute touch-manipulation",
+        "absolute touch-manipulation rounded-full",
         orientation === "horizontal"
           ? "inset-y-0 -left-12 my-auto"
           : "-top-12 left-1/2 -translate-x-1/2 rotate-90",
@@ -199,7 +192,7 @@ function CarouselPrevious({
       onClick={scrollPrev}
       {...props}
     >
-      <ChevronLeftIcon />
+      <CaretLeftIcon />
       <span className="sr-only">Previous slide</span>
     </Button>
   );
@@ -219,7 +212,7 @@ function CarouselNext({
       variant={variant}
       size={size}
       className={cn(
-        "absolute touch-manipulation",
+        "absolute touch-manipulation rounded-full",
         orientation === "horizontal"
           ? "inset-y-0 -right-12 my-auto"
           : "-bottom-12 left-1/2 -translate-x-1/2 rotate-90",
@@ -229,7 +222,7 @@ function CarouselNext({
       onClick={scrollNext}
       {...props}
     >
-      <ChevronRightIcon />
+      <CaretRightIcon />
       <span className="sr-only">Next slide</span>
     </Button>
   );

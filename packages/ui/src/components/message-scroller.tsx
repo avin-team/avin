@@ -2,13 +2,13 @@
 
 import { Button } from "@avin/ui/components/button";
 import { cn } from "@avin/ui/lib/utils";
+import { ArrowDownIcon } from "@phosphor-icons/react";
 import {
   MessageScroller as MessageScrollerPrimitive,
   useMessageScroller,
   useMessageScrollerScrollable,
   useMessageScrollerVisibility,
 } from "@shadcn/react/message-scroller";
-import { ArrowDownIcon } from "lucide-react";
 import * as React from "react";
 
 function MessageScrollerProvider(
@@ -56,7 +56,7 @@ function MessageScrollerContent({
   return (
     <MessageScrollerPrimitive.Content
       data-slot="message-scroller-content"
-      className={cn("flex h-max min-h-full flex-col gap-6", className)}
+      className={cn("flex h-max min-h-full flex-col gap-8", className)}
       {...props}
     />
   );

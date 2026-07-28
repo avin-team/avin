@@ -6,9 +6,9 @@ import * as RechartsPrimitive from "recharts";
 import type { TooltipValueType } from "recharts";
 
 // Format: { THEME_NAME: CSS_SELECTOR }
-const THEMES = { dark: ".dark", light: "" } as const;
+const THEMES = { light: "", dark: ".dark" } as const;
 
-const INITIAL_DIMENSION = { height: 200, width: 320 } as const;
+const INITIAL_DIMENSION = { width: 320, height: 200 } as const;
 type TooltipNameType = number | string;
 
 export type ChartConfig = Record<
@@ -22,9 +22,9 @@ export type ChartConfig = Record<
   )
 >;
 
-interface ChartContextProps {
+type ChartContextProps = {
   config: ChartConfig;
-}
+};
 
 const ChartContext = React.createContext<ChartContextProps | null>(null);
 
@@ -56,7 +56,7 @@ function ChartContainer({
   };
 }) {
   const uniqueId = React.useId();
-  const chartId = `chart-${id ?? uniqueId.replaceAll(/:/g, "")}`;
+  const chartId = `chart-${id ?? uniqueId.replace(/:/g, "")}`;
 
   return (
     <ChartContext.Provider value={{ config }}>
@@ -190,11 +190,11 @@ function ChartTooltipContent({
   return (
     <div
       className={cn(
-        "grid min-w-32 items-start gap-1.5 rounded-none border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl",
+        "grid min-w-32 items-start gap-1.5 rounded-xl bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-lg ring-1 ring-foreground/5 dark:ring-foreground/10",
         className
       )}
     >
-      {nestLabel ? null : tooltipLabel}
+      {!nestLabel ? tooltipLabel : null}
       <div className="grid gap-1.5">
         {payload
           .filter((item) => item.type !== "none")
@@ -224,10 +224,10 @@ function ChartTooltipContent({
                             "shrink-0 rounded-[2px] border-(--color-border) bg-(--color-bg)",
                             {
                               "h-2.5 w-2.5": indicator === "dot",
-                              "my-0.5": nestLabel && indicator === "dashed",
+                              "w-1": indicator === "line",
                               "w-0 border-[1.5px] border-dashed bg-transparent":
                                 indicator === "dashed",
-                              "w-1": indicator === "line",
+                              "my-0.5": nestLabel && indicator === "dashed",
                             }
                           )}
                           style={
@@ -332,7 +332,7 @@ function getPayloadConfigFromPayload(
   key: string
 ) {
   if (typeof payload !== "object" || payload === null) {
-    return;
+    return undefined;
   }
 
   const payloadPayload =
