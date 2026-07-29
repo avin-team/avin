@@ -24,7 +24,8 @@ const DECISION_COPY: Record<
   { description: string; title: string }
 > = {
   APPROVED: {
-    description: "Seller có thể mở gian hàng và đăng bán sản phẩm sau khi phê duyệt.",
+    description:
+      "Seller có thể mở gian hàng và đăng bán sản phẩm sau khi phê duyệt.",
     title: "Phê duyệt hồ sơ đăng ký?",
   },
   CHANGES_REQUESTED: {

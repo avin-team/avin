@@ -12,7 +12,6 @@ import type { SidebarData } from "../types";
 export const sidebarData: SidebarData = {
   navGroups: [
     {
-      title: "Tổng quan & Onboarding",
       items: [
         { title: "Tổng quan", url: "/", icon: LayoutDashboard },
         {
@@ -21,9 +20,9 @@ export const sidebarData: SidebarData = {
           icon: ClipboardCheck,
         },
       ],
+      title: "Tổng quan & Onboarding",
     },
     {
-      title: "Quản trị & Rủi ro",
       items: [
         {
           title: "Danh mục & Chính sách",
@@ -41,9 +40,9 @@ export const sidebarData: SidebarData = {
           icon: AlertCircle,
         },
       ],
+      title: "Quản trị & Rủi ro",
     },
     {
-      title: "Tài chính & Payout",
       items: [
         {
           title: "Yêu cầu Rút tiền",
@@ -51,6 +50,7 @@ export const sidebarData: SidebarData = {
           icon: Landmark,
         },
       ],
+      title: "Tài chính & Payout",
     },
   ],
   teams: [],

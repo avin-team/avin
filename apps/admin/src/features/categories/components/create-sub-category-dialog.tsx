@@ -54,7 +54,7 @@ export function CreateSubCategoryDialog({
         minWarrantyHours: Number.parseInt(minWarranty, 10),
         name,
         parentId: parentCategory.id,
-        slug: slug || name.toLowerCase().replace(/\s+/g, "-"),
+        slug: slug || name.toLowerCase().replaceAll(/\s+/g, "-"),
       });
 
       toast.success("Tạo Sub-Category thành công", {
@@ -88,7 +88,9 @@ export function CreateSubCategoryDialog({
                   setName(e.target.value);
                   if (!slug) {
                     setSlug(
-                      e.target.value.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")
+                      e.target.value
+                        .toLowerCase()
+                        .replaceAll(/[^a-z0-9]+/g, "-")
                     );
                   }
                 }}

@@ -13,20 +13,7 @@ const INITIAL_CATEGORIES: readonly ParentCategory[] = [
     slug: "digital-services",
     subCategories: [
       {
-        id: "sub_unlock_tool",
-        parentId: "cat_digital_services",
-        name: "Mở Khóa & Activation Tool",
-        slug: "unlock-activation-tool",
         commissionRatePercent: 8,
-        defaultWarrantyPolicy: {
-          durationHours: 72,
-          terms:
-            "Hỗ trợ kích hoạt lại hoặc hoàn tiền escrow nếu mã không hoạt động trong 72 giờ.",
-        },
-        warrantyBounds: {
-          minHours: 24,
-          maxHours: 720,
-        },
         defaultServiceInputs: [
           {
             id: "input_1",
@@ -43,21 +30,22 @@ const INITIAL_CATEGORIES: readonly ParentCategory[] = [
             required: false,
           },
         ],
+        defaultWarrantyPolicy: {
+          durationHours: 72,
+          terms:
+            "Hỗ trợ kích hoạt lại hoặc hoàn tiền escrow nếu mã không hoạt động trong 72 giờ.",
+        },
+        id: "sub_unlock_tool",
+        name: "Mở Khóa & Activation Tool",
+        parentId: "cat_digital_services",
+        slug: "unlock-activation-tool",
+        warrantyBounds: {
+          maxHours: 720,
+          minHours: 24,
+        },
       },
       {
-        id: "sub_design_custom",
-        parentId: "cat_digital_services",
-        name: "Thiết Kế Đồ Họa Theo Yêu Cầu",
-        slug: "design-custom",
         commissionRatePercent: 10,
-        defaultWarrantyPolicy: {
-          durationHours: 168,
-          terms: "Sửa đổi tối đa 3 lần trong vòng 7 ngày bảo hành.",
-        },
-        warrantyBounds: {
-          minHours: 48,
-          maxHours: 720,
-        },
         defaultServiceInputs: [
           {
             id: "input_3",
@@ -67,6 +55,18 @@ const INITIAL_CATEGORIES: readonly ParentCategory[] = [
             required: true,
           },
         ],
+        defaultWarrantyPolicy: {
+          durationHours: 168,
+          terms: "Sửa đổi tối đa 3 lần trong vòng 7 ngày bảo hành.",
+        },
+        id: "sub_design_custom",
+        name: "Thiết Kế Đồ Họa Theo Yêu Cầu",
+        parentId: "cat_digital_services",
+        slug: "design-custom",
+        warrantyBounds: {
+          maxHours: 720,
+          minHours: 48,
+        },
       },
     ],
   },
@@ -78,20 +78,7 @@ const INITIAL_CATEGORIES: readonly ParentCategory[] = [
     slug: "courses-digital-assets",
     subCategories: [
       {
-        id: "sub_dev_courses",
-        parentId: "cat_courses",
-        name: "Lập Trình & Công Nghệ",
-        slug: "programming-tech-courses",
         commissionRatePercent: 5,
-        defaultWarrantyPolicy: {
-          durationHours: 72,
-          terms:
-            "Đảm bảo truy cập được nội dung khóa học theo đúng cam kết trong 72 giờ.",
-        },
-        warrantyBounds: {
-          minHours: 24,
-          maxHours: 360,
-        },
         defaultServiceInputs: [
           {
             id: "input_4",
@@ -101,6 +88,19 @@ const INITIAL_CATEGORIES: readonly ParentCategory[] = [
             required: true,
           },
         ],
+        defaultWarrantyPolicy: {
+          durationHours: 72,
+          terms:
+            "Đảm bảo truy cập được nội dung khóa học theo đúng cam kết trong 72 giờ.",
+        },
+        id: "sub_dev_courses",
+        name: "Lập Trình & Công Nghệ",
+        parentId: "cat_courses",
+        slug: "programming-tech-courses",
+        warrantyBounds: {
+          maxHours: 360,
+          minHours: 24,
+        },
       },
     ],
   },

@@ -15,9 +15,7 @@ import { toast } from "sonner";
 import { Header } from "@/components/layout/header";
 import { Main } from "@/components/layout/main";
 import { ThemeSwitch } from "@/components/theme-switch";
-import type {
-  getSellerApplication,
-} from "@/features/seller-applications/api/mock-seller-applications";
+import type { getSellerApplication } from "@/features/seller-applications/api/mock-seller-applications";
 import {
   decideSellerApplication,
   resubmitSellerApplicationForReview,
@@ -90,9 +88,7 @@ export function SellerApplicationDetailPage() {
       });
     } catch (error) {
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Không thể trả lại hồ sơ"
+        error instanceof Error ? error.message : "Không thể trả lại hồ sơ"
       );
     }
   };
@@ -165,7 +161,8 @@ export function SellerApplicationDetailPage() {
               <CardHeader>
                 <CardTitle>Tài khoản ngân hàng</CardTitle>
                 <CardDescription>
-                  Thông tin tài khoản nhận thanh toán payout (mặc định che số tài khoản).
+                  Thông tin tài khoản nhận thanh toán payout (mặc định che số
+                  tài khoản).
                 </CardDescription>
               </CardHeader>
               <CardContent className="grid gap-5 sm:grid-cols-2">
@@ -258,7 +255,8 @@ export function SellerApplicationDetailPage() {
               ))}
               <Separator />
               <p className="text-xs leading-5 text-muted-foreground">
-                Bản prototype này sử dụng dữ liệu mẫu cục bộ. Xác thực Admin và Nhật ký audit được tạm thời hoãn theo ADR 0003.
+                Bản prototype này sử dụng dữ liệu mẫu cục bộ. Xác thực Admin và
+                Nhật ký audit được tạm thời hoãn theo ADR 0003.
               </p>
             </CardContent>
           </Card>

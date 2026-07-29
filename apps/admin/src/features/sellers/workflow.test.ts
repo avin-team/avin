@@ -22,8 +22,8 @@ describe("Seller enforcement workflow", () => {
     ratingCount: 120,
     storefrontName: "Avin Store",
     wallet: {
-      availableBalanceVnd: 12000000,
-      pendingEscrowBalanceVnd: 5000000,
+      availableBalanceVnd: 12_000_000,
+      pendingEscrowBalanceVnd: 5_000_000,
     },
   };
 

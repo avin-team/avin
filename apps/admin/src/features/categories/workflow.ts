@@ -46,8 +46,8 @@ export function buildSubCategory(input: CreateSubCategoryInput): SubCategory {
         id: "field_1",
         key: "requirements",
         label: "Chi tiết yêu cầu",
-        type: "text",
         required: true,
+        type: "text",
       },
     ],
     defaultWarrantyPolicy: {

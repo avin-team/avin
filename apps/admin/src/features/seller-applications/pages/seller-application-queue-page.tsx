@@ -72,7 +72,8 @@ export function SellerApplicationQueuePage() {
             Hồ sơ đăng ký Seller
           </h1>
           <p className="text-muted-foreground">
-            Duyệt hồ sơ gian hàng mới, kiểm tra thông tin KYC và tài khoản ngân hàng.
+            Duyệt hồ sơ gian hàng mới, kiểm tra thông tin KYC và tài khoản ngân
+            hàng.
           </p>
         </div>
 

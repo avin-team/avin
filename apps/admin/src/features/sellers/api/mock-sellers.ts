@@ -18,8 +18,8 @@ const INITIAL_SELLERS: readonly Seller[] = [
     ratingCount: 312,
     storefrontName: "DevTools Vietnam Store",
     wallet: {
-      availableBalanceVnd: 42000000,
-      pendingEscrowBalanceVnd: 15400000,
+      availableBalanceVnd: 42_000_000,
+      pendingEscrowBalanceVnd: 15_400_000,
     },
   },
   {
@@ -30,13 +30,13 @@ const INITIAL_SELLERS: readonly Seller[] = [
     email: "hung.le@gamekey.vn",
     enforcementHistory: [
       {
+        adminName: "Avin Admin",
+        createdAt: "2026-07-28T10:00:00Z",
         id: "enf_101",
-        previousStatus: "ACTIVE",
         newStatus: "SUSPENDED",
+        previousStatus: "ACTIVE",
         reason:
           "Phát hiện dấu hiệu bàn giao chậm trễ nhiều đơn hàng và không xử lý hỗ trợ bảo hành cho buyer trong 48 giờ.",
-        createdAt: "2026-07-28T10:00:00Z",
-        adminName: "Avin Admin",
       },
     ],
     enforcementStatus: "SUSPENDED",
@@ -46,8 +46,8 @@ const INITIAL_SELLERS: readonly Seller[] = [
     ratingCount: 88,
     storefrontName: "GameKey Studio",
     wallet: {
-      availableBalanceVnd: 8500000,
-      pendingEscrowBalanceVnd: 3200000,
+      availableBalanceVnd: 8_500_000,
+      pendingEscrowBalanceVnd: 3_200_000,
     },
   },
   {
@@ -58,13 +58,13 @@ const INITIAL_SELLERS: readonly Seller[] = [
     email: "bao.pham@temp-mail.org",
     enforcementHistory: [
       {
+        adminName: "Avin Admin",
+        createdAt: "2026-07-20T16:45:00Z",
         id: "enf_102",
-        previousStatus: "ACTIVE",
         newStatus: "BANNED",
+        previousStatus: "ACTIVE",
         reason:
           "Xác minh gian lận: Cung cấp thông tin bank giả mạo và khóa học sao chép bản quyền trái phép.",
-        createdAt: "2026-07-20T16:45:00Z",
-        adminName: "Avin Admin",
       },
     ],
     enforcementStatus: "BANNED",

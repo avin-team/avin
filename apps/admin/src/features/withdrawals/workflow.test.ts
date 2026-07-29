@@ -9,7 +9,7 @@ import {
 
 describe("Withdrawal workflow", () => {
   const mockRequest: WithdrawalRequest = {
-    amountVnd: 5000000,
+    amountVnd: 5_000_000,
     applicantName: "Trần Minh Quang",
     bankAccount: {
       accountName: "TRAN MINH QUANG",

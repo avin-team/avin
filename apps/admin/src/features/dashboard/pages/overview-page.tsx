@@ -161,7 +161,9 @@ export function OverviewPage() {
 
           <Card size="sm">
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm">Seller bị Tạm dừng / Cấm</CardTitle>
+              <CardTitle className="text-sm">
+                Seller bị Tạm dừng / Cấm
+              </CardTitle>
               <ShieldAlert className="size-4 text-destructive" />
             </CardHeader>
             <CardContent>

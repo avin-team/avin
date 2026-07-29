@@ -5,7 +5,7 @@ import { updateWithdrawalStatus } from "../workflow";
 
 const INITIAL_WITHDRAWALS: readonly WithdrawalRequest[] = [
   {
-    amountVnd: 15000000,
+    amountVnd: 15_000_000,
     applicantName: "Trần Minh Quang",
     bankAccount: {
       accountName: "TRAN MINH QUANG",
@@ -19,7 +19,7 @@ const INITIAL_WITHDRAWALS: readonly WithdrawalRequest[] = [
     storefrontName: "DevTools Vietnam Store",
   },
   {
-    amountVnd: 3500000,
+    amountVnd: 3_500_000,
     applicantName: "Lê Văn Hùng",
     bankAccount: {
       accountName: "LE VAN HUNG",
@@ -34,7 +34,7 @@ const INITIAL_WITHDRAWALS: readonly WithdrawalRequest[] = [
     storefrontName: "GameKey Studio",
   },
   {
-    amountVnd: 20000000,
+    amountVnd: 20_000_000,
     applicantName: "Trần Minh Quang",
     bankAccount: {
       accountName: "TRAN MINH QUANG",
