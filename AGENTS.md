@@ -124,3 +124,17 @@ Oxlint + Oxfmt's linter will catch most issues automatically. Focus your attenti
 ---
 
 Most formatting and common issues are automatically fixed by Oxlint + Oxfmt. Run `bun x ultracite fix` before committing to ensure compliance.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in Jira at `nemole.atlassian.net` (project: `AVIN`), accessed via the Jira MCP server. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Uses the default five canonical triage labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Multi-context monorepo — root `CONTEXT-MAP.md` pointing to per-package `CONTEXT.md` files, with `docs/adr/` at root and per-package levels. See `docs/agents/domain.md`.

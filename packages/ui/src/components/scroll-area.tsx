@@ -1,6 +1,5 @@
 import { cn } from "@avin/ui/lib/utils";
 import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area";
-import * as React from "react";
 
 function ScrollArea({
   className,
