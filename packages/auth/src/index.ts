@@ -10,6 +10,7 @@ import {
   getAuthoritativeSessionFromCtx,
 } from "better-auth/api";
 import { admin, twoFactor } from "better-auth/plugins";
+import { Resend } from "resend";
 
 import {
   ACCOUNT_ROLE,
@@ -21,6 +22,7 @@ import {
 export const createAuth = () => {
   const db = createDb();
   const isProduction = env.NODE_ENV === "production";
+  const resend = new Resend(env.RESEND_API_KEY);
 
   return betterAuth({
     advanced: {
@@ -38,6 +40,26 @@ export const createAuth = () => {
     }),
     emailAndPassword: {
       enabled: true,
+      requireEmailVerification: true,
+    },
+    emailVerification: {
+      autoSignInAfterVerification: true,
+      expiresIn: 60 * 60 * 24,
+      sendOnSignIn: true,
+      sendOnSignUp: true,
+      sendVerificationEmail: async ({ user, url }) => {
+        const { error } = await resend.emails.send({
+          from: env.RESEND_FROM_EMAIL,
+          html: `<p>Xin chào ${user.name},</p><p>Vui lòng xác minh email để hoàn tất đăng ký tài khoản Avin.</p><p><a href="${url}">Xác minh email</a></p><p>Liên kết có hiệu lực trong 24 giờ.</p>`,
+          subject: "Xác minh email Avin",
+          to: user.email,
+        });
+        if (error) {
+          throw new Error(
+            `Unable to send verification email: ${error.message}`
+          );
+        }
+      },
     },
     hooks: {
       after: createAuthMiddleware(async (context) => {

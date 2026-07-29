@@ -15,6 +15,8 @@ export const env = createEnv({
     NODE_ENV: z
       .enum(["development", "production", "test"])
       .default("development"),
+    RESEND_API_KEY: z.string().min(1),
+    RESEND_FROM_EMAIL: z.email(),
     SUPABASE_JWT_PRIVATE_JWK: z.string().min(1),
     SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
     SUPABASE_SECRET_KEY: z.string().min(1),

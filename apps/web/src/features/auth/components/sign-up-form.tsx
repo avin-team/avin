@@ -8,14 +8,14 @@ import {
 import { Input } from "@avin/ui/components/input";
 import { Spinner } from "@avin/ui/components/spinner";
 import { useForm } from "@tanstack/react-form";
-import { useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { authClient } from "@/features/auth/api/auth-client";
 import { signUpSchema } from "@/features/auth/schemas/auth-schemas";
 
 export const SignUpForm = () => {
-  const navigate = useNavigate();
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
   const form = useForm({
     defaultValues: {
       email: "",
@@ -35,8 +35,8 @@ export const SignUpForm = () => {
           return;
         }
 
-        toast.success("Tạo tài khoản Buyer thành công.");
-        await navigate({ to: "/dashboard" });
+        setRegisteredEmail(value.email);
+        toast.success("Vui lòng kiểm tra email để xác minh tài khoản.");
       } catch {
         toast.error("Không thể kết nối đến máy chủ. Vui lòng thử lại.");
       }
@@ -45,6 +45,27 @@ export const SignUpForm = () => {
       onSubmit: signUpSchema,
     },
   });
+
+  if (registeredEmail) {
+    return (
+      <div className="flex flex-col gap-4 text-sm text-muted-foreground">
+        <p>
+          Email xác minh đã được gửi đến <strong>{registeredEmail}</strong>.
+        </p>
+        <p>
+          Liên kết có hiệu lực trong 24 giờ. Sau khi xác minh, bạn sẽ được đăng
+          nhập tự động.
+        </p>
+        <Button
+          onClick={() => setRegisteredEmail(null)}
+          type="button"
+          variant="outline"
+        >
+          Đăng ký email khác
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <form

@@ -20,6 +20,7 @@
     "better-auth": "catalog:",
     "dotenv": "catalog:",
     "jose": "^6.2.4",
+    "resend": "^6.18.1",
     "zod": "catalog:"
   },
   "devDependencies": {
