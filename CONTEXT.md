@@ -6,6 +6,10 @@ This document serves as the canonical glossary and domain model for the **Avin**
 
 ## 1. Core Entities
 
+### Admin
+
+An authorized Avin platform operator responsible for marketplace governance, including reviewing `SellerApplication`s, mediating `Dispute`s, enforcing Seller policy, and approving SellerWallet withdrawals. An `Admin` is distinct from both a `User` (buyer) and a `Seller` (merchant).
+
 ### User (Buyer)
 
 An authenticated account representing a buyer on the marketplace. Every `User` is implicitly a buyer and possesses a `UserWallet`. Under Avin's architecture, `User` and `Seller` are strictly separate entities requiring distinct accounts and logins.

@@ -1,0 +1,75 @@
+import { Button } from "@avin/ui/components/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@avin/ui/components/dropdown-menu";
+import { cn } from "@avin/ui/lib/utils";
+import { Link } from "@tanstack/react-router";
+import { Menu } from "lucide-react";
+
+type TopNavProps = React.HTMLAttributes<HTMLElement> & {
+  links: {
+    title: string;
+    href: string;
+    isActive: boolean;
+    disabled?: boolean;
+  }[];
+};
+
+export function TopNav({ className, links, ...props }: TopNavProps) {
+  return (
+    <>
+      <DropdownMenu modal={false}>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              size="icon"
+              variant="outline"
+              className={cn("md:size-7 lg:hidden", className)}
+            />
+          }
+        >
+          <Menu />
+          <span className="sr-only">Toggle navigation menu</span>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent side="bottom" align="start">
+          {links.map(({ title, href, isActive, disabled }) => (
+            <DropdownMenuItem
+              key={`${title}-${href}`}
+              render={
+                <Link
+                  to={href}
+                  className={isActive ? "" : "text-muted-foreground"}
+                  disabled={disabled}
+                />
+              }
+            >
+              {title}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <nav
+        className={cn(
+          "hidden items-center space-x-4 lg:flex lg:space-x-4 xl:space-x-6",
+          className
+        )}
+        {...props}
+      >
+        {links.map(({ title, href, isActive, disabled }) => (
+          <Link
+            key={`${title}-${href}`}
+            to={href}
+            disabled={disabled}
+            className={`text-sm font-medium transition-colors hover:text-primary ${isActive ? "" : "text-muted-foreground"}`}
+          >
+            {title}
+          </Link>
+        ))}
+      </nav>
+    </>
+  );
+}
