@@ -13,6 +13,7 @@ import { toast } from "sonner";
 
 import { authClient } from "@/features/auth/api/auth-client";
 import { signUpSchema } from "@/features/auth/schemas/auth-schemas";
+import { getAuthCallbackUrl } from "@/features/auth/utils/get-auth-callback-url";
 
 export const SignUpForm = () => {
   const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
@@ -25,6 +26,7 @@ export const SignUpForm = () => {
     onSubmit: async ({ value }) => {
       try {
         const result = await authClient.signUp.email({
+          callbackURL: getAuthCallbackUrl("/", window.location.origin),
           email: value.email,
           name: value.name,
           password: value.password,
