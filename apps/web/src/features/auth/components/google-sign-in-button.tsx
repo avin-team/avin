@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { authClient } from "@/features/auth/api/auth-client";
 import { GoogleIcon } from "@/features/auth/components/icons/google-icon";
+import { getAuthCallbackUrl } from "@/features/auth/utils/get-auth-callback-url";
 
 export const GoogleSignInButton = () => {
   const [isPending, setIsPending] = useState(false);
@@ -14,7 +15,7 @@ export const GoogleSignInButton = () => {
 
     try {
       const result = await authClient.signIn.social({
-        callbackURL: "/dashboard",
+        callbackURL: getAuthCallbackUrl("/dashboard", window.location.origin),
         provider: "google",
       });
 
