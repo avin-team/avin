@@ -2,14 +2,14 @@
   "name": "@avin/api",
   "type": "module",
   "exports": {
-    ".": {
-      "default": "./src/index.ts"
-    },
     "./*": {
       "default": "./src/*.ts"
     }
   },
-  "scripts": {},
+  "scripts": {
+    "check-types": "tsc -b",
+    "test": "vitest run --dir src"
+  },
   "dependencies": {
     "@avin/auth": "workspace:*",
     "@avin/db": "workspace:*",
@@ -24,6 +24,7 @@
   "devDependencies": {
     "@avin/config": "workspace:*",
     "hono": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

@@ -40,6 +40,15 @@ export default function UserMenu() {
           <DropdownMenuSeparator />
           <DropdownMenuItem>{session.user.email}</DropdownMenuItem>
           <DropdownMenuItem
+            onClick={() => {
+              navigate({
+                to: "/security",
+              });
+            }}
+          >
+            Bảo mật tài khoản
+          </DropdownMenuItem>
+          <DropdownMenuItem
             variant="destructive"
             onClick={() => {
               authClient.signOut({

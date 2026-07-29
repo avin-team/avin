@@ -1,13 +1,32 @@
 import { relations } from "drizzle-orm";
-import { pgTable, text, timestamp, boolean, index } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  index,
+  integer,
+  jsonb,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
+
+export const accountRole = pgEnum("account_role", ["BUYER", "SELLER", "ADMIN"]);
+
+export const auditOutcome = pgEnum("audit_outcome", ["SUCCESS", "FAILURE"]);
 
 export const user = pgTable("user", {
+  banExpires: timestamp("ban_expires"),
+  banReason: text("ban_reason"),
+  banned: boolean("banned").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").default(false).notNull(),
   id: text("id").primaryKey(),
   image: text("image"),
   name: text("name").notNull(),
+  role: accountRole("role").default("BUYER").notNull(),
+  twoFactorEnabled: boolean("two_factor_enabled").default(false).notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
     .$onUpdate(() => new Date())
@@ -20,6 +39,7 @@ export const session = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
     expiresAt: timestamp("expires_at").notNull(),
     id: text("id").primaryKey(),
+    impersonatedBy: text("impersonated_by"),
     ipAddress: text("ip_address"),
     token: text("token").notNull().unique(),
     updatedAt: timestamp("updated_at")
@@ -31,6 +51,45 @@ export const session = pgTable(
       .references(() => user.id, { onDelete: "cascade" }),
   },
   (table) => [index("session_userId_idx").on(table.userId)]
+);
+
+export const twoFactor = pgTable(
+  "two_factor",
+  {
+    backupCodes: text("backup_codes").notNull(),
+    failedVerificationCount: integer("failed_verification_count")
+      .default(0)
+      .notNull(),
+    id: text("id").primaryKey(),
+    lockedUntil: timestamp("locked_until"),
+    secret: text("secret").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    verified: boolean("verified").default(true).notNull(),
+  },
+  (table) => [
+    index("two_factor_secret_idx").on(table.secret),
+    index("two_factor_userId_idx").on(table.userId),
+  ]
+);
+
+export const auditLog = pgTable(
+  "audit_log",
+  {
+    action: text("action").notNull(),
+    actorUserId: text("actor_user_id").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+    outcome: auditOutcome("outcome").notNull(),
+    targetId: text("target_id"),
+    targetType: text("target_type"),
+  },
+  (table) => [
+    index("audit_log_actor_idx").on(table.actorUserId),
+    index("audit_log_created_at_idx").on(table.createdAt),
+  ]
 );
 
 export const account = pgTable(
@@ -76,6 +135,7 @@ export const verification = pgTable(
 export const userRelations = relations(user, ({ many }) => ({
   accounts: many(account),
   sessions: many(session),
+  twoFactors: many(twoFactor),
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({
@@ -88,6 +148,13 @@ export const sessionRelations = relations(session, ({ one }) => ({
 export const accountRelations = relations(account, ({ one }) => ({
   user: one(user, {
     fields: [account.userId],
+    references: [user.id],
+  }),
+}));
+
+export const twoFactorRelations = relations(twoFactor, ({ one }) => ({
+  user: one(user, {
+    fields: [twoFactor.userId],
     references: [user.id],
   }),
 }));

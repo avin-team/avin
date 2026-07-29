@@ -9,7 +9,10 @@
       "default": "./src/*.ts"
     }
   },
-  "scripts": {},
+  "scripts": {
+    "check-types": "tsc -b",
+    "provision-admin": "bun run src/provision-admin.ts"
+  },
   "dependencies": {
     "@avin/db": "workspace:*",
     "@avin/env": "workspace:*",
