@@ -1,4 +1,3 @@
-/* eslint-disable unicorn/no-abusive-eslint-disable */
 /* oxlint-disable */
 import { useSidebar } from "@avin/ui/components/sidebar";
 

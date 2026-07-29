@@ -39,5 +39,6 @@ export default defineConfig({
   rules: {
     "github/filenames-match-regex": "off",
     "oxc/no-barrel-file": "off",
+    "unicorn/no-abusive-eslint-disable": "off",
   },
 });

@@ -1,4 +1,3 @@
-/* eslint-disable unicorn/no-abusive-eslint-disable */
 /* oxlint-disable */
 import { Badge } from "@avin/ui/components/badge";
 import {

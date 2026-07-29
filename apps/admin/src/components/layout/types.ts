@@ -1,4 +1,3 @@
-/* eslint-disable unicorn/no-abusive-eslint-disable */
 /* oxlint-disable */
 import type { LinkProps } from "@tanstack/react-router";
 

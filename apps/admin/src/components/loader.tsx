@@ -1,4 +1,3 @@
-/* eslint-disable unicorn/no-abusive-eslint-disable */
 /* oxlint-disable */
 import { Loader2 } from "lucide-react";
 

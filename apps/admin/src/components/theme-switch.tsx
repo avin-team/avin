@@ -1,4 +1,3 @@
-/* eslint-disable unicorn/no-abusive-eslint-disable */
 /* oxlint-disable */
 import { Button } from "@avin/ui/components/button";
 import { Moon, Sun } from "lucide-react";

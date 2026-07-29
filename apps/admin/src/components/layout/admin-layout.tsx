@@ -1,4 +1,3 @@
-/* eslint-disable unicorn/no-abusive-eslint-disable */
 /* oxlint-disable */
 import { SidebarInset, SidebarProvider } from "@avin/ui/components/sidebar";
 import { cn } from "@avin/ui/lib/utils";
