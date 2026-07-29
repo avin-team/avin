@@ -134,6 +134,16 @@ describe("production router authorization", () => {
       code: "FORBIDDEN",
     });
   });
+
+  it("denies generic Supabase access tokens to an Admin", async () => {
+    await expect(
+      call(appRouter.supabaseAccessToken, undefined, {
+        context: createContext(ACCOUNT_ROLE.ADMIN),
+      })
+    ).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+  });
 });
 
 describe("account ownership authorization", () => {

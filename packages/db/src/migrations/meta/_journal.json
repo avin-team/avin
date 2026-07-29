@@ -8,6 +8,20 @@
       "when": 1785329095488,
       "tag": "0000_smooth_patch",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785335454248,
+      "tag": "0001_supabase_foundation",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785336673957,
+      "tag": "0002_lock_down_public_api",
+      "breakpoints": true
     }
   ]
 }

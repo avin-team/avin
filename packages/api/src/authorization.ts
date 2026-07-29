@@ -1,4 +1,8 @@
-import { ACCOUNT_ROLE, adminRequiresTwoFactor } from "@avin/auth/permissions";
+import {
+  ACCOUNT_ROLE,
+  adminRequiresTwoFactor,
+  isAccountRole,
+} from "@avin/auth/permissions";
 import type { AccountRole } from "@avin/auth/permissions";
 import { ORPCError, os } from "@orpc/server";
 
@@ -9,9 +13,6 @@ interface AccountActor {
   role?: string | null;
   twoFactorEnabled?: boolean | null;
 }
-
-const isAccountRole = (role: string | null | undefined): role is AccountRole =>
-  Object.values(ACCOUNT_ROLE).some((accountRole) => accountRole === role);
 
 export const assertAccountAccess = (
   actor: AccountActor,

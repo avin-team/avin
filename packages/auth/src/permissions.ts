@@ -9,6 +9,11 @@ export const ACCOUNT_ROLE = {
 
 export type AccountRole = (typeof ACCOUNT_ROLE)[keyof typeof ACCOUNT_ROLE];
 
+export const isAccountRole = (
+  role: string | null | undefined
+): role is AccountRole =>
+  Object.values(ACCOUNT_ROLE).some((accountRole) => accountRole === role);
+
 interface AdminAccessActor {
   id: string;
   role?: string | null;

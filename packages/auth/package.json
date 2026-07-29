@@ -11,17 +11,20 @@
   },
   "scripts": {
     "check-types": "tsc -b",
-    "provision-admin": "bun run src/provision-admin.ts"
+    "provision-admin": "bun run src/provision-admin.ts",
+    "test": "vitest run --dir src"
   },
   "dependencies": {
     "@avin/db": "workspace:*",
     "@avin/env": "workspace:*",
     "better-auth": "catalog:",
     "dotenv": "catalog:",
+    "jose": "^6.2.4",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@avin/config": "workspace:*",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }
