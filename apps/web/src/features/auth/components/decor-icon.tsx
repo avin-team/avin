@@ -1,6 +1,7 @@
 import { cn } from "@avin/ui/lib/utils";
 import { cva } from "class-variance-authority";
 import type { VariantProps } from "class-variance-authority";
+import type { ComponentProps } from "react";
 
 const decorIconVariants = cva(
   "pointer-events-none absolute z-1 size-5 shrink-0 stroke-1 stroke-muted-foreground",
@@ -23,7 +24,7 @@ const decorIconVariants = cva(
   }
 );
 
-type DecorIconProps = React.ComponentProps<"svg"> &
+type DecorIconProps = ComponentProps<"svg"> &
   VariantProps<typeof decorIconVariants>;
 
 export const DecorIcon = ({

@@ -1,7 +1,8 @@
 import { Link } from "@tanstack/react-router";
 
+import { UserMenu } from "@/features/auth/components/user-menu";
+
 import { ModeToggle } from "./mode-toggle";
-import UserMenu from "./user-menu";
 
 const links = [
   { label: "Home", to: "/" },

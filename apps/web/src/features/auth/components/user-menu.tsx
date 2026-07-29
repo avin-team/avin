@@ -10,10 +10,11 @@ import {
 } from "@avin/ui/components/dropdown-menu";
 import { Skeleton } from "@avin/ui/components/skeleton";
 import { Link, useNavigate } from "@tanstack/react-router";
+import { toast } from "sonner";
 
-import { authClient } from "@/lib/auth-client";
+import { authClient } from "@/features/auth/api/auth-client";
 
-export default function UserMenu() {
+export const UserMenu = () => {
   const navigate = useNavigate();
   const { data: session, isPending } = authClient.useSession();
 
@@ -40,8 +41,8 @@ export default function UserMenu() {
           <DropdownMenuSeparator />
           <DropdownMenuItem>{session.user.email}</DropdownMenuItem>
           <DropdownMenuItem
-            onClick={() => {
-              navigate({
+            onClick={async () => {
+              await navigate({
                 to: "/security",
               });
             }}
@@ -49,18 +50,23 @@ export default function UserMenu() {
             Bảo mật tài khoản
           </DropdownMenuItem>
           <DropdownMenuItem
-            variant="destructive"
-            onClick={() => {
-              authClient.signOut({
-                fetchOptions: {
-                  onSuccess: () => {
-                    navigate({
-                      to: "/",
-                    });
-                  },
-                },
-              });
+            onClick={async () => {
+              try {
+                const result = await authClient.signOut();
+
+                if (result.error) {
+                  toast.error(result.error.message ?? "Không thể đăng xuất.");
+                  return;
+                }
+
+                await navigate({
+                  to: "/",
+                });
+              } catch {
+                toast.error("Không thể kết nối đến máy chủ. Vui lòng thử lại.");
+              }
             }}
+            variant="destructive"
           >
             Sign Out
           </DropdownMenuItem>
@@ -68,4 +74,4 @@ export default function UserMenu() {
       </DropdownMenuContent>
     </DropdownMenu>
   );
-}
+};

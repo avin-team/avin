@@ -1,4 +1,6 @@
-export const GoogleIcon = (props: React.ComponentProps<"svg">) => (
+import type { ComponentProps } from "react";
+
+export const GoogleIcon = (props: ComponentProps<"svg">) => (
   <svg
     aria-hidden="true"
     fill="currentColor"
