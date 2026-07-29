@@ -128,14 +128,14 @@ const INITIAL_DISPUTES: readonly Dispute[] = [
 let disputesState: readonly Dispute[] = INITIAL_DISPUTES;
 const listeners = new Set<() => void>();
 
-function emitChange(): void {
+const emitChange = (): void => {
   for (const listener of listeners) {
     listener();
   }
-}
+};
 
-export function useDisputes(): readonly Dispute[] {
-  return useSyncExternalStore(
+export const useDisputes = (): readonly Dispute[] =>
+  useSyncExternalStore(
     (listener) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
@@ -143,18 +143,16 @@ export function useDisputes(): readonly Dispute[] {
     () => disputesState,
     () => INITIAL_DISPUTES
   );
-}
 
-export function getDispute(disputeId: string): Dispute | undefined {
-  return disputesState.find((d) => d.id === disputeId);
-}
+export const getDispute = (disputeId: string): Dispute | undefined =>
+  disputesState.find((d) => d.id === disputeId);
 
-export function resolveDisputeAction(
+export const resolveDisputeAction = (
   disputeId: string,
   outcome: DisputeResolutionOutcome,
   note: string,
   adminMessage?: string
-): void {
+): void => {
   const dispute = getDispute(disputeId);
   if (!dispute) {
     throw new Error("Không tìm thấy tranh chấp");
@@ -165,4 +163,4 @@ export function resolveDisputeAction(
   disputesState = disputesState.map((d) => (d.id === disputeId ? updated : d));
 
   emitChange();
-}
+};

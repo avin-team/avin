@@ -13,11 +13,11 @@ export const sidebarData: SidebarData = {
   navGroups: [
     {
       items: [
-        { title: "Tổng quan", url: "/", icon: LayoutDashboard },
+        { icon: LayoutDashboard, title: "Tổng quan", url: "/" },
         {
+          icon: ClipboardCheck,
           title: "Duyệt hồ sơ Seller",
           url: "/seller-applications",
-          icon: ClipboardCheck,
         },
       ],
       title: "Tổng quan & Onboarding",
@@ -25,19 +25,19 @@ export const sidebarData: SidebarData = {
     {
       items: [
         {
+          icon: FolderTree,
           title: "Danh mục & Chính sách",
           url: "/categories",
-          icon: FolderTree,
         },
         {
+          icon: Store,
           title: "Quản lý Seller & Vi phạm",
           url: "/sellers",
-          icon: Store,
         },
         {
+          icon: AlertCircle,
           title: "Hòa giải Tranh chấp",
           url: "/disputes",
-          icon: AlertCircle,
         },
       ],
       title: "Quản trị & Rủi ro",
@@ -45,9 +45,9 @@ export const sidebarData: SidebarData = {
     {
       items: [
         {
+          icon: Landmark,
           title: "Yêu cầu Rút tiền",
           url: "/withdrawals",
-          icon: Landmark,
         },
       ],
       title: "Tài chính & Payout",

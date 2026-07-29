@@ -19,16 +19,12 @@ const STATUS_VARIANTS: Record<
   REJECTED: "destructive",
 };
 
-export function ApplicationStatusBadge({
+export const ApplicationStatusBadge = ({
   status,
 }: {
   readonly status: SellerApplicationStatus;
-}) {
-  return (
-    <Badge variant={STATUS_VARIANTS[status]}>{STATUS_LABELS[status]}</Badge>
-  );
-}
+}) => <Badge variant={STATUS_VARIANTS[status]}>{STATUS_LABELS[status]}</Badge>;
 
-export function getApplicationStatusLabel(status: SellerApplicationStatus) {
-  return STATUS_LABELS[status];
-}
+// eslint-disable-next-line react-doctor/only-export-components
+export const getApplicationStatusLabel = (status: SellerApplicationStatus) =>
+  STATUS_LABELS[status];

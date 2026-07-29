@@ -22,11 +22,11 @@ interface Props {
   readonly onOpenChange: (open: boolean) => void;
 }
 
-export function CreateSubCategoryDialog({
+export const CreateSubCategoryDialog = ({
   open,
   parentCategory,
   onOpenChange,
-}: Props) {
+}: Props) => {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [commissionRate, setCommissionRate] = useState(
@@ -47,14 +47,14 @@ export function CreateSubCategoryDialog({
     event.preventDefault();
     try {
       addSubCategory({
-        commissionRatePercent: Number.parseFloat(commissionRate),
-        defaultWarrantyDurationHours: Number.parseInt(warrantyHours, 10),
+        commissionRatePercent: Number(commissionRate),
+        defaultWarrantyDurationHours: Number(warrantyHours),
         defaultWarrantyTerms: warrantyTerms,
-        maxWarrantyHours: Number.parseInt(maxWarranty, 10),
-        minWarrantyHours: Number.parseInt(minWarranty, 10),
+        maxWarrantyHours: Number(maxWarranty),
+        minWarrantyHours: Number(minWarranty),
         name,
         parentId: parentCategory.id,
-        slug: slug || name.toLowerCase().replaceAll(/\s+/g, "-"),
+        slug: slug || name.toLowerCase().replaceAll(/\s+/gu, "-"),
       });
 
       toast.success("Tạo Sub-Category thành công", {
@@ -90,7 +90,7 @@ export function CreateSubCategoryDialog({
                     setSlug(
                       e.target.value
                         .toLowerCase()
-                        .replaceAll(/[^a-z0-9]+/g, "-")
+                        .replaceAll(/[^a-z0-9]+/gu, "-")
                     );
                   }
                 }}
@@ -187,4 +187,4 @@ export function CreateSubCategoryDialog({
       </DialogContent>
     </Dialog>
   );
-}
+};

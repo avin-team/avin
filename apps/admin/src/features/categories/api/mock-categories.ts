@@ -19,15 +19,15 @@ const INITIAL_CATEGORIES: readonly ParentCategory[] = [
             id: "input_1",
             key: "account_id",
             label: "ID Tài khoản / Link Cần Kích Hoạt",
-            type: "text",
             required: true,
+            type: "text",
           },
           {
             id: "input_2",
             key: "note",
             label: "Ghi chú bổ sung cho Seller",
-            type: "text",
             required: false,
+            type: "text",
           },
         ],
         defaultWarrantyPolicy: {
@@ -51,8 +51,8 @@ const INITIAL_CATEGORIES: readonly ParentCategory[] = [
             id: "input_3",
             key: "brief",
             label: "Mô tả Brief thiết kế",
-            type: "text",
             required: true,
+            type: "text",
           },
         ],
         defaultWarrantyPolicy: {
@@ -84,8 +84,8 @@ const INITIAL_CATEGORIES: readonly ParentCategory[] = [
             id: "input_4",
             key: "student_email",
             label: "Email nhận quyền truy cập khóa học",
-            type: "text",
             required: true,
+            type: "text",
           },
         ],
         defaultWarrantyPolicy: {
@@ -109,14 +109,14 @@ const INITIAL_CATEGORIES: readonly ParentCategory[] = [
 let categoriesState: readonly ParentCategory[] = INITIAL_CATEGORIES;
 const listeners = new Set<() => void>();
 
-function emitChange(): void {
+const emitChange = (): void => {
   for (const listener of listeners) {
     listener();
   }
-}
+};
 
-export function useCategories(): readonly ParentCategory[] {
-  return useSyncExternalStore(
+export const useCategories = (): readonly ParentCategory[] =>
+  useSyncExternalStore(
     (listener) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
@@ -124,9 +124,8 @@ export function useCategories(): readonly ParentCategory[] {
     () => categoriesState,
     () => INITIAL_CATEGORIES
   );
-}
 
-export function addSubCategory(input: CreateSubCategoryInput): void {
+export const addSubCategory = (input: CreateSubCategoryInput): void => {
   const newSubCategory = buildSubCategory(input);
 
   categoriesState = categoriesState.map((parent) => {
@@ -140,12 +139,12 @@ export function addSubCategory(input: CreateSubCategoryInput): void {
   });
 
   emitChange();
-}
+};
 
-export function updateCategoryCommission(
+export const updateCategoryCommission = (
   categoryId: string,
   ratePercent: number
-): void {
+): void => {
   if (ratePercent < 0 || ratePercent > 100) {
     throw new Error("Commission rate must be between 0% and 100%");
   }
@@ -168,4 +167,4 @@ export function updateCategoryCommission(
   });
 
   emitChange();
-}
+};

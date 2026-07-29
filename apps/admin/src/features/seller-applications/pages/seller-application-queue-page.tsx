@@ -22,41 +22,39 @@ import {
   TableRow,
 } from "@avin/ui/components/table";
 import { Link } from "@tanstack/react-router";
-import { Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { ClipboardCheck, Search } from "lucide-react";
+import { useState } from "react";
 
 import { Header } from "@/components/layout/header";
 import { Main } from "@/components/layout/main";
 import { ThemeSwitch } from "@/components/theme-switch";
-import { useSellerApplications } from "@/features/seller-applications/api/mock-seller-applications";
-import { ApplicationStatusBadge } from "@/features/seller-applications/components/application-status-badge";
-import type { SellerApplicationStatus } from "@/features/seller-applications/types";
-import { formatApplicationDate } from "@/features/seller-applications/utils";
+
+import { useSellerApplications } from "../api/mock-seller-applications";
+import { ApplicationStatusBadge } from "../components/application-status-badge";
+import type { SellerApplicationStatus } from "../types";
+import { formatApplicationDate } from "../utils";
 
 type StatusFilter = "ALL" | SellerApplicationStatus;
 
-export function SellerApplicationQueuePage() {
+export const SellerApplicationQueuePage = () => {
   const applications = useSellerApplications();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
 
-  const filteredApplications = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredApplications = applications.filter((application) => {
+    const matchesStatus =
+      statusFilter === "ALL" || application.status === statusFilter;
+    const matchesQuery =
+      normalizedQuery.length === 0 ||
+      [
+        application.applicantName,
+        application.email,
+        application.storefrontName,
+      ].some((field) => field.toLowerCase().includes(normalizedQuery));
 
-    return applications.filter((application) => {
-      const matchesStatus =
-        statusFilter === "ALL" || application.status === statusFilter;
-      const matchesQuery =
-        normalizedQuery.length === 0 ||
-        [
-          application.applicantName,
-          application.email,
-          application.storefrontName,
-        ].some((field) => field.toLowerCase().includes(normalizedQuery));
-
-      return matchesStatus && matchesQuery;
-    });
-  }, [applications, query, statusFilter]);
+    return matchesStatus && matchesQuery;
+  });
 
   return (
     <>
@@ -69,18 +67,19 @@ export function SellerApplicationQueuePage() {
         <div>
           <p className="text-sm font-medium text-primary">SELLER ONBOARDING</p>
           <h1 className="text-3xl font-semibold tracking-tight">
-            Hồ sơ đăng ký Seller
+            Hàng đợi xét duyệt Seller
           </h1>
           <p className="text-muted-foreground">
-            Duyệt hồ sơ gian hàng mới, kiểm tra thông tin KYC và tài khoản ngân
-            hàng.
+            Duyệt hồ sơ gian hàng mới, xác minh tài khoản ngân hàng nhận payout
+            và quyết định cho phép kinh doanh.
           </p>
         </div>
 
         <Card>
           <CardHeader className="gap-4 border-b sm:flex-row sm:items-center sm:justify-between">
-            <CardTitle className="text-base">
-              Hàng đợi xét duyệt{" "}
+            <CardTitle className="text-base flex items-center gap-2">
+              <ClipboardCheck className="size-4 text-primary" />
+              Danh sách Hồ sơ Đăng ký{" "}
               <span className="text-muted-foreground">
                 ({filteredApplications.length})
               </span>
@@ -89,21 +88,21 @@ export function SellerApplicationQueuePage() {
               <div className="relative min-w-0 sm:w-64">
                 <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  aria-label="Tìm kiếm hồ sơ đăng ký"
+                  aria-label="Search applications"
                   className="ps-9"
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Tìm người đăng ký hoặc storefront"
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Tìm tên, email, storefront..."
                   value={query}
                 />
               </div>
               <Select
-                onValueChange={(value) =>
-                  setStatusFilter((value as StatusFilter) ?? "ALL")
+                onValueChange={(val) =>
+                  setStatusFilter((val as StatusFilter) ?? "ALL")
                 }
                 value={statusFilter}
               >
                 <SelectTrigger
-                  aria-label="Lọc theo trạng thái"
+                  aria-label="Filter status"
                   className="w-full sm:w-44"
                 >
                   <SelectValue placeholder="Trạng thái hồ sơ" />
@@ -111,10 +110,10 @@ export function SellerApplicationQueuePage() {
                 <SelectContent>
                   <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
                   <SelectItem value="PENDING_REVIEW">Chờ duyệt</SelectItem>
+                  <SelectItem value="APPROVED">Đã phê duyệt</SelectItem>
                   <SelectItem value="CHANGES_REQUESTED">
                     Yêu cầu chỉnh sửa
                   </SelectItem>
-                  <SelectItem value="APPROVED">Đã phê duyệt</SelectItem>
                   <SelectItem value="REJECTED">Từ chối</SelectItem>
                 </SelectContent>
               </Select>
@@ -125,49 +124,65 @@ export function SellerApplicationQueuePage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Người đăng ký</TableHead>
                     <TableHead>Storefront</TableHead>
-                    <TableHead>Ngày gửi</TableHead>
-                    <TableHead>Phiên bản điều khoản</TableHead>
+                    <TableHead>Người đăng ký</TableHead>
+                    <TableHead>Ngân hàng nhận payout</TableHead>
+                    <TableHead>Thời gian gửi</TableHead>
                     <TableHead>Trạng thái</TableHead>
-                    <TableHead className="text-end">Thao tác</TableHead>
+                    <TableHead className="text-end">Hành động</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredApplications.map((application) => (
-                    <TableRow key={application.id}>
+                  {filteredApplications.map((app) => (
+                    <TableRow key={app.id}>
                       <TableCell>
                         <div>
-                          <p className="font-medium">
-                            {application.applicantName}
+                          <p className="font-medium text-base">
+                            {app.storefrontName}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {application.email}
+                            Phiên bản ĐK: {app.sellerAgreementVersion}
                           </p>
                         </div>
                       </TableCell>
-                      <TableCell>{application.storefrontName}</TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {formatApplicationDate(application.submittedAt)}
+                      <TableCell>
+                        <div>
+                          <p className="text-sm font-medium">
+                            {app.applicantName}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {app.email} · {app.phone}
+                          </p>
+                        </div>
                       </TableCell>
                       <TableCell>
-                        {application.sellerAgreementVersion}
+                        <div className="text-xs">
+                          <p className="font-semibold">
+                            {app.bankAccount.bankName}
+                          </p>
+                          <p className="font-mono text-muted-foreground">
+                            {app.bankAccount.accountName}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {formatApplicationDate(app.submittedAt)}
                       </TableCell>
                       <TableCell>
-                        <ApplicationStatusBadge status={application.status} />
+                        <ApplicationStatusBadge status={app.status} />
                       </TableCell>
                       <TableCell className="text-end">
                         <Button
                           render={
                             <Link
-                              params={{ applicationId: application.id }}
+                              params={{ applicationId: app.id }}
                               to="/seller-applications/$applicationId"
                             />
                           }
                           size="sm"
                           variant="outline"
                         >
-                          Xét duyệt
+                          Chi tiết & Phán quyết
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -178,7 +193,7 @@ export function SellerApplicationQueuePage() {
                         className="h-28 text-center text-muted-foreground"
                         colSpan={6}
                       >
-                        Không có hồ sơ nào phù hợp bộ lọc.
+                        Không tìm thấy hồ sơ nào phù hợp bộ lọc.
                       </TableCell>
                     </TableRow>
                   )}
@@ -190,4 +205,4 @@ export function SellerApplicationQueuePage() {
       </Main>
     </>
   );
-}
+};

@@ -21,8 +21,8 @@ import {
   TableHeader,
   TableRow,
 } from "@avin/ui/components/table";
-import { CheckCircle2, Clock, Landmark, Search, XCircle } from "lucide-react";
-import { useMemo, useState } from "react";
+import { CheckCircle2, Landmark, Search, XCircle } from "lucide-react";
+import { useState } from "react";
 
 import { Header } from "@/components/layout/header";
 import { Main } from "@/components/layout/main";
@@ -35,7 +35,7 @@ import type { WithdrawalRequest, WithdrawalStatus } from "../types";
 
 type StatusFilter = "ALL" | WithdrawalStatus;
 
-export function WithdrawalQueuePage() {
+export const WithdrawalQueuePage = () => {
   const withdrawals = useWithdrawals();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
@@ -47,18 +47,16 @@ export function WithdrawalQueuePage() {
   );
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const filteredWithdrawals = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return withdrawals.filter((wth) => {
-      const matchStatus = statusFilter === "ALL" || wth.status === statusFilter;
-      const matchQuery =
-        q.length === 0 ||
-        wth.storefrontName.toLowerCase().includes(q) ||
-        wth.applicantName.toLowerCase().includes(q) ||
-        wth.bankAccount.accountNumber.includes(q);
-      return matchStatus && matchQuery;
-    });
-  }, [withdrawals, query, statusFilter]);
+  const q = query.trim().toLowerCase();
+  const filteredWithdrawals = withdrawals.filter((wth) => {
+    const matchStatus = statusFilter === "ALL" || wth.status === statusFilter;
+    const matchQuery =
+      q.length === 0 ||
+      wth.storefrontName.toLowerCase().includes(q) ||
+      wth.applicantName.toLowerCase().includes(q) ||
+      wth.bankAccount.accountNumber.includes(q);
+    return matchStatus && matchQuery;
+  });
 
   const handleAction = (
     request: WithdrawalRequest,
@@ -244,4 +242,4 @@ export function WithdrawalQueuePage() {
       />
     </>
   );
-}
+};

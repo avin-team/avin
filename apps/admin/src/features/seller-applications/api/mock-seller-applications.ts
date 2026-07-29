@@ -1,133 +1,132 @@
 import { useSyncExternalStore } from "react";
 
-import type { SellerApplication, SellerApplicationDecision } from "../types";
+import type {
+  SellerApplication,
+  SellerApplicationDecision,
+  SellerApplicationStatus,
+} from "../types";
 import {
   applySellerApplicationDecision,
   resubmitSellerApplication,
 } from "../workflow";
 
-const seedApplications: SellerApplication[] = [
+const INITIAL_SELLER_APPLICATIONS: readonly SellerApplication[] = [
   {
-    applicantName: "Nguyen An",
+    applicantName: "Trần Văn Nam",
     bankAccount: {
-      accountName: "NGUYEN AN",
-      accountNumber: "0123456789",
-      bankName: "Vietcombank",
-    },
-    email: "an@example.com",
-    id: "app_001",
-    phone: "+84 912 345 678",
-    revisionCount: 0,
-    sellerAgreementVersion: "2026.07",
-    status: "PENDING_REVIEW",
-    storefrontName: "An Digital",
-    submittedAt: "2026-07-28T09:30:00.000Z",
-  },
-  {
-    applicantName: "Tran Minh",
-    bankAccount: {
-      accountName: "TRAN MINH",
-      accountNumber: "1029384756",
+      accountName: "TRAN VAN NAM",
+      accountNumber: "19034567890012",
       bankName: "Techcombank",
     },
-    email: "minh@example.com",
-    id: "app_002",
-    phone: "+84 903 111 222",
+    email: "nam.tran@example.com",
+    id: "app_1001",
+    phone: "0901234567",
     revisionCount: 0,
-    sellerAgreementVersion: "2026.07",
+    sellerAgreementVersion: "v1.2",
     status: "PENDING_REVIEW",
-    storefrontName: "Minh Setup Lab",
-    submittedAt: "2026-07-27T14:15:00.000Z",
+    storefrontName: "Shop Tai Khoan Premium",
+    submittedAt: "2026-03-28T09:30:00Z",
   },
   {
-    applicantName: "Le Ha",
+    applicantName: "Lê Thị Thu",
     bankAccount: {
-      accountName: "LE HA",
-      accountNumber: "9988776655",
-      bankName: "ACB",
+      accountName: "LE THI THU",
+      accountNumber: "0071000123456",
+      bankName: "Vietcombank",
     },
-    email: "ha@example.com",
-    id: "app_003",
-    phone: "+84 988 333 444",
-    reviewReason: "Please upload a clearer bank account confirmation.",
+    email: "thu.le@example.com",
+    id: "app_1002",
+    phone: "0912345678",
+    reviewReason: "Ảnh CMND/CCCD bị mờ, vui lòng tải lại bản rõ nét hơn.",
     revisionCount: 1,
-    sellerAgreementVersion: "2026.06",
+    sellerAgreementVersion: "v1.2",
     status: "CHANGES_REQUESTED",
-    storefrontName: "Ha Creative",
-    submittedAt: "2026-07-25T11:05:00.000Z",
+    storefrontName: "Thu Digital Store",
+    submittedAt: "2026-03-27T14:15:00Z",
   },
   {
-    applicantName: "Pham Duc",
+    applicantName: "Phạm Minh Hoàng",
     bankAccount: {
-      accountName: "PHAM DUC",
-      accountNumber: "2233445566",
-      bankName: "MB Bank",
+      accountName: "PHAM MINH HOANG",
+      accountNumber: "1012345678",
+      bankName: "MBBank",
     },
-    email: "duc@example.com",
-    id: "app_004",
-    phone: "+84 977 555 666",
+    email: "hoang.pham@example.com",
+    id: "app_1003",
+    phone: "0987654321",
     revisionCount: 0,
-    sellerAgreementVersion: "2026.06",
+    sellerAgreementVersion: "v1.2",
     status: "APPROVED",
-    storefrontName: "Duc Courses",
-    submittedAt: "2026-07-24T08:45:00.000Z",
+    storefrontName: "Hoang Game Code",
+    submittedAt: "2026-03-25T11:00:00Z",
   },
   {
-    applicantName: "Vo Linh",
+    applicantName: "Nguyễn Quốc Anh",
     bankAccount: {
-      accountName: "VO LINH",
-      accountNumber: "5566778899",
-      bankName: "BIDV",
+      accountName: "NGUYEN QUOC ANH",
+      accountNumber: "999988887777",
+      bankName: "VPBank",
     },
-    email: "linh@example.com",
-    id: "app_005",
-    phone: "+84 901 777 888",
-    reviewReason: "The submitted information could not be verified.",
+    email: "quocanh@example.com",
+    id: "app_1004",
+    phone: "0933445566",
+    reviewReason: "Storefront nghi vấn bán tài khoản vi phạm bản quyền.",
     revisionCount: 0,
-    sellerAgreementVersion: "2026.05",
+    sellerAgreementVersion: "v1.2",
     status: "REJECTED",
-    storefrontName: "Linh Services",
-    submittedAt: "2026-07-22T16:20:00.000Z",
+    storefrontName: "BlackHat Store",
+    submittedAt: "2026-03-24T16:45:00Z",
   },
 ];
 
-let applications = seedApplications;
+let applicationsState: readonly SellerApplication[] =
+  INITIAL_SELLER_APPLICATIONS;
+
 const listeners = new Set<() => void>();
 
-function emitChange() {
+const emitChange = (): void => {
   for (const listener of listeners) {
     listener();
   }
-}
+};
 
-export function listSellerApplications(): readonly SellerApplication[] {
-  return applications;
-}
-
-export function getSellerApplication(
-  applicationId: string
-): SellerApplication | undefined {
-  return applications.find((application) => application.id === applicationId);
-}
-
-export function subscribeToSellerApplications(listener: () => void) {
+export const subscribeToSellerApplications = (listener: () => void) => {
   listeners.add(listener);
   return () => listeners.delete(listener);
-}
+};
 
-export function useSellerApplications(): readonly SellerApplication[] {
-  return useSyncExternalStore(
+export const useSellerApplications = (): readonly SellerApplication[] =>
+  useSyncExternalStore(
     subscribeToSellerApplications,
-    listSellerApplications,
-    listSellerApplications
+    () => applicationsState,
+    () => INITIAL_SELLER_APPLICATIONS
   );
-}
 
-export function decideSellerApplication(
+export const getSellerApplication = (
+  applicationId: string
+): SellerApplication | undefined =>
+  applicationsState.find((application) => application.id === applicationId);
+
+const getRequiredApplication = (applicationId: string): SellerApplication => {
+  const application = getSellerApplication(applicationId);
+  if (!application) {
+    throw new Error("SellerApplication not found");
+  }
+  return application;
+};
+
+const replaceApplication = (updatedApplication: SellerApplication) => {
+  applicationsState = applicationsState.map((application) =>
+    application.id === updatedApplication.id ? updatedApplication : application
+  );
+  emitChange();
+};
+
+export const decideSellerApplication = (
   applicationId: string,
   decision: SellerApplicationDecision,
   reason?: string
-): SellerApplication {
+): SellerApplication => {
   const application = getRequiredApplication(applicationId);
   const updatedApplication = applySellerApplicationDecision(
     application,
@@ -136,29 +135,19 @@ export function decideSellerApplication(
   );
   replaceApplication(updatedApplication);
   return updatedApplication;
-}
+};
 
-export function resubmitSellerApplicationForReview(
+export const resubmitSellerApplicationForReview = (
   applicationId: string
-): SellerApplication {
+): SellerApplication => {
   const updatedApplication = resubmitSellerApplication(
     getRequiredApplication(applicationId)
   );
   replaceApplication(updatedApplication);
   return updatedApplication;
-}
+};
 
-function getRequiredApplication(applicationId: string): SellerApplication {
-  const application = getSellerApplication(applicationId);
-  if (!application) {
-    throw new Error("SellerApplication not found");
-  }
-  return application;
-}
-
-function replaceApplication(updatedApplication: SellerApplication) {
-  applications = applications.map((application) =>
-    application.id === updatedApplication.id ? updatedApplication : application
-  );
-  emitChange();
-}
+export const getSellerApplicationsByStatus = (
+  status: SellerApplicationStatus
+): readonly SellerApplication[] =>
+  applicationsState.filter((app) => app.status === status);

@@ -27,7 +27,7 @@ import { CreateSubCategoryDialog } from "../components/create-sub-category-dialo
 import type { ParentCategory } from "../types";
 import { countTotalSubCategories } from "../workflow";
 
-export function CategoriesPage() {
+export const CategoriesPage = () => {
   const categories = useCategories();
   const [selectedParent, setSelectedParent] = useState<ParentCategory | null>(
     null
@@ -211,4 +211,4 @@ export function CategoriesPage() {
       />
     </>
   );
-}
+};

@@ -1,5 +1,4 @@
 import { Toaster } from "@avin/ui/components/sonner";
-import { TooltipProvider } from "@avin/ui/components/tooltip";
 import { HeadContent, Outlet, createRootRoute } from "@tanstack/react-router";
 
 import { AdminLayout } from "@/components/layout/admin-layout";

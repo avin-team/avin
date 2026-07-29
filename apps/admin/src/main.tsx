@@ -10,11 +10,9 @@ import { queryClient } from "./lib/query-client";
 import { routeTree } from "./routeTree.gen";
 
 const router = createRouter({
-  Wrap: function WrapComponent({ children }: { children: React.ReactNode }) {
-    return (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    );
-  },
+  Wrap: ({ children }: { readonly children: React.ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  ),
   context: { queryClient },
   defaultPendingComponent: () => <Loader />,
   defaultPreload: "intent",
@@ -34,7 +32,7 @@ if (!rootElement) {
   throw new Error("Root element not found");
 }
 
-if (!rootElement.innerHTML) {
+if (rootElement.childElementCount === 0) {
   const root = ReactDOM.createRoot(rootElement);
   root.render(
     <StrictMode>

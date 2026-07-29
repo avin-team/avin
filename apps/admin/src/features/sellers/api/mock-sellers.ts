@@ -83,14 +83,14 @@ const INITIAL_SELLERS: readonly Seller[] = [
 let sellersState: readonly Seller[] = INITIAL_SELLERS;
 const listeners = new Set<() => void>();
 
-function emitChange(): void {
+const emitChange = (): void => {
   for (const listener of listeners) {
     listener();
   }
-}
+};
 
-export function useSellers(): readonly Seller[] {
-  return useSyncExternalStore(
+export const useSellers = (): readonly Seller[] =>
+  useSyncExternalStore(
     (listener) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
@@ -98,17 +98,15 @@ export function useSellers(): readonly Seller[] {
     () => sellersState,
     () => INITIAL_SELLERS
   );
-}
 
-export function getSeller(sellerId: string): Seller | undefined {
-  return sellersState.find((seller) => seller.id === sellerId);
-}
+export const getSeller = (sellerId: string): Seller | undefined =>
+  sellersState.find((seller) => seller.id === sellerId);
 
-export function updateSellerEnforcement(
+export const updateSellerEnforcement = (
   sellerId: string,
   newStatus: SellerEnforcementStatus,
   reason: string
-): void {
+): void => {
   const seller = getSeller(sellerId);
   if (!seller) {
     throw new Error("Không tìm thấy Seller");
@@ -121,4 +119,4 @@ export function updateSellerEnforcement(
   );
 
   emitChange();
-}
+};

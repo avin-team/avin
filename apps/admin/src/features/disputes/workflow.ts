@@ -5,17 +5,16 @@ import type {
   DisputeStatus,
 } from "./types";
 
-export function canResolveDispute(status: DisputeStatus): boolean {
-  return status === "OPEN" || status === "UNDER_REVIEW";
-}
+export const canResolveDispute = (status: DisputeStatus): boolean =>
+  status === "OPEN" || status === "UNDER_REVIEW";
 
-export function resolveDispute(
+export const resolveDispute = (
   dispute: Dispute,
   outcome: DisputeResolutionOutcome,
   note: string,
   adminMessage?: string,
   adminName = "Avin Admin Mediation"
-): Dispute {
+): Dispute => {
   if (!canResolveDispute(dispute.status)) {
     throw new Error(`Tranh chấp đã được xử lý xong (${dispute.status})`);
   }
@@ -46,4 +45,4 @@ export function resolveDispute(
     resolvedAt: now,
     status: outcome,
   };
-}
+};

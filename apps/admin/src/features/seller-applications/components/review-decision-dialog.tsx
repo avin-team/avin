@@ -40,11 +40,11 @@ const DECISION_COPY: Record<
   },
 };
 
-export function ReviewDecisionDialog({
+export const ReviewDecisionDialog = ({
   decision,
   onOpenChange,
   onConfirm,
-}: ReviewDecisionDialogProps) {
+}: ReviewDecisionDialogProps) => {
   const [reason, setReason] = useState("");
   const requiresReason = decision !== null && decision !== "APPROVED";
 
@@ -99,4 +99,4 @@ export function ReviewDecisionDialog({
       </DialogContent>
     </Dialog>
   );
-}
+};

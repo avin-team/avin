@@ -29,7 +29,30 @@ import { DisputeStatusBadge } from "../components/dispute-status-badge";
 import type { DisputeResolutionOutcome } from "../types";
 import { canResolveDispute } from "../workflow";
 
-export function DisputeDetailPage() {
+const DetailField = ({
+  label,
+  value,
+}: {
+  readonly label: string;
+  readonly value: string;
+}) => (
+  <div className="grid gap-1.5">
+    <p className="text-sm font-medium">{label}</p>
+    <p className="text-sm text-muted-foreground">{value}</p>
+  </div>
+);
+
+const getChatMessageStyle = (senderRole: string): string => {
+  if (senderRole === "ADMIN") {
+    return "bg-primary/10 border-primary/20";
+  }
+  if (senderRole === "BUYER") {
+    return "bg-muted/50";
+  }
+  return "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900";
+};
+
+export const DisputeDetailPage = () => {
   const { disputeId } = useParams({ from: "/disputes/$disputeId" });
   const disputes = useDisputes();
   const dispute =
@@ -203,13 +226,7 @@ export function DisputeDetailPage() {
               <CardContent className="grid gap-3 max-h-80 overflow-y-auto">
                 {dispute.chatMessages.map((msg) => (
                   <div
-                    className={`rounded-2xl p-3 text-sm border ${
-                      msg.senderRole === "ADMIN"
-                        ? "bg-primary/10 border-primary/20"
-                        : (msg.senderRole === "BUYER"
-                          ? "bg-muted/50"
-                          : "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900")
-                    }`}
+                    className={`rounded-2xl p-3 text-sm border ${getChatMessageStyle(msg.senderRole)}`}
                     key={msg.id}
                   >
                     <div className="flex items-center justify-between font-medium text-xs text-muted-foreground mb-1">
@@ -285,13 +302,4 @@ export function DisputeDetailPage() {
       />
     </>
   );
-}
-
-function DetailField({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="grid gap-1.5">
-      <p className="text-sm font-medium">{label}</p>
-      <p className="text-sm text-muted-foreground">{value}</p>
-    </div>
-  );
-}
+};

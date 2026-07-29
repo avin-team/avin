@@ -23,12 +23,12 @@ interface Props {
   readonly onOpenChange: (open: boolean) => void;
 }
 
-export function WithdrawalActionDialog({
+export const WithdrawalActionDialog = ({
   request,
   targetStatus,
   open,
   onOpenChange,
-}: Props) {
+}: Props) => {
   const [bankRef, setBankRef] = useState("");
   const [note, setNote] = useState("");
 
@@ -50,17 +50,21 @@ export function WithdrawalActionDialog({
     }
   };
 
+  const renderTitle = () => {
+    if (targetStatus === "APPROVED") {
+      return "Duyệt Yêu Cầu Rút Tiền";
+    }
+    if (targetStatus === "PAID") {
+      return "Xác Nhận Đã Chuyển Khoản (Paid)";
+    }
+    return "Từ Chối Yêu Cầu Rút Tiền";
+  };
+
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>
-            {targetStatus === "APPROVED"
-              ? "Duyệt Yêu Cầu Rút Tiền"
-              : (targetStatus === "PAID"
-                ? "Xác Nhận Đã Chuyển Khoản (Paid)"
-                : "Từ Chối Yêu Cầu Rút Tiền")}
-          </DialogTitle>
+          <DialogTitle>{renderTitle()}</DialogTitle>
           <DialogDescription>
             Rút tiền số lượng:{" "}
             <strong>{request.amountVnd.toLocaleString("vi-VN")} đ</strong> về
@@ -119,4 +123,4 @@ export function WithdrawalActionDialog({
       </DialogContent>
     </Dialog>
   );
-}
+};

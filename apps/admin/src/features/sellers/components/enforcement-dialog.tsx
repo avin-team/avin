@@ -22,12 +22,12 @@ interface Props {
   readonly onOpenChange: (open: boolean) => void;
 }
 
-export function EnforcementDialog({
+export const EnforcementDialog = ({
   seller,
   targetStatus,
   open,
   onOpenChange,
-}: Props) {
+}: Props) => {
   const [reason, setReason] = useState("");
 
   if (!seller || !targetStatus) {
@@ -50,17 +50,21 @@ export function EnforcementDialog({
   const isDestructive =
     targetStatus === "BANNED" || targetStatus === "SUSPENDED";
 
+  const renderTitle = () => {
+    if (targetStatus === "ACTIVE") {
+      return "Khôi phục trạng thái Hoạt Động";
+    }
+    if (targetStatus === "SUSPENDED") {
+      return "Tạm dừng hoạt động Seller (Suspend)";
+    }
+    return "Cấm vĩnh viễn Seller (Ban)";
+  };
+
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>
-            {targetStatus === "ACTIVE"
-              ? "Khôi phục trạng thái Hoạt Động"
-              : (targetStatus === "SUSPENDED"
-                ? "Tạm dừng hoạt động Seller (Suspend)"
-                : "Cấm vĩnh viễn Seller (Ban)")}
-          </DialogTitle>
+          <DialogTitle>{renderTitle()}</DialogTitle>
           <DialogDescription>
             Thực hiện trên storefront <strong>{seller.storefrontName}</strong>.
             Thao tác này sẽ ghi lại nhật ký xử lý vi phạm.
@@ -98,4 +102,4 @@ export function EnforcementDialog({
       </DialogContent>
     </Dialog>
   );
-}
+};

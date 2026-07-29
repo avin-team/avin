@@ -23,7 +23,7 @@ import {
 } from "@avin/ui/components/table";
 import { Link } from "@tanstack/react-router";
 import { AlertCircle, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import { Header } from "@/components/layout/header";
 import { Main } from "@/components/layout/main";
@@ -35,25 +35,23 @@ import type { DisputeStatus } from "../types";
 
 type StatusFilter = "ALL" | DisputeStatus;
 
-export function DisputeQueuePage() {
+export const DisputeQueuePage = () => {
   const disputes = useDisputes();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
 
-  const filteredDisputes = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return disputes.filter((dispute) => {
-      const matchStatus =
-        statusFilter === "ALL" || dispute.status === statusFilter;
-      const matchQuery =
-        q.length === 0 ||
-        dispute.buyerName.toLowerCase().includes(q) ||
-        dispute.sellerStorefrontName.toLowerCase().includes(q) ||
-        dispute.itemSnapshot.listingTitle.toLowerCase().includes(q) ||
-        dispute.itemSnapshot.orderId.toLowerCase().includes(q);
-      return matchStatus && matchQuery;
-    });
-  }, [disputes, query, statusFilter]);
+  const q = query.trim().toLowerCase();
+  const filteredDisputes = disputes.filter((dispute) => {
+    const matchStatus =
+      statusFilter === "ALL" || dispute.status === statusFilter;
+    const matchQuery =
+      q.length === 0 ||
+      dispute.buyerName.toLowerCase().includes(q) ||
+      dispute.sellerStorefrontName.toLowerCase().includes(q) ||
+      dispute.itemSnapshot.listingTitle.toLowerCase().includes(q) ||
+      dispute.itemSnapshot.orderId.toLowerCase().includes(q);
+    return matchStatus && matchQuery;
+  });
 
   return (
     <>
@@ -211,4 +209,4 @@ export function DisputeQueuePage() {
       </Main>
     </>
   );
-}
+};

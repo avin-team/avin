@@ -30,7 +30,7 @@ import { formatApplicationDate } from "@/features/seller-applications/utils";
 import { useSellers } from "@/features/sellers/api/mock-sellers";
 import { useWithdrawals } from "@/features/withdrawals/api/mock-withdrawals";
 
-export function OverviewPage() {
+export const OverviewPage = () => {
   const applications = useSellerApplications();
   const categories = useCategories();
   const sellers = useSellers();
@@ -94,8 +94,10 @@ export function OverviewPage() {
     },
   ];
 
-  const recentApplications = [...applications]
-    .sort((left, right) => right.submittedAt.localeCompare(left.submittedAt))
+  const recentApplications = applications
+    .toSorted((left, right) =>
+      right.submittedAt.localeCompare(left.submittedAt)
+    )
     .slice(0, 3);
 
   return (
@@ -253,4 +255,4 @@ export function OverviewPage() {
       </Main>
     </>
   );
-}
+};

@@ -9,10 +9,10 @@ import {
 import { Separator } from "@avin/ui/components/separator";
 import { Link, useParams } from "@tanstack/react-router";
 import {
+  AlertTriangle,
   ArrowLeft,
   Ban,
   CheckCircle2,
-  AlertTriangle,
   Shield,
   Wallet,
 } from "lucide-react";
@@ -27,7 +27,20 @@ import { EnforcementDialog } from "../components/enforcement-dialog";
 import { SellerEnforcementBadge } from "../components/seller-enforcement-badge";
 import type { SellerEnforcementStatus } from "../types";
 
-export function SellerDetailPage() {
+const DetailField = ({
+  label,
+  value,
+}: {
+  readonly label: string;
+  readonly value: string;
+}) => (
+  <div className="grid gap-1.5">
+    <p className="text-sm font-medium">{label}</p>
+    <p className="text-sm text-muted-foreground">{value}</p>
+  </div>
+);
+
+export const SellerDetailPage = () => {
   const { sellerId } = useParams({ from: "/sellers/$sellerId" });
   const sellers = useSellers();
   const seller = sellers.find((s) => s.id === sellerId) ?? getSeller(sellerId);
@@ -256,13 +269,4 @@ export function SellerDetailPage() {
       />
     </>
   );
-}
-
-function DetailField({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="grid gap-1.5">
-      <p className="text-sm font-medium">{label}</p>
-      <p className="text-sm text-muted-foreground">{value}</p>
-    </div>
-  );
-}
+};

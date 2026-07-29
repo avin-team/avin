@@ -1,10 +1,10 @@
 import type { SellerApplication, SellerApplicationDecision } from "./types";
 
-export function applySellerApplicationDecision(
+export const applySellerApplicationDecision = (
   application: SellerApplication,
   decision: SellerApplicationDecision,
   reason?: string
-): SellerApplication {
+): SellerApplication => {
   if (application.status !== "PENDING_REVIEW") {
     throw new Error("Only pending applications can be decided");
   }
@@ -19,11 +19,11 @@ export function applySellerApplicationDecision(
     reviewReason: decision === "APPROVED" ? undefined : normalizedReason,
     status: decision,
   };
-}
+};
 
-export function resubmitSellerApplication(
+export const resubmitSellerApplication = (
   application: SellerApplication
-): SellerApplication {
+): SellerApplication => {
   if (application.status !== "CHANGES_REQUESTED") {
     throw new Error(
       "Only applications with requested changes can be resubmitted"
@@ -36,9 +36,9 @@ export function resubmitSellerApplication(
     revisionCount: application.revisionCount + 1,
     status: "PENDING_REVIEW",
   };
-}
+};
 
-export function maskBankAccount(accountNumber: string): string {
+export const maskBankAccount = (accountNumber: string): string => {
   const visibleDigits = accountNumber.slice(-4);
   return `**** ${visibleDigits}`;
-}
+};

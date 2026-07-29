@@ -4,10 +4,10 @@ import type {
   SubCategory,
 } from "./types";
 
-export function validateWarrantyBounds(
+export const validateWarrantyBounds = (
   minHours: number,
   maxHours: number
-): void {
+): void => {
   if (minHours < 0) {
     throw new Error("Minimum warranty hours cannot be negative");
   }
@@ -16,15 +16,17 @@ export function validateWarrantyBounds(
       "Maximum warranty hours must be greater than or equal to minimum warranty hours"
     );
   }
-}
+};
 
-export function validateCommissionRate(ratePercent: number): void {
+export const validateCommissionRate = (ratePercent: number): void => {
   if (ratePercent < 0 || ratePercent > 100) {
     throw new Error("Commission rate must be between 0% and 100%");
   }
-}
+};
 
-export function buildSubCategory(input: CreateSubCategoryInput): SubCategory {
+export const buildSubCategory = (
+  input: CreateSubCategoryInput
+): SubCategory => {
   validateCommissionRate(input.commissionRatePercent);
   validateWarrantyBounds(input.minWarrantyHours, input.maxWarrantyHours);
 
@@ -63,13 +65,12 @@ export function buildSubCategory(input: CreateSubCategoryInput): SubCategory {
       minHours: input.minWarrantyHours,
     },
   };
-}
+};
 
-export function countTotalSubCategories(
+export const countTotalSubCategories = (
   categories: readonly ParentCategory[]
-): number {
-  return categories.reduce(
+): number =>
+  categories.reduce(
     (total, category) => total + category.subCategories.length,
     0
   );
-}

@@ -27,7 +27,25 @@ import type { SellerApplicationDecision } from "@/features/seller-applications/t
 import { formatApplicationDate } from "@/features/seller-applications/utils";
 import { maskBankAccount } from "@/features/seller-applications/workflow";
 
-export function SellerApplicationDetailPage() {
+const DetailField = ({
+  label,
+  value,
+}: {
+  readonly label: string;
+  readonly value: string;
+}) => (
+  <div className="grid gap-1.5">
+    <p className="text-sm font-medium">{label}</p>
+    <p className="text-sm text-muted-foreground">{value}</p>
+  </div>
+);
+
+const getSellerApplicationFromSnapshot = (
+  applications: readonly ReturnType<typeof getSellerApplication>[],
+  applicationId: string
+) => applications.find((application) => application?.id === applicationId);
+
+export const SellerApplicationDetailPage = () => {
   const { applicationId } = useParams({
     from: "/seller-applications/$applicationId",
   });
@@ -91,6 +109,43 @@ export function SellerApplicationDetailPage() {
         error instanceof Error ? error.message : "Không thể trả lại hồ sơ"
       );
     }
+  };
+
+  const renderActionButtons = () => {
+    if (canDecide) {
+      return (
+        <>
+          <Button onClick={() => handleDecision("APPROVED")}>
+            <ShieldCheck />
+            Phê duyệt hồ sơ
+          </Button>
+          <Button
+            onClick={() => handleDecision("CHANGES_REQUESTED")}
+            variant="outline"
+          >
+            Yêu cầu chỉnh sửa
+          </Button>
+          <Button
+            onClick={() => handleDecision("REJECTED")}
+            variant="destructive"
+          >
+            Từ chối hồ sơ
+          </Button>
+        </>
+      );
+    }
+    if (application.status === "CHANGES_REQUESTED") {
+      return (
+        <Button onClick={handleResubmit} variant="outline">
+          Trả về hàng đợi chờ duyệt
+        </Button>
+      );
+    }
+    return (
+      <p className="text-sm text-muted-foreground">
+        Không có thêm thao tác cho trạng thái này.
+      </p>
+    );
   };
 
   return (
@@ -225,34 +280,7 @@ export function SellerApplicationDetailPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3">
-              {canDecide ? (
-                <>
-                  <Button onClick={() => handleDecision("APPROVED")}>
-                    <ShieldCheck />
-                    Phê duyệt hồ sơ
-                  </Button>
-                  <Button
-                    onClick={() => handleDecision("CHANGES_REQUESTED")}
-                    variant="outline"
-                  >
-                    Yêu cầu chỉnh sửa
-                  </Button>
-                  <Button
-                    onClick={() => handleDecision("REJECTED")}
-                    variant="destructive"
-                  >
-                    Từ chối hồ sơ
-                  </Button>
-                </>
-              ) : (application.status === "CHANGES_REQUESTED" ? (
-                <Button onClick={handleResubmit} variant="outline">
-                  Trả về hàng đợi chờ duyệt
-                </Button>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Không có thêm thao tác cho trạng thái này.
-                </p>
-              ))}
+              {renderActionButtons()}
               <Separator />
               <p className="text-xs leading-5 text-muted-foreground">
                 Bản prototype này sử dụng dữ liệu mẫu cục bộ. Xác thực Admin và
@@ -273,20 +301,4 @@ export function SellerApplicationDetailPage() {
       />
     </>
   );
-}
-
-function DetailField({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="grid gap-1.5">
-      <p className="text-sm font-medium">{label}</p>
-      <p className="text-sm text-muted-foreground">{value}</p>
-    </div>
-  );
-}
-
-function getSellerApplicationFromSnapshot(
-  applications: readonly ReturnType<typeof getSellerApplication>[],
-  applicationId: string
-) {
-  return applications.find((application) => application?.id === applicationId);
-}
+};

@@ -2,20 +2,20 @@ import type { WithdrawalRequest, WithdrawalStatus } from "./types";
 
 export const MIN_WITHDRAWAL_AMOUNT_VND = 5000;
 
-export function validateWithdrawalAmount(amountVnd: number): void {
+export const validateWithdrawalAmount = (amountVnd: number): void => {
   if (amountVnd < MIN_WITHDRAWAL_AMOUNT_VND) {
     throw new Error(
       `Số tiền rút tối thiểu là ${MIN_WITHDRAWAL_AMOUNT_VND.toLocaleString("vi-VN")} đ`
     );
   }
-}
+};
 
-export function updateWithdrawalStatus(
+export const updateWithdrawalStatus = (
   request: WithdrawalRequest,
   newStatus: WithdrawalStatus,
   bankTransactionRef?: string,
   note?: string
-): WithdrawalRequest {
+): WithdrawalRequest => {
   if (request.status === "PAID" || request.status === "REJECTED") {
     throw new Error(`Yêu cầu rút tiền đã hoàn tất (${request.status})`);
   }
@@ -46,4 +46,4 @@ export function updateWithdrawalStatus(
     processedAt: now,
     status: newStatus,
   };
-}
+};

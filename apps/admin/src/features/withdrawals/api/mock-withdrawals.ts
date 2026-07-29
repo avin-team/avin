@@ -55,14 +55,14 @@ const INITIAL_WITHDRAWALS: readonly WithdrawalRequest[] = [
 let withdrawalsState: readonly WithdrawalRequest[] = INITIAL_WITHDRAWALS;
 const listeners = new Set<() => void>();
 
-function emitChange(): void {
+const emitChange = (): void => {
   for (const listener of listeners) {
     listener();
   }
-}
+};
 
-export function useWithdrawals(): readonly WithdrawalRequest[] {
-  return useSyncExternalStore(
+export const useWithdrawals = (): readonly WithdrawalRequest[] =>
+  useSyncExternalStore(
     (listener) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
@@ -70,14 +70,13 @@ export function useWithdrawals(): readonly WithdrawalRequest[] {
     () => withdrawalsState,
     () => INITIAL_WITHDRAWALS
   );
-}
 
-export function processWithdrawalAction(
+export const processWithdrawalAction = (
   withdrawalId: string,
   newStatus: WithdrawalStatus,
   bankTransactionRef?: string,
   note?: string
-): void {
+): void => {
   const request = withdrawalsState.find((w) => w.id === withdrawalId);
   if (!request) {
     throw new Error("Không tìm thấy yêu cầu rút tiền");
@@ -95,4 +94,4 @@ export function processWithdrawalAction(
   );
 
   emitChange();
-}
+};

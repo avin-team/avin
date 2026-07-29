@@ -4,12 +4,12 @@ import type {
   SellerEnforcementStatus,
 } from "./types";
 
-export function enforceSeller(
+export const enforceSeller = (
   seller: Seller,
   newStatus: SellerEnforcementStatus,
   reason: string,
   adminName = "Avin Admin"
-): Seller {
+): Seller => {
   const trimmedReason = reason.trim();
   if (trimmedReason.length === 0) {
     throw new Error("Mẫu lý do xử lý vi phạm không được để trống");
@@ -33,12 +33,11 @@ export function enforceSeller(
     enforcementHistory: [record, ...seller.enforcementHistory],
     enforcementStatus: newStatus,
   };
-}
+};
 
-export function canRequestWithdrawal(status: SellerEnforcementStatus): boolean {
-  return status === "ACTIVE";
-}
+export const canRequestWithdrawal = (
+  status: SellerEnforcementStatus
+): boolean => status === "ACTIVE";
 
-export function areListingsVisible(status: SellerEnforcementStatus): boolean {
-  return status === "ACTIVE";
-}
+export const areListingsVisible = (status: SellerEnforcementStatus): boolean =>
+  status === "ACTIVE";

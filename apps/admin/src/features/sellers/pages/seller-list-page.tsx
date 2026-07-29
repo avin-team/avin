@@ -22,8 +22,8 @@ import {
   TableRow,
 } from "@avin/ui/components/table";
 import { Link } from "@tanstack/react-router";
-import { Search, Star, Store } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Search, Store } from "lucide-react";
+import { useState } from "react";
 
 import { Header } from "@/components/layout/header";
 import { Main } from "@/components/layout/main";
@@ -35,24 +35,22 @@ import type { SellerEnforcementStatus } from "../types";
 
 type StatusFilter = "ALL" | SellerEnforcementStatus;
 
-export function SellerListPage() {
+export const SellerListPage = () => {
   const sellers = useSellers();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
 
-  const filteredSellers = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return sellers.filter((seller) => {
-      const matchStatus =
-        statusFilter === "ALL" || seller.enforcementStatus === statusFilter;
-      const matchQuery =
-        q.length === 0 ||
-        seller.storefrontName.toLowerCase().includes(q) ||
-        seller.applicantName.toLowerCase().includes(q) ||
-        seller.email.toLowerCase().includes(q);
-      return matchStatus && matchQuery;
-    });
-  }, [sellers, query, statusFilter]);
+  const q = query.trim().toLowerCase();
+  const filteredSellers = sellers.filter((seller) => {
+    const matchStatus =
+      statusFilter === "ALL" || seller.enforcementStatus === statusFilter;
+    const matchQuery =
+      q.length === 0 ||
+      seller.storefrontName.toLowerCase().includes(q) ||
+      seller.applicantName.toLowerCase().includes(q) ||
+      seller.email.toLowerCase().includes(q);
+    return matchStatus && matchQuery;
+  });
 
   return (
     <>
@@ -63,22 +61,21 @@ export function SellerListPage() {
       </Header>
       <Main className="flex flex-1 flex-col gap-6">
         <div>
-          <p className="text-sm font-medium text-primary">
-            MARKETPLACE GOVERNANCE
-          </p>
+          <p className="text-sm font-medium text-primary">SELLER GOVERNANCE</p>
           <h1 className="text-3xl font-semibold tracking-tight">
-            Sellers & Enforcement
+            Storefront Governance
           </h1>
           <p className="text-muted-foreground">
-            Quản lý nhà bán hàng, theo dõi uy tín và xử lý vi phạm chính sách
-            (Suspend / Ban).
+            Quản lý trạng thái hoạt động gian hàng, chế tài vi phạm
+            (Suspend/Ban) và theo dõi số dư ví SellerWallet.
           </p>
         </div>
 
         <Card>
           <CardHeader className="gap-4 border-b sm:flex-row sm:items-center sm:justify-between">
-            <CardTitle className="text-base">
-              Danh sách Sellers{" "}
+            <CardTitle className="text-base flex items-center gap-2">
+              <Store className="size-4 text-primary" />
+              Danh sách Gian Hàng Seller{" "}
               <span className="text-muted-foreground">
                 ({filteredSellers.length})
               </span>
@@ -90,7 +87,7 @@ export function SellerListPage() {
                   aria-label="Search sellers"
                   className="ps-9"
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Tìm storefront hoặc email"
+                  placeholder="Tìm storefront, chủ gian hàng..."
                   value={query}
                 />
               </div>
@@ -104,11 +101,13 @@ export function SellerListPage() {
                   aria-label="Filter status"
                   className="w-full sm:w-44"
                 >
-                  <SelectValue placeholder="Tất cả trạng thái" />
+                  <SelectValue placeholder="Trạng thái gian hàng" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
-                  <SelectItem value="ACTIVE">Active (Hoạt động)</SelectItem>
+                  <SelectItem value="ACTIVE">
+                    Active (Đang hoạt động)
+                  </SelectItem>
                   <SelectItem value="SUSPENDED">
                     Suspended (Tạm dừng)
                   </SelectItem>
@@ -123,27 +122,27 @@ export function SellerListPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Storefront</TableHead>
-                    <TableHead>Chủ gian hàng</TableHead>
-                    <TableHead>Đánh giá & Đơn</TableHead>
-                    <TableHead>Số dư khả dụng</TableHead>
+                    <TableHead>Chủ tài khoản</TableHead>
+                    <TableHead>Đánh giá / Đơn hàng</TableHead>
+                    <TableHead>Số dư ví SellerWallet</TableHead>
                     <TableHead>Trạng thái</TableHead>
-                    <TableHead className="text-end">Chi tiết</TableHead>
+                    <TableHead className="text-end">Quản trị</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredSellers.map((seller) => (
                     <TableRow key={seller.id}>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Store className="size-4 text-primary" />
-                          <div>
-                            <p className="font-medium">
-                              {seller.storefrontName}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {seller.activeListingsCount} listings đang bán
-                            </p>
-                          </div>
+                        <div>
+                          <p className="font-medium text-base">
+                            {seller.storefrontName}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Tham gia:{" "}
+                            {new Date(seller.joinedAt).toLocaleDateString(
+                              "vi-VN"
+                            )}
+                          </p>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -157,22 +156,33 @@ export function SellerListPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Star className="size-3.5 fill-amber-400 text-amber-400" />
-                          <span className="text-sm font-medium">
-                            {seller.averageRating}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            ({seller.ratingCount} ĐG ·{" "}
-                            {seller.completedOrdersCount} đơn)
-                          </span>
+                        <div className="text-xs">
+                          <p className="font-medium text-amber-600 dark:text-amber-400">
+                            {seller.averageRating} ★ ({seller.ratingCount})
+                          </p>
+                          <p className="text-muted-foreground">
+                            {seller.completedOrdersCount} đơn hoàn thành
+                          </p>
                         </div>
                       </TableCell>
-                      <TableCell className="font-mono text-sm">
-                        {seller.wallet.availableBalanceVnd.toLocaleString(
-                          "vi-VN"
-                        )}{" "}
-                        đ
+                      <TableCell>
+                        <div className="text-xs">
+                          <p className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">
+                            {seller.wallet.availableBalanceVnd.toLocaleString(
+                              "vi-VN"
+                            )}{" "}
+                            đ{" "}
+                            <span className="font-sans text-[10px] text-muted-foreground">
+                              (Khả dụng)
+                            </span>
+                          </p>
+                          <p className="font-mono text-muted-foreground">
+                            {seller.wallet.pendingEscrowBalanceVnd.toLocaleString(
+                              "vi-VN"
+                            )}{" "}
+                            đ (Tạm giữ Escrow)
+                          </p>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <SellerEnforcementBadge
@@ -190,7 +200,7 @@ export function SellerListPage() {
                           size="sm"
                           variant="outline"
                         >
-                          Quản lý
+                          Quản lý & Vi phạm
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -201,7 +211,7 @@ export function SellerListPage() {
                         className="h-28 text-center text-muted-foreground"
                         colSpan={6}
                       >
-                        Không tìm thấy Seller phù hợp.
+                        Không tìm thấy Seller nào phù hợp.
                       </TableCell>
                     </TableRow>
                   )}
@@ -213,4 +223,4 @@ export function SellerListPage() {
       </Main>
     </>
   );
-}
+};

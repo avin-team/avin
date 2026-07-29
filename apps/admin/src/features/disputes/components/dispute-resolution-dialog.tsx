@@ -22,12 +22,12 @@ interface Props {
   readonly onOpenChange: (open: boolean) => void;
 }
 
-export function DisputeResolutionDialog({
+export const DisputeResolutionDialog = ({
   dispute,
   outcome,
   open,
   onOpenChange,
-}: Props) {
+}: Props) => {
   const [note, setNote] = useState("");
   const [chatMsg, setChatMsg] = useState("");
 
@@ -118,4 +118,4 @@ export function DisputeResolutionDialog({
       </DialogContent>
     </Dialog>
   );
-}
+};
