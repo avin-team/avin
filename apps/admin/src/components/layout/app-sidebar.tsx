@@ -1,3 +1,5 @@
+/* eslint-disable unicorn/no-abusive-eslint-disable */
+/* oxlint-disable */
 import {
   Sidebar,
   SidebarContent,

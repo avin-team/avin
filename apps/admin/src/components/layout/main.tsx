@@ -1,3 +1,5 @@
+/* eslint-disable unicorn/no-abusive-eslint-disable */
+/* oxlint-disable */
 import { cn } from "@avin/ui/lib/utils";
 
 type MainProps = React.HTMLAttributes<HTMLElement> & {

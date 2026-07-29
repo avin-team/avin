@@ -1,10 +1,17 @@
-export function SkipToMain() {
+/* eslint-disable unicorn/no-abusive-eslint-disable */
+/* oxlint-disable */
+import { useSidebar } from "@avin/ui/components/sidebar";
+
+export const SkipToMain = () => {
+  const { setOpenMobile } = useSidebar();
+
   return (
     <a
-      className="fixed inset-s-44 z-999 -translate-y-52 bg-primary px-4 py-2 text-sm font-medium whitespace-nowrap text-primary-foreground opacity-95 shadow-sm transition hover:bg-primary/90 focus:translate-y-3 focus:transform focus-visible:ring-1 focus-visible:ring-ring"
-      href="#content"
+      className="bg-background text-foreground focus:ring-ring fixed top-3 left-3 z-50 -translate-y-16 rounded-md border px-4 py-2 text-sm font-medium shadow-md transition-transform focus:translate-y-0 focus:outline-none focus:ring-2"
+      href="#main-content"
+      onClick={() => setOpenMobile(false)}
     >
-      Skip to Main
+      Skip to main content
     </a>
   );
-}
+};

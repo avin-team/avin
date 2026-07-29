@@ -35,10 +35,6 @@ export default defineConfig({
     ...(core.ignorePatterns ?? []),
     "packages/ui/**",
     "apps/admin/src/assets/**",
-    "apps/admin/src/components/**",
-    "apps/admin/src/context/**",
-    "apps/admin/src/lib/**",
-    "apps/admin/src/hooks/**",
   ],
   rules: {
     "github/filenames-match-regex": "off",
