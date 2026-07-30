@@ -54,7 +54,13 @@ export const UserAuthForm = ({
           return;
         }
 
-        if (result.data?.user?.role !== "ADMIN") {
+        const session = await authClient.getSession({
+          query: { disableCookieCache: true },
+        });
+
+        const userRole = session.data?.user?.role ?? result.data?.user?.role;
+
+        if (userRole !== "ADMIN") {
           await authClient.signOut();
           toast.error(
             "Tài khoản không có quyền truy cập trang Quản trị (ADMIN)."
