@@ -1,4 +1,3 @@
-/* oxlint-disable */
 import {
   Sidebar,
   SidebarContent,
@@ -14,7 +13,7 @@ import { sidebarData } from "./data/sidebar-data";
 import { NavGroup } from "./nav-group";
 import { NavUser } from "./nav-user";
 
-export function AppSidebar() {
+export const AppSidebar = () => {
   const { collapsible, variant } = useLayout();
   return (
     <Sidebar collapsible={collapsible} variant={variant}>
@@ -32,4 +31,4 @@ export function AppSidebar() {
       <SidebarRail />
     </Sidebar>
   );
-}
+};

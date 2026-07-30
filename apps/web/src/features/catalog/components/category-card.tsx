@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Layers } from "lucide-react";
-// oxlint-disable-next-line react-doctor/use-lazy-motion
 import { motion } from "motion/react";
 import type { ComponentPropsWithoutRef } from "react";
 
@@ -39,7 +38,7 @@ export const CategoryCard = ({ category, className }: CategoryCardProps) => {
             </div>
             <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/60 px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
               <Layers className="h-3 w-3" />
-              <span>{subs.length} danh mục con</span>
+              <span>{subs.length} dịch vụ con</span>
             </span>
           </div>
 
@@ -78,7 +77,7 @@ export const CategoryCard = ({ category, className }: CategoryCardProps) => {
             params={{ parentSlug: category.slug }}
             to="/category/$parentSlug"
           >
-            <span>Xem danh mục</span>
+            <span>Xem dịch vụ</span>
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
           </Link>
         </div>

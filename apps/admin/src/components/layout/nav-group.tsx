@@ -1,4 +1,3 @@
-/* oxlint-disable */
 import { Badge } from "@avin/ui/components/badge";
 import {
   Collapsible,
@@ -36,38 +35,22 @@ import type {
   NavGroup as NavGroupProps,
 } from "./types";
 
-export function NavGroup({ title, items }: NavGroupProps) {
-  const { state, isMobile } = useSidebar();
-  const href = useLocation({ select: (location) => location.href });
+const checkIsActive = (href: string, item: NavItem, mainNav = false) => {
   return (
-    <SidebarGroup>
-      <SidebarGroupLabel>{title}</SidebarGroupLabel>
-      <SidebarMenu>
-        {items.map((item) => {
-          const key = `${item.title}-${item.url}`;
-
-          if (!item.items) {
-            return <SidebarMenuLink key={key} item={item} href={href} />;
-          }
-
-          if (state === "collapsed" && !isMobile) {
-            return (
-              <SidebarMenuCollapsedDropdown key={key} item={item} href={href} />
-            );
-          }
-
-          return <SidebarMenuCollapsible key={key} item={item} href={href} />;
-        })}
-      </SidebarMenu>
-    </SidebarGroup>
+    href === item.url ||
+    href.split("?")[0] === item.url ||
+    !!item?.items?.filter((i) => i.url === href).length ||
+    (mainNav &&
+      href.split("/")[1] !== "" &&
+      href.split("/")[1] === item?.url?.split("/")[1])
   );
-}
+};
 
-function NavBadge({ children }: { children: ReactNode }) {
+const NavBadge = ({ children }: { children: ReactNode }) => {
   return <Badge className="rounded-full px-1 py-0 text-xs">{children}</Badge>;
-}
+};
 
-function SidebarMenuLink({ item, href }: { item: NavLink; href: string }) {
+const SidebarMenuLink = ({ item, href }: { item: NavLink; href: string }) => {
   const { setOpenMobile } = useSidebar();
   return (
     <SidebarMenuItem>
@@ -82,15 +65,15 @@ function SidebarMenuLink({ item, href }: { item: NavLink; href: string }) {
       </SidebarMenuButton>
     </SidebarMenuItem>
   );
-}
+};
 
-function SidebarMenuCollapsible({
+const SidebarMenuCollapsible = ({
   item,
   href,
 }: {
   item: NavCollapsible;
   href: string;
-}) {
+}) => {
   const { setOpenMobile } = useSidebar();
   return (
     <Collapsible
@@ -126,15 +109,15 @@ function SidebarMenuCollapsible({
       </CollapsibleContent>
     </Collapsible>
   );
-}
+};
 
-function SidebarMenuCollapsedDropdown({
+const SidebarMenuCollapsedDropdown = ({
   item,
   href,
 }: {
   item: NavCollapsible;
   href: string;
-}) {
+}) => {
   return (
     <SidebarMenuItem>
       <DropdownMenu>
@@ -180,15 +163,31 @@ function SidebarMenuCollapsedDropdown({
       </DropdownMenu>
     </SidebarMenuItem>
   );
-}
+};
 
-function checkIsActive(href: string, item: NavItem, mainNav = false) {
+export const NavGroup = ({ title, items }: NavGroupProps) => {
+  const { state, isMobile } = useSidebar();
+  const href = useLocation({ select: (location) => location.href });
   return (
-    href === item.url || // /endpint?search=param
-    href.split("?")[0] === item.url || // endpoint
-    !!item?.items?.filter((i) => i.url === href).length || // if child nav is active
-    (mainNav &&
-      href.split("/")[1] !== "" &&
-      href.split("/")[1] === item?.url?.split("/")[1])
+    <SidebarGroup>
+      <SidebarGroupLabel>{title}</SidebarGroupLabel>
+      <SidebarMenu>
+        {items.map((item) => {
+          const key = `${item.title}-${item.url}`;
+
+          if (!item.items) {
+            return <SidebarMenuLink key={key} item={item} href={href} />;
+          }
+
+          if (state === "collapsed" && !isMobile) {
+            return (
+              <SidebarMenuCollapsedDropdown key={key} item={item} href={href} />
+            );
+          }
+
+          return <SidebarMenuCollapsible key={key} item={item} href={href} />;
+        })}
+      </SidebarMenu>
+    </SidebarGroup>
   );
-}
+};

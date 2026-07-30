@@ -1,4 +1,3 @@
-/* oxlint-disable react-doctor/tanstack-start-route-property-order */
 import { createFileRoute, redirect, useSearch } from "@tanstack/react-router";
 import { z } from "zod";
 
@@ -15,6 +14,7 @@ const SignInRouteComponent = () => {
 };
 
 export const Route = createFileRoute("/sign-in")({
+  validateSearch: searchSchema,
   beforeLoad: async () => {
     try {
       const session = await authClient.getSession();
@@ -34,5 +34,4 @@ export const Route = createFileRoute("/sign-in")({
     }
   },
   component: SignInRouteComponent,
-  validateSearch: searchSchema,
 });

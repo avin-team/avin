@@ -1,9 +1,8 @@
 import { cn } from "@avin/ui/lib/utils";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Search, Zap } from "lucide-react";
-// oxlint-disable-next-line react-doctor/use-lazy-motion
 import { motion } from "motion/react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 import { ModeToggle } from "@/components/mode-toggle";
 import { siteConfig } from "@/config/site";
@@ -31,20 +30,31 @@ const itemVariants = {
 export const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
-    };
+    const sentinel = sentinelRef.current;
+    if (!sentinel) {
+      return;
+    }
 
-    handleScroll();
-    // oxlint-disable-next-line github/prefer-observers
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsScrolled(!entry?.isIntersecting && window.scrollY > 10);
+      },
+      { threshold: [0] }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
   }, []);
 
   return (
     <>
+      <div
+        ref={sentinelRef}
+        className="absolute top-0 h-px w-full pointer-events-none"
+      />
       <motion.header
         animate="visible"
         className={cn(

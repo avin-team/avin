@@ -1,4 +1,3 @@
-/* oxlint-disable react-doctor/nextjs-no-img-element */
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "@tanstack/react-router";
 import {
@@ -64,7 +63,7 @@ export const ListingDetailPage = () => {
                 className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground"
                 to="/category"
               >
-                <span>Quay lại Danh mục</span>
+                <span>Quay lại Dịch vụ</span>
               </Link>
             </div>
           </div>
@@ -82,7 +81,7 @@ export const ListingDetailPage = () => {
               </Link>
               <ChevronRight className="h-3.5 w-3.5 opacity-50" />
               <Link className="hover:text-foreground" to="/category">
-                Danh mục
+                Dịch vụ
               </Link>
               {parentCategory ? (
                 <>

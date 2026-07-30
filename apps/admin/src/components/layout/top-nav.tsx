@@ -1,4 +1,3 @@
-/* oxlint-disable */
 import { Button } from "@avin/ui/components/button";
 import {
   DropdownMenu,
@@ -19,7 +18,7 @@ type TopNavProps = React.HTMLAttributes<HTMLElement> & {
   }[];
 };
 
-export function TopNav({ className, links, ...props }: TopNavProps) {
+export const TopNav = ({ className, links, ...props }: TopNavProps) => {
   return (
     <>
       <DropdownMenu modal={false}>
@@ -73,4 +72,4 @@ export function TopNav({ className, links, ...props }: TopNavProps) {
       </nav>
     </>
   );
-}
+};

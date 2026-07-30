@@ -24,7 +24,7 @@ export const CategoriesPage = () => {
             </div>
 
             <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-5xl">
-              Khám phá theo <span className="text-primary">Danh mục</span>
+              Khám phá theo <span className="text-primary">Dịch vụ</span>
             </h1>
 
             <p className="text-base text-muted-foreground sm:text-lg">
@@ -50,12 +50,12 @@ export const CategoriesPage = () => {
             <div className="flex items-center gap-2">
               <Grid className="h-5 w-5 text-primary" />
               <h2 className="text-xl font-bold tracking-tight text-foreground">
-                Tất cả danh mục
+                Tất cả dịch vụ
               </h2>
             </div>
             {categoriesQuery.data ? (
               <span className="text-sm font-medium text-muted-foreground">
-                {categoriesQuery.data.length} danh mục đang hoạt động
+                {categoriesQuery.data.length} dịch vụ đang hoạt động
               </span>
             ) : null}
           </div>
@@ -76,7 +76,7 @@ export const CategoriesPage = () => {
           {categoriesQuery.isError ? (
             <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-8 text-center">
               <p className="font-medium text-destructive">
-                Không thể tải danh mục. Vui lòng thử lại.
+                Không thể tải dịch vụ. Vui lòng thử lại.
               </p>
               <button
                 className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
@@ -102,10 +102,10 @@ export const CategoriesPage = () => {
             <div className="rounded-2xl border border-border bg-card p-12 text-center">
               <Layers className="mx-auto h-12 w-12 text-muted-foreground" />
               <h3 className="mt-4 text-lg font-bold text-foreground">
-                Chưa có danh mục nào
+                Chưa có dịch vụ nào
               </h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                Các danh mục sẽ xuất hiện tại đây khi hệ thống được cập nhật.
+                Các dịch vụ sẽ xuất hiện tại đây khi hệ thống được cập nhật.
               </p>
             </div>
           ) : null}

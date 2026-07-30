@@ -1,8 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { BookOpen, Shield, User, Wrench } from "lucide-react";
-// oxlint-disable-next-line react-doctor/use-lazy-motion
 import { motion } from "motion/react";
-/* oxlint-disable react-doctor/nextjs-no-img-element */
 import type { ComponentPropsWithoutRef } from "react";
 
 import { formatVND } from "@/utils/format";

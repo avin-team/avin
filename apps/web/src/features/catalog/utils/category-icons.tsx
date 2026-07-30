@@ -19,16 +19,13 @@ export const CATEGORY_ICON_MAP: Record<
   string,
   ComponentType<{ className?: string }>
 > = {
-  // Social media services from seed data
+  "design-creative": Palette,
+  "development-tech": Code2,
   "dich-vu-facebook": Share2,
   "dich-vu-google": MapPin,
   "dich-vu-instagram": Camera,
   "dich-vu-tiktok": Video,
   "dich-vu-youtube": PlaySquare,
-
-  // Additional common category slugs
-  "design-creative": Palette,
-  "development-tech": Code2,
   "digital-services": Globe,
   "education-courses": BookOpen,
   "game-items": Gamepad2,
@@ -57,6 +54,7 @@ export const CategoryIcon = ({
   slug?: string | null;
   className?: string;
 }) => {
-  const IconComponent = getCategoryIcon(slug);
+  const IconComponent =
+    (slug && CATEGORY_ICON_MAP[slug]) || DEFAULT_CATEGORY_ICON;
   return <IconComponent className={className} />;
 };

@@ -1,26 +1,40 @@
-/* oxlint-disable */
 import { SidebarTrigger } from "@avin/ui/components/sidebar";
 import { cn } from "@avin/ui/lib/utils";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type HeaderProps = React.HTMLAttributes<HTMLElement> & {
   fixed?: boolean;
   ref?: React.Ref<HTMLElement>;
 };
 
-export function Header({ className, fixed, children, ...props }: HeaderProps) {
+export const Header = ({
+  className,
+  fixed,
+  children,
+  ...props
+}: HeaderProps) => {
   const [offset, setOffset] = useState(0);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const onScroll = () => {
-      setOffset(document.body.scrollTop || document.documentElement.scrollTop);
-    };
+    const sentinel = sentinelRef.current;
+    if (!sentinel) {
+      return;
+    }
 
-    // Add scroll listener to the body
-    document.addEventListener("scroll", onScroll);
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry) {
+          setOffset(0);
+          return;
+        }
+        setOffset(entry.isIntersecting ? 0 : 10);
+      },
+      { threshold: [0] }
+    );
 
-    // Clean up the event listener on unmount
-    return () => document.removeEventListener("scroll", onScroll);
+    observer.observe(sentinel);
+    return () => observer.disconnect();
   }, []);
 
   return (
@@ -33,6 +47,7 @@ export function Header({ className, fixed, children, ...props }: HeaderProps) {
       )}
       {...props}
     >
+      <div ref={sentinelRef} className="absolute top-0 h-px w-full" />
       <div
         className={cn(
           "relative flex h-full items-center gap-3 p-4 sm:gap-4",
@@ -46,4 +61,4 @@ export function Header({ className, fixed, children, ...props }: HeaderProps) {
       </div>
     </header>
   );
-}
+};

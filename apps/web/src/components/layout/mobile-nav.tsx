@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 import { Menu, X } from "lucide-react";
-// oxlint-disable-next-line react-doctor/use-lazy-motion
 import { AnimatePresence, motion } from "motion/react";
 
 import type { MainNavItem } from "@/config/site";

@@ -23,3 +23,5 @@
 - Prefers integration/workflow tests that verify main flows are working (e.g., fill form → submit → correct API calls), rather than exhaustive unit tests for individual input validation edge cases. Confidence: 0.65
 - All regex literals must include the `u` (unicode) flag (e.g., `/đăng nhập/iu`, not `/đăng nhập/i`), enforced by ultracite lint. Confidence: 0.80
 - Test helper functions (`renderForm`, `fillAndSubmit`, etc.) must be defined at top-level module scope, not nested inside `describe` blocks. Confidence: 0.75
+- Zero tolerance for inline lint suppression comments (e.g., `/* oxlint-disable */`, `// oxlint-disable-next-line`). Fix the underlying code issues instead of suppressing them. If a rule genuinely does not apply to the project, disable it at the config level (`oxlint.config.ts`), not inline. Confidence: 0.85
+- Prefers disabling inapplicable lint rules in the config file (`oxlint.config.ts`) rather than scattering inline disable comments throughout source files. Confidence: 0.75

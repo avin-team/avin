@@ -1,4 +1,3 @@
-/* oxlint-disable */
 import { SidebarInset, SidebarProvider } from "@avin/ui/components/sidebar";
 import { cn } from "@avin/ui/lib/utils";
 
@@ -11,7 +10,7 @@ interface AdminLayoutProps {
   children: React.ReactNode;
 }
 
-export function AdminLayout({ children }: AdminLayoutProps) {
+export const AdminLayout = ({ children }: AdminLayoutProps) => {
   const defaultOpen = getCookie("sidebar_state") !== "false";
 
   return (
@@ -31,4 +30,4 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       </SidebarProvider>
     </LayoutProvider>
   );
-}
+};

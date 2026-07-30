@@ -1,4 +1,3 @@
-/* oxlint-disable */
 import type { LinkProps } from "@tanstack/react-router";
 
 interface User {
@@ -20,12 +19,12 @@ interface BaseNavItem {
 }
 
 type NavLink = BaseNavItem & {
-  url: LinkProps["to"] | (string & {});
+  url: LinkProps["to"] | string;
   items?: never;
 };
 
 type NavCollapsible = BaseNavItem & {
-  items: (BaseNavItem & { url: LinkProps["to"] | (string & {}) })[];
+  items: (BaseNavItem & { url: LinkProps["to"] | string })[];
   url?: never;
 };
 

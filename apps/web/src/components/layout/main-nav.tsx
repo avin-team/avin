@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router";
-// oxlint-disable-next-line react-doctor/use-lazy-motion
 import { motion } from "motion/react";
 import React, { useState } from "react";
 

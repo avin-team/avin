@@ -19,7 +19,7 @@ export const ListingsSearchPage = () => {
     search?: string;
     sortBy?: SortByOption;
   };
-  const navigate = useNavigate();
+  const navigate = useNavigate({ from: "/listings/" });
 
   const page = searchParams.page ?? 1;
   const search = searchParams.search ?? "";
@@ -44,40 +44,40 @@ export const ListingsSearchPage = () => {
 
   const handleParentSelect = (slug?: string) => {
     navigate({
-      search: {
-        ...searchParams,
+      search: (prev) => ({
+        ...prev,
         page: 1,
         parentSlug: slug,
-      } as unknown as Record<string, unknown>,
+      }),
     });
   };
 
   const handleSearchChange = (val: string) => {
     navigate({
-      search: {
-        ...searchParams,
+      search: (prev) => ({
+        ...prev,
         page: 1,
         search: val || undefined,
-      } as unknown as Record<string, unknown>,
+      }),
     });
   };
 
   const handleSortChange = (val: SortByOption) => {
     navigate({
-      search: {
-        ...searchParams,
+      search: (prev) => ({
+        ...prev,
         page: 1,
         sortBy: val,
-      } as unknown as Record<string, unknown>,
+      }),
     });
   };
 
   const handlePageChange = (newPage: number) => {
     navigate({
-      search: {
-        ...searchParams,
+      search: (prev) => ({
+        ...prev,
         page: newPage,
-      } as unknown as Record<string, unknown>,
+      }),
     });
   };
 
@@ -127,7 +127,7 @@ export const ListingsSearchPage = () => {
               onClick={() => handleParentSelect()}
               type="button"
             >
-              All Categories
+              Tất cả dịch vụ
             </button>
             {categoriesQuery.data.map((cat) => (
               <button
@@ -151,7 +151,7 @@ export const ListingsSearchPage = () => {
           initialSearch={search}
           onSearchChange={handleSearchChange}
           onSortChange={handleSortChange}
-          placeholder="Search all services and courses..."
+          placeholder="Tìm kiếm tất cả dịch vụ và khóa học..."
           sortBy={sortBy}
         />
 
@@ -161,14 +161,14 @@ export const ListingsSearchPage = () => {
         {listingsQuery.isError ? (
           <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-8 text-center">
             <p className="font-medium text-destructive">
-              Error loading marketplace listings.
+              Lỗi khi tải danh sách tin đăng.
             </p>
             <button
               className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
               onClick={() => listingsQuery.refetch()}
               type="button"
             >
-              Retry
+              Thử lại
             </button>
           </div>
         ) : null}
@@ -192,8 +192,8 @@ export const ListingsSearchPage = () => {
 
         {listingsQuery.data && listingsQuery.data.items.length === 0 ? (
           <ListingEmptyState
-            description="Try adjusting your search criteria or category filter."
-            title="No matching listings found"
+            description="Thử điều chỉnh từ khóa tìm kiếm hoặc bộ lọc dịch vụ."
+            title="Không tìm thấy tin đăng phù hợp"
           />
         ) : null}
       </div>

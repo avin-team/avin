@@ -1,4 +1,3 @@
-/* oxlint-disable */
 import { useSidebar } from "@avin/ui/components/sidebar";
 
 export const SkipToMain = () => {

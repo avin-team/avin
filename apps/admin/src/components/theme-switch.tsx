@@ -1,10 +1,9 @@
-/* oxlint-disable */
 import { Button } from "@avin/ui/components/button";
 import { Moon, Sun } from "lucide-react";
 
 import { useTheme } from "@/context/theme-provider";
 
-export function ThemeSwitch() {
+export const ThemeSwitch = () => {
   const { resolvedTheme, setTheme } = useTheme();
   const nextTheme = resolvedTheme === "dark" ? "light" : "dark";
 
@@ -18,4 +17,4 @@ export function ThemeSwitch() {
       {resolvedTheme === "dark" ? <Sun /> : <Moon />}
     </Button>
   );
-}
+};
