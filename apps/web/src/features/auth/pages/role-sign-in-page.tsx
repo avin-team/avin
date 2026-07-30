@@ -23,7 +23,7 @@ export const RoleSignInPage = ({
   redirectTo,
   title,
 }: RoleSignInPageProps) => (
-  <main className="mx-auto flex h-full w-full max-w-md items-center px-6">
+  <main className="mx-auto flex w-full max-w-md items-center">
     <Card className="w-full">
       <CardHeader>
         <CardTitle>{title}</CardTitle>

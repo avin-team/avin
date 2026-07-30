@@ -4,7 +4,7 @@ export const Route = createFileRoute("/(auth)/seller/login")({
   beforeLoad: () => {
     throw redirect({
       search: { role: "seller" },
-      to: "/(auth)/login",
+      to: "/login",
     });
   },
 });

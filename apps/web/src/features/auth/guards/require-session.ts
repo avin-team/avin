@@ -8,7 +8,7 @@ export const requireSession = async () => {
   if (!session.data) {
     redirect({
       throw: true,
-      to: "/(auth)/login",
+      to: "/login",
     });
   }
 

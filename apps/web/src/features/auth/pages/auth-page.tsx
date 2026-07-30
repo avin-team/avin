@@ -45,7 +45,7 @@ export const AuthPage = () => {
         ...prev,
         role: role === ACCOUNT_ROLE.SELLER ? "seller" : "buyer",
       }),
-      to: "/(auth)/login",
+      to: "/login",
     });
   };
 
@@ -56,14 +56,14 @@ export const AuthPage = () => {
         ...prev,
         role: undefined,
       }),
-      to: "/(auth)/login",
+      to: "/login",
     });
   };
 
   const defaultMode = search.mode ?? "sign-in";
 
   return (
-    <main className="relative flex h-full w-full items-center justify-center overflow-hidden px-6 md:px-8">
+    <main className="relative flex w-full items-center justify-center">
       <section
         className={cn(
           "relative flex w-full max-w-sm flex-col justify-between p-6 md:p-8",
