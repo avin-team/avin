@@ -1,14 +1,11 @@
+import type { ServiceInputField } from "@avin/db/schema/catalog";
+
 export type CategoryStatus = "ACTIVE" | "HIDDEN" | "ARCHIVED";
 
-export type ServiceInputFieldType = "text" | "url" | "file" | "number";
-
-export interface ServiceInputField {
-  readonly id: string;
-  readonly key: string;
-  readonly label: string;
-  readonly type: ServiceInputFieldType;
-  readonly required: boolean;
-}
+export type {
+  ServiceInputField,
+  ServiceInputFieldType,
+} from "@avin/db/schema/catalog";
 
 export interface WarrantyPolicyTemplate {
   readonly durationHours: number;

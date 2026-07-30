@@ -1,7 +1,12 @@
 import { db } from "@avin/db";
-import { listing, parentCategory, subCategory } from "@avin/db/schema/catalog";
+import {
+  listing,
+  parentCategory,
+  serviceInputFieldSchema,
+  subCategory,
+} from "@avin/db/schema/catalog";
 import { ORPCError } from "@orpc/server";
-import { eq, inArray, count } from "drizzle-orm";
+import { count, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 import { adminProcedure } from "../authorization";
@@ -11,14 +16,6 @@ import {
   validateDefaultWarrantyDuration,
   validateWarrantyBounds,
 } from "./category-helpers";
-
-const serviceInputFieldSchema = z.object({
-  id: z.string(),
-  key: z.string(),
-  label: z.string(),
-  required: z.boolean(),
-  type: z.enum(["text", "url", "file", "number"]),
-});
 
 export const categoryRouter = {
   archive: adminProcedure

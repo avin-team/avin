@@ -11,8 +11,28 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { z } from "zod";
 
 import { user } from "./auth";
+
+export const serviceInputFieldTypeSchema = z.enum([
+  "text",
+  "url",
+  "file",
+  "number",
+]);
+
+export type ServiceInputFieldType = z.infer<typeof serviceInputFieldTypeSchema>;
+
+export const serviceInputFieldSchema = z.object({
+  id: z.string(),
+  key: z.string(),
+  label: z.string(),
+  required: z.boolean(),
+  type: serviceInputFieldTypeSchema,
+});
+
+export type ServiceInputField = z.infer<typeof serviceInputFieldSchema>;
 
 export const categoryStatus = pgEnum("category_status", [
   "ACTIVE",
@@ -60,15 +80,7 @@ export const subCategory = pgTable(
     }).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     defaultServiceInputs: jsonb("default_service_inputs")
-      .$type<
-        {
-          id: string;
-          key: string;
-          label: string;
-          type: "text" | "url" | "file" | "number";
-          required: boolean;
-        }[]
-      >()
+      .$type<ServiceInputField[]>()
       .default([])
       .notNull(),
     defaultWarrantyPolicy: jsonb("default_warranty_policy")
@@ -122,15 +134,7 @@ export const listing = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     serviceInputFields: jsonb("service_input_fields")
-      .$type<
-        {
-          id: string;
-          key: string;
-          label: string;
-          type: "text" | "url" | "file" | "number";
-          required: boolean;
-        }[]
-      >()
+      .$type<ServiceInputField[]>()
       .default([])
       .notNull(),
     status: listingStatus("status").default("DRAFT").notNull(),

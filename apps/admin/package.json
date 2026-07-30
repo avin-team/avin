@@ -15,6 +15,7 @@
     "@ai-sdk/react": "^3.0.179",
     "@avin/api": "workspace:*",
     "@avin/auth": "workspace:*",
+    "@avin/db": "workspace:*",
     "@avin/env": "workspace:*",
     "@avin/ui": "workspace:*",
     "@hookform/resolvers": "^5.2.2",

@@ -1,16 +1,11 @@
 /* eslint-disable no-await-in-loop */
 import { db } from "./index";
 import { parentCategory, subCategory } from "./schema/catalog";
+import type { ServiceInputField } from "./schema/catalog";
 
 interface SubCategoryInput {
   commissionRatePercent: string;
-  defaultServiceInputs: {
-    id: string;
-    key: string;
-    label: string;
-    required: boolean;
-    type: "text" | "url" | "file" | "number";
-  }[];
+  defaultServiceInputs: ServiceInputField[];
   defaultWarrantyDurationHours: number;
   defaultWarrantyTerms: string;
   maxWarrantyHours: number;

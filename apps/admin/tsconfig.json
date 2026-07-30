@@ -12,6 +12,8 @@
     "paths": {
       "@/*": ["./src/*"],
       "@avin/auth/*": ["../../packages/auth/src/*"],
+      "@avin/db": ["../../packages/db/src/index.ts"],
+      "@avin/db/*": ["../../packages/db/src/*"],
       "@avin/ui/*": ["../../packages/ui/src/*"]
     }
   }
