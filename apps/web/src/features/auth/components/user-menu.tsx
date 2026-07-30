@@ -54,6 +54,15 @@ export const UserMenu = () => {
           <DropdownMenuItem
             onClick={async () => {
               await navigate({
+                to: "/seller/onboarding",
+              });
+            }}
+          >
+            Đăng ký Người bán
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={async () => {
+              await navigate({
                 to: "/security",
               });
             }}
