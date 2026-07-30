@@ -74,13 +74,28 @@ const getCommissionDisplay = (
   return `${min}% – ${max}%`;
 };
 
+const reorderArray = <T,>(
+  items: readonly T[],
+  index: number,
+  direction: "up" | "down"
+): T[] | null => {
+  const targetIndex = direction === "up" ? index - 1 : index + 1;
+  if (targetIndex < 0 || targetIndex >= items.length) {
+    return null;
+  }
+  const reordered = [...items];
+  const temp = reordered[index];
+  reordered[index] = reordered[targetIndex];
+  reordered[targetIndex] = temp;
+  return reordered;
+};
+
 export const CategoriesPage = () => {
   const {
-    data: categoriesData = [],
+    data: categories = [],
     isLoading,
     error,
   } = useQuery(categoriesQueryOptions());
-  const categories = categoriesData as unknown as ParentCategory[];
 
   const [createParentOpen, setCreateParentOpen] = useState(false);
   const [createSubOpen, setCreateSubOpen] = useState(false);
@@ -155,15 +170,10 @@ export const CategoriesPage = () => {
   };
 
   const handleMoveParent = (index: number, direction: "up" | "down") => {
-    const targetIndex = direction === "up" ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= categories.length) {
+    const reordered = reorderArray(categories, index, direction);
+    if (!reordered) {
       return;
     }
-
-    const reordered = [...categories];
-    const temp = reordered[index];
-    reordered[index] = reordered[targetIndex];
-    reordered[targetIndex] = temp;
 
     const items = reordered.map((cat, idx) => ({
       id: cat.id,
@@ -185,15 +195,10 @@ export const CategoriesPage = () => {
     index: number,
     direction: "up" | "down"
   ) => {
-    const targetIndex = direction === "up" ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= subList.length) {
+    const reordered = reorderArray(subList, index, direction);
+    if (!reordered) {
       return;
     }
-
-    const reordered = [...subList];
-    const temp = reordered[index];
-    reordered[index] = reordered[targetIndex];
-    reordered[targetIndex] = temp;
 
     const items = reordered.map((sub, idx) => ({
       id: sub.id,
