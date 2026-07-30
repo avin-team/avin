@@ -32,7 +32,7 @@ const getInitialRole = (roleParam?: string): AccountRole | null => {
 
 export const AuthPage = () => {
   const navigate = useNavigate();
-  const search = useSearch({ from: "/login" });
+  const search = useSearch({ from: "/(auth)/login" });
 
   const [selectedRole, setSelectedRole] = useState<AccountRole | null>(() =>
     getInitialRole(search.role)

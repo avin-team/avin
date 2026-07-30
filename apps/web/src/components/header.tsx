@@ -5,9 +5,9 @@ import { UserMenu } from "@/features/auth/components/user-menu";
 import { ModeToggle } from "./mode-toggle";
 
 const links = [
-  { label: "Home", to: "/(public)" },
-  { label: "Dashboard", to: "/_authenticated/dashboard" },
-  { label: "AI Chat", to: "/_authenticated/ai" },
+  { label: "Home", to: "/" },
+  { label: "Dashboard", to: "/dashboard" },
+  { label: "AI Chat", to: "/ai" },
 ] as const;
 
 const Header = () => (
