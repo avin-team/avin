@@ -1,3 +1,5 @@
+import { ACCOUNT_ROLE } from "@avin/auth/permissions";
+import type { AccountRole } from "@avin/auth/permissions";
 import { Button } from "@avin/ui/components/button";
 import {
   Field,
@@ -14,8 +16,13 @@ import { toast } from "sonner";
 import { authClient } from "@/features/auth/api/auth-client";
 import { signUpSchema } from "@/features/auth/schemas/auth-schemas";
 import { getAuthCallbackUrl } from "@/features/auth/utils/get-auth-callback-url";
+import { getPostAuthRoute } from "@/features/auth/utils/get-post-auth-route";
 
-export const SignUpForm = () => {
+interface SignUpFormProps {
+  role?: AccountRole;
+}
+
+export const SignUpForm = ({ role = ACCOUNT_ROLE.BUYER }: SignUpFormProps) => {
   const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
   const form = useForm({
     defaultValues: {
@@ -26,11 +33,15 @@ export const SignUpForm = () => {
     onSubmit: async ({ value }) => {
       try {
         const result = await authClient.signUp.email({
-          callbackURL: getAuthCallbackUrl("/", window.location.origin),
+          callbackURL: getAuthCallbackUrl(
+            getPostAuthRoute(role),
+            window.location.origin
+          ),
           email: value.email,
           name: value.name,
           password: value.password,
-        });
+          role,
+        } as Parameters<typeof authClient.signUp.email>[0]);
 
         if (result.error) {
           toast.error(result.error.message ?? "Không thể tạo tài khoản.");
@@ -164,7 +175,7 @@ export const SignUpForm = () => {
               type="submit"
             >
               {isSubmitting && <Spinner data-icon="inline-start" />}
-              Tạo tài khoản Buyer
+              Tạo tài khoản {role === ACCOUNT_ROLE.SELLER ? "Seller" : "Buyer"}
             </Button>
           )}
         </form.Subscribe>

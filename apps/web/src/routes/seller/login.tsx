@@ -1,7 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
-
-import { SellerLoginPage } from "@/features/auth/pages/seller-login-page";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/seller/login")({
-  component: SellerLoginPage,
+  beforeLoad: () => {
+    throw redirect({
+      search: { role: "seller" },
+      to: "/login",
+    });
+  },
 });
