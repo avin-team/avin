@@ -1,0 +1,137 @@
+import { cn } from "@avin/ui/lib/utils";
+import { Link } from "@tanstack/react-router";
+import { ArrowRight, Search, Zap } from "lucide-react";
+// oxlint-disable-next-line react-doctor/use-lazy-motion
+import { motion } from "motion/react";
+import React, { useEffect, useState } from "react";
+
+import { ModeToggle } from "@/components/mode-toggle";
+import { siteConfig } from "@/config/site";
+
+import { MainNav } from "./main-nav";
+import { MobileNav, MobileNavTrigger } from "./mobile-nav";
+
+const containerVariants = {
+  hidden: { opacity: 0, y: -20 },
+  visible: {
+    opacity: 1,
+    transition: {
+      duration: 0.6,
+      staggerChildren: 0.1,
+    },
+    y: 0,
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: -10 },
+  visible: { opacity: 1, y: 0 },
+};
+
+export const Header = () => {
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+    };
+
+    handleScroll();
+    // oxlint-disable-next-line github/prefer-observers
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  return (
+    <>
+      <motion.header
+        animate="visible"
+        className={cn(
+          "fixed top-0 right-0 left-0 z-50 transition-all duration-500",
+          isScrolled
+            ? "border-b border-border/50 bg-background/80 shadow-sm backdrop-blur-md"
+            : "bg-transparent"
+        )}
+        initial="hidden"
+        variants={containerVariants}
+      >
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="flex h-16 items-center justify-between">
+            <motion.div
+              className="flex items-center space-x-3"
+              transition={{ damping: 25, stiffness: 400, type: "spring" }}
+              variants={itemVariants}
+              whileHover={{ scale: 1.02 }}
+            >
+              <Link className="flex items-center space-x-3" to="/">
+                <div className="relative">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+                    <Zap className="h-5 w-5" />
+                  </div>
+                  <div className="absolute -top-1 -right-1 h-3 w-3 animate-pulse rounded-full bg-primary" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-lg font-bold text-foreground">
+                    {siteConfig.name}
+                  </span>
+                  <span className="-mt-1 text-xs text-muted-foreground">
+                    Build faster
+                  </span>
+                </div>
+              </Link>
+            </motion.div>
+
+            <MainNav items={siteConfig.mainNav} />
+
+            <motion.div
+              className="hidden items-center space-x-3 lg:flex"
+              variants={itemVariants}
+            >
+              <motion.button
+                className="rounded-lg p-2 text-muted-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Search className="h-5 w-5" />
+              </motion.button>
+
+              <ModeToggle />
+
+              <Link
+                className="px-4 py-2 text-sm font-medium text-foreground/80 transition-colors duration-200 hover:text-foreground"
+                to="/login"
+              >
+                Sign In
+              </Link>
+
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Link
+                  className="inline-flex items-center space-x-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition-all duration-200 hover:bg-primary/90"
+                  to="/login"
+                >
+                  <span>Get Started</span>
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </motion.div>
+            </motion.div>
+
+            <MobileNavTrigger
+              isOpen={isMobileMenuOpen}
+              onToggle={() => setIsMobileMenuOpen((prev) => !prev)}
+            />
+          </div>
+        </div>
+      </motion.header>
+
+      <MobileNav
+        isOpen={isMobileMenuOpen}
+        items={siteConfig.mainNav}
+        onToggle={() => setIsMobileMenuOpen(false)}
+      />
+    </>
+  );
+};
