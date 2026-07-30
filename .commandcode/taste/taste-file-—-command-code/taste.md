@@ -23,6 +23,8 @@
 - Prefers integration/workflow tests that verify main flows are working (e.g., fill form → submit → correct API calls), rather than exhaustive unit tests for individual input validation edge cases. Confidence: 0.65
 - All regex literals must include the `u` (unicode) flag (e.g., `/đăng nhập/iu`, not `/đăng nhập/i`), enforced by ultracite lint. Confidence: 0.80
 - Test helper functions (`renderForm`, `fillAndSubmit`, etc.) must be defined at top-level module scope, not nested inside `describe` blocks. Confidence: 0.75
+- Prefers entire card components to be clickable navigation links, not just a small link/button inside the card (e.g., wrapping the whole card in TanStack Router `<Link>` rather than having only a "View more" link at the bottom). Confidence: 0.70
+
 - Zero tolerance for inline lint suppression comments (e.g., `/* oxlint-disable */`, `// oxlint-disable-next-line`). Fix the underlying code issues instead of suppressing them. If a rule genuinely does not apply to the project, disable it at the config level (`oxlint.config.ts`), not inline. Confidence: 0.85
 - Prefers disabling inapplicable lint rules in the config file (`oxlint.config.ts`) rather than scattering inline disable comments throughout source files. Confidence: 0.75
 - SVG icons are React components in `components/icons/`, accepting `SVGProps<SVGSVGElement>` with `...props` spread onto `<svg>`. Uses `fill="currentColor"` for CSS-color inheritance and `viewBox="0 0 32 32"` for consistent sizing. Named exports follow `{Name}Icon` convention (e.g., `FacebookIcon`, `YouTubeIcon`). Confidence: 0.75
