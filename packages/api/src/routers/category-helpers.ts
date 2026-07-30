@@ -1,9 +1,11 @@
+import { ORPCError } from "@orpc/server";
+
 export const generateSlug = (text: string): string =>
   text
     .normalize("NFD")
     .replaceAll(/[\u0300-\u036F]/gu, "")
-    .replaceAll('đ', "d")
-    .replaceAll('Đ', "D")
+    .replaceAll("đ", "d")
+    .replaceAll("Đ", "D")
     .toLowerCase()
     .trim()
     .replaceAll(/[^a-z0-9\s-]/gu, "")
@@ -13,7 +15,9 @@ export const generateSlug = (text: string): string =>
 
 export const validateCommissionRate = (ratePercent: number): void => {
   if (ratePercent < 0 || ratePercent > 100) {
-    throw new Error("Commission rate must be between 0% and 100%");
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Commission rate must be between 0% and 100%",
+    });
   }
 };
 
@@ -22,12 +26,15 @@ export const validateWarrantyBounds = (
   maxHours: number
 ): void => {
   if (minHours < 0) {
-    throw new Error("Minimum warranty hours cannot be negative");
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Minimum warranty hours cannot be negative",
+    });
   }
   if (maxHours < minHours) {
-    throw new Error(
-      "Maximum warranty hours must be greater than or equal to minimum warranty hours"
-    );
+    throw new ORPCError("BAD_REQUEST", {
+      message:
+        "Maximum warranty hours must be greater than or equal to minimum warranty hours",
+    });
   }
 };
 
@@ -37,8 +44,8 @@ export const validateDefaultWarrantyDuration = (
   maxHours: number
 ): void => {
   if (durationHours < minHours || durationHours > maxHours) {
-    throw new Error(
-      `Default warranty duration must be within bounds (${minHours}h - ${maxHours}h)`
-    );
+    throw new ORPCError("BAD_REQUEST", {
+      message: `Default warranty duration must be within bounds (${minHours}h - ${maxHours}h)`,
+    });
   }
 };

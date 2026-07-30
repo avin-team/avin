@@ -351,13 +351,11 @@ export const categoryRouter = {
           });
         }
 
-        // Cascade to sub-categories if HIDDEN or ARCHIVED
-        if (input.status === "HIDDEN" || input.status === "ARCHIVED") {
-          await db
-            .update(subCategory)
-            .set({ status: input.status })
-            .where(eq(subCategory.parentId, input.id));
-        }
+        // Cascade status change to sub-categories
+        await db
+          .update(subCategory)
+          .set({ status: input.status })
+          .where(eq(subCategory.parentId, input.id));
 
         return updated;
       }
