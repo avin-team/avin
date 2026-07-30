@@ -76,7 +76,7 @@ export const Header = () => {
                     {siteConfig.name}
                   </span>
                   <span className="-mt-1 text-xs text-muted-foreground">
-                    Build faster
+                    Chợ dịch vụ số
                   </span>
                 </div>
               </Link>
@@ -102,7 +102,7 @@ export const Header = () => {
                 className="px-4 py-2 text-sm font-medium text-foreground/80 transition-colors duration-200 hover:text-foreground"
                 to="/login"
               >
-                Sign In
+                Đăng nhập
               </Link>
 
               <motion.div
@@ -113,7 +113,7 @@ export const Header = () => {
                   className="inline-flex items-center space-x-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition-all duration-200 hover:bg-primary/90"
                   to="/login"
                 >
-                  <span>Get Started</span>
+                  <span>Bắt đầu ngay</span>
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </motion.div>

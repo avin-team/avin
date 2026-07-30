@@ -40,8 +40,8 @@ describe("ListingCard", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("150.000 ₫")).toBeInTheDocument();
     expect(screen.getByText("Agency Viêt Nam")).toBeInTheDocument();
-    expect(screen.getByText("Service")).toBeInTheDocument();
+    expect(screen.getByText("Dịch vụ")).toBeInTheDocument();
     expect(screen.getByText("Lấy lại tài khoản")).toBeInTheDocument();
-    expect(screen.getByText("168h warranty")).toBeInTheDocument();
+    expect(screen.getByText("Bảo hành 168h")).toBeInTheDocument();
   });
 });

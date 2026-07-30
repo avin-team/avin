@@ -27,8 +27,8 @@ export const Footer = () => (
         </nav>
 
         <p className="text-xs text-muted-foreground">
-          &copy; {new Date().getFullYear()} {siteConfig.name}. All rights
-          reserved.
+          &copy; {new Date().getFullYear()} {siteConfig.name}. Đã đăng ký bản
+          quyền.
         </p>
       </div>
     </div>

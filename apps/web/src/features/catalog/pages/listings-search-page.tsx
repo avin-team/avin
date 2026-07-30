@@ -1,23 +1,30 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { ChevronRight, Home, PackageX, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { ChevronRight, Home, Sparkles } from "lucide-react";
 
 import { Shell } from "@/components/shell";
 import { orpc } from "@/utils/orpc";
 
 import { ListingCard } from "../components/listing-card";
+import { ListingEmptyState } from "../components/listing-empty-state";
+import { ListingGridSkeleton } from "../components/listing-grid-skeleton";
 import type { SortByOption } from "../components/listing-search-bar";
 import { ListingSearchBar } from "../components/listing-search-bar";
 import { Pagination } from "../components/pagination";
 
 export const ListingsSearchPage = () => {
-  const [selectedParentSlug, setSelectedParentSlug] = useState<
-    string | undefined
-  >();
-  const [search, setSearch] = useState<string>("");
-  const [sortBy, setSortBy] = useState<SortByOption>("newest");
-  const [page, setPage] = useState<number>(1);
+  const searchParams = useSearch({ strict: false }) as {
+    page?: number;
+    parentSlug?: string;
+    search?: string;
+    sortBy?: SortByOption;
+  };
+  const navigate = useNavigate();
+
+  const page = searchParams.page ?? 1;
+  const search = searchParams.search ?? "";
+  const sortBy: SortByOption = searchParams.sortBy ?? "newest";
+  const selectedParentSlug = searchParams.parentSlug;
 
   // Fetch Parent Categories for filter
   const categoriesQuery = useQuery(orpc.catalog.categories.queryOptions());
@@ -36,18 +43,42 @@ export const ListingsSearchPage = () => {
   );
 
   const handleParentSelect = (slug?: string) => {
-    setSelectedParentSlug(slug);
-    setPage(1);
+    navigate({
+      search: {
+        ...searchParams,
+        page: 1,
+        parentSlug: slug,
+      } as unknown as Record<string, unknown>,
+    });
   };
 
   const handleSearchChange = (val: string) => {
-    setSearch(val);
-    setPage(1);
+    navigate({
+      search: {
+        ...searchParams,
+        page: 1,
+        search: val || undefined,
+      } as unknown as Record<string, unknown>,
+    });
   };
 
   const handleSortChange = (val: SortByOption) => {
-    setSortBy(val);
-    setPage(1);
+    navigate({
+      search: {
+        ...searchParams,
+        page: 1,
+        sortBy: val,
+      } as unknown as Record<string, unknown>,
+    });
+  };
+
+  const handlePageChange = (newPage: number) => {
+    navigate({
+      search: {
+        ...searchParams,
+        page: newPage,
+      } as unknown as Record<string, unknown>,
+    });
   };
 
   return (
@@ -125,16 +156,7 @@ export const ListingsSearchPage = () => {
         />
 
         {/* Content Grid */}
-        {listingsQuery.isLoading ? (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-              <div
-                key={i}
-                className="h-72 animate-pulse rounded-2xl border border-border/50 bg-muted/40 p-4"
-              />
-            ))}
-          </div>
-        ) : null}
+        {listingsQuery.isLoading ? <ListingGridSkeleton /> : null}
 
         {listingsQuery.isError ? (
           <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-8 text-center">
@@ -161,7 +183,7 @@ export const ListingsSearchPage = () => {
 
             <Pagination
               currentPage={listingsQuery.data.page}
-              onPageChange={setPage}
+              onPageChange={handlePageChange}
               total={listingsQuery.data.total}
               totalPages={listingsQuery.data.totalPages}
             />
@@ -169,15 +191,10 @@ export const ListingsSearchPage = () => {
         ) : null}
 
         {listingsQuery.data && listingsQuery.data.items.length === 0 ? (
-          <div className="rounded-2xl border border-border bg-card p-12 text-center">
-            <PackageX className="mx-auto h-12 w-12 text-muted-foreground" />
-            <h3 className="mt-4 text-lg font-bold text-foreground">
-              No matching listings found
-            </h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Try adjusting your search criteria or category filter.
-            </p>
-          </div>
+          <ListingEmptyState
+            description="Try adjusting your search criteria or category filter."
+            title="No matching listings found"
+          />
         ) : null}
       </div>
     </Shell>

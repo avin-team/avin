@@ -32,8 +32,8 @@ describe("Pagination", () => {
       />
     );
 
-    expect(screen.getByText(/Showing page/iu)).toBeInTheDocument();
-    expect(screen.getByText(/50 listings total/iu)).toBeInTheDocument();
+    expect(screen.getByText(/Hiển thị trang/iu)).toBeInTheDocument();
+    expect(screen.getByText(/50 tin đăng/iu)).toBeInTheDocument();
 
     const page2Btn = screen.getByRole("button", { name: "2" });
     await user.click(page2Btn);

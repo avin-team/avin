@@ -55,7 +55,7 @@ export const ListingCard = ({ className, listing }: ListingCardProps) => {
                   <BookOpen className="h-8 w-8 text-primary/70" />
                 )}
                 <span className="mt-1 text-xs font-medium text-muted-foreground">
-                  {isService ? "Digital Service" : "Online Course"}
+                  {isService ? "Dịch vụ số" : "Khóa học online"}
                 </span>
               </div>
             )}
@@ -71,11 +71,11 @@ export const ListingCard = ({ className, listing }: ListingCardProps) => {
               >
                 {isService ? (
                   <>
-                    <Wrench className="h-3 w-3" /> Service
+                    <Wrench className="h-3 w-3" /> Dịch vụ
                   </>
                 ) : (
                   <>
-                    <BookOpen className="h-3 w-3" /> Course
+                    <BookOpen className="h-3 w-3" /> Khóa học
                   </>
                 )}
               </span>
@@ -104,7 +104,7 @@ export const ListingCard = ({ className, listing }: ListingCardProps) => {
           {listing.warrantyDurationHours ? (
             <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
               <Shield className="h-3.5 w-3.5 text-emerald-500" />
-              <span>{listing.warrantyDurationHours}h warranty</span>
+              <span>Bảo hành {listing.warrantyDurationHours}h</span>
             </div>
           ) : null}
 
@@ -123,7 +123,7 @@ export const ListingCard = ({ className, listing }: ListingCardProps) => {
                 </div>
               )}
               <span className="max-w-[100px] truncate text-xs font-medium text-muted-foreground">
-                {listing.seller?.name ?? "Verified Seller"}
+                {listing.seller?.name ?? "Người bán uy tín"}
               </span>
             </div>
 

@@ -16,7 +16,7 @@ export const ListingSearchBar = ({
   initialSearch = "",
   onSearchChange,
   onSortChange,
-  placeholder = "Search listings by keyword...",
+  placeholder = "Tìm kiếm tin đăng theo từ khóa...",
   sortBy,
 }: ListingSearchBarProps) => {
   const [term, setTerm] = useState(initialSearch);
@@ -37,6 +37,7 @@ export const ListingSearchBar = ({
         <div className="relative flex items-center">
           <Search className="absolute left-3.5 h-4 w-4 text-muted-foreground" />
           <input
+            aria-label="Tìm kiếm tin đăng theo từ khóa"
             className="w-full rounded-xl border border-border bg-background/80 py-2.5 pr-9 pl-10 text-sm font-medium text-foreground placeholder:text-muted-foreground shadow-xs transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             onChange={(e) => setTerm(e.target.value)}
             placeholder={placeholder}
@@ -45,6 +46,7 @@ export const ListingSearchBar = ({
           />
           {term ? (
             <button
+              aria-label="Xóa từ khóa tìm kiếm"
               className="absolute right-3.5 rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
               onClick={handleClear}
               type="button"
@@ -59,14 +61,14 @@ export const ListingSearchBar = ({
         <div className="relative flex items-center">
           <ArrowUpDown className="absolute left-3 h-4 w-4 text-muted-foreground pointer-events-none" />
           <select
-            aria-label="Sort listings"
+            aria-label="Sắp xếp tin đăng"
             className="rounded-xl border border-border bg-background/80 py-2.5 pr-8 pl-9 text-sm font-medium text-foreground shadow-xs transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer"
             onChange={(e) => onSortChange(e.target.value as SortByOption)}
             value={sortBy}
           >
-            <option value="newest">Sort by: Newest</option>
-            <option value="price_asc">Price: Low to High</option>
-            <option value="price_desc">Price: High to Low</option>
+            <option value="newest">Sắp xếp: Mới nhất</option>
+            <option value="price_asc">Giá: Thấp đến Cao</option>
+            <option value="price_desc">Giá: Cao đến Thấp</option>
           </select>
         </div>
       </div>

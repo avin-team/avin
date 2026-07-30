@@ -38,7 +38,7 @@ describe("CategoryCard", () => {
     expect(
       screen.getByText("Kháng cờ fanpage và tăng trưởng Facebook")
     ).toBeInTheDocument();
-    expect(screen.getByText("2 sub-categories")).toBeInTheDocument();
+    expect(screen.getByText("2 danh mục con")).toBeInTheDocument();
     expect(screen.getByText("Lấy lại tài khoản")).toBeInTheDocument();
     expect(screen.getByText("Kháng checkpoint")).toBeInTheDocument();
   });
@@ -46,7 +46,7 @@ describe("CategoryCard", () => {
   it("renders explore link to category detail page", () => {
     render(<CategoryCard category={mockCategory} />);
 
-    const link = screen.getByRole("link", { name: /Explore Category/iu });
+    const link = screen.getByRole("link", { name: /Xem danh mục/iu });
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute("href", "/category/dich-vu-facebook");
   });

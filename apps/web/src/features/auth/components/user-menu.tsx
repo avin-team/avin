@@ -25,7 +25,7 @@ export const UserMenu = () => {
   if (!session) {
     return (
       <Link to="/login">
-        <Button variant="outline">Sign In</Button>
+        <Button variant="outline">Đăng nhập</Button>
       </Link>
     );
   }
@@ -37,7 +37,7 @@ export const UserMenu = () => {
       </DropdownMenuTrigger>
       <DropdownMenuContent className="bg-card">
         <DropdownMenuGroup>
-          <DropdownMenuLabel>My Account</DropdownMenuLabel>
+          <DropdownMenuLabel>Tài khoản của tôi</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem>{session.user.email}</DropdownMenuItem>
           <DropdownMenuItem
@@ -68,7 +68,7 @@ export const UserMenu = () => {
             }}
             variant="destructive"
           >
-            Sign Out
+            Đăng xuất
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>

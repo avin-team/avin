@@ -39,7 +39,7 @@ export const CategoryCard = ({ category, className }: CategoryCardProps) => {
             </div>
             <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/60 px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
               <Layers className="h-3 w-3" />
-              <span>{subs.length} sub-categories</span>
+              <span>{subs.length} danh mục con</span>
             </span>
           </div>
 
@@ -65,7 +65,7 @@ export const CategoryCard = ({ category, className }: CategoryCardProps) => {
               ))}
               {subs.length > 4 ? (
                 <span className="inline-flex items-center rounded-md bg-muted/30 px-2 py-1 text-xs font-medium text-muted-foreground">
-                  +{subs.length - 4} more
+                  +{subs.length - 4} khác
                 </span>
               ) : null}
             </div>
@@ -78,7 +78,7 @@ export const CategoryCard = ({ category, className }: CategoryCardProps) => {
             params={{ parentSlug: category.slug }}
             to="/category/$parentSlug"
           >
-            <span>Explore Category</span>
+            <span>Xem danh mục</span>
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
           </Link>
         </div>

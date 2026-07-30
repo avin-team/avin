@@ -20,7 +20,9 @@ describe("ListingSearchBar", () => {
       />
     );
 
-    const input = screen.getByPlaceholderText("Search listings by keyword...");
+    const input = screen.getByPlaceholderText(
+      "Tìm kiếm tin đăng theo từ khóa..."
+    );
     await user.type(input, "Facebook{Enter}");
 
     expect(onSearchChange).toHaveBeenCalledWith("Facebook");
@@ -39,7 +41,9 @@ describe("ListingSearchBar", () => {
       />
     );
 
-    const select = screen.getByRole("combobox", { name: /Sort listings/iu });
+    const select = screen.getByRole("combobox", {
+      name: /Sắp xếp tin đăng/iu,
+    });
     await user.selectOptions(select, "price_asc");
 
     expect(onSortChange).toHaveBeenCalledWith("price_asc");

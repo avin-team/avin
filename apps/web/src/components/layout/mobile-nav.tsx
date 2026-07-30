@@ -97,14 +97,14 @@ export const MobileNav = ({ isOpen, items, onToggle }: MobileNavProps) => (
                 onClick={onToggle}
                 to="/login"
               >
-                Sign In
+                Đăng nhập
               </Link>
               <Link
                 className="block w-full rounded-lg bg-primary py-3 text-center font-medium text-primary-foreground transition-all duration-200 hover:bg-primary/90"
                 onClick={onToggle}
                 to="/login"
               >
-                Get Started
+                Bắt đầu ngay
               </Link>
             </motion.div>
           </div>

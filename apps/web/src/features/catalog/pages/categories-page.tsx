@@ -20,16 +20,16 @@ export const CategoriesPage = () => {
           <div className="relative max-w-2xl space-y-4">
             <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3.5 py-1 text-xs font-semibold text-primary">
               <Sparkles className="h-3.5 w-3.5" />
-              <span>Service & Product Marketplace</span>
+              <span>Chợ Dịch Vụ & Sản Phẩm Số</span>
             </div>
 
             <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-5xl">
-              Browse by <span className="text-primary">Category</span>
+              Khám phá theo <span className="text-primary">Danh mục</span>
             </h1>
 
             <p className="text-base text-muted-foreground sm:text-lg">
-              Explore trusted digital services, account management, growth
-              tools, and courses verified by our platform.
+              Khám phá các dịch vụ số, giải pháp tài khoản, công cụ tăng trưởng
+              và khóa học chuyên sâu đã qua xác minh.
             </p>
 
             <div className="pt-2">
@@ -38,7 +38,7 @@ export const CategoriesPage = () => {
                 to="/listings"
               >
                 <Search className="h-4 w-4" />
-                <span>Search All Listings</span>
+                <span>Tìm kiếm tất cả tin đăng</span>
               </Link>
             </div>
           </div>
@@ -50,12 +50,12 @@ export const CategoriesPage = () => {
             <div className="flex items-center gap-2">
               <Grid className="h-5 w-5 text-primary" />
               <h2 className="text-xl font-bold tracking-tight text-foreground">
-                All Categories
+                Tất cả danh mục
               </h2>
             </div>
             {categoriesQuery.data ? (
               <span className="text-sm font-medium text-muted-foreground">
-                {categoriesQuery.data.length} active categories
+                {categoriesQuery.data.length} danh mục đang hoạt động
               </span>
             ) : null}
           </div>
@@ -76,14 +76,14 @@ export const CategoriesPage = () => {
           {categoriesQuery.isError ? (
             <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-8 text-center">
               <p className="font-medium text-destructive">
-                Failed to load categories. Please try again.
+                Không thể tải danh mục. Vui lòng thử lại.
               </p>
               <button
                 className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
                 onClick={() => categoriesQuery.refetch()}
                 type="button"
               >
-                Retry
+                Thử lại
               </button>
             </div>
           ) : null}
@@ -102,10 +102,10 @@ export const CategoriesPage = () => {
             <div className="rounded-2xl border border-border bg-card p-12 text-center">
               <Layers className="mx-auto h-12 w-12 text-muted-foreground" />
               <h3 className="mt-4 text-lg font-bold text-foreground">
-                No active categories found
+                Chưa có danh mục nào
               </h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                Categories will appear here once configured by the platform.
+                Các danh mục sẽ xuất hiện tại đây khi hệ thống được cập nhật.
               </p>
             </div>
           ) : null}

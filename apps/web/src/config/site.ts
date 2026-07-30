@@ -10,14 +10,14 @@ export interface SiteConfig {
 }
 
 export const siteConfig: SiteConfig = {
-  description: "Build faster with our modern web platform.",
+  description: "Nền tảng mua bán dịch vụ số & sản phẩm hàng đầu.",
   mainNav: [
-    { href: "/", title: "Home" },
-    { href: "/category", title: "Categories" },
-    { href: "/listings", title: "Marketplace" },
-    { href: "/features", title: "Features" },
-    { href: "/solutions", title: "Solutions" },
-    { href: "/pricing", title: "Pricing" },
+    { href: "/", title: "Trang chủ" },
+    { href: "/category", title: "Danh mục" },
+    { href: "/listings", title: "Chợ sản phẩm" },
+    { href: "/features", title: "Tính năng" },
+    { href: "/solutions", title: "Giải pháp" },
+    { href: "/pricing", title: "Bảng giá" },
   ],
-  name: "Acme Inc.",
+  name: "Avin",
 };

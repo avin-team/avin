@@ -17,7 +17,6 @@ export const Pagination = ({
     return null;
   }
 
-  const pages: number[] = [];
   const maxVisiblePages = 5;
   let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
   const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
@@ -26,22 +25,23 @@ export const Pagination = ({
     startPage = Math.max(1, endPage - maxVisiblePages + 1);
   }
 
-  for (let i = startPage; i <= endPage; i += 1) {
-    pages.push(i);
-  }
+  const pages = Array.from(
+    { length: endPage - startPage + 1 },
+    (_, idx) => startPage + idx
+  );
 
   return (
     <div className="flex flex-col items-center justify-between gap-4 py-4 sm:flex-row">
       <p className="text-xs font-medium text-muted-foreground">
-        Showing page{" "}
-        <span className="font-semibold text-foreground">{currentPage}</span> of{" "}
-        <span className="font-semibold text-foreground">{totalPages}</span> (
-        {total} listings total)
+        Hiển thị trang{" "}
+        <span className="font-semibold text-foreground">{currentPage}</span> /{" "}
+        <span className="font-semibold text-foreground">{totalPages}</span>{" "}
+        (Tổng cộng {total} tin đăng)
       </p>
 
       <div className="flex items-center gap-1.5">
         <button
-          aria-label="Previous Page"
+          aria-label="Trang trước"
           className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-background text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-40 disabled:pointer-events-none"
           disabled={currentPage <= 1}
           onClick={() => onPageChange(currentPage - 1)}
@@ -96,7 +96,7 @@ export const Pagination = ({
         ) : null}
 
         <button
-          aria-label="Next Page"
+          aria-label="Trang sau"
           className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-background text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-40 disabled:pointer-events-none"
           disabled={currentPage >= totalPages}
           onClick={() => onPageChange(currentPage + 1)}

@@ -54,17 +54,17 @@ export const ListingDetailPage = () => {
           <div className="rounded-3xl border border-destructive/20 bg-destructive/5 p-12 text-center">
             <AlertCircle className="mx-auto h-12 w-12 text-destructive" />
             <h2 className="mt-4 text-xl font-bold text-foreground">
-              Listing Not Found
+              Không tìm thấy tin đăng
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              This listing might have been removed or is currently unavailable.
+              Tin đăng này có thể đã bị xóa hoặc tạm thời không khả dụng.
             </p>
             <div className="mt-6">
               <Link
                 className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground"
                 to="/category"
               >
-                <span>Return to Categories</span>
+                <span>Quay lại Danh mục</span>
               </Link>
             </div>
           </div>
@@ -82,7 +82,7 @@ export const ListingDetailPage = () => {
               </Link>
               <ChevronRight className="h-3.5 w-3.5 opacity-50" />
               <Link className="hover:text-foreground" to="/category">
-                Categories
+                Danh mục
               </Link>
               {parentCategory ? (
                 <>
@@ -127,11 +127,11 @@ export const ListingDetailPage = () => {
                     >
                       {isService ? (
                         <>
-                          <Wrench className="h-3.5 w-3.5" /> Digital Service
+                          <Wrench className="h-3.5 w-3.5" /> Dịch vụ số
                         </>
                       ) : (
                         <>
-                          <BookOpen className="h-3.5 w-3.5" /> Online Course
+                          <BookOpen className="h-3.5 w-3.5" /> Khóa học online
                         </>
                       )}
                     </span>
@@ -173,10 +173,10 @@ export const ListingDetailPage = () => {
                   {/* Description Section */}
                   <div className="mt-8 space-y-3">
                     <h2 className="text-lg font-bold text-foreground">
-                      Overview & Details
+                      Tổng quan & Chi tiết
                     </h2>
                     <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
-                      {listing.description || "No description provided."}
+                      {listing.description || "Chưa có mô tả."}
                     </p>
                   </div>
 
@@ -186,7 +186,7 @@ export const ListingDetailPage = () => {
                     <div className="mt-8 rounded-2xl border border-border/60 bg-muted/30 p-5 space-y-3">
                       <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
                         <CheckCircle2 className="h-4 w-4 text-primary" />
-                        Required Information From Buyer
+                        Thông tin yêu cầu từ người mua
                       </h3>
                       <ul className="space-y-1.5 text-xs text-muted-foreground">
                         {listing.serviceInputFields.map((field) => (
@@ -200,7 +200,7 @@ export const ListingDetailPage = () => {
                             </span>
                             {field.required ? (
                               <span className="text-destructive font-semibold">
-                                (Required)
+                                (Bắt buộc)
                               </span>
                             ) : null}
                           </li>
@@ -215,10 +215,10 @@ export const ListingDetailPage = () => {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 text-emerald-500 font-bold text-sm">
                           <ShieldCheck className="h-5 w-5" />
-                          <span>Buyer Protection Warranty</span>
+                          <span>Bảo hành bảo vệ người mua</span>
                         </div>
                         <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-500">
-                          {listing.warrantyDurationHours} Hours Guarantee
+                          Bảo hành {listing.warrantyDurationHours} giờ
                         </span>
                       </div>
                       {listing.warrantyTerms ? (
@@ -237,7 +237,7 @@ export const ListingDetailPage = () => {
                   {/* Price Box */}
                   <div>
                     <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Price
+                      Giá bán
                     </span>
                     <div className="mt-1 flex items-baseline gap-2">
                       <span className="text-3xl font-black tracking-tight text-primary">
@@ -251,7 +251,7 @@ export const ListingDetailPage = () => {
                     className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3.5 px-6 font-bold text-sm text-primary-foreground shadow-md transition-all hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/20 active:scale-[0.98]"
                     type="button"
                   >
-                    <span>Order Now</span>
+                    <span>Đặt hàng ngay</span>
                     <ArrowRight className="h-4 w-4" />
                   </button>
 
@@ -271,10 +271,10 @@ export const ListingDetailPage = () => {
                       )}
                       <div>
                         <span className="text-xs text-muted-foreground font-medium block">
-                          Seller
+                          Người bán
                         </span>
                         <span className="font-bold text-sm text-foreground">
-                          {listing.seller?.name ?? "Verified Provider"}
+                          {listing.seller?.name ?? "Nhà cung cấp xác minh"}
                         </span>
                       </div>
                     </div>
@@ -283,11 +283,11 @@ export const ListingDetailPage = () => {
                     <div className="space-y-2 text-xs text-muted-foreground pt-2 border-t border-border/40">
                       <div className="flex items-center gap-2">
                         <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-                        <span>Escrow Protected Purchase</span>
+                        <span>Thanh toán bảo vệ qua Escrow</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4 text-primary shrink-0" />
-                        <span>Fast Automated / Seller Delivery</span>
+                        <span>Giao hàng nhanh / Tự động</span>
                       </div>
                     </div>
                   </div>
