@@ -5,12 +5,13 @@ import { buildSubCategory } from "../workflow";
 
 const INITIAL_CATEGORIES: readonly ParentCategory[] = [
   {
-    commissionRatePercent: 8,
     description:
       "Các dịch vụ mở khóa, cài đặt, hỗ trợ kỹ thuật thủ công từ Sellers.",
     id: "cat_digital_services",
     name: "Dịch Vụ Số (Digital Services)",
     slug: "digital-services",
+    sortOrder: 1,
+    status: "ACTIVE",
     subCategories: [
       {
         commissionRatePercent: 8,
@@ -39,6 +40,8 @@ const INITIAL_CATEGORIES: readonly ParentCategory[] = [
         name: "Mở Khóa & Activation Tool",
         parentId: "cat_digital_services",
         slug: "unlock-activation-tool",
+        sortOrder: 1,
+        status: "ACTIVE",
         warrantyBounds: {
           maxHours: 720,
           minHours: 24,
@@ -63,6 +66,8 @@ const INITIAL_CATEGORIES: readonly ParentCategory[] = [
         name: "Thiết Kế Đồ Họa Theo Yêu Cầu",
         parentId: "cat_digital_services",
         slug: "design-custom",
+        sortOrder: 2,
+        status: "ACTIVE",
         warrantyBounds: {
           maxHours: 720,
           minHours: 48,
@@ -71,11 +76,12 @@ const INITIAL_CATEGORIES: readonly ParentCategory[] = [
     ],
   },
   {
-    commissionRatePercent: 5,
     description: "Bộ tài nguyên số và khóa học quản lý bên ngoài bởi Seller.",
     id: "cat_courses",
     name: "Khóa Học & Tài Liệu",
     slug: "courses-digital-assets",
+    sortOrder: 2,
+    status: "ACTIVE",
     subCategories: [
       {
         commissionRatePercent: 5,
@@ -97,6 +103,8 @@ const INITIAL_CATEGORIES: readonly ParentCategory[] = [
         name: "Lập Trình & Công Nghệ",
         parentId: "cat_courses",
         slug: "programming-tech-courses",
+        sortOrder: 1,
+        status: "ACTIVE",
         warrantyBounds: {
           maxHours: 360,
           minHours: 24,
@@ -149,22 +157,14 @@ export const updateCategoryCommission = (
     throw new Error("Commission rate must be between 0% and 100%");
   }
 
-  categoriesState = categoriesState.map((parent) => {
-    if (parent.id === categoryId) {
-      return {
-        ...parent,
-        commissionRatePercent: ratePercent,
-      };
-    }
-    return {
-      ...parent,
-      subCategories: parent.subCategories.map((sub) =>
-        sub.id === categoryId
-          ? { ...sub, commissionRatePercent: ratePercent }
-          : sub
-      ),
-    };
-  });
+  categoriesState = categoriesState.map((parent) => ({
+    ...parent,
+    subCategories: parent.subCategories.map((sub) =>
+      sub.id === categoryId
+        ? { ...sub, commissionRatePercent: ratePercent }
+        : sub
+    ),
+  }));
 
   emitChange();
 };

@@ -20,6 +20,7 @@
     "@orpc/zod": "catalog:",
     "@supabase/supabase-js": "catalog:",
     "dotenv": "catalog:",
+    "drizzle-orm": "^0.45.2",
     "zod": "catalog:"
   },
   "devDependencies": {

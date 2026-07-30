@@ -103,8 +103,12 @@ export const CategoriesPage = () => {
                 <div>
                   <div className="flex items-center gap-2">
                     <CardTitle className="text-lg">{parent.name}</CardTitle>
-                    <Badge variant="outline">
-                      {parent.commissionRatePercent}% Commission
+                    <Badge
+                      variant={
+                        parent.status === "ACTIVE" ? "default" : "secondary"
+                      }
+                    >
+                      {parent.status}
                     </Badge>
                   </div>
                   <CardDescription className="mt-1">

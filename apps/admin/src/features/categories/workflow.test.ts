@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { ParentCategory } from "./types";
 import {
   buildSubCategory,
   countTotalSubCategories,
@@ -43,16 +44,19 @@ describe("Category workflow", () => {
     expect(subCategory.name).toBe("Tài khoản Canva Pro");
     expect(subCategory.commissionRatePercent).toBe(8);
     expect(subCategory.defaultWarrantyPolicy.durationHours).toBe(72);
+    expect(subCategory.status).toBe("ACTIVE");
+    expect(subCategory.sortOrder).toBe(0);
   });
 
   it("counts total subcategories accurately", () => {
-    const mockCategories = [
+    const mockCategories: readonly ParentCategory[] = [
       {
-        commissionRatePercent: 5,
         description: "",
         id: "c1",
         name: "Services",
         slug: "services",
+        sortOrder: 1,
+        status: "ACTIVE",
         subCategories: [
           {
             commissionRatePercent: 5,
@@ -62,16 +66,19 @@ describe("Category workflow", () => {
             name: "S1",
             parentId: "c1",
             slug: "s1",
+            sortOrder: 1,
+            status: "ACTIVE",
             warrantyBounds: { maxHours: 720, minHours: 24 },
           },
         ],
       },
       {
-        commissionRatePercent: 10,
         description: "",
         id: "c2",
         name: "Courses",
         slug: "courses",
+        sortOrder: 2,
+        status: "ACTIVE",
         subCategories: [],
       },
     ];

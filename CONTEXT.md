@@ -43,7 +43,11 @@ In P0, Listings are published immediately and reviewed through a single global p
 
 A 2-level, Admin-managed hierarchical taxonomy (Parent Category $\rightarrow$ Sub-Category) used to organize `Listing`s across the marketplace. Sellers select an existing Sub-Category; they cannot create or change the taxonomy in P0.
 
-Each `Category` has an Admin-configured platform commission rate and may define reusable default `ServiceInputField` and `WarrantyPolicy` templates. These templates pre-populate a `Listing`; the Listing's finalized fields and warranty remain authoritative. An Admin sets the permitted warranty bounds per Sub-Category, and the final values are snapshotted on the `OrderItem` at purchase time.
+- **Lifecycle & Visibility**: Categories exist in `ACTIVE`, `HIDDEN`, or `ARCHIVED` (terminal) status. Hiding or archiving a Parent Category automatically cascades to all its Sub-Categories.
+- **Ordering**: Both Parent Categories and Sub-Categories support an explicit `sortOrder` for display positioning.
+- **Slugs**: Parent Category slugs are globally unique. Sub-Category slugs are unique within their parent (`UNIQUE(parent_id, slug)`). Slugs are auto-generated from name and editable on creation, but immutable once created.
+- **Commercial & Templates**: Each **Sub-Category** holds an Admin-configured `commissionRatePercent`, reusable default `ServiceInputField` and `WarrantyPolicy` templates, and `WarrantyBounds` (min/max duration in hours). Parent Categories are purely organizational and do not store commission rates.
+- **Deletion**: An Admin may hard-delete a Category only if zero `Listing`s are linked to it; otherwise, the Category must be `ARCHIVED`.
 
 ### Order
 

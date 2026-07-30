@@ -59,7 +59,12 @@ export const buildSubCategory = (
     id,
     name: input.name.trim(),
     parentId: input.parentId,
-    slug: input.slug.trim().toLowerCase(),
+    slug: (input.slug || input.name)
+      .trim()
+      .toLowerCase()
+      .replaceAll(/\s+/gu, "-"),
+    sortOrder: 0,
+    status: "ACTIVE",
     warrantyBounds: {
       maxHours: input.maxWarrantyHours,
       minHours: input.minWarrantyHours,

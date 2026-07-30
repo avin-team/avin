@@ -29,9 +29,7 @@ export const CreateSubCategoryDialog = ({
 }: Props) => {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
-  const [commissionRate, setCommissionRate] = useState(
-    parentCategory ? String(parentCategory.commissionRatePercent) : "5"
-  );
+  const [commissionRate, setCommissionRate] = useState("5");
   const [warrantyHours, setWarrantyHours] = useState("72");
   const [minWarranty, setMinWarranty] = useState("24");
   const [maxWarranty, setMaxWarranty] = useState("720");

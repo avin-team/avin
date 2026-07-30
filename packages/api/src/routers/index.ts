@@ -8,8 +8,12 @@ import {
   protectedProcedure,
   publicProcedure,
 } from "../authorization";
+import { catalogRouter } from "./catalog";
+import { categoryRouter } from "./category";
 
 export const appRouter = {
+  catalog: catalogRouter,
+  category: categoryRouter,
   healthCheck: publicProcedure.handler(() => "OK"),
   privateData: buyerProcedure.handler(({ context }) => ({
     message: "This is private",

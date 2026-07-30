@@ -1,3 +1,5 @@
+export type CategoryStatus = "ACTIVE" | "HIDDEN" | "ARCHIVED";
+
 export type ServiceInputFieldType = "text" | "url" | "file" | "number";
 
 export interface ServiceInputField {
@@ -24,6 +26,8 @@ export interface SubCategory {
   readonly name: string;
   readonly slug: string;
   readonly commissionRatePercent: number;
+  readonly status: CategoryStatus;
+  readonly sortOrder: number;
   readonly defaultWarrantyPolicy: WarrantyPolicyTemplate;
   readonly warrantyBounds: WarrantyBounds;
   readonly defaultServiceInputs: readonly ServiceInputField[];
@@ -33,15 +37,16 @@ export interface ParentCategory {
   readonly id: string;
   readonly name: string;
   readonly slug: string;
-  readonly description: string;
-  readonly commissionRatePercent: number;
+  readonly description?: string;
+  readonly status: CategoryStatus;
+  readonly sortOrder: number;
   readonly subCategories: readonly SubCategory[];
 }
 
 export interface CreateSubCategoryInput {
   readonly parentId: string;
   readonly name: string;
-  readonly slug: string;
+  readonly slug?: string;
   readonly commissionRatePercent: number;
   readonly defaultWarrantyDurationHours: number;
   readonly defaultWarrantyTerms: string;
