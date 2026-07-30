@@ -15,12 +15,12 @@ interface SignInProps {
 
 export const SignIn = ({ redirectTo }: SignInProps) => (
   <AuthLayout>
-    <Card className="w-full max-w-sm gap-4">
+    <Card className="w-full max-w-md gap-4 sm:max-w-lg">
       <CardHeader>
-        <CardTitle className="text-lg tracking-tight">
+        <CardTitle className="font-semibold text-xl tracking-tight">
           Đăng nhập Admin
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-sm">
           Nhập email và mật khẩu tài khoản quản trị viên để truy cập bảng điều
           khiển.
         </CardDescription>
