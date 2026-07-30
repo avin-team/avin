@@ -1,5 +1,6 @@
-import { auditLog } from "@avin/db/schema/auth";
+import { auditLog, user } from "@avin/db/schema/auth";
 import { config } from "dotenv";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { ACCOUNT_ROLE } from "./permissions";
@@ -21,6 +22,15 @@ const input = provisioningInput.parse({
 });
 
 const [{ db }, { auth }] = await Promise.all([import("@avin/db"), import(".")]);
+
+const existingUser = await db.query.user.findFirst({
+  where: eq(user.email, input.email),
+});
+
+if (existingUser) {
+  await db.delete(user).where(eq(user.id, existingUser.id));
+}
+
 const admin = await auth.api.createUser({
   body: {
     email: input.email,
@@ -29,6 +39,13 @@ const admin = await auth.api.createUser({
     role: ACCOUNT_ROLE.ADMIN,
   },
 });
+
+await db
+  .update(user)
+  .set({
+    emailVerified: true,
+  })
+  .where(eq(user.id, admin.user.id));
 
 await db.insert(auditLog).values({
   action: "identity.provision-admin",
@@ -39,5 +56,5 @@ await db.insert(auditLog).values({
 });
 
 process.stdout.write(
-  `Provisioned Admin ${admin.user.email}. Enroll two-factor authentication before using Admin APIs.\n`
+  `Successfully provisioned Admin ${admin.user.email} with verified status.\n`
 );
