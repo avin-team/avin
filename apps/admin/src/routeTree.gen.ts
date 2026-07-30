@@ -9,101 +9,124 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as CategoriesIndexRouteImport } from './routes/categories/index'
-import { Route as DisputesIndexRouteImport } from './routes/disputes/index'
-import { Route as DisputesDisputeIdRouteImport } from './routes/disputes/$disputeId'
-import { Route as SellerApplicationsIndexRouteImport } from './routes/seller-applications/index'
-import { Route as SellerApplicationsApplicationIdRouteImport } from './routes/seller-applications/$applicationId'
-import { Route as SellersIndexRouteImport } from './routes/sellers/index'
-import { Route as SellersSellerIdRouteImport } from './routes/sellers/$sellerId'
-import { Route as WithdrawalsIndexRouteImport } from './routes/withdrawals/index'
+import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
+import { Route as SignInRouteImport } from './routes/sign-in'
+import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedCategoriesIndexRouteImport } from './routes/_authenticated/categories/index'
+import { Route as AuthenticatedDisputesIndexRouteImport } from './routes/_authenticated/disputes/index'
+import { Route as AuthenticatedDisputesDisputeIdRouteImport } from './routes/_authenticated/disputes/$disputeId'
+import { Route as AuthenticatedSellerApplicationsIndexRouteImport } from './routes/_authenticated/seller-applications/index'
+import { Route as AuthenticatedSellerApplicationsApplicationIdRouteImport } from './routes/_authenticated/seller-applications/$applicationId'
+import { Route as AuthenticatedSellersIndexRouteImport } from './routes/_authenticated/sellers/index'
+import { Route as AuthenticatedSellersSellerIdRouteImport } from './routes/_authenticated/sellers/$sellerId'
+import { Route as AuthenticatedWithdrawalsIndexRouteImport } from './routes/_authenticated/withdrawals/index'
 
-const IndexRoute = IndexRouteImport.update({
+const AuthenticatedRoute = AuthenticatedRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignInRoute = SignInRouteImport.update({
+  id: '/sign-in',
+  path: '/sign-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
-const CategoriesIndexRoute = CategoriesIndexRouteImport.update({
-  id: '/categories/',
-  path: '/categories/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DisputesIndexRoute = DisputesIndexRouteImport.update({
-  id: '/disputes/',
-  path: '/disputes/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DisputesDisputeIdRoute = DisputesDisputeIdRouteImport.update({
-  id: '/disputes/$disputeId',
-  path: '/disputes/$disputeId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SellerApplicationsIndexRoute = SellerApplicationsIndexRouteImport.update({
-  id: '/seller-applications/',
-  path: '/seller-applications/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SellerApplicationsApplicationIdRoute =
-  SellerApplicationsApplicationIdRouteImport.update({
+const AuthenticatedCategoriesIndexRoute =
+  AuthenticatedCategoriesIndexRouteImport.update({
+    id: '/categories/',
+    path: '/categories/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedDisputesIndexRoute =
+  AuthenticatedDisputesIndexRouteImport.update({
+    id: '/disputes/',
+    path: '/disputes/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedDisputesDisputeIdRoute =
+  AuthenticatedDisputesDisputeIdRouteImport.update({
+    id: '/disputes/$disputeId',
+    path: '/disputes/$disputeId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedSellerApplicationsIndexRoute =
+  AuthenticatedSellerApplicationsIndexRouteImport.update({
+    id: '/seller-applications/',
+    path: '/seller-applications/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedSellerApplicationsApplicationIdRoute =
+  AuthenticatedSellerApplicationsApplicationIdRouteImport.update({
     id: '/seller-applications/$applicationId',
     path: '/seller-applications/$applicationId',
-    getParentRoute: () => rootRouteImport,
+    getParentRoute: () => AuthenticatedRoute,
   } as any)
-const SellersIndexRoute = SellersIndexRouteImport.update({
-  id: '/sellers/',
-  path: '/sellers/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SellersSellerIdRoute = SellersSellerIdRouteImport.update({
-  id: '/sellers/$sellerId',
-  path: '/sellers/$sellerId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const WithdrawalsIndexRoute = WithdrawalsIndexRouteImport.update({
-  id: '/withdrawals/',
-  path: '/withdrawals/',
-  getParentRoute: () => rootRouteImport,
-} as any)
+const AuthenticatedSellersIndexRoute =
+  AuthenticatedSellersIndexRouteImport.update({
+    id: '/sellers/',
+    path: '/sellers/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedSellersSellerIdRoute =
+  AuthenticatedSellersSellerIdRouteImport.update({
+    id: '/sellers/$sellerId',
+    path: '/sellers/$sellerId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedWithdrawalsIndexRoute =
+  AuthenticatedWithdrawalsIndexRouteImport.update({
+    id: '/withdrawals/',
+    path: '/withdrawals/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/disputes/$disputeId': typeof DisputesDisputeIdRoute
-  '/seller-applications/$applicationId': typeof SellerApplicationsApplicationIdRoute
-  '/sellers/$sellerId': typeof SellersSellerIdRoute
-  '/categories/': typeof CategoriesIndexRoute
-  '/disputes/': typeof DisputesIndexRoute
-  '/seller-applications/': typeof SellerApplicationsIndexRoute
-  '/sellers/': typeof SellersIndexRoute
-  '/withdrawals/': typeof WithdrawalsIndexRoute
+  '/': typeof AuthenticatedIndexRoute
+  '/sign-in': typeof SignInRoute
+  '/disputes/$disputeId': typeof AuthenticatedDisputesDisputeIdRoute
+  '/seller-applications/$applicationId': typeof AuthenticatedSellerApplicationsApplicationIdRoute
+  '/sellers/$sellerId': typeof AuthenticatedSellersSellerIdRoute
+  '/categories/': typeof AuthenticatedCategoriesIndexRoute
+  '/disputes/': typeof AuthenticatedDisputesIndexRoute
+  '/seller-applications/': typeof AuthenticatedSellerApplicationsIndexRoute
+  '/sellers/': typeof AuthenticatedSellersIndexRoute
+  '/withdrawals/': typeof AuthenticatedWithdrawalsIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/disputes/$disputeId': typeof DisputesDisputeIdRoute
-  '/seller-applications/$applicationId': typeof SellerApplicationsApplicationIdRoute
-  '/sellers/$sellerId': typeof SellersSellerIdRoute
-  '/categories': typeof CategoriesIndexRoute
-  '/disputes': typeof DisputesIndexRoute
-  '/seller-applications': typeof SellerApplicationsIndexRoute
-  '/sellers': typeof SellersIndexRoute
-  '/withdrawals': typeof WithdrawalsIndexRoute
+  '/sign-in': typeof SignInRoute
+  '/': typeof AuthenticatedIndexRoute
+  '/disputes/$disputeId': typeof AuthenticatedDisputesDisputeIdRoute
+  '/seller-applications/$applicationId': typeof AuthenticatedSellerApplicationsApplicationIdRoute
+  '/sellers/$sellerId': typeof AuthenticatedSellersSellerIdRoute
+  '/categories': typeof AuthenticatedCategoriesIndexRoute
+  '/disputes': typeof AuthenticatedDisputesIndexRoute
+  '/seller-applications': typeof AuthenticatedSellerApplicationsIndexRoute
+  '/sellers': typeof AuthenticatedSellersIndexRoute
+  '/withdrawals': typeof AuthenticatedWithdrawalsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/disputes/$disputeId': typeof DisputesDisputeIdRoute
-  '/seller-applications/$applicationId': typeof SellerApplicationsApplicationIdRoute
-  '/sellers/$sellerId': typeof SellersSellerIdRoute
-  '/categories/': typeof CategoriesIndexRoute
-  '/disputes/': typeof DisputesIndexRoute
-  '/seller-applications/': typeof SellerApplicationsIndexRoute
-  '/sellers/': typeof SellersIndexRoute
-  '/withdrawals/': typeof WithdrawalsIndexRoute
+  '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/sign-in': typeof SignInRoute
+  '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/disputes/$disputeId': typeof AuthenticatedDisputesDisputeIdRoute
+  '/_authenticated/seller-applications/$applicationId': typeof AuthenticatedSellerApplicationsApplicationIdRoute
+  '/_authenticated/sellers/$sellerId': typeof AuthenticatedSellersSellerIdRoute
+  '/_authenticated/categories/': typeof AuthenticatedCategoriesIndexRoute
+  '/_authenticated/disputes/': typeof AuthenticatedDisputesIndexRoute
+  '/_authenticated/seller-applications/': typeof AuthenticatedSellerApplicationsIndexRoute
+  '/_authenticated/sellers/': typeof AuthenticatedSellersIndexRoute
+  '/_authenticated/withdrawals/': typeof AuthenticatedWithdrawalsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/sign-in'
     | '/disputes/$disputeId'
     | '/seller-applications/$applicationId'
     | '/sellers/$sellerId'
@@ -114,6 +137,7 @@ export interface FileRouteTypes {
     | '/withdrawals/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/sign-in'
     | '/'
     | '/disputes/$disputeId'
     | '/seller-applications/$applicationId'
@@ -125,107 +149,139 @@ export interface FileRouteTypes {
     | '/withdrawals'
   id:
     | '__root__'
-    | '/'
-    | '/disputes/$disputeId'
-    | '/seller-applications/$applicationId'
-    | '/sellers/$sellerId'
-    | '/categories/'
-    | '/disputes/'
-    | '/seller-applications/'
-    | '/sellers/'
-    | '/withdrawals/'
+    | '/_authenticated'
+    | '/sign-in'
+    | '/_authenticated/'
+    | '/_authenticated/disputes/$disputeId'
+    | '/_authenticated/seller-applications/$applicationId'
+    | '/_authenticated/sellers/$sellerId'
+    | '/_authenticated/categories/'
+    | '/_authenticated/disputes/'
+    | '/_authenticated/seller-applications/'
+    | '/_authenticated/sellers/'
+    | '/_authenticated/withdrawals/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  DisputesDisputeIdRoute: typeof DisputesDisputeIdRoute
-  SellerApplicationsApplicationIdRoute: typeof SellerApplicationsApplicationIdRoute
-  SellersSellerIdRoute: typeof SellersSellerIdRoute
-  CategoriesIndexRoute: typeof CategoriesIndexRoute
-  DisputesIndexRoute: typeof DisputesIndexRoute
-  SellerApplicationsIndexRoute: typeof SellerApplicationsIndexRoute
-  SellersIndexRoute: typeof SellersIndexRoute
-  WithdrawalsIndexRoute: typeof WithdrawalsIndexRoute
+  AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  SignInRoute: typeof SignInRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sign-in': {
+      id: '/sign-in'
+      path: '/sign-in'
+      fullPath: '/sign-in'
+      preLoaderRoute: typeof SignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/': {
+      id: '/_authenticated/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
-    '/categories/': {
-      id: '/categories/'
+    '/_authenticated/categories/': {
+      id: '/_authenticated/categories/'
       path: '/categories'
       fullPath: '/categories/'
-      preLoaderRoute: typeof CategoriesIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedCategoriesIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
-    '/disputes/': {
-      id: '/disputes/'
+    '/_authenticated/disputes/': {
+      id: '/_authenticated/disputes/'
       path: '/disputes'
       fullPath: '/disputes/'
-      preLoaderRoute: typeof DisputesIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedDisputesIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
-    '/disputes/$disputeId': {
-      id: '/disputes/$disputeId'
+    '/_authenticated/disputes/$disputeId': {
+      id: '/_authenticated/disputes/$disputeId'
       path: '/disputes/$disputeId'
       fullPath: '/disputes/$disputeId'
-      preLoaderRoute: typeof DisputesDisputeIdRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedDisputesDisputeIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
-    '/seller-applications/': {
-      id: '/seller-applications/'
+    '/_authenticated/seller-applications/': {
+      id: '/_authenticated/seller-applications/'
       path: '/seller-applications'
       fullPath: '/seller-applications/'
-      preLoaderRoute: typeof SellerApplicationsIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedSellerApplicationsIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
-    '/seller-applications/$applicationId': {
-      id: '/seller-applications/$applicationId'
+    '/_authenticated/seller-applications/$applicationId': {
+      id: '/_authenticated/seller-applications/$applicationId'
       path: '/seller-applications/$applicationId'
       fullPath: '/seller-applications/$applicationId'
-      preLoaderRoute: typeof SellerApplicationsApplicationIdRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedSellerApplicationsApplicationIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
-    '/sellers/': {
-      id: '/sellers/'
+    '/_authenticated/sellers/': {
+      id: '/_authenticated/sellers/'
       path: '/sellers'
       fullPath: '/sellers/'
-      preLoaderRoute: typeof SellersIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedSellersIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
-    '/sellers/$sellerId': {
-      id: '/sellers/$sellerId'
+    '/_authenticated/sellers/$sellerId': {
+      id: '/_authenticated/sellers/$sellerId'
       path: '/sellers/$sellerId'
       fullPath: '/sellers/$sellerId'
-      preLoaderRoute: typeof SellersSellerIdRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedSellersSellerIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
-    '/withdrawals/': {
-      id: '/withdrawals/'
+    '/_authenticated/withdrawals/': {
+      id: '/_authenticated/withdrawals/'
       path: '/withdrawals'
       fullPath: '/withdrawals/'
-      preLoaderRoute: typeof WithdrawalsIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedWithdrawalsIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
   }
 }
 
+interface AuthenticatedRouteChildren {
+  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedDisputesDisputeIdRoute: typeof AuthenticatedDisputesDisputeIdRoute
+  AuthenticatedSellerApplicationsApplicationIdRoute: typeof AuthenticatedSellerApplicationsApplicationIdRoute
+  AuthenticatedSellersSellerIdRoute: typeof AuthenticatedSellersSellerIdRoute
+  AuthenticatedCategoriesIndexRoute: typeof AuthenticatedCategoriesIndexRoute
+  AuthenticatedDisputesIndexRoute: typeof AuthenticatedDisputesIndexRoute
+  AuthenticatedSellerApplicationsIndexRoute: typeof AuthenticatedSellerApplicationsIndexRoute
+  AuthenticatedSellersIndexRoute: typeof AuthenticatedSellersIndexRoute
+  AuthenticatedWithdrawalsIndexRoute: typeof AuthenticatedWithdrawalsIndexRoute
+}
+
+const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedDisputesDisputeIdRoute: AuthenticatedDisputesDisputeIdRoute,
+  AuthenticatedSellerApplicationsApplicationIdRoute:
+    AuthenticatedSellerApplicationsApplicationIdRoute,
+  AuthenticatedSellersSellerIdRoute: AuthenticatedSellersSellerIdRoute,
+  AuthenticatedCategoriesIndexRoute: AuthenticatedCategoriesIndexRoute,
+  AuthenticatedDisputesIndexRoute: AuthenticatedDisputesIndexRoute,
+  AuthenticatedSellerApplicationsIndexRoute:
+    AuthenticatedSellerApplicationsIndexRoute,
+  AuthenticatedSellersIndexRoute: AuthenticatedSellersIndexRoute,
+  AuthenticatedWithdrawalsIndexRoute: AuthenticatedWithdrawalsIndexRoute,
+}
+
+const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
+  AuthenticatedRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  DisputesDisputeIdRoute: DisputesDisputeIdRoute,
-  SellerApplicationsApplicationIdRoute: SellerApplicationsApplicationIdRoute,
-  SellersSellerIdRoute: SellersSellerIdRoute,
-  CategoriesIndexRoute: CategoriesIndexRoute,
-  DisputesIndexRoute: DisputesIndexRoute,
-  SellerApplicationsIndexRoute: SellerApplicationsIndexRoute,
-  SellersIndexRoute: SellersIndexRoute,
-  WithdrawalsIndexRoute: WithdrawalsIndexRoute,
+  AuthenticatedRoute: AuthenticatedRouteWithChildren,
+  SignInRoute: SignInRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -53,7 +53,9 @@ const getChatMessageStyle = (senderRole: string): string => {
 };
 
 export const DisputeDetailPage = () => {
-  const { disputeId } = useParams({ from: "/disputes/$disputeId" });
+  const { disputeId } = useParams({
+    from: "/_authenticated/disputes/$disputeId",
+  });
   const disputes = useDisputes();
   const dispute =
     disputes.find((d) => d.id === disputeId) ?? getDispute(disputeId);

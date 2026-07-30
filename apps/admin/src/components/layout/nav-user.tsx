@@ -1,4 +1,3 @@
-/* oxlint-disable */
 import {
   Avatar,
   AvatarFallback,
@@ -9,6 +8,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@avin/ui/components/dropdown-menu";
 import {
@@ -17,18 +17,45 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@avin/ui/components/sidebar";
-import { ChevronsUpDown, ShieldCheck } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { ChevronsUpDown, LogOut, ShieldCheck } from "lucide-react";
+import { toast } from "sonner";
+
+import { authClient, useSession } from "@/lib/auth-client";
 
 interface NavUserProps {
-  readonly user: {
-    readonly name: string;
-    readonly email: string;
-    readonly avatar: string;
+  readonly user?: {
+    readonly avatar?: string;
+    readonly email?: string;
+    readonly name?: string;
   };
 }
 
-export function NavUser({ user }: NavUserProps) {
+export const NavUser = ({ user: defaultUser }: NavUserProps) => {
   const { isMobile } = useSidebar();
+  const { data: session } = useSession();
+  const navigate = useNavigate();
+
+  const name = session?.user?.name || defaultUser?.name || "Admin";
+  const email = session?.user?.email || defaultUser?.email || "admin@avin.vn";
+  const avatar = session?.user?.image || defaultUser?.avatar || "";
+
+  const handleSignOut = async () => {
+    try {
+      await authClient.signOut();
+      toast.success("Đã đăng xuất thành công");
+      await navigate({ to: "/sign-in" });
+    } catch {
+      toast.error("Không thể đăng xuất. Vui lòng thử lại.");
+    }
+  };
+
+  const initials = name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
     <SidebarMenu>
@@ -43,12 +70,12 @@ export function NavUser({ user }: NavUserProps) {
             }
           >
             <Avatar className="h-8 w-8 rounded-lg">
-              <AvatarImage alt={user.name} src={user.avatar} />
-              <AvatarFallback className="rounded-lg">AV</AvatarFallback>
+              <AvatarImage alt={name} src={avatar} />
+              <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
             </Avatar>
             <div className="grid flex-1 text-start text-sm leading-tight">
-              <span className="truncate font-semibold">{user.name}</span>
-              <span className="truncate text-xs">{user.email}</span>
+              <span className="truncate font-semibold">{name}</span>
+              <span className="truncate text-xs">{email}</span>
             </div>
             <ChevronsUpDown className="ms-auto size-4" />
           </DropdownMenuTrigger>
@@ -60,14 +87,21 @@ export function NavUser({ user }: NavUserProps) {
           >
             <DropdownMenuLabel className="flex items-center gap-2 font-normal">
               <ShieldCheck className="size-4 text-primary" />
-              Phiên làm việc Admin Mẫu
+              <div className="grid flex-1 text-start text-xs leading-tight">
+                <span className="font-semibold text-sm">{name}</span>
+                <span className="text-muted-foreground">
+                  Quản trị viên (ADMIN)
+                </span>
+              </div>
             </DropdownMenuLabel>
-            <DropdownMenuItem disabled>
-              Chưa bật xác thực tài khoản (ADR 0003)
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleSignOut}>
+              <LogOut className="me-2 size-4" />
+              Đăng xuất
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
     </SidebarMenu>
   );
-}
+};

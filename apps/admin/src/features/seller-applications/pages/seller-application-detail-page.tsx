@@ -47,7 +47,7 @@ const getSellerApplicationFromSnapshot = (
 
 export const SellerApplicationDetailPage = () => {
   const { applicationId } = useParams({
-    from: "/seller-applications/$applicationId",
+    from: "/_authenticated/seller-applications/$applicationId",
   });
   const applications = useSellerApplications();
   const application = getSellerApplicationFromSnapshot(

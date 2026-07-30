@@ -41,7 +41,7 @@ const DetailField = ({
 );
 
 export const SellerDetailPage = () => {
-  const { sellerId } = useParams({ from: "/sellers/$sellerId" });
+  const { sellerId } = useParams({ from: "/_authenticated/sellers/$sellerId" });
   const sellers = useSellers();
   const seller = sellers.find((s) => s.id === sellerId) ?? getSeller(sellerId);
 
