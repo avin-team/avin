@@ -40,9 +40,11 @@ export const Header = () => {
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        setIsScrolled(!entry?.isIntersecting && window.scrollY > 10);
+        if (entry) {
+          setIsScrolled(!entry.isIntersecting);
+        }
       },
-      { threshold: [0] }
+      { threshold: 0 }
     );
 
     observer.observe(sentinel);
@@ -53,14 +55,14 @@ export const Header = () => {
     <>
       <div
         ref={sentinelRef}
-        className="absolute top-0 h-px w-full pointer-events-none"
+        className="pointer-events-none absolute top-0 h-10 w-full"
       />
       <motion.header
         animate="visible"
         className={cn(
-          "fixed top-0 right-0 left-0 z-50 transition-all duration-500",
+          "fixed top-0 right-0 left-0 z-50 transition-all duration-300",
           isScrolled
-            ? "border-b border-border/50 bg-background/80 shadow-sm backdrop-blur-md"
+            ? "border-b border-border/50 bg-background/95 shadow-sm backdrop-blur-md"
             : "bg-transparent"
         )}
         initial="hidden"
@@ -86,7 +88,7 @@ export const Header = () => {
                     {siteConfig.name}
                   </span>
                   <span className="-mt-1 text-xs text-muted-foreground">
-                    Chợ dịch vụ số
+                    Dịch vụ số
                   </span>
                 </div>
               </Link>

@@ -28,7 +28,11 @@ export const CategoryCard = ({ category, className }: CategoryCardProps) => {
       transition={{ duration: 0.2 }}
       whileHover={{ y: -4 }}
     >
-      <div className="group relative flex h-full flex-col justify-between overflow-hidden rounded-2xl border border-border/60 bg-card/60 p-6 shadow-xs backdrop-blur-md transition-all duration-300 hover:border-primary/50 hover:shadow-md hover:shadow-primary/5">
+      <Link
+        className="group relative flex h-full flex-col justify-between overflow-hidden rounded-2xl border border-border/60 bg-card/60 p-6 shadow-xs backdrop-blur-md transition-all duration-300 hover:border-primary/50 hover:shadow-md hover:shadow-primary/5"
+        params={{ parentSlug: category.slug }}
+        to="/category/$parentSlug"
+      >
         <div className="absolute -top-12 -right-12 h-32 w-32 rounded-full bg-primary/5 transition-transform duration-500 group-hover:scale-150" />
 
         <div>
@@ -71,17 +75,11 @@ export const CategoryCard = ({ category, className }: CategoryCardProps) => {
           ) : null}
         </div>
 
-        <div className="mt-6 pt-4 border-t border-border/40">
-          <Link
-            className="inline-flex w-full items-center justify-between font-semibold text-sm text-primary transition-all duration-200 group-hover:translate-x-1"
-            params={{ parentSlug: category.slug }}
-            to="/category/$parentSlug"
-          >
-            <span>Xem dịch vụ</span>
-            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-          </Link>
+        <div className="mt-6 flex w-full items-center justify-between border-t border-border/40 pt-4 font-semibold text-sm text-primary transition-all duration-200 group-hover:translate-x-1">
+          <span>Xem dịch vụ</span>
+          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
         </div>
-      </div>
+      </Link>
     </motion.div>
   );
 };

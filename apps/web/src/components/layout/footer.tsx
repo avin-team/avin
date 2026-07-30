@@ -1,7 +1,25 @@
 import { Link } from "@tanstack/react-router";
 import { Zap } from "lucide-react";
 
+import {
+  FacebookIcon,
+  InstagramIcon,
+  TikTokIcon,
+  XIcon,
+  YouTubeIcon,
+} from "@/components/icons/social-icons";
 import { siteConfig } from "@/config/site";
+
+const socialIconMap: Record<
+  string,
+  React.ComponentType<React.SVGProps<SVGSVGElement>>
+> = {
+  Facebook: FacebookIcon,
+  Instagram: InstagramIcon,
+  TikTok: TikTokIcon,
+  X: XIcon,
+  YouTube: YouTubeIcon,
+};
 
 export const Footer = () => (
   <footer className="border-t border-border/50 bg-background/50 backdrop-blur-xs">
@@ -25,6 +43,28 @@ export const Footer = () => (
             </Link>
           ))}
         </nav>
+
+        <div className="flex items-center gap-4">
+          {siteConfig.socialLinks.map((link) => {
+            const Icon = socialIconMap[link.label];
+            if (!Icon) {
+              return null;
+            }
+
+            return (
+              <a
+                aria-label={link.label}
+                className="text-muted-foreground transition-colors hover:text-foreground"
+                href={link.href}
+                key={link.label}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                <Icon className="h-5 w-5" />
+              </a>
+            );
+          })}
+        </div>
 
         <p className="text-xs text-muted-foreground">
           &copy; {new Date().getFullYear()} {siteConfig.name}. Đã đăng ký bản

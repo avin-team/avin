@@ -27,7 +27,6 @@ import { Route as authSellerLoginRouteImport } from './routes/(auth)/seller/logi
 import { Route as publicCategoryIndexRouteImport } from './routes/(public)/category/index'
 import { Route as publicCategoryParentSlugRouteImport } from './routes/(public)/category/$parentSlug'
 import { Route as publicListingIdRouteImport } from './routes/(public)/listing/$id'
-import { Route as publicListingsIndexRouteImport } from './routes/(public)/listings/index'
 
 const authRouteRoute = authRouteRouteImport.update({
   id: '/(auth)',
@@ -117,11 +116,6 @@ const publicListingIdRoute = publicListingIdRouteImport.update({
   path: '/listing/$id',
   getParentRoute: () => publicRouteRoute,
 } as any)
-const publicListingsIndexRoute = publicListingsIndexRouteImport.update({
-  id: '/listings/',
-  path: '/listings/',
-  getParentRoute: () => publicRouteRoute,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof publicIndexRoute
@@ -139,7 +133,6 @@ export interface FileRoutesByFullPath {
   '/category/$parentSlug': typeof publicCategoryParentSlugRoute
   '/listing/$id': typeof publicListingIdRoute
   '/category/': typeof publicCategoryIndexRoute
-  '/listings/': typeof publicListingsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof publicIndexRoute
@@ -157,7 +150,6 @@ export interface FileRoutesByTo {
   '/category/$parentSlug': typeof publicCategoryParentSlugRoute
   '/listing/$id': typeof publicListingIdRoute
   '/category': typeof publicCategoryIndexRoute
-  '/listings': typeof publicListingsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -179,7 +171,6 @@ export interface FileRoutesById {
   '/(public)/category/$parentSlug': typeof publicCategoryParentSlugRoute
   '/(public)/listing/$id': typeof publicListingIdRoute
   '/(public)/category/': typeof publicCategoryIndexRoute
-  '/(public)/listings/': typeof publicListingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -199,7 +190,6 @@ export interface FileRouteTypes {
     | '/category/$parentSlug'
     | '/listing/$id'
     | '/category/'
-    | '/listings/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -217,7 +207,6 @@ export interface FileRouteTypes {
     | '/category/$parentSlug'
     | '/listing/$id'
     | '/category'
-    | '/listings'
   id:
     | '__root__'
     | '/(auth)'
@@ -238,7 +227,6 @@ export interface FileRouteTypes {
     | '/(public)/category/$parentSlug'
     | '/(public)/listing/$id'
     | '/(public)/category/'
-    | '/(public)/listings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -380,13 +368,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof publicListingIdRouteImport
       parentRoute: typeof publicRouteRoute
     }
-    '/(public)/listings/': {
-      id: '/(public)/listings/'
-      path: '/listings'
-      fullPath: '/listings/'
-      preLoaderRoute: typeof publicListingsIndexRouteImport
-      parentRoute: typeof publicRouteRoute
-    }
   }
 }
 
@@ -409,7 +390,6 @@ interface publicRouteRouteChildren {
   publicCategoryParentSlugRoute: typeof publicCategoryParentSlugRoute
   publicListingIdRoute: typeof publicListingIdRoute
   publicCategoryIndexRoute: typeof publicCategoryIndexRoute
-  publicListingsIndexRoute: typeof publicListingsIndexRoute
 }
 
 const publicRouteRouteChildren: publicRouteRouteChildren = {
@@ -417,7 +397,6 @@ const publicRouteRouteChildren: publicRouteRouteChildren = {
   publicCategoryParentSlugRoute: publicCategoryParentSlugRoute,
   publicListingIdRoute: publicListingIdRoute,
   publicCategoryIndexRoute: publicCategoryIndexRoute,
-  publicListingsIndexRoute: publicListingsIndexRoute,
 }
 
 const publicRouteRouteWithChildren = publicRouteRoute._addFileChildren(

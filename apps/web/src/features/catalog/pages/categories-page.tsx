@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { Grid, Layers, Search, Sparkles } from "lucide-react";
+import { Grid, Layers, Sparkles } from "lucide-react";
 
 import { Shell } from "@/components/shell";
 import { orpc } from "@/utils/orpc";
@@ -20,7 +19,7 @@ export const CategoriesPage = () => {
           <div className="relative max-w-2xl space-y-4">
             <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3.5 py-1 text-xs font-semibold text-primary">
               <Sparkles className="h-3.5 w-3.5" />
-              <span>Chợ Dịch Vụ & Sản Phẩm Số</span>
+              <span>Dịch Vụ & Sản Phẩm Số</span>
             </div>
 
             <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-5xl">
@@ -31,16 +30,6 @@ export const CategoriesPage = () => {
               Khám phá các dịch vụ số, giải pháp tài khoản, công cụ tăng trưởng
               và khóa học chuyên sâu đã qua xác minh.
             </p>
-
-            <div className="pt-2">
-              <Link
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-md transition-all hover:bg-primary/90"
-                to="/listings"
-              >
-                <Search className="h-4 w-4" />
-                <span>Tìm kiếm tất cả tin đăng</span>
-              </Link>
-            </div>
           </div>
         </div>
 

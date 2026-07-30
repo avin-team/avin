@@ -25,3 +25,4 @@
 - Test helper functions (`renderForm`, `fillAndSubmit`, etc.) must be defined at top-level module scope, not nested inside `describe` blocks. Confidence: 0.75
 - Zero tolerance for inline lint suppression comments (e.g., `/* oxlint-disable */`, `// oxlint-disable-next-line`). Fix the underlying code issues instead of suppressing them. If a rule genuinely does not apply to the project, disable it at the config level (`oxlint.config.ts`), not inline. Confidence: 0.85
 - Prefers disabling inapplicable lint rules in the config file (`oxlint.config.ts`) rather than scattering inline disable comments throughout source files. Confidence: 0.75
+- SVG icons are React components in `components/icons/`, accepting `SVGProps<SVGSVGElement>` with `...props` spread onto `<svg>`. Uses `fill="currentColor"` for CSS-color inheritance and `viewBox="0 0 32 32"` for consistent sizing. Named exports follow `{Name}Icon` convention (e.g., `FacebookIcon`, `YouTubeIcon`). Confidence: 0.75

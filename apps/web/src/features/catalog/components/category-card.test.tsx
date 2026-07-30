@@ -43,11 +43,12 @@ describe("CategoryCard", () => {
     expect(screen.getByText("Kháng checkpoint")).toBeInTheDocument();
   });
 
-  it("renders explore link to category detail page", () => {
+  it("wraps the entire card in a link to category detail page", () => {
     render(<CategoryCard category={mockCategory} />);
 
-    const link = screen.getByRole("link", { name: /Xem dịch vụ/iu });
+    const link = screen.getByRole("link");
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute("href", "/category/dich-vu-facebook");
+    expect(screen.getByText("Xem dịch vụ")).toBeInTheDocument();
   });
 });

@@ -5,7 +5,7 @@ import { Shell } from "@/components/shell";
 import { orpc } from "@/utils/orpc";
 
 import { CategoryDetailView } from "../components/category-detail-view";
-import type { SortByOption } from "../components/listing-search-bar";
+import type { SortByOption } from "../components/category-detail-view";
 
 export const CategoryDetailPage = () => {
   const { parentSlug } = useParams({ strict: false });

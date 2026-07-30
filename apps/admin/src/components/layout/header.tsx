@@ -13,7 +13,7 @@ export const Header = ({
   children,
   ...props
 }: HeaderProps) => {
-  const [offset, setOffset] = useState(0);
+  const [isScrolled, setIsScrolled] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -24,13 +24,11 @@ export const Header = ({
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (!entry) {
-          setOffset(0);
-          return;
+        if (entry) {
+          setIsScrolled(!entry.isIntersecting);
         }
-        setOffset(entry.isIntersecting ? 0 : 10);
       },
-      { threshold: [0] }
+      { threshold: 0 }
     );
 
     observer.observe(sentinel);
@@ -40,22 +38,20 @@ export const Header = ({
   return (
     <header
       className={cn(
-        "z-50 h-16",
+        "z-50 h-16 transition-all duration-300",
         fixed && "header-fixed peer/header sticky top-0 w-[inherit]",
-        offset > 10 && fixed ? "shadow" : "shadow-none",
+        isScrolled && fixed
+          ? "border-b border-border/50 bg-background/95 shadow-sm backdrop-blur-md"
+          : "bg-transparent",
         className
       )}
       {...props}
     >
-      <div ref={sentinelRef} className="absolute top-0 h-px w-full" />
       <div
-        className={cn(
-          "relative flex h-full items-center gap-3 p-4 sm:gap-4",
-          offset > 10 &&
-            fixed &&
-            "after:absolute after:inset-0 after:-z-10 after:bg-background/20 after:backdrop-blur-lg"
-        )}
-      >
+        ref={sentinelRef}
+        className="pointer-events-none absolute top-0 h-10 w-full"
+      />
+      <div className="relative flex h-full items-center gap-3 p-4 sm:gap-4">
         <SidebarTrigger variant="outline" className="max-md:scale-125" />
         {children}
       </div>

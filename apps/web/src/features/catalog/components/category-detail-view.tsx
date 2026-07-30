@@ -24,8 +24,9 @@ import { CategoryIcon } from "../utils/category-icons";
 import { ListingCard } from "./listing-card";
 import { ListingEmptyState } from "./listing-empty-state";
 import { ListingGridSkeleton } from "./listing-grid-skeleton";
-import type { SortByOption } from "./listing-search-bar";
 import { Pagination } from "./pagination";
+
+export type SortByOption = "newest" | "price_asc" | "price_desc";
 
 const SORT_ITEMS: { label: string; value: SortByOption }[] = [
   { label: "Mới nhất", value: "newest" },

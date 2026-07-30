@@ -1,19 +1,21 @@
 import {
   BookOpen,
-  Camera,
   Code2,
   Gamepad2,
   Globe,
   KeyRound,
   LayoutGrid,
-  MapPin,
   Megaphone,
   Palette,
-  PlaySquare,
-  Share2,
-  Video,
 } from "lucide-react";
 import type { ComponentType } from "react";
+
+import { FacebookIcon } from "@/components/icons/facebook";
+import { GoogleIcon } from "@/components/icons/google";
+import { InstagramIcon } from "@/components/icons/instagram";
+import { TikTokIcon } from "@/components/icons/tiktok";
+import { XIcon } from "@/components/icons/x";
+import { YouTubeIcon } from "@/components/icons/youtube";
 
 export const CATEGORY_ICON_MAP: Record<
   string,
@@ -21,11 +23,12 @@ export const CATEGORY_ICON_MAP: Record<
 > = {
   "design-creative": Palette,
   "development-tech": Code2,
-  "dich-vu-facebook": Share2,
-  "dich-vu-google": MapPin,
-  "dich-vu-instagram": Camera,
-  "dich-vu-tiktok": Video,
-  "dich-vu-youtube": PlaySquare,
+  "dich-vu-facebook": FacebookIcon,
+  "dich-vu-google": GoogleIcon,
+  "dich-vu-instagram": InstagramIcon,
+  "dich-vu-tiktok": TikTokIcon,
+  "dich-vu-youtube": YouTubeIcon,
+  "dich-vu-x": XIcon,
   "digital-services": Globe,
   "education-courses": BookOpen,
   "game-items": Gamepad2,
