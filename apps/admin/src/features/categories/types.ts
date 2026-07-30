@@ -25,7 +25,7 @@ export interface SubCategory {
   readonly parentId: string;
   readonly name: string;
   readonly slug: string;
-  readonly commissionRatePercent: number;
+  readonly commissionRatePercent: number | string;
   readonly status: CategoryStatus;
   readonly sortOrder: number;
   readonly defaultWarrantyPolicy: WarrantyPolicyTemplate;
@@ -37,7 +37,7 @@ export interface ParentCategory {
   readonly id: string;
   readonly name: string;
   readonly slug: string;
-  readonly description?: string;
+  readonly description?: string | null;
   readonly status: CategoryStatus;
   readonly sortOrder: number;
   readonly subCategories: readonly SubCategory[];

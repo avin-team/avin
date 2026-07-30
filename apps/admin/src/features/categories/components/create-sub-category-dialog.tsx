@@ -13,7 +13,7 @@ import { Textarea } from "@avin/ui/components/textarea";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { addSubCategory } from "../api/mock-categories";
+import { useCreateSubCategory } from "../api/categories-api";
 import type { ParentCategory } from "../types";
 
 interface Props {
@@ -37,33 +37,39 @@ export const CreateSubCategoryDialog = ({
     "Bảo hành mặc định 1 đổi 1"
   );
 
+  const createSubMutation = useCreateSubCategory();
+
   if (!parentCategory) {
     return null;
   }
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    try {
-      addSubCategory({
+    createSubMutation.mutate(
+      {
         commissionRatePercent: Number(commissionRate),
         defaultWarrantyDurationHours: Number(warrantyHours),
         defaultWarrantyTerms: warrantyTerms,
         maxWarrantyHours: Number(maxWarranty),
         minWarrantyHours: Number(minWarranty),
-        name,
+        name: name.trim(),
         parentId: parentCategory.id,
-        slug: slug || name.toLowerCase().replaceAll(/\s+/gu, "-"),
-      });
-
-      toast.success("Tạo Sub-Category thành công", {
-        description: `Đã thêm ${name} vào ${parentCategory.name}`,
-      });
-      onOpenChange(false);
-      setName("");
-      setSlug("");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Có lỗi xảy ra");
-    }
+        slug: slug.trim() || undefined,
+      },
+      {
+        onError: (error) => {
+          toast.error(error.message || "Có lỗi xảy ra khi tạo Sub-Category");
+        },
+        onSuccess: () => {
+          toast.success("Tạo Sub-Category thành công", {
+            description: `Đã thêm ${name} vào ${parentCategory.name}`,
+          });
+          onOpenChange(false);
+          setName("");
+          setSlug("");
+        },
+      }
+    );
   };
 
   return (
@@ -179,7 +185,11 @@ export const CreateSubCategoryDialog = ({
             >
               Hủy
             </Button>
-            <Button type="submit">Thêm Sub-Category</Button>
+            <Button disabled={createSubMutation.isPending} type="submit">
+              {createSubMutation.isPending
+                ? "Đang xử lý..."
+                : "Thêm Sub-Category"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

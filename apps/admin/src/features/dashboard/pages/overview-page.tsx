@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
   AlertCircle,
@@ -21,7 +22,8 @@ import {
 import { Header } from "@/components/layout/header";
 import { Main } from "@/components/layout/main";
 import { ThemeSwitch } from "@/components/theme-switch";
-import { useCategories } from "@/features/categories/api/mock-categories";
+import { categoriesQueryOptions } from "@/features/categories/api/categories-api";
+import type { ParentCategory } from "@/features/categories/types";
 import { countTotalSubCategories } from "@/features/categories/workflow";
 import { useDisputes } from "@/features/disputes/api/mock-disputes";
 import { useSellerApplications } from "@/features/seller-applications/api/mock-seller-applications";
@@ -32,7 +34,7 @@ import { useWithdrawals } from "@/features/withdrawals/api/mock-withdrawals";
 
 export const OverviewPage = () => {
   const applications = useSellerApplications();
-  const categories = useCategories();
+  const { data: categories = [] } = useQuery(categoriesQueryOptions());
   const sellers = useSellers();
   const disputes = useDisputes();
   const withdrawals = useWithdrawals();
@@ -50,7 +52,9 @@ export const OverviewPage = () => {
     (s) => s.enforcementStatus !== "ACTIVE"
   ).length;
 
-  const totalSubCategories = countTotalSubCategories(categories);
+  const totalSubCategories = countTotalSubCategories(
+    categories as unknown as ParentCategory[]
+  );
 
   const quickActionCards = [
     {

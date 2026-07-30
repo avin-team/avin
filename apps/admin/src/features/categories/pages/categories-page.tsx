@@ -1,4 +1,3 @@
-import { Badge } from "@avin/ui/components/badge";
 import { Button } from "@avin/ui/components/button";
 import {
   Card,
@@ -7,34 +6,209 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@avin/ui/components/table";
-import { FolderPlus, Layers, Percent, ShieldAlert } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { FolderPlus, Layers, Percent, Plus, ShieldAlert } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { Header } from "@/components/layout/header";
 import { Main } from "@/components/layout/main";
 import { ThemeSwitch } from "@/components/theme-switch";
 
-import { useCategories } from "../api/mock-categories";
+import {
+  categoriesQueryOptions,
+  useArchiveCategory,
+  useDeleteCategory,
+  useReorderParents,
+  useReorderSubs,
+  useUpdateCategoryStatus,
+} from "../api/categories-api";
+import { CreateParentCategoryDialog } from "../components/create-parent-category-dialog";
 import { CreateSubCategoryDialog } from "../components/create-sub-category-dialog";
-import type { ParentCategory } from "../types";
+import { EditParentCategoryDialog } from "../components/edit-parent-category-dialog";
+import { EditSubCategoryDialog } from "../components/edit-sub-category-dialog";
+import { ParentCategoryCard } from "../components/parent-category-card";
+import type { CategoryStatus, ParentCategory, SubCategory } from "../types";
 import { countTotalSubCategories } from "../workflow";
 
+const getStatusLabel = (status: CategoryStatus): string => {
+  switch (status) {
+    case "ACTIVE": {
+      return "Hoạt động";
+    }
+    case "HIDDEN": {
+      return "Đã ẩn";
+    }
+    case "ARCHIVED": {
+      return "Lưu trữ";
+    }
+    default: {
+      return status;
+    }
+  }
+};
+
+const getCommissionDisplay = (
+  categories: readonly ParentCategory[]
+): string => {
+  const allCommissions: number[] = [];
+  for (const parent of categories) {
+    if (parent.subCategories) {
+      for (const sub of parent.subCategories) {
+        allCommissions.push(Number(sub.commissionRatePercent));
+      }
+    }
+  }
+
+  if (allCommissions.length === 0) {
+    return "N/A";
+  }
+
+  const min = Math.min(...allCommissions);
+  const max = Math.max(...allCommissions);
+
+  if (min === max) {
+    return `${min}%`;
+  }
+
+  return `${min}% – ${max}%`;
+};
+
 export const CategoriesPage = () => {
-  const categories = useCategories();
-  const [selectedParent, setSelectedParent] = useState<ParentCategory | null>(
-    null
-  );
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const {
+    data: categoriesData = [],
+    isLoading,
+    error,
+  } = useQuery(categoriesQueryOptions());
+  const categories = categoriesData as unknown as ParentCategory[];
+
+  const [createParentOpen, setCreateParentOpen] = useState(false);
+  const [createSubOpen, setCreateSubOpen] = useState(false);
+  const [selectedParentForCreateSub, setSelectedParentForCreateSub] =
+    useState<ParentCategory | null>(null);
+
+  const [editParentOpen, setEditParentOpen] = useState(false);
+  const [selectedParentForEdit, setSelectedParentForEdit] =
+    useState<ParentCategory | null>(null);
+
+  const [editSubOpen, setEditSubOpen] = useState(false);
+  const [selectedSubForEdit, setSelectedSubForEdit] =
+    useState<SubCategory | null>(null);
+
+  const updateStatusMutation = useUpdateCategoryStatus();
+  const archiveMutation = useArchiveCategory();
+  const deleteMutation = useDeleteCategory();
+  const reorderParentsMutation = useReorderParents();
+  const reorderSubsMutation = useReorderSubs();
 
   const totalSubCategories = countTotalSubCategories(categories);
+  const commissionDisplay = getCommissionDisplay(categories);
+
+  const handleToggleStatus = (
+    id: string,
+    level: "parent" | "sub",
+    currentStatus: CategoryStatus
+  ) => {
+    const nextStatus: CategoryStatus =
+      currentStatus === "ACTIVE" ? "HIDDEN" : "ACTIVE";
+    updateStatusMutation.mutate(
+      { id, level, status: nextStatus },
+      {
+        onError: (err) => {
+          toast.error(err.message || "Có lỗi xảy ra khi đổi trạng thái");
+        },
+        onSuccess: () => {
+          toast.success(
+            `Đã chuyển trạng thái sang ${getStatusLabel(nextStatus)}`
+          );
+        },
+      }
+    );
+  };
+
+  const handleArchive = (id: string, level: "parent" | "sub") => {
+    archiveMutation.mutate(
+      { id, level },
+      {
+        onError: (err) => {
+          toast.error(err.message || "Có lỗi xảy ra khi lưu trữ danh mục");
+        },
+        onSuccess: () => {
+          toast.success("Đã lưu trữ danh mục thành công");
+        },
+      }
+    );
+  };
+
+  const handleDelete = (id: string, level: "parent" | "sub") => {
+    deleteMutation.mutate(
+      { id, level },
+      {
+        onError: (err) => {
+          toast.error(err.message || "Không thể xóa danh mục");
+        },
+        onSuccess: () => {
+          toast.success("Đã xóa danh mục thành công");
+        },
+      }
+    );
+  };
+
+  const handleMoveParent = (index: number, direction: "up" | "down") => {
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= categories.length) {
+      return;
+    }
+
+    const reordered = [...categories];
+    const temp = reordered[index];
+    reordered[index] = reordered[targetIndex];
+    reordered[targetIndex] = temp;
+
+    const items = reordered.map((cat, idx) => ({
+      id: cat.id,
+      sortOrder: idx,
+    }));
+
+    reorderParentsMutation.mutate(
+      { items },
+      {
+        onError: (err) => {
+          toast.error(err.message || "Có lỗi xảy ra khi sắp xếp danh mục cha");
+        },
+      }
+    );
+  };
+
+  const handleMoveSub = (
+    subList: readonly SubCategory[],
+    index: number,
+    direction: "up" | "down"
+  ) => {
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= subList.length) {
+      return;
+    }
+
+    const reordered = [...subList];
+    const temp = reordered[index];
+    reordered[index] = reordered[targetIndex];
+    reordered[targetIndex] = temp;
+
+    const items = reordered.map((sub, idx) => ({
+      id: sub.id,
+      sortOrder: idx,
+    }));
+
+    reorderSubsMutation.mutate(
+      { items },
+      {
+        onError: (err) => {
+          toast.error(err.message || "Có lỗi xảy ra khi sắp xếp sub-category");
+        },
+      }
+    );
+  };
 
   return (
     <>
@@ -57,6 +231,10 @@ export const CategoriesPage = () => {
               chiết khấu sàn và chính sách bảo hành mẫu.
             </p>
           </div>
+          <Button onClick={() => setCreateParentOpen(true)}>
+            <Plus className="mr-2 size-4" />
+            Thêm danh mục cha
+          </Button>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-3">
@@ -88,7 +266,7 @@ export const CategoriesPage = () => {
               <Percent className="size-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-semibold">5% – 10%</p>
+              <p className="text-3xl font-semibold">{commissionDisplay}</p>
               <CardDescription>
                 Thiết lập theo từng Sub-Category
               </CardDescription>
@@ -96,100 +274,55 @@ export const CategoriesPage = () => {
           </Card>
         </div>
 
-        <div className="grid gap-6">
-          {categories.map((parent) => (
-            <Card key={parent.id}>
-              <CardHeader className="flex flex-col gap-2 border-b sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <CardTitle className="text-lg">{parent.name}</CardTitle>
-                    <Badge
-                      variant={
-                        parent.status === "ACTIVE" ? "default" : "secondary"
-                      }
-                    >
-                      {parent.status}
-                    </Badge>
-                  </div>
-                  <CardDescription className="mt-1">
-                    {parent.description}
-                  </CardDescription>
-                </div>
-                <Button
-                  onClick={() => {
-                    setSelectedParent(parent);
-                    setCreateDialogOpen(true);
-                  }}
-                  size="sm"
-                  variant="outline"
-                >
-                  <FolderPlus className="size-4" />
-                  Thêm Sub-Category
-                </Button>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Sub-Category</TableHead>
-                        <TableHead>Slug</TableHead>
-                        <TableHead>Chiết khấu sàn</TableHead>
-                        <TableHead>Bảo hành mặc định</TableHead>
-                        <TableHead>Giới hạn bảo hành</TableHead>
-                        <TableHead>Trường dữ liệu mẫu</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {parent.subCategories.map((sub) => (
-                        <TableRow key={sub.id}>
-                          <TableCell className="font-medium">
-                            {sub.name}
-                          </TableCell>
-                          <TableCell className="font-mono text-xs text-muted-foreground">
-                            {sub.slug}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="secondary">
-                              {sub.commissionRatePercent}%
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {sub.defaultWarrantyPolicy.durationHours} giờ
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
-                            {sub.warrantyBounds.minHours}h –{" "}
-                            {sub.warrantyBounds.maxHours}h
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                              {sub.defaultServiceInputs.map((input) => (
-                                <Badge key={input.id} variant="outline">
-                                  {input.label} ({input.type})
-                                </Badge>
-                              ))}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      {parent.subCategories.length === 0 && (
-                        <TableRow>
-                          <TableCell
-                            className="h-20 text-center text-muted-foreground"
-                            colSpan={6}
-                          >
-                            Chưa có Sub-Category nào. Nhấn &quot;Thêm
-                            Sub-Category&quot; để tạo.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        {isLoading && (
+          <div className="flex h-32 items-center justify-center rounded-lg border text-muted-foreground">
+            Đang tải dữ liệu danh mục...
+          </div>
+        )}
+
+        {error && (
+          <div className="flex h-32 items-center justify-center rounded-lg border border-destructive/20 bg-destructive/10 text-destructive">
+            Có lỗi xảy ra khi tải danh mục: {error.message}
+          </div>
+        )}
+
+        {!isLoading && !error && (
+          <div className="grid gap-6">
+            {categories.map((parent, parentIdx) => (
+              <ParentCategoryCard
+                isFirst={parentIdx === 0}
+                isLast={parentIdx === categories.length - 1}
+                isReorderPending={reorderParentsMutation.isPending}
+                key={parent.id}
+                onAddSub={(p) => {
+                  setSelectedParentForCreateSub(p);
+                  setCreateSubOpen(true);
+                }}
+                onArchive={handleArchive}
+                onDelete={handleDelete}
+                onEditParent={(p) => {
+                  setSelectedParentForEdit(p);
+                  setEditParentOpen(true);
+                }}
+                onEditSub={(s) => {
+                  setSelectedSubForEdit(s);
+                  setEditSubOpen(true);
+                }}
+                onMoveParent={(dir) => handleMoveParent(parentIdx, dir)}
+                onMoveSub={handleMoveSub}
+                onToggleStatus={handleToggleStatus}
+                parent={parent}
+              />
+            ))}
+
+            {categories.length === 0 && (
+              <div className="flex h-32 items-center justify-center rounded-lg border text-muted-foreground">
+                Chưa có danh mục cha nào. Nhấn &quot;Thêm danh mục cha&quot; để
+                tạo mới.
+              </div>
+            )}
+          </div>
+        )}
 
         <Card>
           <CardHeader className="flex flex-row items-center gap-3">
@@ -208,10 +341,27 @@ export const CategoriesPage = () => {
         </Card>
       </Main>
 
+      <CreateParentCategoryDialog
+        onOpenChange={setCreateParentOpen}
+        open={createParentOpen}
+      />
+
+      <EditParentCategoryDialog
+        category={selectedParentForEdit}
+        onOpenChange={setEditParentOpen}
+        open={editParentOpen}
+      />
+
       <CreateSubCategoryDialog
-        onOpenChange={setCreateDialogOpen}
-        open={createDialogOpen}
-        parentCategory={selectedParent}
+        onOpenChange={setCreateSubOpen}
+        open={createSubOpen}
+        parentCategory={selectedParentForCreateSub}
+      />
+
+      <EditSubCategoryDialog
+        onOpenChange={setEditSubOpen}
+        open={editSubOpen}
+        subCategory={selectedSubForEdit}
       />
     </>
   );
