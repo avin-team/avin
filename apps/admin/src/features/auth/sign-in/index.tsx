@@ -15,17 +15,17 @@ interface SignInProps {
 
 export const SignIn = ({ redirectTo }: SignInProps) => (
   <AuthLayout>
-    <Card className="w-full max-w-md gap-4 sm:max-w-lg">
-      <CardHeader>
-        <CardTitle className="font-semibold text-xl tracking-tight">
+    <Card className="w-full max-w-[480px] border shadow-sm sm:max-w-[540px]">
+      <CardHeader className="space-y-1.5 p-6 sm:p-8">
+        <CardTitle className="font-bold text-2xl tracking-tight">
           Đăng nhập Admin
         </CardTitle>
-        <CardDescription className="text-sm">
+        <CardDescription className="text-muted-foreground text-sm">
           Nhập email và mật khẩu tài khoản quản trị viên để truy cập bảng điều
           khiển.
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-6 pt-0 sm:p-8 sm:pt-0">
         <UserAuthForm redirectTo={redirectTo} />
       </CardContent>
     </Card>
