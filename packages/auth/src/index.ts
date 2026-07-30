@@ -135,7 +135,7 @@ export const createAuth = () => {
         prompt: "select_account",
       },
     },
-    trustedOrigins: [env.CORS_ORIGIN],
+    trustedOrigins: env.CORS_ORIGIN,
   });
 };
 
