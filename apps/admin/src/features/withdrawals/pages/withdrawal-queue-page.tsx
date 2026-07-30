@@ -35,6 +35,14 @@ import type { WithdrawalRequest, WithdrawalStatus } from "../types";
 
 type StatusFilter = "ALL" | WithdrawalStatus;
 
+const STATUS_FILTER_ITEMS: { label: string; value: StatusFilter }[] = [
+  { label: "Tất cả trạng thái", value: "ALL" },
+  { label: "Pending (Đang chờ)", value: "PENDING" },
+  { label: "Approved (Đã duyệt)", value: "APPROVED" },
+  { label: "Paid (Đã chuyển khoản)", value: "PAID" },
+  { label: "Rejected (Từ chối)", value: "REJECTED" },
+];
+
 export const WithdrawalQueuePage = () => {
   const withdrawals = useWithdrawals();
   const [query, setQuery] = useState("");
@@ -107,6 +115,7 @@ export const WithdrawalQueuePage = () => {
                 />
               </div>
               <Select
+                items={STATUS_FILTER_ITEMS}
                 onValueChange={(val) =>
                   setStatusFilter((val as StatusFilter) ?? "ALL")
                 }

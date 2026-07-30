@@ -35,6 +35,14 @@ import type { DisputeStatus } from "../types";
 
 type StatusFilter = "ALL" | DisputeStatus;
 
+const STATUS_FILTER_ITEMS: { label: string; value: StatusFilter }[] = [
+  { label: "Tất cả trạng thái", value: "ALL" },
+  { label: "Open (Đang mở)", value: "OPEN" },
+  { label: "Under Review (Admin xem xét)", value: "UNDER_REVIEW" },
+  { label: "Resolved (Refunded)", value: "RESOLVED_REFUNDED" },
+  { label: "Resolved (Released)", value: "RESOLVED_RELEASED" },
+];
+
 export const DisputeQueuePage = () => {
   const disputes = useDisputes();
   const [query, setQuery] = useState("");
@@ -93,6 +101,7 @@ export const DisputeQueuePage = () => {
                 />
               </div>
               <Select
+                items={STATUS_FILTER_ITEMS}
                 onValueChange={(val) =>
                   setStatusFilter((val as StatusFilter) ?? "ALL")
                 }

@@ -10,7 +10,7 @@
 - Uses Zustand for complex client-side state (mentioned as future need, not for simple state). Confidence: 0.75
 - Prefers minimal, recommendation-only changes — do only what is advised, avoid over-engineering or extra scope. Confidence: 0.75
 - Uses Resend for transactional email delivery. Confidence: 0.70
-- Prefers AI agent to commit and push code directly without asking for confirmation each time. Confidence: 0.70
+- Prefers AI agent to commit and push code directly without asking for confirmation each time. Confidence: 0.85
 - Wants coding rules/standards synthesized into a document for AI agents to follow before implementation begins. Confidence: 0.70
 - Uses `file://` URIs to point to reference files when giving instructions (e.g., `file:///path/to/boilerplate/__root.tsx`). Confidence: 0.70
 - Uses `bun x ultracite` as the project linter/formatter — `bun x ultracite check` for linting and `bun x ultracite fix` for auto-fixing. Confidence: 0.85

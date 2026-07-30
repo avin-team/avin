@@ -12,6 +12,7 @@
       "devDependencies": {
         "@avin/config": "workspace:*",
         "@types/bun": "^1.3.14",
+        "@workspace/eslint-plugin": "workspace:*",
         "eslint-plugin-github": "6.0.0",
         "lefthook": "^2.1.10",
         "oxfmt": "^0.60.0",
@@ -231,6 +232,10 @@
         "@types/bun": "catalog:",
         "typescript": "catalog:",
       },
+    },
+    "packages/eslint-plugin": {
+      "name": "@workspace/eslint-plugin",
+      "version": "0.0.0",
     },
     "packages/ui": {
       "name": "@avin/ui",
@@ -1167,6 +1172,8 @@
     "@vitest/utils": ["@vitest/utils@4.1.10", "", { "dependencies": { "@vitest/pretty-format": "4.1.10", "convert-source-map": "^2.0.0", "tinyrainbow": "^3.1.0" } }, "sha512-fy9am/HWxbaGt/Sawrp90vt6Y6jQwf1RX77cz3uwoJwJVMli/e1IEwRPnMNJ7vKfPTwo0diXifkpPvwH9v7nGA=="],
 
     "@workflow/serde": ["@workflow/serde@4.1.0", "", {}, "sha512-pav4F2BoirECWR7Nf1TKt+2eETcBj7jj4cBefQ8VXQCA6NPkaKeLfj/zMgi+3zYV5ZIBT4GuUiphsj0/b9hPQQ=="],
+
+    "@workspace/eslint-plugin": ["@workspace/eslint-plugin@workspace:packages/eslint-plugin"],
 
     "@yuku-codegen/binding-darwin-arm64": ["@yuku-codegen/binding-darwin-arm64@0.8.1", "", { "os": "darwin", "cpu": "arm64" }, "sha512-Ck0RmDBLc+R0dZpfTXmJFAvcuPf+npbJF1T/VhC9pPDGjNEOGwn4DwFcjhg//DfNIO+xgktsLSt5S4v0MFrToA=="],
 

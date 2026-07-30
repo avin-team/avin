@@ -27,7 +27,13 @@ import { ListingGridSkeleton } from "./listing-grid-skeleton";
 import type { SortByOption } from "./listing-search-bar";
 import { Pagination } from "./pagination";
 
-export interface CategoryVariantProps {
+const SORT_ITEMS: { label: string; value: SortByOption }[] = [
+  { label: "Mới nhất", value: "newest" },
+  { label: "Giá tăng dần", value: "price_asc" },
+  { label: "Giá giảm dần", value: "price_desc" },
+];
+
+export interface CategoryDetailViewProps {
   categoryLoading: boolean;
   isError: boolean;
   isLoading: boolean;
@@ -69,7 +75,7 @@ export interface CategoryVariantProps {
   sortBy: SortByOption;
 }
 
-export const CategoryVariantA = ({
+export const CategoryDetailView = ({
   categoryLoading,
   isError,
   isLoading,
@@ -84,7 +90,7 @@ export const CategoryVariantA = ({
   search,
   selectedSubSlug,
   sortBy,
-}: CategoryVariantProps) => {
+}: CategoryDetailViewProps) => {
   const [gridCols, setGridCols] = useState<3 | 4>(4);
   const activeSub = parentCategory?.subCategories?.find(
     (s) => s.slug === selectedSubSlug
@@ -271,6 +277,7 @@ export const CategoryVariantA = ({
                   Sắp xếp:
                 </span>
                 <Select
+                  items={SORT_ITEMS}
                   onValueChange={(val) => onSortChange(val as SortByOption)}
                   value={sortBy}
                 >

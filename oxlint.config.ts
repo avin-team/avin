@@ -36,7 +36,9 @@ export default defineConfig({
     "packages/ui/**",
     "apps/admin/src/assets/**",
   ],
+  jsPlugins: ["@workspace/eslint-plugin"],
   rules: {
+    "@workspace/select-requires-items": "error",
     "github/filenames-match-regex": "off",
     "oxc/no-barrel-file": "off",
     "unicorn/no-abusive-eslint-disable": "off",

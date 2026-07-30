@@ -4,7 +4,7 @@ import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { Shell } from "@/components/shell";
 import { orpc } from "@/utils/orpc";
 
-import { CategoryVariantA } from "../components/category-variant-a";
+import { CategoryDetailView } from "../components/category-detail-view";
 import type { SortByOption } from "../components/listing-search-bar";
 
 export const CategoryDetailPage = () => {
@@ -86,7 +86,7 @@ export const CategoryDetailPage = () => {
 
   return (
     <Shell variant="default">
-      <CategoryVariantA
+      <CategoryDetailView
         categoryLoading={categoryQuery.isLoading}
         isError={listingsQuery.isError}
         isLoading={listingsQuery.isLoading}

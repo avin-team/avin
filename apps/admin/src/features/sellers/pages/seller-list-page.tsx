@@ -35,6 +35,13 @@ import type { SellerEnforcementStatus } from "../types";
 
 type StatusFilter = "ALL" | SellerEnforcementStatus;
 
+const STATUS_FILTER_ITEMS: { label: string; value: StatusFilter }[] = [
+  { label: "Tất cả trạng thái", value: "ALL" },
+  { label: "Active (Đang hoạt động)", value: "ACTIVE" },
+  { label: "Suspended (Tạm dừng)", value: "SUSPENDED" },
+  { label: "Banned (Đã cấm)", value: "BANNED" },
+];
+
 export const SellerListPage = () => {
   const sellers = useSellers();
   const [query, setQuery] = useState("");
@@ -92,6 +99,7 @@ export const SellerListPage = () => {
                 />
               </div>
               <Select
+                items={STATUS_FILTER_ITEMS}
                 onValueChange={(val) =>
                   setStatusFilter((val as StatusFilter) ?? "ALL")
                 }

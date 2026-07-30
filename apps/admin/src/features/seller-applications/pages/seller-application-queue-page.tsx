@@ -36,6 +36,14 @@ import { formatApplicationDate } from "../utils";
 
 type StatusFilter = "ALL" | SellerApplicationStatus;
 
+const STATUS_FILTER_ITEMS: { label: string; value: StatusFilter }[] = [
+  { label: "Tất cả trạng thái", value: "ALL" },
+  { label: "Chờ duyệt", value: "PENDING_REVIEW" },
+  { label: "Đã phê duyệt", value: "APPROVED" },
+  { label: "Yêu cầu chỉnh sửa", value: "CHANGES_REQUESTED" },
+  { label: "Từ chối", value: "REJECTED" },
+];
+
 export const SellerApplicationQueuePage = () => {
   const applications = useSellerApplications();
   const [query, setQuery] = useState("");
@@ -96,6 +104,7 @@ export const SellerApplicationQueuePage = () => {
                 />
               </div>
               <Select
+                items={STATUS_FILTER_ITEMS}
                 onValueChange={(val) =>
                   setStatusFilter((val as StatusFilter) ?? "ALL")
                 }
