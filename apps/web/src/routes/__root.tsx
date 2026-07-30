@@ -11,6 +11,8 @@ import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
 import Header from "@/components/header";
 import { ThemeProvider } from "@/components/theme-provider";
+import { GeneralError } from "@/features/errors/general-error";
+import { NotFoundError } from "@/features/errors/not-found-error";
 import type { orpc } from "@/utils/orpc";
 
 import "../index.css";
@@ -44,6 +46,7 @@ const RootComponent = () => (
 
 export const Route = createRootRouteWithContext<RouterAppContext>()({
   component: RootComponent,
+  errorComponent: GeneralError,
   head: () => ({
     links: [
       {
@@ -61,4 +64,5 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
       },
     ],
   }),
+  notFoundComponent: NotFoundError,
 });
