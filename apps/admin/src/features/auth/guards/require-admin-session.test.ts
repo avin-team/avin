@@ -61,4 +61,15 @@ describe("requireAdminSession", () => {
       },
     });
   });
+
+  it("redirects to /sign-in when getSession throws a network fetch error", async () => {
+    getSession.mockRejectedValue(new TypeError("Failed to fetch"));
+
+    await expect(requireAdminSession("/dashboard")).rejects.toMatchObject({
+      options: {
+        search: { redirect: "/dashboard" },
+        to: "/sign-in",
+      },
+    });
+  });
 });

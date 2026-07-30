@@ -16,11 +16,21 @@ const SignInRouteComponent = () => {
 
 export const Route = createFileRoute("/sign-in")({
   beforeLoad: async () => {
-    const session = await authClient.getSession();
-    if (session.data?.user && session.data.user.role === "ADMIN") {
-      throw redirect({
-        to: "/",
-      });
+    try {
+      const session = await authClient.getSession();
+      if (session.data?.user && session.data.user.role === "ADMIN") {
+        throw redirect({
+          to: "/",
+        });
+      }
+    } catch (error) {
+      if (
+        error &&
+        typeof error === "object" &&
+        ("to" in error || "href" in error || "isRedirect" in error)
+      ) {
+        throw error;
+      }
     }
   },
   component: SignInRouteComponent,
