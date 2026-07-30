@@ -38,7 +38,7 @@ describe("CategoryCard", () => {
     expect(
       screen.getByText("Kháng cờ fanpage và tăng trưởng Facebook")
     ).toBeInTheDocument();
-    expect(screen.getByText("2 dịch vụ con")).toBeInTheDocument();
+    expect(screen.getByText("2 dịch vụ")).toBeInTheDocument();
     expect(screen.getByText("Lấy lại tài khoản")).toBeInTheDocument();
     expect(screen.getByText("Kháng checkpoint")).toBeInTheDocument();
   });

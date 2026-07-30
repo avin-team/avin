@@ -42,7 +42,7 @@ export const CategoryCard = ({ category, className }: CategoryCardProps) => {
             </div>
             <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/60 px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
               <Layers className="h-3 w-3" />
-              <span>{subs.length} dịch vụ con</span>
+              <span>{subs.length} dịch vụ</span>
             </span>
           </div>
 

@@ -200,7 +200,7 @@ export const CategoryDetailView = ({
                     onClick={() => onSubSelect(undefined)}
                     type="button"
                   >
-                    <span>Tất cả dịch vụ con</span>
+                    <span>Tất cả dịch vụ</span>
                     {selectedSubSlug === undefined && (
                       <CheckCircle2 className="h-4 w-4 shrink-0" />
                     )}
