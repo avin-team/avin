@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
@@ -13,9 +14,15 @@ export default defineConfig({
     react(),
   ],
   resolve: {
+    conditions: ["development", "browser"],
     tsconfigPaths: true,
   },
   server: {
     port: 3001,
+  },
+  test: {
+    env: { NODE_ENV: "development" },
+    environment: "jsdom",
+    setupFiles: ["./src/test-setup.ts"],
   },
 });
