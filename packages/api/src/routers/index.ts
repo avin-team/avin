@@ -10,11 +10,13 @@ import {
 } from "../authorization";
 import { catalogRouter } from "./catalog";
 import { categoryRouter } from "./category";
+import { sellerRouter } from "./seller";
 
 export const appRouter = {
   catalog: catalogRouter,
   category: categoryRouter,
   healthCheck: publicProcedure.handler(() => "OK"),
+  seller: sellerRouter,
   privateData: buyerProcedure.handler(({ context }) => ({
     message: "This is private",
     user: context.session?.user,

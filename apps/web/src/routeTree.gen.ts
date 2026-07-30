@@ -26,6 +26,7 @@ import { Route as authSellerLoginRouteImport } from './routes/(auth)/seller/logi
 import { Route as publicCategoryIndexRouteImport } from './routes/(public)/category/index'
 import { Route as publicCategoryParentSlugRouteImport } from './routes/(public)/category/$parentSlug'
 import { Route as publicListingIdRouteImport } from './routes/(public)/listing/$id'
+import { Route as AuthenticatedSellerOnboardingRouteImport } from './routes/_authenticated/seller/onboarding'
 
 const authRouteRoute = authRouteRouteImport.update({
   id: '/(auth)',
@@ -110,6 +111,12 @@ const publicListingIdRoute = publicListingIdRouteImport.update({
   path: '/listing/$id',
   getParentRoute: () => publicRouteRoute,
 } as any)
+const AuthenticatedSellerOnboardingRoute =
+  AuthenticatedSellerOnboardingRouteImport.update({
+    id: '/seller/onboarding',
+    path: '/seller/onboarding',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof publicIndexRoute
@@ -125,6 +132,7 @@ export interface FileRoutesByFullPath {
   '/seller/login': typeof authSellerLoginRoute
   '/category/$parentSlug': typeof publicCategoryParentSlugRoute
   '/listing/$id': typeof publicListingIdRoute
+  '/seller/onboarding': typeof AuthenticatedSellerOnboardingRoute
   '/category/': typeof publicCategoryIndexRoute
 }
 export interface FileRoutesByTo {
@@ -141,6 +149,7 @@ export interface FileRoutesByTo {
   '/seller/login': typeof authSellerLoginRoute
   '/category/$parentSlug': typeof publicCategoryParentSlugRoute
   '/listing/$id': typeof publicListingIdRoute
+  '/seller/onboarding': typeof AuthenticatedSellerOnboardingRoute
   '/category': typeof publicCategoryIndexRoute
 }
 export interface FileRoutesById {
@@ -161,6 +170,7 @@ export interface FileRoutesById {
   '/(auth)/seller/login': typeof authSellerLoginRoute
   '/(public)/category/$parentSlug': typeof publicCategoryParentSlugRoute
   '/(public)/listing/$id': typeof publicListingIdRoute
+  '/_authenticated/seller/onboarding': typeof AuthenticatedSellerOnboardingRoute
   '/(public)/category/': typeof publicCategoryIndexRoute
 }
 export interface FileRouteTypes {
@@ -179,6 +189,7 @@ export interface FileRouteTypes {
     | '/seller/login'
     | '/category/$parentSlug'
     | '/listing/$id'
+    | '/seller/onboarding'
     | '/category/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -195,6 +206,7 @@ export interface FileRouteTypes {
     | '/seller/login'
     | '/category/$parentSlug'
     | '/listing/$id'
+    | '/seller/onboarding'
     | '/category'
   id:
     | '__root__'
@@ -214,6 +226,7 @@ export interface FileRouteTypes {
     | '/(auth)/seller/login'
     | '/(public)/category/$parentSlug'
     | '/(public)/listing/$id'
+    | '/_authenticated/seller/onboarding'
     | '/(public)/category/'
   fileRoutesById: FileRoutesById
 }
@@ -349,6 +362,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof publicListingIdRouteImport
       parentRoute: typeof publicRouteRoute
     }
+    '/_authenticated/seller/onboarding': {
+      id: '/_authenticated/seller/onboarding'
+      path: '/seller/onboarding'
+      fullPath: '/seller/onboarding'
+      preLoaderRoute: typeof AuthenticatedSellerOnboardingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -388,12 +408,14 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAiRoute: typeof AuthenticatedAiRoute
   AuthenticatedSecurityRoute: typeof AuthenticatedSecurityRoute
   AuthenticatedTwoFactorRoute: typeof AuthenticatedTwoFactorRoute
+  AuthenticatedSellerOnboardingRoute: typeof AuthenticatedSellerOnboardingRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAiRoute: AuthenticatedAiRoute,
   AuthenticatedSecurityRoute: AuthenticatedSecurityRoute,
   AuthenticatedTwoFactorRoute: AuthenticatedTwoFactorRoute,
+  AuthenticatedSellerOnboardingRoute: AuthenticatedSellerOnboardingRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
