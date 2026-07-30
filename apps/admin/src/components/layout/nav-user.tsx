@@ -36,9 +36,9 @@ export const NavUser = ({ user: defaultUser }: NavUserProps) => {
   const { data: session } = useSession();
   const navigate = useNavigate();
 
-  const name = session?.user?.name || defaultUser?.name || "Admin";
-  const email = session?.user?.email || defaultUser?.email || "admin@avin.vn";
-  const avatar = session?.user?.image || defaultUser?.avatar || "";
+  const name = session?.user?.name ?? defaultUser?.name ?? "Admin Account";
+  const email = session?.user?.email ?? defaultUser?.email ?? "";
+  const avatar = session?.user?.image ?? defaultUser?.avatar ?? "";
 
   const handleSignOut = async () => {
     try {

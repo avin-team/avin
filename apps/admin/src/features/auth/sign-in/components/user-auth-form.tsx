@@ -10,7 +10,7 @@ import { useForm } from "@tanstack/react-form";
 import { useNavigate } from "@tanstack/react-router";
 import { Loader2, LogIn } from "lucide-react";
 import { toast } from "sonner";
-import * as z from "zod";
+import { z } from "zod";
 
 import { authClient } from "@/lib/auth-client";
 
@@ -47,12 +47,12 @@ export const UserAuthForm = ({
         {
           onError: (ctx) => {
             toast.error(
-              ctx.error.message ||
+              ctx.error.message ??
                 "Đăng nhập thất bại. Vui lòng kiểm tra lại email và mật khẩu."
             );
           },
           onSuccess: async () => {
-            const targetPath = redirectTo || "/";
+            const targetPath = redirectTo ?? "/";
             await navigate({ replace: true, to: targetPath });
             toast.success("Đăng nhập thành công!");
           },

@@ -1,3 +1,4 @@
+/* oxlint-disable react-doctor/tanstack-start-route-property-order */
 import { createFileRoute, redirect, useSearch } from "@tanstack/react-router";
 import { z } from "zod";
 
