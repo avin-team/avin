@@ -52,7 +52,7 @@ export const useActiveSessions = (currentSessionToken: string | undefined) => {
       toast.success("Đã thu hồi phiên đăng nhập.");
 
       if (token === currentSessionToken) {
-        await navigate({ to: "/login" });
+        await navigate({ to: "/(auth)/login" });
         return;
       }
 

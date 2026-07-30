@@ -1,11 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useRouteContext } from "@tanstack/react-router";
 
-import { requireSession } from "@/features/auth/guards/require-session";
 import { orpc } from "@/utils/orpc";
 
 const RouteComponent = () => {
-  const { session } = useRouteContext({ from: "/dashboard" });
+  const { session } = useRouteContext({ from: "/_authenticated/dashboard" });
 
   const privateData = useQuery(orpc.privateData.queryOptions());
 
@@ -18,11 +17,6 @@ const RouteComponent = () => {
   );
 };
 
-export const Route = createFileRoute("/dashboard")({
-  beforeLoad: async () => {
-    const session = await requireSession();
-
-    return { session };
-  },
+export const Route = createFileRoute("/_authenticated/dashboard")({
   component: RouteComponent,
 });

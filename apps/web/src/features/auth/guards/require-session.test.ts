@@ -35,7 +35,7 @@ describe("requireSession", () => {
 
     await expect(requireSession()).rejects.toMatchObject({
       options: {
-        to: "/login",
+        to: "/(auth)/login",
       },
     });
   });

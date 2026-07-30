@@ -10,7 +10,7 @@ const authSearchSchema = z.object({
 
 export type AuthSearch = z.infer<typeof authSearchSchema>;
 
-export const Route = createFileRoute("/login")({
+export const Route = createFileRoute("/(auth)/login")({
   component: AuthPage,
   validateSearch: authSearchSchema,
 });

@@ -43,7 +43,7 @@ export const UserMenu = () => {
           <DropdownMenuItem
             onClick={async () => {
               await navigate({
-                to: "/security",
+                to: "/_authenticated/security",
               });
             }}
           >

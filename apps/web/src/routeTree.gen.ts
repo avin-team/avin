@@ -9,180 +9,336 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as AiRouteImport } from './routes/ai'
-import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as SecurityRouteImport } from './routes/security'
-import { Route as TwoFactorRouteImport } from './routes/two-factor'
-import { Route as SellerLoginRouteImport } from './routes/seller/login'
+import { Route as publicRouteRouteImport } from './routes/(public)/route'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as authLoginRouteImport } from './routes/(auth)/login'
+import { Route as errors401RouteImport } from './routes/(errors)/401'
+import { Route as errors403RouteImport } from './routes/(errors)/403'
+import { Route as errors404RouteImport } from './routes/(errors)/404'
+import { Route as errors500RouteImport } from './routes/(errors)/500'
+import { Route as errors503RouteImport } from './routes/(errors)/503'
+import { Route as publicIndexRouteImport } from './routes/(public)/index'
+import { Route as AuthenticatedAiRouteImport } from './routes/_authenticated/ai'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedSecurityRouteImport } from './routes/_authenticated/security'
+import { Route as AuthenticatedTwoFactorRouteImport } from './routes/_authenticated/two-factor'
+import { Route as authSellerLoginRouteImport } from './routes/(auth)/seller/login'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const publicRouteRoute = publicRouteRouteImport.update({
+  id: '/(public)',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AiRoute = AiRouteImport.update({
-  id: '/ai',
-  path: '/ai',
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
+const authLoginRoute = authLoginRouteImport.update({
+  id: '/(auth)/login',
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SecurityRoute = SecurityRouteImport.update({
+const errors401Route = errors401RouteImport.update({
+  id: '/(errors)/401',
+  path: '/401',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const errors403Route = errors403RouteImport.update({
+  id: '/(errors)/403',
+  path: '/403',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const errors404Route = errors404RouteImport.update({
+  id: '/(errors)/404',
+  path: '/404',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const errors500Route = errors500RouteImport.update({
+  id: '/(errors)/500',
+  path: '/500',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const errors503Route = errors503RouteImport.update({
+  id: '/(errors)/503',
+  path: '/503',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const publicIndexRoute = publicIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => publicRouteRoute,
+} as any)
+const AuthenticatedAiRoute = AuthenticatedAiRouteImport.update({
+  id: '/ai',
+  path: '/ai',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedSecurityRoute = AuthenticatedSecurityRouteImport.update({
   id: '/security',
   path: '/security',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const TwoFactorRoute = TwoFactorRouteImport.update({
+const AuthenticatedTwoFactorRoute = AuthenticatedTwoFactorRouteImport.update({
   id: '/two-factor',
   path: '/two-factor',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const SellerLoginRoute = SellerLoginRouteImport.update({
-  id: '/seller/login',
+const authSellerLoginRoute = authSellerLoginRouteImport.update({
+  id: '/(auth)/seller/login',
   path: '/seller/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/ai': typeof AiRoute
-  '/dashboard': typeof DashboardRoute
-  '/login': typeof LoginRoute
-  '/security': typeof SecurityRoute
-  '/two-factor': typeof TwoFactorRoute
-  '/seller/login': typeof SellerLoginRoute
+  '/': typeof publicIndexRoute
+  '/login': typeof authLoginRoute
+  '/401': typeof errors401Route
+  '/403': typeof errors403Route
+  '/404': typeof errors404Route
+  '/500': typeof errors500Route
+  '/503': typeof errors503Route
+  '/ai': typeof AuthenticatedAiRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/security': typeof AuthenticatedSecurityRoute
+  '/two-factor': typeof AuthenticatedTwoFactorRoute
+  '/seller/login': typeof authSellerLoginRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/ai': typeof AiRoute
-  '/dashboard': typeof DashboardRoute
-  '/login': typeof LoginRoute
-  '/security': typeof SecurityRoute
-  '/two-factor': typeof TwoFactorRoute
-  '/seller/login': typeof SellerLoginRoute
+  '/': typeof publicIndexRoute
+  '/login': typeof authLoginRoute
+  '/401': typeof errors401Route
+  '/403': typeof errors403Route
+  '/404': typeof errors404Route
+  '/500': typeof errors500Route
+  '/503': typeof errors503Route
+  '/ai': typeof AuthenticatedAiRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/security': typeof AuthenticatedSecurityRoute
+  '/two-factor': typeof AuthenticatedTwoFactorRoute
+  '/seller/login': typeof authSellerLoginRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/ai': typeof AiRoute
-  '/dashboard': typeof DashboardRoute
-  '/login': typeof LoginRoute
-  '/security': typeof SecurityRoute
-  '/two-factor': typeof TwoFactorRoute
-  '/seller/login': typeof SellerLoginRoute
+  '/(public)': typeof publicRouteRouteWithChildren
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/(auth)/login': typeof authLoginRoute
+  '/(errors)/401': typeof errors401Route
+  '/(errors)/403': typeof errors403Route
+  '/(errors)/404': typeof errors404Route
+  '/(errors)/500': typeof errors500Route
+  '/(errors)/503': typeof errors503Route
+  '/_authenticated/ai': typeof AuthenticatedAiRoute
+  '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/security': typeof AuthenticatedSecurityRoute
+  '/_authenticated/two-factor': typeof AuthenticatedTwoFactorRoute
+  '/(public)/': typeof publicIndexRoute
+  '/(auth)/seller/login': typeof authSellerLoginRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/login'
+    | '/401'
+    | '/403'
+    | '/404'
+    | '/500'
+    | '/503'
     | '/ai'
     | '/dashboard'
-    | '/login'
     | '/security'
     | '/two-factor'
     | '/seller/login'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/login'
+    | '/401'
+    | '/403'
+    | '/404'
+    | '/500'
+    | '/503'
     | '/ai'
     | '/dashboard'
-    | '/login'
     | '/security'
     | '/two-factor'
     | '/seller/login'
   id:
     | '__root__'
-    | '/'
-    | '/ai'
-    | '/dashboard'
-    | '/login'
-    | '/security'
-    | '/two-factor'
-    | '/seller/login'
+    | '/(public)'
+    | '/_authenticated'
+    | '/(auth)/login'
+    | '/(errors)/401'
+    | '/(errors)/403'
+    | '/(errors)/404'
+    | '/(errors)/500'
+    | '/(errors)/503'
+    | '/_authenticated/ai'
+    | '/_authenticated/dashboard'
+    | '/_authenticated/security'
+    | '/_authenticated/two-factor'
+    | '/(public)/'
+    | '/(auth)/seller/login'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  AiRoute: typeof AiRoute
-  DashboardRoute: typeof DashboardRoute
-  LoginRoute: typeof LoginRoute
-  SecurityRoute: typeof SecurityRoute
-  TwoFactorRoute: typeof TwoFactorRoute
-  SellerLoginRoute: typeof SellerLoginRoute
+  publicRouteRoute: typeof publicRouteRouteWithChildren
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  authLoginRoute: typeof authLoginRoute
+  errors401Route: typeof errors401Route
+  errors403Route: typeof errors403Route
+  errors404Route: typeof errors404Route
+  errors500Route: typeof errors500Route
+  errors503Route: typeof errors503Route
+  authSellerLoginRoute: typeof authSellerLoginRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
+    '/(public)': {
+      id: '/(public)'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof publicRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/ai': {
-      id: '/ai'
-      path: '/ai'
-      fullPath: '/ai'
-      preLoaderRoute: typeof AiRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
+    '/(auth)/login': {
+      id: '/(auth)/login'
       path: '/login'
       fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
+      preLoaderRoute: typeof authLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/security': {
-      id: '/security'
+    '/(errors)/401': {
+      id: '/(errors)/401'
+      path: '/401'
+      fullPath: '/401'
+      preLoaderRoute: typeof errors401RouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(errors)/403': {
+      id: '/(errors)/403'
+      path: '/403'
+      fullPath: '/403'
+      preLoaderRoute: typeof errors403RouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(errors)/404': {
+      id: '/(errors)/404'
+      path: '/404'
+      fullPath: '/404'
+      preLoaderRoute: typeof errors404RouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(errors)/500': {
+      id: '/(errors)/500'
+      path: '/500'
+      fullPath: '/500'
+      preLoaderRoute: typeof errors500RouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(errors)/503': {
+      id: '/(errors)/503'
+      path: '/503'
+      fullPath: '/503'
+      preLoaderRoute: typeof errors503RouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(public)/': {
+      id: '/(public)/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof publicIndexRouteImport
+      parentRoute: typeof publicRouteRoute
+    }
+    '/_authenticated/ai': {
+      id: '/_authenticated/ai'
+      path: '/ai'
+      fullPath: '/ai'
+      preLoaderRoute: typeof AuthenticatedAiRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/security': {
+      id: '/_authenticated/security'
       path: '/security'
       fullPath: '/security'
-      preLoaderRoute: typeof SecurityRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedSecurityRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/two-factor': {
-      id: '/two-factor'
+    '/_authenticated/two-factor': {
+      id: '/_authenticated/two-factor'
       path: '/two-factor'
       fullPath: '/two-factor'
-      preLoaderRoute: typeof TwoFactorRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedTwoFactorRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/seller/login': {
-      id: '/seller/login'
+    '/(auth)/seller/login': {
+      id: '/(auth)/seller/login'
       path: '/seller/login'
       fullPath: '/seller/login'
-      preLoaderRoute: typeof SellerLoginRouteImport
+      preLoaderRoute: typeof authSellerLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
 }
 
+interface publicRouteRouteChildren {
+  publicIndexRoute: typeof publicIndexRoute
+}
+
+const publicRouteRouteChildren: publicRouteRouteChildren = {
+  publicIndexRoute: publicIndexRoute,
+}
+
+const publicRouteRouteWithChildren = publicRouteRoute._addFileChildren(
+  publicRouteRouteChildren,
+)
+
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAiRoute: typeof AuthenticatedAiRoute
+  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedSecurityRoute: typeof AuthenticatedSecurityRoute
+  AuthenticatedTwoFactorRoute: typeof AuthenticatedTwoFactorRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAiRoute: AuthenticatedAiRoute,
+  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedSecurityRoute: AuthenticatedSecurityRoute,
+  AuthenticatedTwoFactorRoute: AuthenticatedTwoFactorRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  AiRoute: AiRoute,
-  DashboardRoute: DashboardRoute,
-  LoginRoute: LoginRoute,
-  SecurityRoute: SecurityRoute,
-  TwoFactorRoute: TwoFactorRoute,
-  SellerLoginRoute: SellerLoginRoute,
+  publicRouteRoute: publicRouteRouteWithChildren,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  authLoginRoute: authLoginRoute,
+  errors401Route: errors401Route,
+  errors403Route: errors403Route,
+  errors404Route: errors404Route,
+  errors500Route: errors500Route,
+  errors503Route: errors503Route,
+  authSellerLoginRoute: authSellerLoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

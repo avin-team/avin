@@ -9,7 +9,6 @@ import {
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
-import Header from "@/components/header";
 import { ThemeProvider } from "@/components/theme-provider";
 import { GeneralError } from "@/features/errors/general-error";
 import { NotFoundError } from "@/features/errors/not-found-error";
@@ -32,10 +31,7 @@ const RootComponent = () => (
       storageKey="vite-ui-theme"
     >
       <TooltipProvider>
-        <div className="grid grid-rows-[auto_1fr] h-svh">
-          <Header />
-          <Outlet />
-        </div>
+        <Outlet />
         <Toaster richColors />
       </TooltipProvider>
     </ThemeProvider>

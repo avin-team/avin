@@ -45,7 +45,7 @@ export const AuthPage = () => {
         ...prev,
         role: role === ACCOUNT_ROLE.SELLER ? "seller" : "buyer",
       }),
-      to: "/login",
+      to: "/(auth)/login",
     });
   };
 
@@ -56,7 +56,7 @@ export const AuthPage = () => {
         ...prev,
         role: undefined,
       }),
-      to: "/login",
+      to: "/(auth)/login",
     });
   };
 
