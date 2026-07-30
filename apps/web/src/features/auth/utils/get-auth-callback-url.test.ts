@@ -4,8 +4,8 @@ import { getAuthCallbackUrl } from "@/features/auth/utils/get-auth-callback-url"
 
 describe("getAuthCallbackUrl", () => {
   it("resolves the callback against the frontend origin", () => {
-    expect(getAuthCallbackUrl("/dashboard", "http://localhost:3001")).toBe(
-      "http://localhost:3001/dashboard"
+    expect(getAuthCallbackUrl("/", "http://localhost:3001")).toBe(
+      "http://localhost:3001/"
     );
   });
 });

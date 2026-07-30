@@ -9,12 +9,9 @@ interface RoleSelectionStepProps {
 
 export const RoleSelectionStep = ({ onSelectRole }: RoleSelectionStepProps) => (
   <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-    <header className="flex flex-col gap-1">
-      <h1 className="font-bold text-2xl tracking-wide">Chào mừng đến Avin</h1>
-      <p className="text-base text-muted-foreground">
-        Bạn muốn tham gia với vai trò nào?
-      </p>
-    </header>
+    <p className="font-medium text-muted-foreground text-sm">
+      Vui lòng chọn vai trò bạn muốn đăng ký:
+    </p>
 
     <div className="grid gap-4">
       <button

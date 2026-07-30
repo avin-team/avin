@@ -1,19 +1,12 @@
-import { ACCOUNT_ROLE } from "@avin/auth/permissions";
 import { describe, expect, it } from "vitest";
 
 import { getPostAuthRoute } from "@/features/auth/utils/get-post-auth-route";
 
 describe("getPostAuthRoute", () => {
-  it("routes Buyer to /dashboard", () => {
-    expect(getPostAuthRoute(ACCOUNT_ROLE.BUYER)).toBe("/dashboard");
-  });
-
-  it("routes Seller to /", () => {
-    expect(getPostAuthRoute(ACCOUNT_ROLE.SELLER)).toBe("/");
-  });
-
-  it("defaults to /dashboard for null or undefined role", () => {
-    expect(getPostAuthRoute(null)).toBe("/dashboard");
-    expect(getPostAuthRoute()).toBe("/dashboard");
+  it("routes all users to /", () => {
+    expect(getPostAuthRoute("buyer")).toBe("/");
+    expect(getPostAuthRoute("seller")).toBe("/");
+    expect(getPostAuthRoute(null)).toBe("/");
+    expect(getPostAuthRoute()).toBe("/");
   });
 });

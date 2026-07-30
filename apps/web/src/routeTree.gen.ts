@@ -20,7 +20,6 @@ import { Route as errors500RouteImport } from './routes/(errors)/500'
 import { Route as errors503RouteImport } from './routes/(errors)/503'
 import { Route as publicIndexRouteImport } from './routes/(public)/index'
 import { Route as AuthenticatedAiRouteImport } from './routes/_authenticated/ai'
-import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedSecurityRouteImport } from './routes/_authenticated/security'
 import { Route as AuthenticatedTwoFactorRouteImport } from './routes/_authenticated/two-factor'
 import { Route as authSellerLoginRouteImport } from './routes/(auth)/seller/login'
@@ -80,11 +79,6 @@ const AuthenticatedAiRoute = AuthenticatedAiRouteImport.update({
   path: '/ai',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedSecurityRoute = AuthenticatedSecurityRouteImport.update({
   id: '/security',
   path: '/security',
@@ -126,7 +120,6 @@ export interface FileRoutesByFullPath {
   '/500': typeof errors500Route
   '/503': typeof errors503Route
   '/ai': typeof AuthenticatedAiRoute
-  '/dashboard': typeof AuthenticatedDashboardRoute
   '/security': typeof AuthenticatedSecurityRoute
   '/two-factor': typeof AuthenticatedTwoFactorRoute
   '/seller/login': typeof authSellerLoginRoute
@@ -143,7 +136,6 @@ export interface FileRoutesByTo {
   '/500': typeof errors500Route
   '/503': typeof errors503Route
   '/ai': typeof AuthenticatedAiRoute
-  '/dashboard': typeof AuthenticatedDashboardRoute
   '/security': typeof AuthenticatedSecurityRoute
   '/two-factor': typeof AuthenticatedTwoFactorRoute
   '/seller/login': typeof authSellerLoginRoute
@@ -163,7 +155,6 @@ export interface FileRoutesById {
   '/(errors)/500': typeof errors500Route
   '/(errors)/503': typeof errors503Route
   '/_authenticated/ai': typeof AuthenticatedAiRoute
-  '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/security': typeof AuthenticatedSecurityRoute
   '/_authenticated/two-factor': typeof AuthenticatedTwoFactorRoute
   '/(public)/': typeof publicIndexRoute
@@ -183,7 +174,6 @@ export interface FileRouteTypes {
     | '/500'
     | '/503'
     | '/ai'
-    | '/dashboard'
     | '/security'
     | '/two-factor'
     | '/seller/login'
@@ -200,7 +190,6 @@ export interface FileRouteTypes {
     | '/500'
     | '/503'
     | '/ai'
-    | '/dashboard'
     | '/security'
     | '/two-factor'
     | '/seller/login'
@@ -219,7 +208,6 @@ export interface FileRouteTypes {
     | '/(errors)/500'
     | '/(errors)/503'
     | '/_authenticated/ai'
-    | '/_authenticated/dashboard'
     | '/_authenticated/security'
     | '/_authenticated/two-factor'
     | '/(public)/'
@@ -319,13 +307,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAiRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/dashboard': {
-      id: '/_authenticated/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/security': {
       id: '/_authenticated/security'
       path: '/security'
@@ -405,14 +386,12 @@ const publicRouteRouteWithChildren = publicRouteRoute._addFileChildren(
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAiRoute: typeof AuthenticatedAiRoute
-  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedSecurityRoute: typeof AuthenticatedSecurityRoute
   AuthenticatedTwoFactorRoute: typeof AuthenticatedTwoFactorRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAiRoute: AuthenticatedAiRoute,
-  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedSecurityRoute: AuthenticatedSecurityRoute,
   AuthenticatedTwoFactorRoute: AuthenticatedTwoFactorRoute,
 }

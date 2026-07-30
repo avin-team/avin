@@ -78,7 +78,7 @@ describe("SignInForm", () => {
         password: "password123",
       });
       expect(toastSuccess).toHaveBeenCalledWith("Đăng nhập thành công.");
-      expect(mockNavigate).toHaveBeenCalledWith({ to: "/dashboard" });
+      expect(mockNavigate).toHaveBeenCalledWith({ to: "/" });
     });
 
     it("shows error toast when API returns an error", async () => {
@@ -91,6 +91,22 @@ describe("SignInForm", () => {
 
       expect(toastError).toHaveBeenCalledWith("Sai mật khẩu.");
       expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
+    it("navigates to seller home when seller logs in without expectedRole", async () => {
+      signInEmail.mockResolvedValue({
+        data: { user: { role: ACCOUNT_ROLE.SELLER } },
+        error: null,
+      });
+
+      await fillAndSubmit("seller@test.com", "password123");
+
+      expect(signInEmail).toHaveBeenCalledWith({
+        email: "seller@test.com",
+        password: "password123",
+      });
+      expect(toastSuccess).toHaveBeenCalledWith("Đăng nhập thành công.");
+      expect(mockNavigate).toHaveBeenCalledWith({ to: "/" });
     });
   });
 

@@ -1,11 +1,12 @@
 import { cn } from "@avin/ui/lib/utils";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, Search, Zap } from "lucide-react";
+import { Search, Zap } from "lucide-react";
 import { motion } from "motion/react";
 import React, { useEffect, useRef, useState } from "react";
 
 import { ModeToggle } from "@/components/mode-toggle";
 import { siteConfig } from "@/config/site";
+import { UserMenu } from "@/features/auth/components/user-menu";
 
 import { MainNav } from "./main-nav";
 import { MobileNav, MobileNavTrigger } from "./mobile-nav";
@@ -110,25 +111,7 @@ export const Header = () => {
 
               <ModeToggle />
 
-              <Link
-                className="px-4 py-2 text-sm font-medium text-foreground/80 transition-colors duration-200 hover:text-foreground"
-                to="/login"
-              >
-                Đăng nhập
-              </Link>
-
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <Link
-                  className="inline-flex items-center space-x-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition-all duration-200 hover:bg-primary/90"
-                  to="/login"
-                >
-                  <span>Bắt đầu ngay</span>
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </motion.div>
+              <UserMenu />
             </motion.div>
 
             <MobileNavTrigger

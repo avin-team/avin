@@ -1,4 +1,3 @@
-import { ACCOUNT_ROLE } from "@avin/auth/permissions";
 import type { AccountRole } from "@avin/auth/permissions";
 import { Button } from "@avin/ui/components/button";
 import {
@@ -15,6 +14,7 @@ import { toast } from "sonner";
 
 import { authClient } from "@/features/auth/api/auth-client";
 import { signInSchema } from "@/features/auth/schemas/auth-schemas";
+import { getPostAuthRoute } from "@/features/auth/utils/get-post-auth-route";
 import type { PostAuthRoute } from "@/features/auth/utils/get-post-auth-route";
 
 interface SignInFormProps {
@@ -22,10 +22,7 @@ interface SignInFormProps {
   redirectTo?: PostAuthRoute;
 }
 
-export const SignInForm = ({
-  expectedRole = ACCOUNT_ROLE.BUYER,
-  redirectTo = "/dashboard",
-}: SignInFormProps) => {
+export const SignInForm = ({ expectedRole, redirectTo }: SignInFormProps) => {
   const navigate = useNavigate();
   const form = useForm({
     defaultValues: {
@@ -44,14 +41,16 @@ export const SignInForm = ({
           return;
         }
 
-        if (result.data.user.role !== expectedRole) {
+        if (expectedRole && result.data.user.role !== expectedRole) {
           await authClient.signOut();
           toast.error("Tài khoản không thuộc cổng đăng nhập này.");
           return;
         }
 
         toast.success("Đăng nhập thành công.");
-        await navigate({ to: redirectTo });
+        await navigate({
+          to: redirectTo ?? getPostAuthRoute(result.data.user.role),
+        });
       } catch {
         toast.error("Không thể kết nối đến máy chủ. Vui lòng thử lại.");
       }
