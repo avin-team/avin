@@ -226,14 +226,14 @@ export const CategoriesPage = () => {
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-sm font-medium text-primary">
-              MARKETPLACE TAXONOMY
+              CẤU TRÚC DANH MỤC SÀN
             </p>
             <h1 className="text-3xl font-semibold tracking-tight">
-              Categories & Policies
+              Danh mục & Chính sách
             </h1>
             <p className="text-muted-foreground">
-              Quản lý phân loại 2 cấp (Parent $\rightarrow$ Sub-Category), tỷ lệ
-              chiết khấu sàn và chính sách bảo hành mẫu.
+              Quản lý phân loại 2 cấp (Danh mục cha → Danh mục con), tỷ lệ chiết
+              khấu sàn và chính sách bảo hành mẫu.
             </p>
           </div>
           <Button onClick={() => setCreateParentOpen(true)}>
@@ -245,23 +245,23 @@ export const CategoriesPage = () => {
         <div className="grid gap-4 sm:grid-cols-3">
           <Card size="sm">
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm">Danh Mục Cha (Parent)</CardTitle>
+              <CardTitle className="text-sm">Danh mục cha</CardTitle>
               <Layers className="size-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-semibold">{categories.length}</p>
-              <CardDescription>2-level taxonomy root nodes</CardDescription>
+              <CardDescription>Danh mục gốc cấp 1</CardDescription>
             </CardContent>
           </Card>
 
           <Card size="sm">
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm">Sub-Categories</CardTitle>
+              <CardTitle className="text-sm">Danh mục con</CardTitle>
               <FolderPlus className="size-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-semibold">{totalSubCategories}</p>
-              <CardDescription>Trực tiếp chứa Listings</CardDescription>
+              <CardDescription>Trực tiếp chứa sản phẩm</CardDescription>
             </CardContent>
           </Card>
 
@@ -273,7 +273,7 @@ export const CategoriesPage = () => {
             <CardContent>
               <p className="text-3xl font-semibold">{commissionDisplay}</p>
               <CardDescription>
-                Thiết lập theo từng Sub-Category
+                Thiết lập theo từng danh mục con
               </CardDescription>
             </CardContent>
           </Card>
@@ -334,12 +334,12 @@ export const CategoriesPage = () => {
             <ShieldAlert className="size-5 text-amber-500" />
             <div>
               <CardTitle className="text-sm font-semibold">
-                Quy tắc P0 Categories
+                Quy định hệ thống danh mục
               </CardTitle>
               <CardDescription className="text-xs">
-                Listings thuộc đúng 1 Sub-Category. Tỷ lệ chiết khấu và điều
-                khoản bảo hành snapshot trực tiếp vào OrderItem khi người mua
-                thanh toán.
+                Mỗi tin đăng/sản phẩm phải thuộc đúng 1 danh mục con. Tỷ lệ
+                chiết khấu và điều khoản bảo hành sẽ được chốt trực tiếp vào
+                từng món trong đơn hàng khi người mua thanh toán.
               </CardDescription>
             </div>
           </CardHeader>

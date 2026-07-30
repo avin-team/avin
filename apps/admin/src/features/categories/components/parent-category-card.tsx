@@ -147,7 +147,7 @@ export const ParentCategoryCard = ({
         </div>
         <Button onClick={() => onAddSub(parent)} size="sm" variant="outline">
           <FolderPlus className="size-4" />
-          Thêm Sub-Category
+          Thêm danh mục con
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger
@@ -194,13 +194,12 @@ export const ParentCategoryCard = ({
           <TableHeader>
             <TableRow>
               <TableHead className="w-12">Thứ tự</TableHead>
-              <TableHead>Sub-Category</TableHead>
+              <TableHead>Danh mục con</TableHead>
               <TableHead>Slug</TableHead>
               <TableHead>Trạng thái</TableHead>
               <TableHead>Chiết khấu sàn</TableHead>
               <TableHead>Bảo hành mặc định</TableHead>
               <TableHead>Giới hạn bảo hành</TableHead>
-              <TableHead>Trường dữ liệu mẫu</TableHead>
               <TableHead className="w-12" />
             </TableRow>
           </TableHeader>
@@ -256,15 +255,6 @@ export const ParentCategoryCard = ({
                   {sub.warrantyBounds?.maxHours}h
                 </TableCell>
                 <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {sub.defaultServiceInputs?.map((input) => (
-                      <Badge key={input.id} variant="outline">
-                        {input.label} ({input.type})
-                      </Badge>
-                    ))}
-                  </div>
-                </TableCell>
-                <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger
                       render={
@@ -313,9 +303,9 @@ export const ParentCategoryCard = ({
               <TableRow>
                 <TableCell
                   className="h-20 text-center text-muted-foreground"
-                  colSpan={9}
+                  colSpan={8}
                 >
-                  Chưa có Sub-Category nào. Nhấn &quot;Thêm Sub-Category&quot;
+                  Chưa có danh mục con nào. Nhấn &quot;Thêm danh mục con&quot;
                   để tạo.
                 </TableCell>
               </TableRow>
