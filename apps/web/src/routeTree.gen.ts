@@ -15,7 +15,6 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SecurityRouteImport } from './routes/security'
 import { Route as TwoFactorRouteImport } from './routes/two-factor'
-import { Route as AdminLoginRouteImport } from './routes/admin/login'
 import { Route as SellerLoginRouteImport } from './routes/seller/login'
 
 const IndexRoute = IndexRouteImport.update({
@@ -48,11 +47,6 @@ const TwoFactorRoute = TwoFactorRouteImport.update({
   path: '/two-factor',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminLoginRoute = AdminLoginRouteImport.update({
-  id: '/admin/login',
-  path: '/admin/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SellerLoginRoute = SellerLoginRouteImport.update({
   id: '/seller/login',
   path: '/seller/login',
@@ -66,7 +60,6 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/security': typeof SecurityRoute
   '/two-factor': typeof TwoFactorRoute
-  '/admin/login': typeof AdminLoginRoute
   '/seller/login': typeof SellerLoginRoute
 }
 export interface FileRoutesByTo {
@@ -76,7 +69,6 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/security': typeof SecurityRoute
   '/two-factor': typeof TwoFactorRoute
-  '/admin/login': typeof AdminLoginRoute
   '/seller/login': typeof SellerLoginRoute
 }
 export interface FileRoutesById {
@@ -87,7 +79,6 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/security': typeof SecurityRoute
   '/two-factor': typeof TwoFactorRoute
-  '/admin/login': typeof AdminLoginRoute
   '/seller/login': typeof SellerLoginRoute
 }
 export interface FileRouteTypes {
@@ -99,7 +90,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/security'
     | '/two-factor'
-    | '/admin/login'
     | '/seller/login'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -109,7 +99,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/security'
     | '/two-factor'
-    | '/admin/login'
     | '/seller/login'
   id:
     | '__root__'
@@ -119,7 +108,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/security'
     | '/two-factor'
-    | '/admin/login'
     | '/seller/login'
   fileRoutesById: FileRoutesById
 }
@@ -130,7 +118,6 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   SecurityRoute: typeof SecurityRoute
   TwoFactorRoute: typeof TwoFactorRoute
-  AdminLoginRoute: typeof AdminLoginRoute
   SellerLoginRoute: typeof SellerLoginRoute
 }
 
@@ -178,13 +165,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TwoFactorRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/login': {
-      id: '/admin/login'
-      path: '/admin/login'
-      fullPath: '/admin/login'
-      preLoaderRoute: typeof AdminLoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/seller/login': {
       id: '/seller/login'
       path: '/seller/login'
@@ -202,7 +182,6 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   SecurityRoute: SecurityRoute,
   TwoFactorRoute: TwoFactorRoute,
-  AdminLoginRoute: AdminLoginRoute,
   SellerLoginRoute: SellerLoginRoute,
 }
 export const routeTree = rootRouteImport

@@ -29,7 +29,7 @@ export const TwoFactorSettingsCard = () => {
       <CardHeader>
         <CardTitle>Xác thực hai lớp</CardTitle>
         <CardDescription>
-          Admin phải hoàn tất bước này trước khi dùng chức năng quản trị.
+          Bảo vệ tài khoản bằng xác thực hai lớp.
         </CardDescription>
       </CardHeader>
       <CardContent>

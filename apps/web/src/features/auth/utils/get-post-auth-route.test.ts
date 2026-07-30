@@ -12,10 +12,6 @@ describe("getPostAuthRoute", () => {
     expect(getPostAuthRoute(ACCOUNT_ROLE.SELLER)).toBe("/");
   });
 
-  it("routes Admin to /security", () => {
-    expect(getPostAuthRoute(ACCOUNT_ROLE.ADMIN)).toBe("/security");
-  });
-
   it("defaults to /dashboard for null or undefined role", () => {
     expect(getPostAuthRoute(null)).toBe("/dashboard");
     expect(getPostAuthRoute()).toBe("/dashboard");
