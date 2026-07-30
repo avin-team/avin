@@ -6,7 +6,9 @@ export const requireAdminSession = async (locationHref?: string) => {
   let sessionData = null;
 
   try {
-    const session = await authClient.getSession();
+    const session = await authClient.getSession({
+      query: { disableCookieCache: true },
+    });
     sessionData = session.data;
   } catch {
     // Catch network errors (e.g., Failed to fetch when backend server is offline)

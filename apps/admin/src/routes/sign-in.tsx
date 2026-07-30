@@ -17,7 +17,9 @@ export const Route = createFileRoute("/sign-in")({
   validateSearch: searchSchema,
   beforeLoad: async () => {
     try {
-      const session = await authClient.getSession();
+      const session = await authClient.getSession({
+        query: { disableCookieCache: true },
+      });
       if (session.data?.user && session.data.user.role === "ADMIN") {
         throw redirect({
           to: "/",

@@ -7,7 +7,7 @@ import {
 } from "@avin/ui/components/field";
 import { Input } from "@avin/ui/components/input";
 import { useForm } from "@tanstack/react-form";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouter } from "@tanstack/react-router";
 import { Loader2, LogIn } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -32,6 +32,7 @@ export const UserAuthForm = ({
   ...props
 }: UserAuthFormProps) => {
   const navigate = useNavigate();
+  const router = useRouter();
 
   const form = useForm({
     defaultValues: {
@@ -39,25 +40,35 @@ export const UserAuthForm = ({
       password: "",
     },
     onSubmit: async ({ value }) => {
-      await authClient.signIn.email(
-        {
+      try {
+        const result = await authClient.signIn.email({
           email: value.email,
           password: value.password,
-        },
-        {
-          onError: (ctx) => {
-            toast.error(
-              ctx.error.message ??
-                "Đăng nhập thất bại. Vui lòng kiểm tra lại email và mật khẩu."
-            );
-          },
-          onSuccess: async () => {
-            const targetPath = redirectTo ?? "/";
-            await navigate({ replace: true, to: targetPath });
-            toast.success("Đăng nhập thành công!");
-          },
+        });
+
+        if (result.error) {
+          toast.error(
+            result.error.message ??
+              "Đăng nhập thất bại. Vui lòng kiểm tra lại email và mật khẩu."
+          );
+          return;
         }
-      );
+
+        if (result.data?.user?.role !== "ADMIN") {
+          await authClient.signOut();
+          toast.error(
+            "Tài khoản không có quyền truy cập trang Quản trị (ADMIN)."
+          );
+          return;
+        }
+
+        toast.success("Đăng nhập thành công!");
+        await router.invalidate();
+        const targetPath = redirectTo ?? "/";
+        await navigate({ replace: true, to: targetPath });
+      } catch {
+        toast.error("Không thể kết nối đến máy chủ. Vui lòng thử lại.");
+      }
     },
     validators: {
       onSubmit: formSchema,

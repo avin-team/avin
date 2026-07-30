@@ -2,21 +2,26 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { UserAuthForm } from "./user-auth-form";
 
-const { signInEmailMock, navigateMock } = vi.hoisted(() => ({
-  navigateMock: vi.fn(),
-  signInEmailMock: vi.fn(),
-}));
+const { navigateMock, invalidateMock, signInEmailMock, signOutMock } =
+  vi.hoisted(() => ({
+    invalidateMock: vi.fn(),
+    navigateMock: vi.fn(),
+    signInEmailMock: vi.fn(),
+    signOutMock: vi.fn(),
+  }));
 
 vi.mock("@/lib/auth-client", () => ({
   authClient: {
     signIn: {
       email: signInEmailMock,
     },
+    signOut: signOutMock,
   },
 }));
 
 vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => navigateMock,
+  useRouter: () => ({ invalidate: invalidateMock }),
 }));
 
 describe("UserAuthForm Component", () => {
