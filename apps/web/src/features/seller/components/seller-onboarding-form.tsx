@@ -30,7 +30,13 @@ import { toast } from "sonner";
 
 import { orpc } from "@/utils/orpc";
 
-const getBadgeVariant = (status: string) => {
+export type SellerApplicationStatus =
+  | "PENDING_REVIEW"
+  | "APPROVED"
+  | "CHANGES_REQUESTED"
+  | "REJECTED";
+
+const getBadgeVariant = (status: SellerApplicationStatus | string) => {
   if (status === "APPROVED") {
     return "default";
   }
@@ -43,15 +49,39 @@ const getBadgeVariant = (status: string) => {
   return "destructive";
 };
 
-export const SellerOnboardingForm = () => {
-  const { data, isLoading, refetch } = useQuery(
-    orpc.seller.getProfile.queryOptions()
-  );
+interface SellerProfileData {
+  avatarUrl?: string | null;
+  bankAccount?: {
+    accountName?: string;
+    accountNumber?: string;
+    bankName?: string;
+  } | null;
+  bio?: string | null;
+  id?: string;
+  phone?: string | null;
+  phoneVerified?: boolean;
+  storefrontName?: string;
+}
 
-  const profile = data?.profile;
-  const application = data?.application;
+interface SellerApplicationData {
+  createdAt: string | Date;
+  reviewReason?: string | null;
+  revisionCount: number;
+  status: SellerApplicationStatus | string;
+}
 
-  // Local state for draft form fields
+interface SellerOnboardingFormContentProps {
+  application?: SellerApplicationData | null;
+  profile?: SellerProfileData | null;
+  refetchProfile: () => void;
+}
+
+const SellerOnboardingFormContent = ({
+  application,
+  profile,
+  refetchProfile,
+}: SellerOnboardingFormContentProps) => {
+  // Local state for draft form fields initialized directly from query data
   const [storefrontName, setStorefrontName] = useState(
     profile?.storefrontName ?? ""
   );
@@ -85,7 +115,7 @@ export const SellerOnboardingForm = () => {
       },
       onSuccess: () => {
         toast.success("Đã lưu thông tin gian hàng nháp!");
-        refetch();
+        refetchProfile();
       },
     })
   );
@@ -111,7 +141,7 @@ export const SellerOnboardingForm = () => {
         setOtpSent(false);
         setOtpCode("");
         toast.success("Xác minh số điện thoại thành công!");
-        refetch();
+        refetchProfile();
       },
     })
   );
@@ -123,7 +153,7 @@ export const SellerOnboardingForm = () => {
       },
       onSuccess: () => {
         toast.success("Nộp hồ sơ đăng ký người bán thành công!");
-        refetch();
+        refetchProfile();
       },
     })
   );
@@ -194,17 +224,6 @@ export const SellerOnboardingForm = () => {
       sellerAgreementVersion: "v1.0",
     });
   };
-
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center p-12 space-y-4">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">
-          Đang tải thông tin người bán...
-        </p>
-      </div>
-    );
-  }
 
   const isPending = application?.status === "PENDING_REVIEW";
   const isApproved = application?.status === "APPROVED";
@@ -633,5 +652,34 @@ export const SellerOnboardingForm = () => {
         </CardFooter>
       </Card>
     </div>
+  );
+};
+
+export const SellerOnboardingForm = () => {
+  const { data, isLoading, refetch } = useQuery(
+    orpc.seller.getProfile.queryOptions()
+  );
+
+  const profile = data?.profile;
+  const application = data?.application;
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 space-y-4">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">
+          Đang tải thông tin người bán...
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <SellerOnboardingFormContent
+      key={profile?.id ?? "new-profile"}
+      application={application}
+      profile={profile}
+      refetchProfile={refetch}
+    />
   );
 };

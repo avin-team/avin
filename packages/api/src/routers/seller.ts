@@ -8,7 +8,8 @@ import { ORPCError } from "@orpc/server";
 import { and, desc, eq, gt } from "drizzle-orm";
 import { z } from "zod";
 
-import { protectedProcedure, sellerProcedure } from "../authorization";
+import { protectedProcedure } from "../authorization";
+import type { Context } from "../context";
 
 export const updateDraftProfileInputSchema = z.object({
   avatarUrl: z.union([z.url(), z.literal("")]).optional(),
@@ -40,45 +41,57 @@ export const submitApplicationInputSchema = z.object({
   sellerAgreementVersion: z.string().default("v1.0"),
 });
 
+const getSellerProfile = async (db: Context["db"], userId: string) => {
+  const [profile] = await db
+    .select()
+    .from(sellerProfile)
+    .where(eq(sellerProfile.userId, userId))
+    .limit(1);
+  return profile ?? null;
+};
+
+const getLatestApplication = async (db: Context["db"], userId: string) => {
+  const [app] = await db
+    .select()
+    .from(sellerApplication)
+    .where(eq(sellerApplication.userId, userId))
+    .orderBy(desc(sellerApplication.createdAt))
+    .limit(1);
+  return app ?? null;
+};
+
 export const sellerRouter = {
   getProfile: protectedProcedure.handler(async ({ context }) => {
     const userId = context.session.user.id;
 
-    const [[profile], [latestApplication]] = await Promise.all([
-      context.db
-        .select()
-        .from(sellerProfile)
-        .where(eq(sellerProfile.userId, userId))
-        .limit(1),
-      context.db
-        .select()
-        .from(sellerApplication)
-        .where(eq(sellerApplication.userId, userId))
-        .orderBy(desc(sellerApplication.createdAt))
-        .limit(1),
+    const [profile, latestApplication] = await Promise.all([
+      getSellerProfile(context.db, userId),
+      getLatestApplication(context.db, userId),
     ]);
 
     return {
-      application: latestApplication ?? null,
-      profile: profile ?? null,
+      application: latestApplication,
+      profile,
     };
   }),
 
-  requestPhoneOtp: sellerProcedure
+  requestPhoneOtp: protectedProcedure
     .input(requestPhoneOtpInputSchema)
     .handler(async ({ context, input }) => {
       const userId = context.session.user.id;
-      // Default mock code for testing & dev
+
+      // Generate 6-digit OTP code (mock 123456 for predictable dev/testing)
       const otpCode = "123456";
       const identifier = `phone_otp:${userId}:${input.phone}`;
       // OTP valid for 10 minutes
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-      // Remove existing pending OTP for this identifier
+      // Clean up previous OTP requests for this phone number and user
       await context.db
         .delete(verification)
         .where(eq(verification.identifier, identifier));
 
+      // Persist OTP code into verification table
       await context.db.insert(verification).values({
         createdAt: new Date(),
         expiresAt,
@@ -94,16 +107,12 @@ export const sellerRouter = {
       };
     }),
 
-  submitApplication: sellerProcedure
+  submitApplication: protectedProcedure
     .input(submitApplicationInputSchema)
     .handler(async ({ context, input }) => {
       const userId = context.session.user.id;
 
-      const [profile] = await context.db
-        .select()
-        .from(sellerProfile)
-        .where(eq(sellerProfile.userId, userId))
-        .limit(1);
+      const profile = await getSellerProfile(context.db, userId);
 
       if (!profile) {
         throw new ORPCError("BAD_REQUEST", {
@@ -127,12 +136,7 @@ export const sellerRouter = {
         })
         .where(eq(sellerProfile.id, profile.id));
 
-      const [existingApp] = await context.db
-        .select()
-        .from(sellerApplication)
-        .where(eq(sellerApplication.userId, userId))
-        .orderBy(desc(sellerApplication.createdAt))
-        .limit(1);
+      const existingApp = await getLatestApplication(context.db, userId);
 
       if (existingApp?.status === "PENDING_REVIEW") {
         throw new ORPCError("BAD_REQUEST", {
@@ -190,16 +194,12 @@ export const sellerRouter = {
       return newApp;
     }),
 
-  updateDraftProfile: sellerProcedure
+  updateDraftProfile: protectedProcedure
     .input(updateDraftProfileInputSchema)
     .handler(async ({ context, input }) => {
       const userId = context.session.user.id;
 
-      const [existingProfile] = await context.db
-        .select()
-        .from(sellerProfile)
-        .where(eq(sellerProfile.userId, userId))
-        .limit(1);
+      const existingProfile = await getSellerProfile(context.db, userId);
 
       if (existingProfile) {
         const [updated] = await context.db
@@ -232,14 +232,14 @@ export const sellerRouter = {
       return created;
     }),
 
-  verifyPhoneOtp: sellerProcedure
+  verifyPhoneOtp: protectedProcedure
     .input(verifyPhoneOtpInputSchema)
     .handler(async ({ context, input }) => {
       const userId = context.session.user.id;
       const identifier = `phone_otp:${userId}:${input.phone}`;
       const now = new Date();
 
-      // Check valid verification code
+      // Look up unexpired verification record matching code in database
       const [record] = await context.db
         .select()
         .from(verification)
@@ -252,24 +252,18 @@ export const sellerRouter = {
         )
         .limit(1);
 
-      // Support 123456 in dev/test if record doesn't exist
-      if (!record && input.code !== "123456") {
+      if (!record) {
         throw new ORPCError("BAD_REQUEST", {
           message: "Mã OTP không chính xác hoặc đã hết hạn",
         });
       }
 
-      if (record) {
-        await context.db
-          .delete(verification)
-          .where(eq(verification.id, record.id));
-      }
+      // Delete used OTP record
+      await context.db
+        .delete(verification)
+        .where(eq(verification.id, record.id));
 
-      const [existingProfile] = await context.db
-        .select()
-        .from(sellerProfile)
-        .where(eq(sellerProfile.userId, userId))
-        .limit(1);
+      const existingProfile = await getSellerProfile(context.db, userId);
 
       if (existingProfile) {
         const [updated] = await context.db
@@ -290,7 +284,7 @@ export const sellerRouter = {
         .values({
           phone: input.phone,
           phoneVerified: true,
-          storefrontName: "Gian hàng mới",
+          storefrontName: `${context.session.user.name} Store`,
           userId,
         })
         .returning();
