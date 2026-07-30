@@ -24,6 +24,10 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedSecurityRouteImport } from './routes/_authenticated/security'
 import { Route as AuthenticatedTwoFactorRouteImport } from './routes/_authenticated/two-factor'
 import { Route as authSellerLoginRouteImport } from './routes/(auth)/seller/login'
+import { Route as publicCategoryIndexRouteImport } from './routes/(public)/category/index'
+import { Route as publicCategoryParentSlugRouteImport } from './routes/(public)/category/$parentSlug'
+import { Route as publicListingIdRouteImport } from './routes/(public)/listing/$id'
+import { Route as publicListingsIndexRouteImport } from './routes/(public)/listings/index'
 
 const authRouteRoute = authRouteRouteImport.update({
   id: '/(auth)',
@@ -97,6 +101,27 @@ const authSellerLoginRoute = authSellerLoginRouteImport.update({
   path: '/seller/login',
   getParentRoute: () => authRouteRoute,
 } as any)
+const publicCategoryIndexRoute = publicCategoryIndexRouteImport.update({
+  id: '/category/',
+  path: '/category/',
+  getParentRoute: () => publicRouteRoute,
+} as any)
+const publicCategoryParentSlugRoute =
+  publicCategoryParentSlugRouteImport.update({
+    id: '/category/$parentSlug',
+    path: '/category/$parentSlug',
+    getParentRoute: () => publicRouteRoute,
+  } as any)
+const publicListingIdRoute = publicListingIdRouteImport.update({
+  id: '/listing/$id',
+  path: '/listing/$id',
+  getParentRoute: () => publicRouteRoute,
+} as any)
+const publicListingsIndexRoute = publicListingsIndexRouteImport.update({
+  id: '/listings/',
+  path: '/listings/',
+  getParentRoute: () => publicRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof publicIndexRoute
@@ -111,6 +136,10 @@ export interface FileRoutesByFullPath {
   '/security': typeof AuthenticatedSecurityRoute
   '/two-factor': typeof AuthenticatedTwoFactorRoute
   '/seller/login': typeof authSellerLoginRoute
+  '/category/$parentSlug': typeof publicCategoryParentSlugRoute
+  '/listing/$id': typeof publicListingIdRoute
+  '/category/': typeof publicCategoryIndexRoute
+  '/listings/': typeof publicListingsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof publicIndexRoute
@@ -125,6 +154,10 @@ export interface FileRoutesByTo {
   '/security': typeof AuthenticatedSecurityRoute
   '/two-factor': typeof AuthenticatedTwoFactorRoute
   '/seller/login': typeof authSellerLoginRoute
+  '/category/$parentSlug': typeof publicCategoryParentSlugRoute
+  '/listing/$id': typeof publicListingIdRoute
+  '/category': typeof publicCategoryIndexRoute
+  '/listings': typeof publicListingsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -143,6 +176,10 @@ export interface FileRoutesById {
   '/_authenticated/two-factor': typeof AuthenticatedTwoFactorRoute
   '/(public)/': typeof publicIndexRoute
   '/(auth)/seller/login': typeof authSellerLoginRoute
+  '/(public)/category/$parentSlug': typeof publicCategoryParentSlugRoute
+  '/(public)/listing/$id': typeof publicListingIdRoute
+  '/(public)/category/': typeof publicCategoryIndexRoute
+  '/(public)/listings/': typeof publicListingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -159,6 +196,10 @@ export interface FileRouteTypes {
     | '/security'
     | '/two-factor'
     | '/seller/login'
+    | '/category/$parentSlug'
+    | '/listing/$id'
+    | '/category/'
+    | '/listings/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -173,6 +214,10 @@ export interface FileRouteTypes {
     | '/security'
     | '/two-factor'
     | '/seller/login'
+    | '/category/$parentSlug'
+    | '/listing/$id'
+    | '/category'
+    | '/listings'
   id:
     | '__root__'
     | '/(auth)'
@@ -190,6 +235,10 @@ export interface FileRouteTypes {
     | '/_authenticated/two-factor'
     | '/(public)/'
     | '/(auth)/seller/login'
+    | '/(public)/category/$parentSlug'
+    | '/(public)/listing/$id'
+    | '/(public)/category/'
+    | '/(public)/listings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -310,6 +359,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authSellerLoginRouteImport
       parentRoute: typeof authRouteRoute
     }
+    '/(public)/category/': {
+      id: '/(public)/category/'
+      path: '/category'
+      fullPath: '/category/'
+      preLoaderRoute: typeof publicCategoryIndexRouteImport
+      parentRoute: typeof publicRouteRoute
+    }
+    '/(public)/category/$parentSlug': {
+      id: '/(public)/category/$parentSlug'
+      path: '/category/$parentSlug'
+      fullPath: '/category/$parentSlug'
+      preLoaderRoute: typeof publicCategoryParentSlugRouteImport
+      parentRoute: typeof publicRouteRoute
+    }
+    '/(public)/listing/$id': {
+      id: '/(public)/listing/$id'
+      path: '/listing/$id'
+      fullPath: '/listing/$id'
+      preLoaderRoute: typeof publicListingIdRouteImport
+      parentRoute: typeof publicRouteRoute
+    }
+    '/(public)/listings/': {
+      id: '/(public)/listings/'
+      path: '/listings'
+      fullPath: '/listings/'
+      preLoaderRoute: typeof publicListingsIndexRouteImport
+      parentRoute: typeof publicRouteRoute
+    }
   }
 }
 
@@ -329,10 +406,18 @@ const authRouteRouteWithChildren = authRouteRoute._addFileChildren(
 
 interface publicRouteRouteChildren {
   publicIndexRoute: typeof publicIndexRoute
+  publicCategoryParentSlugRoute: typeof publicCategoryParentSlugRoute
+  publicListingIdRoute: typeof publicListingIdRoute
+  publicCategoryIndexRoute: typeof publicCategoryIndexRoute
+  publicListingsIndexRoute: typeof publicListingsIndexRoute
 }
 
 const publicRouteRouteChildren: publicRouteRouteChildren = {
   publicIndexRoute: publicIndexRoute,
+  publicCategoryParentSlugRoute: publicCategoryParentSlugRoute,
+  publicListingIdRoute: publicListingIdRoute,
+  publicCategoryIndexRoute: publicCategoryIndexRoute,
+  publicListingsIndexRoute: publicListingsIndexRoute,
 }
 
 const publicRouteRouteWithChildren = publicRouteRoute._addFileChildren(
