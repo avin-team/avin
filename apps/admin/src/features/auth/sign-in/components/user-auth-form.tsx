@@ -54,6 +54,15 @@ export const UserAuthForm = ({
           return;
         }
 
+        if (
+          result.data &&
+          "twoFactorRedirect" in result.data &&
+          result.data.twoFactorRedirect
+        ) {
+          await navigate({ to: "/two-factor" });
+          return;
+        }
+
         const session = await authClient.getSession({
           query: { disableCookieCache: true },
         });

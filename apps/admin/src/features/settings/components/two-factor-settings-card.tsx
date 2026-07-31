@@ -8,18 +8,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
-import { Check, Copy, Key } from "lucide-react";
+import { Check, Copy, Key, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { authClient } from "@/features/auth/api/auth-client";
-import { EnableTwoFactorForm } from "@/features/auth/components/enable-two-factor-form";
-import type { TwoFactorSetup } from "@/features/auth/components/enable-two-factor-form";
-import { VerifyTwoFactorForm } from "@/features/auth/components/verify-two-factor-form";
+import { useSession } from "@/lib/auth-client";
+
+import { EnableTwoFactorForm } from "./enable-two-factor-form";
+import type { TwoFactorSetup } from "./enable-two-factor-form";
+import { VerifyTwoFactorForm } from "./verify-two-factor-form";
 
 export const TwoFactorSettingsCard = () => {
-  const { data: currentSession, refetch: refetchCurrentSession } =
-    authClient.useSession();
+  const { data: currentSession, refetch: refetchCurrentSession } = useSession();
   const [setup, setSetup] = useState<TwoFactorSetup | null>(null);
   const [copiedBackup, setCopiedBackup] = useState(false);
 
@@ -43,12 +43,12 @@ export const TwoFactorSettingsCard = () => {
   };
 
   const renderCardContent = () => {
-    if (currentSession?.user.twoFactorEnabled) {
+    if (currentSession?.user?.twoFactorEnabled) {
       return (
-        <div className="flex items-center gap-2">
-          <Badge className="bg-emerald-600">Đã bật</Badge>
+        <div className="flex items-center gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-4">
+          <Badge className="bg-emerald-600">Đã kích hoạt</Badge>
           <p className="text-muted-foreground text-sm">
-            Tài khoản đang được bảo vệ bằng ứng dụng TOTP.
+            Tài khoản Admin của bạn đang được bảo vệ bởi ứng dụng Authenticator.
           </p>
         </div>
       );
@@ -68,11 +68,14 @@ export const TwoFactorSettingsCard = () => {
   };
 
   return (
-    <Card>
+    <Card className="shadow-sm">
       <CardHeader>
-        <CardTitle>Xác thực hai lớp</CardTitle>
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="size-5 text-primary" />
+          <CardTitle>Xác thực hai lớp (2FA)</CardTitle>
+        </div>
         <CardDescription>
-          Bảo vệ tài khoản bằng xác thực hai lớp.
+          Tăng cường bảo mật cho tài khoản Quản trị viên bằng mã OTP 2FA.
         </CardDescription>
       </CardHeader>
       <CardContent>{renderCardContent()}</CardContent>
@@ -103,8 +106,8 @@ export const TwoFactorSettingsCard = () => {
             </Button>
           </div>
           <p className="text-muted-foreground text-xs">
-            Lưu các mã này ở nơi an toàn để đăng nhập khi mất quyền truy cập
-            thiết bị xác thực.
+            Lưu các mã này ở nơi an toàn. Bạn có thể dùng mã này để đăng nhập
+            nếu mất quyền truy cập ứng dụng Authenticator.
           </p>
           <div className="grid w-full grid-cols-2 gap-2 rounded-lg border bg-card p-3 font-mono text-xs">
             {setup.backupCodes.map((code) => (

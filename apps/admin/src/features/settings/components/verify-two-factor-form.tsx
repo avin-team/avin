@@ -6,15 +6,18 @@ import {
   FieldLabel,
 } from "@avin/ui/components/field";
 import { Input } from "@avin/ui/components/input";
-import { Spinner } from "@avin/ui/components/spinner";
 import { useForm } from "@tanstack/react-form";
-import { Check, Copy, QrCode } from "lucide-react";
+import { Check, Copy, Loader2, QrCode } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { z } from "zod";
 
-import { authClient } from "@/features/auth/api/auth-client";
-import { twoFactorCodeSchema } from "@/features/auth/schemas/auth-schemas";
+import { authClient } from "@/lib/auth-client";
+
+const twoFactorCodeSchema = z.object({
+  code: z.string().length(6, "Mã xác thực phải gồm 6 chữ số."),
+});
 
 interface VerifyTwoFactorFormProps {
   onCancel?: () => void;
@@ -71,7 +74,7 @@ export const VerifyTwoFactorForm = ({
           return;
         }
 
-        toast.success("Đã bật xác thực hai lớp.");
+        toast.success("Đã kích hoạt xác thực hai lớp thành công!");
         await onVerified();
       } catch {
         toast.error("Không thể xác minh 2FA lúc này. Vui lòng thử lại.");
@@ -184,7 +187,9 @@ export const VerifyTwoFactorForm = ({
                   form="verify-two-factor-form"
                   type="submit"
                 >
-                  {isSubmitting && <Spinner data-icon="inline-start" />}
+                  {isSubmitting && (
+                    <Loader2 className="me-2 size-4 animate-spin" />
+                  )}
                   Xác nhận và bật 2FA
                 </Button>
               )}

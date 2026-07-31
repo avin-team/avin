@@ -4,6 +4,7 @@ import {
   FolderTree,
   Landmark,
   LayoutDashboard,
+  Settings,
   Store,
 } from "lucide-react";
 
@@ -51,6 +52,16 @@ export const sidebarData: SidebarData = {
         },
       ],
       title: "Tài chính & Payout",
+    },
+    {
+      items: [
+        {
+          icon: Settings,
+          title: "Bảo mật & 2FA",
+          url: "/settings",
+        },
+      ],
+      title: "Hệ thống",
     },
   ],
   teams: [],

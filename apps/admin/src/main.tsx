@@ -15,7 +15,7 @@ const router = createRouter({
   ),
   context: { queryClient },
   defaultPendingComponent: () => <Loader />,
-  defaultPreload: "intent",
+  defaultPreload: false,
   routeTree,
   scrollRestoration: true,
 });

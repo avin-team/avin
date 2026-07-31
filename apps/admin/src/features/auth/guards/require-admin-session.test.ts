@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { requireAdminSession } from "./require-admin-session";
+import {
+  clearAdminSessionCache,
+  requireAdminSession,
+} from "./require-admin-session";
 
 const { getSession } = vi.hoisted(() => ({
   getSession: vi.fn(),
@@ -14,6 +17,7 @@ vi.mock("@/lib/auth-client", () => ({
 
 describe("requireAdminSession", () => {
   beforeEach(() => {
+    clearAdminSessionCache();
     getSession.mockReset();
   });
 
@@ -31,6 +35,24 @@ describe("requireAdminSession", () => {
 
     const result = await requireAdminSession("/dashboard");
     expect(result).toBe(mockSession.data);
+    expect(getSession).toHaveBeenCalledWith();
+  });
+
+  it("reuses the admin session across route navigations", async () => {
+    const mockSession = {
+      data: {
+        user: {
+          id: "admin-1",
+          role: "ADMIN",
+        },
+      },
+    };
+    getSession.mockResolvedValue(mockSession);
+
+    await requireAdminSession("/sellers");
+    await requireAdminSession("/seller-applications");
+
+    expect(getSession).toHaveBeenCalledTimes(1);
   });
 
   it("redirects to /sign-in when user is not authenticated", async () => {

@@ -1,13 +1,27 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Outlet,
+  useRouteContext,
+} from "@tanstack/react-router";
 
 import { AdminLayout } from "@/components/layout/admin-layout";
 import { requireAdminSession } from "@/features/auth/guards/require-admin-session";
 
-const AuthenticatedLayout = () => (
-  <AdminLayout>
-    <Outlet />
-  </AdminLayout>
-);
+const AuthenticatedLayout = () => {
+  const { session } = useRouteContext({ from: "/_authenticated" });
+
+  return (
+    <AdminLayout
+      user={{
+        avatar: session.user.image ?? "",
+        email: session.user.email,
+        name: session.user.name ?? "",
+      }}
+    >
+      <Outlet />
+    </AdminLayout>
+  );
+};
 
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async ({ location }) => {

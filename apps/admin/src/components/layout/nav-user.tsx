@@ -6,6 +6,7 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -21,25 +22,21 @@ import { useNavigate } from "@tanstack/react-router";
 import { ChevronsUpDown, LogOut, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
-import { authClient, useSession } from "@/lib/auth-client";
+import { authClient } from "@/lib/auth-client";
+
+import type { User } from "./types";
 
 interface NavUserProps {
-  readonly user?: {
-    readonly avatar?: string;
-    readonly email?: string;
-    readonly name?: string;
-  };
+  readonly user?: User;
 }
 
 export const NavUser = ({ user: defaultUser }: NavUserProps) => {
-  const { isMobile } = useSidebar();
-  const { data: session } = useSession();
   const navigate = useNavigate();
+  const { isMobile } = useSidebar();
 
-  const name = session?.user?.name ?? defaultUser?.name ?? "Admin Account";
-  const email = session?.user?.email ?? defaultUser?.email ?? "";
-  const avatar = session?.user?.image ?? defaultUser?.avatar ?? "";
-
+  const name = defaultUser?.name ?? "Admin Account";
+  const email = defaultUser?.email ?? "";
+  const avatar = defaultUser?.avatar ?? "";
   const handleSignOut = async () => {
     try {
       await authClient.signOut();
@@ -49,7 +46,6 @@ export const NavUser = ({ user: defaultUser }: NavUserProps) => {
       toast.error("Không thể đăng xuất. Vui lòng thử lại.");
     }
   };
-
   const initials = name
     .split(" ")
     .map((n) => n[0])
@@ -85,20 +81,22 @@ export const NavUser = ({ user: defaultUser }: NavUserProps) => {
             side={isMobile ? "bottom" : "right"}
             sideOffset={4}
           >
-            <DropdownMenuLabel className="flex items-center gap-2 font-normal">
-              <ShieldCheck className="size-4 text-primary" />
-              <div className="grid flex-1 text-start text-xs leading-tight">
-                <span className="font-semibold text-sm">{name}</span>
-                <span className="text-muted-foreground">
-                  Quản trị viên (ADMIN)
-                </span>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleSignOut}>
-              <LogOut className="me-2 size-4" />
-              Đăng xuất
-            </DropdownMenuItem>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="flex items-center gap-2 font-normal">
+                <ShieldCheck className="size-4 text-primary" />
+                <div className="grid flex-1 text-start text-xs leading-tight">
+                  <span className="font-semibold text-sm">{name}</span>
+                  <span className="text-muted-foreground">
+                    Quản trị viên (ADMIN)
+                  </span>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSignOut}>
+                <LogOut className="me-2 size-4" />
+                Đăng xuất
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>

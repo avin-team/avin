@@ -38,6 +38,31 @@ export const submitApplicationInputSchema = z.object({
   sellerAgreementVersion: z.string().default("v1.0"),
 });
 
+export const adminListApplicationsInputSchema = z
+  .object({
+    search: z.string().optional(),
+    status: z
+      .enum([
+        "ALL",
+        "PENDING_REVIEW",
+        "APPROVED",
+        "CHANGES_REQUESTED",
+        "REJECTED",
+      ])
+      .optional(),
+  })
+  .optional();
+
+export const adminGetApplicationInputSchema = z.object({
+  id: z.string(),
+});
+
+export const adminDecideApplicationInputSchema = z.object({
+  decision: z.enum(["APPROVED", "CHANGES_REQUESTED", "REJECTED"]),
+  id: z.string(),
+  reason: z.string().optional(),
+});
+
 export const findSellerProfile = async (db: Context["db"], userId: string) => {
   const [profile] = await db
     .select()

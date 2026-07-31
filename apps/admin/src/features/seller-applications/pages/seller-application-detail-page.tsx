@@ -27,6 +27,11 @@ import type { SellerApplicationDecision } from "@/features/seller-applications/t
 import { formatApplicationDate } from "@/features/seller-applications/utils";
 import { maskBankAccount } from "@/features/seller-applications/workflow";
 
+import {
+  useAdminDecideSellerApplication,
+  useAdminSellerApplication,
+} from "../api/seller-applications-api";
+
 const DetailField = ({
   label,
   value,
@@ -49,15 +54,19 @@ export const SellerApplicationDetailPage = () => {
   const { applicationId } = useParams({
     from: "/_authenticated/seller-applications/$applicationId",
   });
-  const applications = useSellerApplications();
-  const application = getSellerApplicationFromSnapshot(
-    applications,
+  const { data: remoteApplication } = useAdminSellerApplication(applicationId);
+  const mockApplications = useSellerApplications();
+  const mockApplication = getSellerApplicationFromSnapshot(
+    mockApplications,
     applicationId
   );
+  const application = remoteApplication ?? mockApplication;
+
   const [showBankAccount, setShowBankAccount] = useState(false);
   const [decision, setDecision] = useState<SellerApplicationDecision | null>(
     null
   );
+  const decideMutation = useAdminDecideSellerApplication();
 
   if (!application) {
     return (
@@ -85,17 +94,32 @@ export const SellerApplicationDetailPage = () => {
       return;
     }
 
-    try {
-      decideSellerApplication(application.id, decision, reason);
-      toast.success("Cập nhật hồ sơ đăng ký thành công", {
-        description: "Hàng đợi xét duyệt đã được cập nhật.",
-      });
-      setDecision(null);
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Không thể cập nhật hồ sơ"
-      );
-    }
+    decideMutation.mutate(
+      { decision, id: application.id, reason },
+      {
+        onSuccess: () => {
+          toast.success("Cập nhật hồ sơ đăng ký thành công", {
+            description: "Hàng đợi xét duyệt đã được cập nhật.",
+          });
+          setDecision(null);
+        },
+        onError: (error) => {
+          try {
+            decideSellerApplication(application.id, decision, reason);
+            toast.success("Cập nhật hồ sơ đăng ký thành công", {
+              description: "Hàng đợi xét duyệt đã được cập nhật.",
+            });
+            setDecision(null);
+          } catch {
+            toast.error(
+              error instanceof Error
+                ? error.message
+                : "Không thể cập nhật hồ sơ"
+            );
+          }
+        },
+      }
+    );
   };
 
   const handleResubmit = () => {

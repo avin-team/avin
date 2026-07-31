@@ -5,6 +5,9 @@ import { sellerApplicationRouter } from "./router";
 describe("seller application router interface", () => {
   it("exposes the complete onboarding workflow", () => {
     expect(Object.keys(sellerApplicationRouter).toSorted()).toEqual([
+      "adminDecide",
+      "adminGet",
+      "adminList",
       "getProfile",
       "requestPhoneOtp",
       "submitApplication",

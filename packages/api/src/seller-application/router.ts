@@ -1,10 +1,13 @@
-import { verification } from "@avin/db/schema/auth";
+import { user, verification } from "@avin/db/schema/auth";
 import { sellerApplication, sellerProfile } from "@avin/db/schema/seller";
 import { ORPCError } from "@orpc/server";
-import { and, eq, gt } from "drizzle-orm";
+import { and, desc, eq, gt } from "drizzle-orm";
 
-import { protectedProcedure } from "../access/procedures";
+import { adminProcedure, protectedProcedure } from "../access/procedures";
 import {
+  adminDecideApplicationInputSchema,
+  adminGetApplicationInputSchema,
+  adminListApplicationsInputSchema,
   findLatestSellerApplication,
   findSellerProfile,
   requestPhoneOtpInputSchema,
@@ -14,6 +17,142 @@ import {
 } from "./onboarding";
 
 export const sellerApplicationRouter = {
+  adminDecide: adminProcedure
+    .input(adminDecideApplicationInputSchema)
+    .handler(async ({ context, input }) => {
+      const [app] = await context.db
+        .select()
+        .from(sellerApplication)
+        .where(eq(sellerApplication.id, input.id))
+        .limit(1);
+
+      if (!app) {
+        throw new ORPCError("NOT_FOUND", {
+          message: "Hồ sơ đăng ký người bán không tồn tại",
+        });
+      }
+
+      if (app.status !== "PENDING_REVIEW") {
+        throw new ORPCError("BAD_REQUEST", {
+          message:
+            "Chỉ có thể đưa ra phán quyết cho hồ sơ đang ở trạng thái chờ duyệt",
+        });
+      }
+
+      const normalizedReason = input.reason?.trim();
+      if (input.decision !== "APPROVED" && !normalizedReason) {
+        throw new ORPCError("BAD_REQUEST", {
+          message: "Vui lòng cung cấp lý do phản hồi",
+        });
+      }
+
+      const [updatedApp] = await context.db
+        .update(sellerApplication)
+        .set({
+          reviewReason: input.decision === "APPROVED" ? null : normalizedReason,
+          status: input.decision,
+          updatedAt: new Date(),
+        })
+        .where(eq(sellerApplication.id, input.id))
+        .returning();
+
+      if (input.decision === "APPROVED") {
+        await context.db
+          .update(user)
+          .set({ role: "SELLER" })
+          .where(eq(user.id, app.userId));
+      }
+
+      return {
+        applicantName: updatedApp.applicantName,
+        bankAccount: updatedApp.bankAccount,
+        email: updatedApp.email,
+        id: updatedApp.id,
+        phone: updatedApp.phone,
+        reviewReason: updatedApp.reviewReason ?? undefined,
+        revisionCount: updatedApp.revisionCount,
+        sellerAgreementVersion: updatedApp.sellerAgreementVersion,
+        status: updatedApp.status,
+        storefrontName: updatedApp.storefrontName,
+        submittedAt: updatedApp.createdAt.toISOString(),
+      };
+    }),
+
+  adminGet: adminProcedure
+    .input(adminGetApplicationInputSchema)
+    .handler(async ({ context, input }) => {
+      const [app] = await context.db
+        .select()
+        .from(sellerApplication)
+        .where(eq(sellerApplication.id, input.id))
+        .limit(1);
+
+      if (!app) {
+        throw new ORPCError("NOT_FOUND", {
+          message: "Hồ sơ đăng ký người bán không tồn tại",
+        });
+      }
+
+      return {
+        applicantName: app.applicantName,
+        bankAccount: app.bankAccount,
+        email: app.email,
+        id: app.id,
+        phone: app.phone,
+        reviewReason: app.reviewReason ?? undefined,
+        revisionCount: app.revisionCount,
+        sellerAgreementVersion: app.sellerAgreementVersion,
+        status: app.status,
+        storefrontName: app.storefrontName,
+        submittedAt: app.createdAt.toISOString(),
+      };
+    }),
+
+  adminList: adminProcedure
+    .input(adminListApplicationsInputSchema)
+    .handler(async ({ context, input }) => {
+      const statusFilter =
+        input?.status && input.status !== "ALL" ? input.status : undefined;
+      const searchQuery = input?.search?.trim().toLowerCase();
+
+      const apps = await context.db
+        .select()
+        .from(sellerApplication)
+        .orderBy(desc(sellerApplication.createdAt));
+
+      const result = [];
+      for (const app of apps) {
+        if (statusFilter && app.status !== statusFilter) {
+          continue;
+        }
+        if (searchQuery && searchQuery.length > 0) {
+          const matches = [
+            app.applicantName,
+            app.email,
+            app.storefrontName,
+            app.phone,
+          ].some((field) => field.toLowerCase().includes(searchQuery));
+          if (!matches) {
+            continue;
+          }
+        }
+        result.push({
+          applicantName: app.applicantName,
+          bankAccount: app.bankAccount,
+          email: app.email,
+          id: app.id,
+          phone: app.phone,
+          reviewReason: app.reviewReason ?? undefined,
+          revisionCount: app.revisionCount,
+          sellerAgreementVersion: app.sellerAgreementVersion,
+          status: app.status,
+          storefrontName: app.storefrontName,
+          submittedAt: app.createdAt.toISOString(),
+        });
+      }
+      return result;
+    }),
+
   getProfile: protectedProcedure.handler(async ({ context }) => {
     const userId = context.session.user.id;
 

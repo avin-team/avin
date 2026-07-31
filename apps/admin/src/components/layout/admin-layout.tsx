@@ -6,18 +6,21 @@ import { SkipToMain } from "@/components/skip-to-main";
 import { LayoutProvider } from "@/context/layout-provider";
 import { getCookie } from "@/lib/cookies";
 
+import type { User } from "./types";
+
 interface AdminLayoutProps {
   children: React.ReactNode;
+  user?: User;
 }
 
-export const AdminLayout = ({ children }: AdminLayoutProps) => {
+export const AdminLayout = ({ children, user }: AdminLayoutProps) => {
   const defaultOpen = getCookie("sidebar_state") !== "false";
 
   return (
     <LayoutProvider>
       <SidebarProvider defaultOpen={defaultOpen}>
         <SkipToMain />
-        <AppSidebar />
+        <AppSidebar user={user} />
         <SidebarInset
           className={cn(
             "@container/content",

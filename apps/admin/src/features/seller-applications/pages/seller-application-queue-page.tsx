@@ -29,7 +29,8 @@ import { Header } from "@/components/layout/header";
 import { Main } from "@/components/layout/main";
 import { ThemeSwitch } from "@/components/theme-switch";
 
-import { useSellerApplications } from "../api/mock-seller-applications";
+import { useSellerApplications as useMockSellerApplications } from "../api/mock-seller-applications";
+import { useAdminSellerApplications } from "../api/seller-applications-api";
 import { ApplicationStatusBadge } from "../components/application-status-badge";
 import type { SellerApplicationStatus } from "../types";
 import { formatApplicationDate } from "../utils";
@@ -45,12 +46,17 @@ const STATUS_FILTER_ITEMS: { label: string; value: StatusFilter }[] = [
 ];
 
 export const SellerApplicationQueuePage = () => {
-  const applications = useSellerApplications();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
 
+  const { data: remoteApplications } = useAdminSellerApplications({
+    search: query,
+    status: statusFilter,
+  });
+  const mockApplications = useMockSellerApplications();
+
   const normalizedQuery = query.trim().toLowerCase();
-  const filteredApplications = applications.filter((application) => {
+  const mockFiltered = mockApplications.filter((application) => {
     const matchesStatus =
       statusFilter === "ALL" || application.status === statusFilter;
     const matchesQuery =
@@ -63,6 +69,8 @@ export const SellerApplicationQueuePage = () => {
 
     return matchesStatus && matchesQuery;
   });
+
+  const filteredApplications = remoteApplications ?? mockFiltered;
 
   return (
     <>
