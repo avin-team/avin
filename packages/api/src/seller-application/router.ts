@@ -56,6 +56,12 @@ export const sellerApplicationRouter = {
         .where(eq(sellerApplication.id, input.id))
         .returning();
 
+      if (!updatedApp) {
+        throw new ORPCError("NOT_FOUND", {
+          message: "Hồ sơ đăng ký người bán không tồn tại",
+        });
+      }
+
       if (input.decision === "APPROVED") {
         await context.db
           .update(user)
