@@ -7,7 +7,9 @@ import { orpc } from "@/utils/orpc";
 import { CategoryCard } from "../components/category-card";
 
 export const CategoriesPage = () => {
-  const categoriesQuery = useQuery(orpc.catalog.categories.queryOptions());
+  const categoriesQuery = useQuery(
+    orpc.listing.discovery.categories.queryOptions()
+  );
 
   return (
     <Shell variant="default">

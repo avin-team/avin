@@ -1,7 +1,8 @@
 import { auth } from "@avin/auth";
+import { db } from "@avin/db";
 import type { Context as HonoContext } from "hono";
 
-import { auditRecorder } from "./audit";
+import { auditRecorder } from "./audit-recorder";
 
 export interface CreateContextOptions {
   context: HonoContext;
@@ -32,11 +33,13 @@ export const createContext = async ({
   });
   return {
     audit: auditRecorder,
+    db,
     session,
   };
 };
 
 export interface Context {
   audit: AuditRecorder;
+  db: typeof db;
   session: MarketplaceSession | null;
 }

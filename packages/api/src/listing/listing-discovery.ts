@@ -4,9 +4,9 @@ import { ORPCError } from "@orpc/server";
 import { and, count, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
-import { publicProcedure } from "../authorization";
+import { publicProcedure } from "../access/procedures";
 
-export const catalogRouter = {
+export const listingDiscoveryRouter = {
   categories: publicProcedure.handler(async () => {
     // Only return ACTIVE parents and ACTIVE sub-categories for public buyers
     const parents = await db.query.parentCategory.findMany({

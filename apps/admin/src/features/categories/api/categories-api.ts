@@ -4,7 +4,7 @@ import { orpc } from "@/lib/orpc";
 import { queryClient } from "@/lib/query-client";
 
 export const categoriesQueryOptions = () =>
-  orpc.category.list.queryOptions({ input: undefined });
+  orpc.listing.categoryGovernance.list.queryOptions({ input: undefined });
 
 const invalidateCategoriesList = () =>
   queryClient.invalidateQueries({
@@ -13,7 +13,7 @@ const invalidateCategoriesList = () =>
 
 export const useCreateParentCategory = () =>
   useMutation({
-    ...orpc.category.createParent.mutationOptions(),
+    ...orpc.listing.categoryGovernance.createParent.mutationOptions(),
     onSuccess: () => {
       invalidateCategoriesList();
     },
@@ -21,7 +21,7 @@ export const useCreateParentCategory = () =>
 
 export const useCreateSubCategory = () =>
   useMutation({
-    ...orpc.category.createSub.mutationOptions(),
+    ...orpc.listing.categoryGovernance.createSub.mutationOptions(),
     onSuccess: () => {
       invalidateCategoriesList();
     },
@@ -29,7 +29,7 @@ export const useCreateSubCategory = () =>
 
 export const useUpdateParentCategory = () =>
   useMutation({
-    ...orpc.category.updateParent.mutationOptions(),
+    ...orpc.listing.categoryGovernance.updateParent.mutationOptions(),
     onSuccess: () => {
       invalidateCategoriesList();
     },
@@ -37,7 +37,7 @@ export const useUpdateParentCategory = () =>
 
 export const useUpdateSubCategory = () =>
   useMutation({
-    ...orpc.category.updateSub.mutationOptions(),
+    ...orpc.listing.categoryGovernance.updateSub.mutationOptions(),
     onSuccess: () => {
       invalidateCategoriesList();
     },
@@ -45,7 +45,7 @@ export const useUpdateSubCategory = () =>
 
 export const useReorderParents = () =>
   useMutation({
-    ...orpc.category.reorderParents.mutationOptions(),
+    ...orpc.listing.categoryGovernance.reorderParents.mutationOptions(),
     onSuccess: () => {
       invalidateCategoriesList();
     },
@@ -53,7 +53,7 @@ export const useReorderParents = () =>
 
 export const useReorderSubs = () =>
   useMutation({
-    ...orpc.category.reorderSubs.mutationOptions(),
+    ...orpc.listing.categoryGovernance.reorderSubs.mutationOptions(),
     onSuccess: () => {
       invalidateCategoriesList();
     },
@@ -61,7 +61,7 @@ export const useReorderSubs = () =>
 
 export const useUpdateCategoryStatus = () =>
   useMutation({
-    ...orpc.category.updateStatus.mutationOptions(),
+    ...orpc.listing.categoryGovernance.updateStatus.mutationOptions(),
     onSuccess: () => {
       invalidateCategoriesList();
     },
@@ -69,7 +69,7 @@ export const useUpdateCategoryStatus = () =>
 
 export const useArchiveCategory = () =>
   useMutation({
-    ...orpc.category.archive.mutationOptions(),
+    ...orpc.listing.categoryGovernance.archive.mutationOptions(),
     onSuccess: () => {
       invalidateCategoriesList();
     },
@@ -77,7 +77,7 @@ export const useArchiveCategory = () =>
 
 export const useDeleteCategory = () =>
   useMutation({
-    ...orpc.category.delete.mutationOptions(),
+    ...orpc.listing.categoryGovernance.delete.mutationOptions(),
     onSuccess: () => {
       invalidateCategoriesList();
     },

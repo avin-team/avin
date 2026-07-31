@@ -24,14 +24,14 @@ export const CategoryDetailPage = () => {
 
   // Fetch Parent Category metadata
   const categoryQuery = useQuery(
-    orpc.catalog.categoryBySlug.queryOptions({
+    orpc.listing.discovery.categoryBySlug.queryOptions({
       input: { parentSlug: parentSlug ?? "" },
     })
   );
 
   // Fetch Listings for this parent & optional sub-category filter
   const listingsQuery = useQuery(
-    orpc.catalog.listings.queryOptions({
+    orpc.listing.discovery.listings.queryOptions({
       input: {
         limit: 12,
         page,

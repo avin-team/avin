@@ -6,7 +6,7 @@ import {
 import type { AccountRole } from "@avin/auth/permissions";
 import { ORPCError, os } from "@orpc/server";
 
-import type { Context } from "./context";
+import type { Context } from "../runtime/context";
 
 interface AccountActor {
   id: string;

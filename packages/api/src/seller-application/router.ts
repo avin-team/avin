@@ -1,72 +1,25 @@
 import { verification } from "@avin/db/schema/auth";
-import {
-  bankAccountSchema,
-  sellerApplication,
-  sellerProfile,
-} from "@avin/db/schema/seller";
+import { sellerApplication, sellerProfile } from "@avin/db/schema/seller";
 import { ORPCError } from "@orpc/server";
-import { and, desc, eq, gt } from "drizzle-orm";
-import { z } from "zod";
+import { and, eq, gt } from "drizzle-orm";
 
-import { protectedProcedure } from "../authorization";
-import type { Context } from "../context";
+import { protectedProcedure } from "../access/procedures";
+import {
+  findLatestSellerApplication,
+  findSellerProfile,
+  requestPhoneOtpInputSchema,
+  submitApplicationInputSchema,
+  updateDraftProfileInputSchema,
+  verifyPhoneOtpInputSchema,
+} from "./onboarding";
 
-export const updateDraftProfileInputSchema = z.object({
-  avatarUrl: z.union([z.url(), z.literal("")]).optional(),
-  bankAccount: bankAccountSchema.optional(),
-  bio: z.string().max(500).optional(),
-  storefrontName: z
-    .string()
-    .min(2, "Tên gian hàng phải từ 2 ký tự")
-    .max(100, "Tên gian hàng tối đa 100 ký tự"),
-});
-
-export const requestPhoneOtpInputSchema = z.object({
-  phone: z
-    .string()
-    .min(9, "Số điện thoại không hợp lệ")
-    .max(15, "Số điện thoại không hợp lệ"),
-});
-
-export const verifyPhoneOtpInputSchema = z.object({
-  code: z.string().length(6, "Mã OTP gồm 6 chữ số"),
-  phone: z.string().min(9),
-});
-
-export const submitApplicationInputSchema = z.object({
-  bankAccount: bankAccountSchema,
-  sellerAgreementAccepted: z.boolean().refine((val) => val === true, {
-    message: "Bạn phải đồng ý với Điều khoản Người bán",
-  }),
-  sellerAgreementVersion: z.string().default("v1.0"),
-});
-
-const getSellerProfile = async (db: Context["db"], userId: string) => {
-  const [profile] = await db
-    .select()
-    .from(sellerProfile)
-    .where(eq(sellerProfile.userId, userId))
-    .limit(1);
-  return profile ?? null;
-};
-
-const getLatestApplication = async (db: Context["db"], userId: string) => {
-  const [app] = await db
-    .select()
-    .from(sellerApplication)
-    .where(eq(sellerApplication.userId, userId))
-    .orderBy(desc(sellerApplication.createdAt))
-    .limit(1);
-  return app ?? null;
-};
-
-export const sellerRouter = {
+export const sellerApplicationRouter = {
   getProfile: protectedProcedure.handler(async ({ context }) => {
     const userId = context.session.user.id;
 
     const [profile, latestApplication] = await Promise.all([
-      getSellerProfile(context.db, userId),
-      getLatestApplication(context.db, userId),
+      findSellerProfile(context.db, userId),
+      findLatestSellerApplication(context.db, userId),
     ]);
 
     return {
@@ -112,7 +65,7 @@ export const sellerRouter = {
     .handler(async ({ context, input }) => {
       const userId = context.session.user.id;
 
-      const profile = await getSellerProfile(context.db, userId);
+      const profile = await findSellerProfile(context.db, userId);
 
       if (!profile) {
         throw new ORPCError("BAD_REQUEST", {
@@ -136,7 +89,7 @@ export const sellerRouter = {
         })
         .where(eq(sellerProfile.id, profile.id));
 
-      const existingApp = await getLatestApplication(context.db, userId);
+      const existingApp = await findLatestSellerApplication(context.db, userId);
 
       if (existingApp?.status === "PENDING_REVIEW") {
         throw new ORPCError("BAD_REQUEST", {
@@ -199,7 +152,7 @@ export const sellerRouter = {
     .handler(async ({ context, input }) => {
       const userId = context.session.user.id;
 
-      const existingProfile = await getSellerProfile(context.db, userId);
+      const existingProfile = await findSellerProfile(context.db, userId);
 
       if (existingProfile) {
         const [updated] = await context.db
@@ -263,7 +216,7 @@ export const sellerRouter = {
         .delete(verification)
         .where(eq(verification.id, record.id));
 
-      const existingProfile = await getSellerProfile(context.db, userId);
+      const existingProfile = await findSellerProfile(context.db, userId);
 
       if (existingProfile) {
         const [updated] = await context.db

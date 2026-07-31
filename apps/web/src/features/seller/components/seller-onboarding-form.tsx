@@ -109,7 +109,7 @@ const SellerOnboardingFormContent = ({
 
   // Mutations
   const updateDraftMutation = useMutation(
-    orpc.seller.updateDraftProfile.mutationOptions({
+    orpc.sellerApplication.updateDraftProfile.mutationOptions({
       onError: (err) => {
         toast.error(err.message || "Không thể cập nhật thông tin gian hàng");
       },
@@ -121,7 +121,7 @@ const SellerOnboardingFormContent = ({
   );
 
   const requestOtpMutation = useMutation(
-    orpc.seller.requestPhoneOtp.mutationOptions({
+    orpc.sellerApplication.requestPhoneOtp.mutationOptions({
       onError: (err) => {
         toast.error(err.message || "Không thể gửi mã OTP");
       },
@@ -133,7 +133,7 @@ const SellerOnboardingFormContent = ({
   );
 
   const verifyOtpMutation = useMutation(
-    orpc.seller.verifyPhoneOtp.mutationOptions({
+    orpc.sellerApplication.verifyPhoneOtp.mutationOptions({
       onError: (err) => {
         toast.error(err.message || "Xác minh OTP thất bại");
       },
@@ -147,7 +147,7 @@ const SellerOnboardingFormContent = ({
   );
 
   const submitAppMutation = useMutation(
-    orpc.seller.submitApplication.mutationOptions({
+    orpc.sellerApplication.submitApplication.mutationOptions({
       onError: (err) => {
         toast.error(err.message || "Nộp hồ sơ thất bại");
       },
@@ -657,7 +657,7 @@ const SellerOnboardingFormContent = ({
 
 export const SellerOnboardingForm = () => {
   const { data, isLoading, refetch } = useQuery(
-    orpc.seller.getProfile.queryOptions()
+    orpc.sellerApplication.getProfile.queryOptions()
   );
 
   const profile = data?.profile;

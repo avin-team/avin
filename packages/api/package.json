@@ -2,9 +2,8 @@
   "name": "@avin/api",
   "type": "module",
   "exports": {
-    "./*": {
-      "default": "./src/*.ts"
-    }
+    "./context": "./src/runtime/context.ts",
+    "./router": "./src/router.ts"
   },
   "scripts": {
     "check-types": "tsc -b",

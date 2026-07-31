@@ -21,7 +21,7 @@ export const ListingDetailPage = () => {
   const { id } = useParams({ from: "/(public)/listing/$id" });
 
   const listingQuery = useQuery(
-    orpc.catalog.listingById.queryOptions({
+    orpc.listing.discovery.listingById.queryOptions({
       input: { id },
     })
   );

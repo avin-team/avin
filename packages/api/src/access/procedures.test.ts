@@ -1,17 +1,17 @@
 import { ACCOUNT_ROLE } from "@avin/auth/permissions";
+import { db } from "@avin/db";
 import { call } from "@orpc/server";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
+import type { AuditEvent, Context } from "../runtime/context";
 import {
   adminProcedure,
   assertAccountAccess,
   auditedAdminProcedure,
   buyerProcedure,
   protectedProcedure,
-} from "./authorization";
-import type { AuditEvent, Context } from "./context";
-import { appRouter } from "./routers";
+} from "./procedures";
 
 const createContext = (
   role: (typeof ACCOUNT_ROLE)[keyof typeof ACCOUNT_ROLE],
@@ -25,6 +25,7 @@ const createContext = (
       return Promise.resolve();
     },
   },
+  db,
   session: {
     session: {
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -63,6 +64,7 @@ describe("protected procedure authorization", () => {
           audit: {
             record: () => Promise.resolve(),
           },
+          db,
           session: null,
         },
       })
@@ -110,35 +112,6 @@ describe("Buyer procedure authorization", () => {
     await expect(
       call(procedure, undefined, {
         context: createContext(ACCOUNT_ROLE.SELLER),
-      })
-    ).rejects.toMatchObject({
-      code: "FORBIDDEN",
-    });
-  });
-});
-
-describe("production router authorization", () => {
-  it("restricts Buyer private data to Buyer identities", async () => {
-    await expect(
-      call(appRouter.privateData, undefined, {
-        context: createContext(ACCOUNT_ROLE.BUYER),
-      })
-    ).resolves.toMatchObject({
-      message: "This is private",
-    });
-    await expect(
-      call(appRouter.privateData, undefined, {
-        context: createContext(ACCOUNT_ROLE.SELLER),
-      })
-    ).rejects.toMatchObject({
-      code: "FORBIDDEN",
-    });
-  });
-
-  it("denies generic Supabase access tokens to an Admin", async () => {
-    await expect(
-      call(appRouter.supabaseAccessToken, undefined, {
-        context: createContext(ACCOUNT_ROLE.ADMIN),
       })
     ).rejects.toMatchObject({
       code: "FORBIDDEN",

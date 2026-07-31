@@ -1,7 +1,7 @@
 import { devToolsMiddleware } from "@ai-sdk/devtools";
 import { google } from "@ai-sdk/google";
 import { createContext } from "@avin/api/context";
-import { appRouter } from "@avin/api/routers/index";
+import { appRouter } from "@avin/api/router";
 import { auth } from "@avin/auth";
 import { env } from "@avin/env/server";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";

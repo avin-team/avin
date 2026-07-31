@@ -1,4 +1,4 @@
-import type { AppRouterClient } from "@avin/api/routers/index";
+import type { AppRouterClient } from "@avin/api/router";
 import { env } from "@avin/env/web";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
