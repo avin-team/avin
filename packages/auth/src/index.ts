@@ -12,6 +12,8 @@ import {
 import { admin, twoFactor } from "better-auth/plugins";
 import { Resend } from "resend";
 
+import { AUTH_SURFACES } from "./auth-surfaces";
+import type { AuthSurface } from "./auth-surfaces";
 import {
   ACCOUNT_ROLE,
   adminRequiresTwoFactor,
@@ -19,19 +21,22 @@ import {
   marketplaceRoles,
 } from "./permissions";
 
-export const createAuth = () => {
+export const createAuth = (surface: AuthSurface = "storefront") => {
   const db = createDb();
   const isProduction = env.NODE_ENV === "production";
   const resend = new Resend(env.RESEND_API_KEY);
+  const { basePath, cookiePrefix } = AUTH_SURFACES[surface];
 
   return betterAuth({
     advanced: {
+      cookiePrefix,
       defaultCookieAttributes: {
         httpOnly: true,
         sameSite: isProduction ? "none" : "lax",
         secure: isProduction,
       },
     },
+    basePath,
     baseURL: env.BETTER_AUTH_URL,
     database: drizzleAdapter(db, {
       provider: "pg",
@@ -140,3 +145,4 @@ export const createAuth = () => {
 };
 
 export const auth = createAuth();
+export const adminAuth = createAuth("admin");

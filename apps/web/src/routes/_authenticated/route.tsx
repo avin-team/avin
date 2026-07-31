@@ -1,5 +1,6 @@
-import { Outlet, createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 
+import { MainLayout } from "@/components/layout/main-layout";
 import { requireSession } from "@/features/auth/guards/require-session";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -7,5 +8,5 @@ export const Route = createFileRoute("/_authenticated")({
     const session = await requireSession();
     return { session };
   },
-  component: Outlet,
+  component: MainLayout,
 });

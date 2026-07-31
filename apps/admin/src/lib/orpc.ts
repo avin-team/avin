@@ -1,4 +1,5 @@
 import type { AppRouterClient } from "@avin/api/router";
+import { AUTH_SURFACE, AUTH_SURFACE_HEADER } from "@avin/auth/auth-surfaces";
 import { env } from "@avin/env/web";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
@@ -9,6 +10,9 @@ export const link = new RPCLink({
     return fetch(url, {
       ...options,
       credentials: "include",
+      headers: {
+        [AUTH_SURFACE_HEADER]: AUTH_SURFACE.ADMIN,
+      },
     });
   },
   url: `${env.VITE_SERVER_URL}/rpc`,

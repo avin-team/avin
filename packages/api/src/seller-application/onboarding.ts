@@ -12,6 +12,7 @@ export const updateDraftProfileInputSchema = z.object({
   avatarUrl: z.union([z.url(), z.literal("")]).optional(),
   bankAccount: bankAccountSchema.optional(),
   bio: z.string().max(500).optional(),
+  phone: z.string().max(20).optional(),
   storefrontName: z
     .string()
     .min(2, "Tên gian hàng phải từ 2 ký tự")

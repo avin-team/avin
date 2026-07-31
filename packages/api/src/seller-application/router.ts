@@ -218,10 +218,9 @@ export const sellerApplicationRouter = {
         });
       }
 
-      if (!profile.phoneVerified || !profile.phone) {
+      if (!profile.phone) {
         throw new ORPCError("BAD_REQUEST", {
-          message:
-            "Vui lòng xác minh số điện thoại qua SMS OTP trước khi nộp đơn",
+          message: "Vui lòng nhập số điện thoại liên hệ trước khi nộp đơn",
         });
       }
 
@@ -306,6 +305,8 @@ export const sellerApplicationRouter = {
             avatarUrl: input.avatarUrl ?? existingProfile.avatarUrl,
             bankAccount: input.bankAccount ?? existingProfile.bankAccount,
             bio: input.bio ?? existingProfile.bio,
+            phone: input.phone ?? existingProfile.phone,
+            phoneVerified: input.phone ? true : existingProfile.phoneVerified,
             storefrontName: input.storefrontName,
             updatedAt: new Date(),
           })
@@ -321,7 +322,8 @@ export const sellerApplicationRouter = {
           avatarUrl: input.avatarUrl,
           bankAccount: input.bankAccount,
           bio: input.bio,
-          phoneVerified: false,
+          phone: input.phone,
+          phoneVerified: Boolean(input.phone),
           storefrontName: input.storefrontName,
           userId,
         })

@@ -2,7 +2,8 @@ import { devToolsMiddleware } from "@ai-sdk/devtools";
 import { google } from "@ai-sdk/google";
 import { createContext } from "@avin/api/context";
 import { appRouter } from "@avin/api/router";
-import { auth } from "@avin/auth";
+import { adminAuth, auth } from "@avin/auth";
+import { AUTH_SURFACE_HEADER } from "@avin/auth/auth-surfaces";
 import { env } from "@avin/env/server";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
@@ -20,7 +21,7 @@ app.use(logger());
 app.use(
   "/*",
   cors({
-    allowHeaders: ["Content-Type", "Authorization"],
+    allowHeaders: ["Content-Type", "Authorization", AUTH_SURFACE_HEADER],
     allowMethods: ["GET", "POST", "OPTIONS"],
     credentials: true,
     origin: env.CORS_ORIGIN,
@@ -28,6 +29,9 @@ app.use(
 );
 
 app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
+app.on(["POST", "GET"], "/api/admin-auth/*", (c) =>
+  adminAuth.handler(c.req.raw)
+);
 
 export const apiHandler = new OpenAPIHandler(appRouter, {
   interceptors: [

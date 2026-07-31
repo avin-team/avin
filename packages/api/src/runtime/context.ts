@@ -1,4 +1,5 @@
-import { auth } from "@avin/auth";
+import { adminAuth, auth } from "@avin/auth";
+import { AUTH_SURFACE, getAuthSurface } from "@avin/auth/auth-surfaces";
 import { db } from "@avin/db";
 import type { Context as HonoContext } from "hono";
 
@@ -28,7 +29,11 @@ export interface AuditRecorder {
 export const createContext = async ({
   context,
 }: CreateContextOptions): Promise<Context> => {
-  const session = await auth.api.getSession({
+  const authClient =
+    getAuthSurface(context.req.raw.headers) === AUTH_SURFACE.ADMIN
+      ? adminAuth
+      : auth;
+  const session = await authClient.api.getSession({
     headers: context.req.raw.headers,
   });
   return {

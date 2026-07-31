@@ -21,8 +21,6 @@ import {
   Clock,
   FileText,
   Loader2,
-  Phone,
-  ShieldCheck,
   Store,
 } from "lucide-react";
 import { useState } from "react";
@@ -88,10 +86,8 @@ const SellerOnboardingFormContent = ({
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatarUrl ?? "");
   const [bio, setBio] = useState(profile?.bio ?? "");
 
-  // Phone & OTP state
+  // Phone state
   const [phoneInput, setPhoneInput] = useState(profile?.phone ?? "");
-  const [otpCode, setOtpCode] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
 
   // Bank details state
   const [bankName, setBankName] = useState(
@@ -120,32 +116,6 @@ const SellerOnboardingFormContent = ({
     })
   );
 
-  const requestOtpMutation = useMutation(
-    orpc.sellerApplication.requestPhoneOtp.mutationOptions({
-      onError: (err) => {
-        toast.error(err.message || "Không thể gửi mã OTP");
-      },
-      onSuccess: () => {
-        setOtpSent(true);
-        toast.success("Mã OTP (123456) đã được gửi tới số điện thoại!");
-      },
-    })
-  );
-
-  const verifyOtpMutation = useMutation(
-    orpc.sellerApplication.verifyPhoneOtp.mutationOptions({
-      onError: (err) => {
-        toast.error(err.message || "Xác minh OTP thất bại");
-      },
-      onSuccess: () => {
-        setOtpSent(false);
-        setOtpCode("");
-        toast.success("Xác minh số điện thoại thành công!");
-        refetchProfile();
-      },
-    })
-  );
-
   const submitAppMutation = useMutation(
     orpc.sellerApplication.submitApplication.mutationOptions({
       onError: (err) => {
@@ -168,26 +138,8 @@ const SellerOnboardingFormContent = ({
     updateDraftMutation.mutate({
       avatarUrl: avatarUrl.trim() || undefined,
       bio: bio.trim() || undefined,
+      phone: phoneInput.trim() || undefined,
       storefrontName: storefrontName.trim(),
-    });
-  };
-
-  const handleRequestOtp = () => {
-    if (!phoneInput || phoneInput.length < 9) {
-      toast.error("Vui lòng nhập số điện thoại hợp lệ");
-      return;
-    }
-    requestOtpMutation.mutate({ phone: phoneInput.trim() });
-  };
-
-  const handleVerifyOtp = () => {
-    if (!otpCode || otpCode.length !== 6) {
-      toast.error("Vui lòng nhập đủ 6 chữ số OTP");
-      return;
-    }
-    verifyOtpMutation.mutate({
-      code: otpCode.trim(),
-      phone: phoneInput.trim(),
     });
   };
 
@@ -199,8 +151,8 @@ const SellerOnboardingFormContent = ({
       return;
     }
 
-    if (!profile.phoneVerified || !profile.phone) {
-      toast.error("Vui lòng xác minh số điện thoại qua SMS OTP");
+    if (!phoneInput.trim() && !profile.phone) {
+      toast.error("Vui lòng nhập số điện thoại liên hệ");
       return;
     }
 
@@ -241,7 +193,7 @@ const SellerOnboardingFormContent = ({
               Đăng ký Người bán (Seller Onboarding)
             </h1>
             <p className="text-sm text-muted-foreground">
-              Hoàn tất thông tin gian hàng, xác minh sĐT và nộp hồ sơ để bắt đầu
+              Hoàn tất thông tin gian hàng, sĐT liên hệ và nộp hồ sơ để bắt đầu
               kinh doanh trên Avin.
             </p>
           </div>
@@ -331,17 +283,19 @@ const SellerOnboardingFormContent = ({
                 hàng Nháp
               </CardTitle>
               <CardDescription>
-                Thiết lập tên gian hàng, hình đại diện và tiểu sử gian hàng của
-                bạn.
+                Thiết lập tên gian hàng, số điện thoại liên hệ, hình đại diện và
+                tiểu sử gian hàng của bạn.
               </CardDescription>
             </div>
-            {profile && (
+            {profile ? (
               <Badge
                 variant="outline"
                 className="text-emerald-600 border-emerald-500/30"
               >
                 <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Đã lưu thông tin
               </Badge>
+            ) : (
+              <Badge variant="secondary">Chưa khởi tạo</Badge>
             )}
           </div>
         </CardHeader>
@@ -351,18 +305,35 @@ const SellerOnboardingFormContent = ({
             onSubmit={handleSaveDraft}
             className="space-y-4"
           >
-            <div className="space-y-2">
-              <Label htmlFor="storefrontName">
-                Tên gian hàng <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="storefrontName"
-                placeholder="VD: GameKey Studio, DevTools VN..."
-                value={storefrontName}
-                onChange={(e) => setStorefrontName(e.target.value)}
-                disabled={isPending}
-                required
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="storefrontName">
+                  Tên gian hàng <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="storefrontName"
+                  placeholder="VD: GameKey Studio, DevTools VN..."
+                  value={storefrontName}
+                  onChange={(e) => setStorefrontName(e.target.value)}
+                  disabled={isPending}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="phone">
+                  Số điện thoại liên hệ <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="VD: 0901234567"
+                  value={phoneInput}
+                  onChange={(e) => setPhoneInput(e.target.value)}
+                  disabled={isPending}
+                  required
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -406,114 +377,11 @@ const SellerOnboardingFormContent = ({
         </CardFooter>
       </Card>
 
-      {/* Step 2: SMS OTP Verification */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-xl flex items-center gap-2">
-                <Phone className="w-5 h-5 text-primary" /> 2. Xác minh số điện
-                thoại (SMS OTP)
-              </CardTitle>
-              <CardDescription>
-                Số điện thoại xác minh dùng để bảo mật tài khoản và liên hệ khi
-                xử lý đơn hàng.
-              </CardDescription>
-            </div>
-            {profile?.phoneVerified ? (
-              <Badge className="bg-emerald-600">
-                <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Đã xác minh OTP
-              </Badge>
-            ) : (
-              <Badge variant="secondary">Chưa xác minh</Badge>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {profile?.phoneVerified ? (
-            <div className="flex items-center justify-between p-4 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
-              <div className="flex items-center gap-3">
-                <ShieldCheck className="w-5 h-5 text-emerald-600" />
-                <div>
-                  <p className="font-medium text-emerald-900 dark:text-emerald-300">
-                    Số điện thoại đã xác minh: {profile.phone}
-                  </p>
-                  <p className="text-xs text-emerald-700 dark:text-emerald-400">
-                    Tài khoản của bạn đã đạt điều kiện xác minh sĐT.
-                  </p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row gap-3 items-end">
-                <div className="flex-1 space-y-2">
-                  <Label htmlFor="phone">Số điện thoại</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="VD: 0901234567"
-                    value={phoneInput}
-                    onChange={(e) => setPhoneInput(e.target.value)}
-                    disabled={
-                      otpSent || requestOtpMutation.isPending || isPending
-                    }
-                  />
-                </div>
-                <Button
-                  type="button"
-                  onClick={handleRequestOtp}
-                  disabled={requestOtpMutation.isPending || isPending}
-                  variant={otpSent ? "outline" : "default"}
-                >
-                  {requestOtpMutation.isPending && (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  )}
-                  {otpSent ? "Gửi lại OTP" : "Gửi mã OTP"}
-                </Button>
-              </div>
-
-              {otpSent && (
-                <div className="p-4 bg-muted/50 rounded-lg space-y-3 border">
-                  <Label htmlFor="otp">Mã OTP (6 chữ số)</Label>
-                  <div className="flex gap-3">
-                    <Input
-                      id="otp"
-                      maxLength={6}
-                      placeholder="123456"
-                      className="font-mono text-center tracking-widest text-lg max-w-[200px]"
-                      value={otpCode}
-                      onChange={(e) => setOtpCode(e.target.value)}
-                      disabled={verifyOtpMutation.isPending || isPending}
-                    />
-                    <Button
-                      type="button"
-                      onClick={handleVerifyOtp}
-                      disabled={verifyOtpMutation.isPending || isPending}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                    >
-                      {verifyOtpMutation.isPending && (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      )}
-                      Xác nhận OTP
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Mẹo thử nghiệm: Sử dụng mã OTP mặc định{" "}
-                    <strong>123456</strong> để xác minh nhanh.
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Step 3: Bank Details & Agreement */}
+      {/* Step 2: Bank Details & Agreement */}
       <Card>
         <CardHeader>
           <CardTitle className="text-xl flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-primary" /> 3. Thông tin Ngân
+            <Building2 className="w-5 h-5 text-primary" /> 2. Thông tin Ngân
             hàng & Điều khoản
           </CardTitle>
           <CardDescription>
