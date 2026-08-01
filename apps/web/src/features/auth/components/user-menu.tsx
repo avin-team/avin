@@ -57,12 +57,10 @@ export const UserMenu = () => {
           {isSeller ? (
             <DropdownMenuItem
               onClick={async () => {
-                await navigate({
-                  to: "/seller/listings",
-                });
+                await navigate({ to: "/seller/store" });
               }}
             >
-              Quản lý tin đăng
+              Mở gian hàng
             </DropdownMenuItem>
           ) : (
             <DropdownMenuItem

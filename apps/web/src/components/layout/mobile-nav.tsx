@@ -110,9 +110,9 @@ export const MobileNav = ({ isOpen, items, onToggle }: MobileNavProps) => {
                       <Link
                         className="mt-2 block w-full rounded-lg px-4 py-2 font-medium text-foreground text-sm transition-colors duration-200 hover:bg-muted"
                         onClick={onToggle}
-                        to="/seller/listings"
+                        to="/seller/store"
                       >
-                        Quản lý tin đăng
+                        Mở gian hàng
                       </Link>
                     ) : (
                       <Link

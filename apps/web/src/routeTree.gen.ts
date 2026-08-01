@@ -28,6 +28,7 @@ import { Route as publicCategoryParentSlugRouteImport } from './routes/(public)/
 import { Route as publicListingIdRouteImport } from './routes/(public)/listing/$id'
 import { Route as AuthenticatedSellerListingsRouteImport } from './routes/_authenticated/seller/listings'
 import { Route as AuthenticatedSellerOnboardingRouteImport } from './routes/_authenticated/seller/onboarding'
+import { Route as AuthenticatedSellerStoreRouteImport } from './routes/_authenticated/seller/store'
 import { Route as AuthenticatedSellerListingsIdRouteImport } from './routes/_authenticated/seller/listings/$id'
 
 const authRouteRoute = authRouteRouteImport.update({
@@ -125,6 +126,12 @@ const AuthenticatedSellerOnboardingRoute =
     path: '/seller/onboarding',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedSellerStoreRoute =
+  AuthenticatedSellerStoreRouteImport.update({
+    id: '/seller/store',
+    path: '/seller/store',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSellerListingsIdRoute =
   AuthenticatedSellerListingsIdRouteImport.update({
     id: '/$id',
@@ -148,6 +155,7 @@ export interface FileRoutesByFullPath {
   '/listing/$id': typeof publicListingIdRoute
   '/seller/listings': typeof AuthenticatedSellerListingsRouteWithChildren
   '/seller/onboarding': typeof AuthenticatedSellerOnboardingRoute
+  '/seller/store': typeof AuthenticatedSellerStoreRoute
   '/category/': typeof publicCategoryIndexRoute
   '/seller/listings/$id': typeof AuthenticatedSellerListingsIdRoute
 }
@@ -167,6 +175,7 @@ export interface FileRoutesByTo {
   '/listing/$id': typeof publicListingIdRoute
   '/seller/listings': typeof AuthenticatedSellerListingsRouteWithChildren
   '/seller/onboarding': typeof AuthenticatedSellerOnboardingRoute
+  '/seller/store': typeof AuthenticatedSellerStoreRoute
   '/category': typeof publicCategoryIndexRoute
   '/seller/listings/$id': typeof AuthenticatedSellerListingsIdRoute
 }
@@ -190,6 +199,7 @@ export interface FileRoutesById {
   '/(public)/listing/$id': typeof publicListingIdRoute
   '/_authenticated/seller/listings': typeof AuthenticatedSellerListingsRouteWithChildren
   '/_authenticated/seller/onboarding': typeof AuthenticatedSellerOnboardingRoute
+  '/_authenticated/seller/store': typeof AuthenticatedSellerStoreRoute
   '/(public)/category/': typeof publicCategoryIndexRoute
   '/_authenticated/seller/listings/$id': typeof AuthenticatedSellerListingsIdRoute
 }
@@ -211,6 +221,7 @@ export interface FileRouteTypes {
     | '/listing/$id'
     | '/seller/listings'
     | '/seller/onboarding'
+    | '/seller/store'
     | '/category/'
     | '/seller/listings/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -230,6 +241,7 @@ export interface FileRouteTypes {
     | '/listing/$id'
     | '/seller/listings'
     | '/seller/onboarding'
+    | '/seller/store'
     | '/category'
     | '/seller/listings/$id'
   id:
@@ -252,6 +264,7 @@ export interface FileRouteTypes {
     | '/(public)/listing/$id'
     | '/_authenticated/seller/listings'
     | '/_authenticated/seller/onboarding'
+    | '/_authenticated/seller/store'
     | '/(public)/category/'
     | '/_authenticated/seller/listings/$id'
   fileRoutesById: FileRoutesById
@@ -402,6 +415,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSellerOnboardingRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/seller/store': {
+      id: '/_authenticated/seller/store'
+      path: '/seller/store'
+      fullPath: '/seller/store'
+      preLoaderRoute: typeof AuthenticatedSellerStoreRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/seller/listings/$id': {
       id: '/_authenticated/seller/listings/$id'
       path: '/$id'
@@ -464,6 +484,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTwoFactorRoute: typeof AuthenticatedTwoFactorRoute
   AuthenticatedSellerListingsRoute: typeof AuthenticatedSellerListingsRouteWithChildren
   AuthenticatedSellerOnboardingRoute: typeof AuthenticatedSellerOnboardingRoute
+  AuthenticatedSellerStoreRoute: typeof AuthenticatedSellerStoreRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -473,6 +494,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSellerListingsRoute:
     AuthenticatedSellerListingsRouteWithChildren,
   AuthenticatedSellerOnboardingRoute: AuthenticatedSellerOnboardingRoute,
+  AuthenticatedSellerStoreRoute: AuthenticatedSellerStoreRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
