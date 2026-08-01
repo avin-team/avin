@@ -46,26 +46,15 @@ const TYPE_OPTIONS: { label: string; value: "SERVICE" | "COURSE" }[] = [
   { label: "Course", value: "COURSE" },
 ];
 
-const getStatusBadgeVariant = (
-  status: "DRAFT" | "PUBLISHED" | "PAUSED" | "HIDDEN" | "ARCHIVED"
-) => {
-  switch (status) {
-    case "PUBLISHED": {
-      return "default";
-    }
-    case "PAUSED": {
-      return "secondary";
-    }
-    case "HIDDEN": {
-      return "destructive";
-    }
-    case "ARCHIVED": {
-      return "outline";
-    }
-    default: {
-      return "outline";
-    }
-  }
+const STATUS_BADGE_VARIANTS: Record<
+  "DRAFT" | "PUBLISHED" | "PAUSED" | "HIDDEN" | "ARCHIVED",
+  "default" | "secondary" | "destructive" | "outline"
+> = {
+  PUBLISHED: "default",
+  PAUSED: "secondary",
+  HIDDEN: "destructive",
+  DRAFT: "outline",
+  ARCHIVED: "outline",
 };
 
 export const ListingWorkspacePage = () => {
@@ -205,7 +194,7 @@ export const ListingWorkspacePage = () => {
                           {listing.title ?? "Untitled draft"}
                         </Link>
                       </CardTitle>
-                      <Badge variant={getStatusBadgeVariant(listing.status)}>
+                      <Badge variant={STATUS_BADGE_VARIANTS[listing.status]}>
                         {listing.status}
                       </Badge>
                     </div>

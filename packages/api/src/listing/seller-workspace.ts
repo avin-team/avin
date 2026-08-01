@@ -83,7 +83,11 @@ export const assertEligibleSeller = async (userId: string): Promise<void> => {
   }
 };
 
-export const assertActiveSubCategory = async (categoryId: string) => {
+export const assertActiveSubCategory = async (
+  categoryId: string
+): Promise<
+  NonNullable<Awaited<ReturnType<typeof db.query.subCategory.findFirst>>>
+> => {
   const category = await db.query.subCategory.findFirst({
     where: and(
       eq(subCategory.id, categoryId),
@@ -105,7 +109,12 @@ export const assertActiveSubCategory = async (categoryId: string) => {
   return category;
 };
 
-const assertDraft = async (id: string, userId: string) => {
+const assertDraft = async (
+  id: string,
+  userId: string
+): Promise<
+  NonNullable<Awaited<ReturnType<typeof db.query.listing.findFirst>>>
+> => {
   const draft = await db.query.listing.findFirst({
     where: and(
       eq(listing.id, id),
@@ -123,7 +132,12 @@ const assertDraft = async (id: string, userId: string) => {
   return draft;
 };
 
-const assertOwnedListing = async (id: string, userId: string) => {
+const assertOwnedListing = async (
+  id: string,
+  userId: string
+): Promise<
+  NonNullable<Awaited<ReturnType<typeof db.query.listing.findFirst>>>
+> => {
   const found = await db.query.listing.findFirst({
     where: and(eq(listing.id, id), eq(listing.sellerId, userId)),
   });
@@ -458,6 +472,41 @@ export const sellerWorkspaceRouter = {
 
       if (input.categoryId) {
         await assertActiveSubCategory(input.categoryId);
+      }
+
+      if (found.status === "PUBLISHED") {
+        const targetCategoryId = input.categoryId ?? found.categoryId;
+        const category = await assertActiveSubCategory(targetCategoryId);
+        assertPublishable(
+          {
+            ...found,
+            description: Object.hasOwn(input, "description")
+              ? (input.description ?? null)
+              : found.description,
+            images: input.images ?? found.images,
+            priceAmount: Object.hasOwn(input, "priceAmount")
+              ? (input.priceAmount ?? null)
+              : found.priceAmount,
+            processingTimeHours: Object.hasOwn(input, "processingTimeHours")
+              ? (input.processingTimeHours ?? null)
+              : found.processingTimeHours,
+            serviceInputFields:
+              input.serviceInputFields ?? found.serviceInputFields,
+            thumbnailUrl: Object.hasOwn(input, "thumbnailUrl")
+              ? (input.thumbnailUrl ?? null)
+              : found.thumbnailUrl,
+            title: Object.hasOwn(input, "title")
+              ? (input.title ?? null)
+              : found.title,
+            warrantyDurationHours: Object.hasOwn(input, "warrantyDurationHours")
+              ? (input.warrantyDurationHours ?? null)
+              : found.warrantyDurationHours,
+            warrantyTerms: Object.hasOwn(input, "warrantyTerms")
+              ? (input.warrantyTerms ?? null)
+              : found.warrantyTerms,
+          },
+          category
+        );
       }
 
       const [updated] = await db

@@ -198,12 +198,16 @@ export const listingDiscoveryRouter = {
       const totalPages = Math.ceil(total / input.limit);
       const offset = (input.page - 1) * input.limit;
 
-      let orderBy = [sql`${listing.createdAt} DESC`];
-      if (input.sortBy === "price_asc") {
-        orderBy = [sql`${listing.priceAmount} ASC`];
-      } else if (input.sortBy === "price_desc") {
-        orderBy = [sql`${listing.priceAmount} DESC`];
-      }
+      const getOrderBy = () => {
+        if (input.sortBy === "price_asc") {
+          return [sql`${listing.priceAmount} ASC`];
+        }
+        if (input.sortBy === "price_desc") {
+          return [sql`${listing.priceAmount} DESC`];
+        }
+        return [sql`${listing.createdAt} DESC`];
+      };
+      const orderBy = getOrderBy();
 
       const items = await db.query.listing.findMany({
         limit: input.limit,
