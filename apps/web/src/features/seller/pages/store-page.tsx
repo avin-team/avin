@@ -1,5 +1,6 @@
 import { Badge } from "@avin/ui/components/badge";
 import { Button } from "@avin/ui/components/button";
+import { SidebarTrigger } from "@avin/ui/components/sidebar";
 import {
   AlertCircle,
   BarChart3,
@@ -18,13 +19,11 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
-import { Shell } from "@/components/shell";
-
 import { StoreProfilePanel } from "../components/store-profile-panel";
 import { StoreSectionPlaceholder } from "../components/store-section-placeholder";
-import { StoreSidebar } from "../components/store-sidebar";
 import { MOCK_PRODUCTS } from "../data/store-mock-data";
 import type { MockProduct, StoreSection } from "../data/store-mock-data";
+import { SellerLayout } from "../layout/seller-layout";
 
 const getSectionLabel = (section: StoreSection): string => {
   const labels: Record<StoreSection, string> = {
@@ -273,20 +272,22 @@ export const StorePage = () => {
   const [active, setActive] = useState<StoreSection>("profile");
 
   return (
-    <Shell className="max-w-none px-0 pb-16" variant="default">
-      <div className="grid min-h-[calc(100vh-8rem)] grid-cols-1 overflow-hidden border-y border-border bg-background lg:grid-cols-[250px_minmax(0,1fr)]">
-        <StoreSidebar active={active} onChange={setActive} />
-        <div className="min-w-0 p-5 sm:p-7 lg:p-9">
+    <SellerLayout active={active} onChange={setActive}>
+      <div className="min-w-0 px-4 pb-16 pt-6 sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-[1920px]">
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border/60 pb-5">
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Store className="size-5 text-primary" />
-                <p className="font-semibold">Kênh bán hàng</p>
-                <Badge variant="outline">Chưa bắt đầu</Badge>
+            <div className="flex items-start gap-2">
+              <SidebarTrigger className="mt-0.5 shrink-0" />
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Store className="size-5 text-primary" />
+                  <p className="font-semibold">Kênh bán hàng</p>
+                  <Badge variant="outline">Chưa bắt đầu</Badge>
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Không gian bán hàng · Mới bắt đầu · {getSectionLabel(active)}
+                </p>
               </div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Không gian bán hàng · Mới bắt đầu · {getSectionLabel(active)}
-              </p>
             </div>
             <div className="flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1.5 text-sm text-amber-300">
               <AlertCircle className="size-3.5" />
@@ -298,6 +299,6 @@ export const StorePage = () => {
           </div>
         </div>
       </div>
-    </Shell>
+    </SellerLayout>
   );
 };
