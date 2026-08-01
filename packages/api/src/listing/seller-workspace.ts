@@ -141,6 +141,7 @@ export const assertPublishable = (
     images?: string[] | null;
     priceAmount: number | null;
     processingTimeHours: number | null;
+    serviceInputFields?: unknown[] | null;
     slug: string;
     thumbnailUrl: string | null;
     title: string | null;
