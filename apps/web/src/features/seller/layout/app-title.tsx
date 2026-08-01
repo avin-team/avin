@@ -2,7 +2,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarTrigger,
   useSidebar,
 } from "@avin/ui/components/sidebar";
 import { Link } from "@tanstack/react-router";
@@ -30,7 +29,6 @@ export const SellerAppTitle = () => {
             <span className="truncate font-bold">Kênh bán hàng</span>
             <span className="truncate text-xs">Không gian bán hàng</span>
           </Link>
-          <SidebarTrigger />
         </SidebarMenuButton>
       </SidebarMenuItem>
     </SidebarMenu>
