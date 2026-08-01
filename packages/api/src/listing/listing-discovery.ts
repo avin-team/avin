@@ -70,12 +70,9 @@ export const listingDiscoveryRouter = {
         slug: z.string(),
       })
     )
-    .handler(async ({ input }) => {
+    .handler(async ({ context, input }) => {
       const found = await db.query.listing.findFirst({
-        where: and(
-          eq(listing.slug, input.slug),
-          eq(listing.status, "PUBLISHED")
-        ),
+        where: or(eq(listing.slug, input.slug), eq(listing.id, input.slug)),
         with: {
           category: {
             with: {
@@ -92,12 +89,21 @@ export const listingDiscoveryRouter = {
         },
       });
 
-      if (
-        !found ||
-        !found.category ||
-        found.category.status !== "ACTIVE" ||
-        found.category.parentCategory.status !== "ACTIVE"
-      ) {
+      if (!found || !found.category) {
+        throw new ORPCError("NOT_FOUND", {
+          message: "Listing not found or unavailable",
+        });
+      }
+
+      const user = context.session?.user;
+      const isAdmin = user?.role === "ADMIN";
+      const isOwner = user?.id === found.sellerId;
+      const isPubliclyAvailable =
+        found.status === "PUBLISHED" &&
+        found.category.status === "ACTIVE" &&
+        found.category.parentCategory.status === "ACTIVE";
+
+      if (!isAdmin && !isOwner && !isPubliclyAvailable) {
         throw new ORPCError("NOT_FOUND", {
           message: "Listing not found or unavailable",
         });
