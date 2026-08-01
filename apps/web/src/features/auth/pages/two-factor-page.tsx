@@ -1,7 +1,10 @@
+import { Shell } from "@/components/shell";
 import { TwoFactorLoginForm } from "@/features/auth/components/two-factor-login-form";
 
 export const TwoFactorPage = () => (
-  <main className="mx-auto flex w-full max-w-sm items-center">
-    <TwoFactorLoginForm />
-  </main>
+  <Shell variant="centered">
+    <div className="mx-auto w-full max-w-sm">
+      <TwoFactorLoginForm />
+    </div>
+  </Shell>
 );

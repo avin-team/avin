@@ -28,7 +28,7 @@ A versioned agreement that a prospective or active `Seller` must accept. It reco
 
 ### Seller Enforcement
 
-An Admin may place a `Seller` in one of two enforcement states. `SUSPENDED` Sellers have their Listings hidden and cannot accept new sales or request withdrawals, but retain access to active Orders and buyer chat so fulfillment or Disputes can be resolved. `BANNED` Sellers permanently lose Seller access; Avin cancels and refunds affected unfulfilled OrderItems, freezes payout pending Admin review, and provides a documented appeal route.
+An Admin may place a `Seller` in one of two enforcement states. `SUSPENDED` Sellers have their Listings hidden and cannot accept new sales, request withdrawals, or manage Listings, but retain access to active Orders and buyer chat so fulfillment or Disputes can be resolved. `BANNED` Sellers permanently lose Seller access; Avin cancels and refunds affected unfulfilled OrderItems, freezes payout pending Admin review, and provides a documented appeal route.
 
 ### Listing
 
@@ -37,16 +37,16 @@ The canonical published offering created by a `Seller` for purchase on the marke
 - **`SERVICE`**: Manual digital service requiring buyer-submitted inputs and seller manual delivery/fulfillment (e.g., account unlock, custom setup).
 - **`COURSE`**: Educational or digital asset package whose content is managed outside Avin by the `Seller`. The `Seller` manually delivers the buyer's access through the `Order` fulfillment flow; Avin does not host course content or manage enrollment.
 
-In P0, Listings are published immediately and reviewed through a single global post-moderation policy; Sub-Categories do not override this policy.
+In P0, Listings are published immediately and reviewed through a single global post-moderation policy; Sub-Categories do not override this policy. A draft requires an owner, type, and one active Sub-Category but may otherwise be incomplete. Publishing or resuming validates the complete public contract: title, description, immutable slug, fixed VND price, Processing Expectation, primary image, WarrantyPolicy within Category bounds, and valid ServiceInputFields. Each Listing has an immutable, globally unique public slug, distinct from its internal identity. A Listing has one required positive integer VND price, with no price ranges, variants, discounts, quantity rules, inventory, or automatic delivery. Publishing requires at least one image, including a designated primary image; other media types are out of scope. Each Listing has a required Processing Expectation displayed to Buyers and snapshotted on its OrderItems at purchase. An eligible Seller may edit a `DRAFT`, `PAUSED`, `PUBLISHED`, or `HIDDEN` Listing; edits to a published Listing immediately affect future Buyers, while a hidden Listing remains hidden until an Admin restores it. Non-public Listings are accessible only to their owner and authorized Admins, never to Buyers or other Sellers. A Listing is `DRAFT`, `PUBLISHED`, `PAUSED`, `HIDDEN`, or `ARCHIVED`: Sellers control `PAUSED`, Admins control `HIDDEN`, and `ARCHIVED` is terminal. A Seller may publish a draft, pause or archive any of their non-archived Listings, and resume a paused Listing. An Admin may hide a published Listing, restore a hidden Listing only when its publication gates pass, and archive any non-archived Listing. Listings are never hard-deleted in P0; archival preserves their moderation audit and historical media references. An unavailable Listing cannot be newly purchased: a Cart retains it as unavailable and blocks checkout until the Buyer removes it, while completed OrderItems retain their Listing snapshots. Admin moderation actions require a reason and create an audit record containing the Listing, action, actor, timestamp, reason, and prior/new visibility state. Publishing or resuming requires an approved, non-enforced Seller who has accepted the current Seller Agreement; Listing creation and management require the Seller to be approved and non-enforced.
 
 ### Category
 
 A 2-level, Admin-managed hierarchical taxonomy (Parent Category $\rightarrow$ Sub-Category) used to organize `Listing`s across the marketplace. Sellers select an existing Sub-Category; they cannot create or change the taxonomy in P0.
 
-- **Lifecycle & Visibility**: Categories exist in `ACTIVE`, `HIDDEN`, or `ARCHIVED` (terminal) status. Hiding or archiving a Parent Category automatically cascades to all its Sub-Categories.
+- **Lifecycle & Visibility**: Categories exist in `ACTIVE`, `HIDDEN`, or `ARCHIVED` (terminal) status. Hiding or archiving a Parent Category automatically cascades to all its Sub-Categories. A Listing may be created, moved, published, or resumed only in an `ACTIVE` Sub-Category. Listings linked to a hidden or archived Category are suppressed from all public discovery and detail views without changing their own Listing status.
 - **Ordering**: Both Parent Categories and Sub-Categories support an explicit `sortOrder` for display positioning.
 - **Slugs**: Parent Category slugs are globally unique. Sub-Category slugs are unique within their parent (`UNIQUE(parent_id, slug)`). Slugs are auto-generated from name and editable on creation, but immutable once created.
-- **Commercial & Templates**: Each **Sub-Category** holds an Admin-configured `commissionRatePercent`, reusable default `ServiceInputField` and `WarrantyPolicy` templates, and `WarrantyBounds` (min/max duration in hours). Parent Categories are purely organizational and do not store commission rates.
+- **Commercial & Templates**: Each **Sub-Category** holds an Admin-configured `commissionRatePercent`, reusable default `ServiceInputField` and `WarrantyPolicy` templates, and `WarrantyBounds` (min/max duration in hours). Its templates initialize a new Listing, which may tailor its own fields and policy; its warranty duration must remain within the selected Sub-Category’s bounds. Parent Categories are purely organizational and do not store commission rates.
 - **Deletion**: An Admin may hard-delete a Category only if zero `Listing`s are linked to it; otherwise, the Category must be `ARCHIVED`.
 
 ### Order
@@ -117,13 +117,21 @@ An in-app or system alert sent to a `User` or `Seller` triggered by lifecycle ev
 
 An immutable value object representing monetary value in Vietnamese Đồng (`amount: integer`, `currency: 'VND'`).
 
+### Processing Expectation
+
+A positive whole-number estimate, in hours, of the time a Seller expects to need before fulfillment. It is displayed on a Listing and snapshotted on each purchased OrderItem.
+
 ### WarrantyPolicy
 
 An immutable snapshot embedded on a `Listing` and copied to each `OrderItem` at purchase time (`durationHours: number`, `terms: string`). Defines the warranty protection period during which the item's funds remain in escrow.
 
 ### ServiceInputField
 
-An embedded definition schema on a `Listing` specifying required custom inputs from the buyer (e.g., `[{ key: 'profile_link', label: 'Link Profile', type: 'text', required: true }]`).
+An embedded definition schema on a `Listing` specifying required custom inputs from the buyer (e.g., `[{ key: 'profile_link', label: 'Link Profile', type: 'text', required: true }]`). Field keys are unique within a Listing.
+
+### Listing Media
+
+An image attached to a Listing. It is visible to its Seller and Admin while private, and to Buyers only while the Listing and its Category are publicly available.
 
 ### OrderCustomInput
 

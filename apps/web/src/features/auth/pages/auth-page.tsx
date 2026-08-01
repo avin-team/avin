@@ -12,6 +12,7 @@ import { cn } from "@avin/ui/lib/utils";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { Shell } from "@/components/shell";
 import { AuthDivider } from "@/features/auth/components/auth-divider";
 import { DecorIcon } from "@/features/auth/components/decor-icon";
 import { GoogleSignInButton } from "@/features/auth/components/google-sign-in-button";
@@ -86,7 +87,7 @@ export const AuthPage = () => {
   };
 
   return (
-    <main className="relative flex w-full items-center justify-center">
+    <Shell variant="centered">
       <section
         className={cn(
           "relative flex w-full max-w-sm flex-col justify-between p-6 md:p-8",
@@ -160,6 +161,6 @@ export const AuthPage = () => {
           </p>
         </div>
       </section>
-    </main>
+    </Shell>
   );
 };

@@ -1,3 +1,4 @@
+import { ACCOUNT_ROLE } from "@avin/auth/permissions";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Menu, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -105,8 +106,25 @@ export const MobileNav = ({ isOpen, items, onToggle }: MobileNavProps) => {
                     <div className="px-4 text-muted-foreground text-xs">
                       {session.user.email}
                     </div>
+                    {session.user.role === ACCOUNT_ROLE.SELLER ? (
+                      <Link
+                        className="mt-2 block w-full rounded-lg px-4 py-2 font-medium text-foreground text-sm transition-colors duration-200 hover:bg-muted"
+                        onClick={onToggle}
+                        to="/seller/listings"
+                      >
+                        Quản lý tin đăng
+                      </Link>
+                    ) : (
+                      <Link
+                        className="mt-2 block w-full rounded-lg px-4 py-2 font-medium text-foreground text-sm transition-colors duration-200 hover:bg-muted"
+                        onClick={onToggle}
+                        to="/seller/onboarding"
+                      >
+                        Đăng ký Người bán
+                      </Link>
+                    )}
                     <Link
-                      className="mt-2 block w-full rounded-lg px-4 py-2 font-medium text-foreground text-sm transition-colors duration-200 hover:bg-muted"
+                      className="block w-full rounded-lg px-4 py-2 font-medium text-foreground text-sm transition-colors duration-200 hover:bg-muted"
                       onClick={onToggle}
                       to="/security"
                     >

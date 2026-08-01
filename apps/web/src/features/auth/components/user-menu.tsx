@@ -1,3 +1,4 @@
+import { ACCOUNT_ROLE } from "@avin/auth/permissions";
 import { Button } from "@avin/ui/components/button";
 import {
   DropdownMenu,
@@ -41,6 +42,8 @@ export const UserMenu = () => {
     );
   }
 
+  const isSeller = session.user.role === ACCOUNT_ROLE.SELLER;
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger render={<Button variant="outline" />}>
@@ -51,15 +54,27 @@ export const UserMenu = () => {
           <DropdownMenuLabel>Tài khoản của tôi</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem>{session.user.email}</DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={async () => {
-              await navigate({
-                to: "/seller/onboarding",
-              });
-            }}
-          >
-            Đăng ký Người bán
-          </DropdownMenuItem>
+          {isSeller ? (
+            <DropdownMenuItem
+              onClick={async () => {
+                await navigate({
+                  to: "/seller/listings",
+                });
+              }}
+            >
+              Quản lý tin đăng
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem
+              onClick={async () => {
+                await navigate({
+                  to: "/seller/onboarding",
+                });
+              }}
+            >
+              Đăng ký Người bán
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem
             onClick={async () => {
               await navigate({

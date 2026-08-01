@@ -24,7 +24,7 @@ export interface ShellProps
 }
 
 export const Shell = ({
-  as: Comp = "section",
+  as: Comp = "main",
   className,
   variant,
   ...props

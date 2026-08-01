@@ -1,11 +1,13 @@
 import { Button } from "@avin/ui/components/button";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 
+import { Shell } from "@/components/shell";
+
 export const NotFoundError = () => {
   const navigate = useNavigate();
   const { history } = useRouter();
   return (
-    <div className="h-svh">
+    <Shell variant="centered">
       <div className="m-auto flex h-full w-full flex-col items-center justify-center gap-2">
         <h1 className="text-[7rem] leading-tight font-bold">404</h1>
         <span className="font-medium">Oops! Page Not Found!</span>
@@ -20,6 +22,6 @@ export const NotFoundError = () => {
           <Button onClick={() => navigate({ to: "/" })}>Back to Home</Button>
         </div>
       </div>
-    </div>
+    </Shell>
   );
 };

@@ -2,6 +2,8 @@ import { Button } from "@avin/ui/components/button";
 import { cn } from "@avin/ui/lib/utils";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 
+import { Shell } from "@/components/shell";
+
 type GeneralErrorProps = React.HTMLAttributes<HTMLDivElement> & {
   minimal?: boolean;
 };
@@ -13,7 +15,7 @@ export const GeneralError = ({
   const navigate = useNavigate();
   const { history } = useRouter();
   return (
-    <div className={cn("h-svh w-full", className)}>
+    <Shell className={cn(className)} variant="centered">
       <div className="m-auto flex h-full w-full flex-col items-center justify-center gap-2">
         {!minimal && (
           <h1 className="text-[7rem] leading-tight font-bold">500</h1>
@@ -31,6 +33,6 @@ export const GeneralError = ({
           </div>
         )}
       </div>
-    </div>
+    </Shell>
   );
 };

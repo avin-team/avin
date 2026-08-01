@@ -7,6 +7,7 @@ import {
   CardTitle,
 } from "@avin/ui/components/card";
 
+import { Shell } from "@/components/shell";
 import { SignInForm } from "@/features/auth/components/sign-in-form";
 import type { PostAuthRoute } from "@/features/auth/utils/get-post-auth-route";
 
@@ -23,8 +24,8 @@ export const RoleSignInPage = ({
   redirectTo,
   title,
 }: RoleSignInPageProps) => (
-  <main className="mx-auto flex w-full max-w-md items-center">
-    <Card className="w-full">
+  <Shell variant="centered">
+    <Card className="mx-auto w-full max-w-md">
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
@@ -33,5 +34,5 @@ export const RoleSignInPage = ({
         <SignInForm expectedRole={expectedRole} redirectTo={redirectTo} />
       </CardContent>
     </Card>
-  </main>
+  </Shell>
 );

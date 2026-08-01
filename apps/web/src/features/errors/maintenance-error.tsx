@@ -1,7 +1,9 @@
 import { Button } from "@avin/ui/components/button";
 
+import { Shell } from "@/components/shell";
+
 export const MaintenanceError = () => (
-  <div className="h-svh">
+  <Shell variant="centered">
     <div className="m-auto flex h-full w-full flex-col items-center justify-center gap-2">
       <h1 className="text-[7rem] leading-tight font-bold">503</h1>
       <span className="font-medium">Website is under maintenance!</span>
@@ -13,5 +15,5 @@ export const MaintenanceError = () => (
         <Button variant="outline">Learn more</Button>
       </div>
     </div>
-  </div>
+  </Shell>
 );

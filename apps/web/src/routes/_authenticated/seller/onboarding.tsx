@@ -1,12 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { Shell } from "@/components/shell";
 import { SellerOnboardingForm } from "@/features/seller/components/seller-onboarding-form";
 
 const SellerOnboardingPage = () => {
   return (
-    <div className="container mx-auto px-4 py-8">
+    <Shell variant="default">
       <SellerOnboardingForm />
-    </div>
+    </Shell>
   );
 };
 

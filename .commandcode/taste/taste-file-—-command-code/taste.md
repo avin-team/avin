@@ -11,7 +11,15 @@
 - Prefers minimal, recommendation-only changes — do only what is advised, avoid over-engineering or extra scope. Confidence: 0.75
 - Uses Resend for transactional email delivery. Confidence: 0.70
 - Prefers AI agent to commit and push code directly without asking for confirmation each time. Confidence: 0.85
-- Wants coding rules/standards synthesized into a document for AI agents to follow before implementation begins. Confidence: 0.70
+- Wants coding rules/standards synthesized into a document for AI agents to follow before implementation begins. Confidence: 0.80
+
+- Backend API packages follow domain/feature-based folder structure: each domain (e.g., `access/`, `listing/`, `seller-application/`) owns its own `router.ts`, procedures, and `*.test.ts`. The root `router.ts` only composes domain routers. Avoids shallow module patterns like `helpers/`, `schemas/`, `repositories/`, or one-file-per-handler — each domain encapsulates its own logic. Confidence: 0.90
+
+- Tests for API routers should exercise the router interface (integration-level), not test duplicated schemas or private helper functions in isolation. Confidence: 0.80
+
+- Prefers explicit named entry paths in `package.json` `"exports"` field (e.g., `"./router": "./src/router.ts"`) over wildcard `"./*"` exports, giving callers stable import paths. Confidence: 0.75
+
+- When AI-made changes introduce more problems than they solve, prefers full revert of those changes and a fresh approach rather than piling on incremental fixes. Confidence: 0.65
 - Uses `file://` URIs to point to reference files when giving instructions (e.g., `file:///path/to/boilerplate/__root.tsx`). Confidence: 0.70
 - Uses `bun x ultracite` as the project linter/formatter — `bun x ultracite check` for linting and `bun x ultracite fix` for auto-fixing. Confidence: 0.85
 - Prefers `const` arrow function components (`export const Foo = () => (...)`) over `function` declarations, per `func-style` lint rule. Confidence: 0.80
@@ -24,6 +32,8 @@
 - All regex literals must include the `u` (unicode) flag (e.g., `/đăng nhập/iu`, not `/đăng nhập/i`), enforced by ultracite lint. Confidence: 0.80
 - Test helper functions (`renderForm`, `fillAndSubmit`, etc.) must be defined at top-level module scope, not nested inside `describe` blocks. Confidence: 0.75
 - Prefers entire card components to be clickable navigation links, not just a small link/button inside the card (e.g., wrapping the whole card in TanStack Router `<Link>` rather than having only a "View more" link at the bottom). Confidence: 0.70
+
+- When adding related ticket references to a Jira comment, prefers editing the existing comment (via `commentId`) rather than posting a new separate comment, keeping the comment thread clean. Confidence: 0.65
 
 - Zero tolerance for inline lint suppression comments (e.g., `/* oxlint-disable */`, `// oxlint-disable-next-line`). Fix the underlying code issues instead of suppressing them. If a rule genuinely does not apply to the project, disable it at the config level (`oxlint.config.ts`), not inline. Confidence: 0.85
 - Prefers disabling inapplicable lint rules in the config file (`oxlint.config.ts`) rather than scattering inline disable comments throughout source files. Confidence: 0.75
