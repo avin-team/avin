@@ -28,6 +28,7 @@ import { Route as publicCategoryParentSlugRouteImport } from './routes/(public)/
 import { Route as publicListingIdRouteImport } from './routes/(public)/listing/$id'
 import { Route as AuthenticatedSellerListingsRouteImport } from './routes/_authenticated/seller/listings'
 import { Route as AuthenticatedSellerOnboardingRouteImport } from './routes/_authenticated/seller/onboarding'
+import { Route as AuthenticatedSellerListingsIdRouteImport } from './routes/_authenticated/seller/listings/$id'
 
 const authRouteRoute = authRouteRouteImport.update({
   id: '/(auth)',
@@ -124,6 +125,12 @@ const AuthenticatedSellerOnboardingRoute =
     path: '/seller/onboarding',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedSellerListingsIdRoute =
+  AuthenticatedSellerListingsIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => AuthenticatedSellerListingsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof publicIndexRoute
@@ -139,9 +146,10 @@ export interface FileRoutesByFullPath {
   '/seller/login': typeof authSellerLoginRoute
   '/category/$parentSlug': typeof publicCategoryParentSlugRoute
   '/listing/$id': typeof publicListingIdRoute
-  '/seller/listings': typeof AuthenticatedSellerListingsRoute
+  '/seller/listings': typeof AuthenticatedSellerListingsRouteWithChildren
   '/seller/onboarding': typeof AuthenticatedSellerOnboardingRoute
   '/category/': typeof publicCategoryIndexRoute
+  '/seller/listings/$id': typeof AuthenticatedSellerListingsIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof publicIndexRoute
@@ -157,9 +165,10 @@ export interface FileRoutesByTo {
   '/seller/login': typeof authSellerLoginRoute
   '/category/$parentSlug': typeof publicCategoryParentSlugRoute
   '/listing/$id': typeof publicListingIdRoute
-  '/seller/listings': typeof AuthenticatedSellerListingsRoute
+  '/seller/listings': typeof AuthenticatedSellerListingsRouteWithChildren
   '/seller/onboarding': typeof AuthenticatedSellerOnboardingRoute
   '/category': typeof publicCategoryIndexRoute
+  '/seller/listings/$id': typeof AuthenticatedSellerListingsIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -179,9 +188,10 @@ export interface FileRoutesById {
   '/(auth)/seller/login': typeof authSellerLoginRoute
   '/(public)/category/$parentSlug': typeof publicCategoryParentSlugRoute
   '/(public)/listing/$id': typeof publicListingIdRoute
-  '/_authenticated/seller/listings': typeof AuthenticatedSellerListingsRoute
+  '/_authenticated/seller/listings': typeof AuthenticatedSellerListingsRouteWithChildren
   '/_authenticated/seller/onboarding': typeof AuthenticatedSellerOnboardingRoute
   '/(public)/category/': typeof publicCategoryIndexRoute
+  '/_authenticated/seller/listings/$id': typeof AuthenticatedSellerListingsIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -202,6 +212,7 @@ export interface FileRouteTypes {
     | '/seller/listings'
     | '/seller/onboarding'
     | '/category/'
+    | '/seller/listings/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -220,6 +231,7 @@ export interface FileRouteTypes {
     | '/seller/listings'
     | '/seller/onboarding'
     | '/category'
+    | '/seller/listings/$id'
   id:
     | '__root__'
     | '/(auth)'
@@ -241,6 +253,7 @@ export interface FileRouteTypes {
     | '/_authenticated/seller/listings'
     | '/_authenticated/seller/onboarding'
     | '/(public)/category/'
+    | '/_authenticated/seller/listings/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -389,6 +402,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSellerOnboardingRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/seller/listings/$id': {
+      id: '/_authenticated/seller/listings/$id'
+      path: '/$id'
+      fullPath: '/seller/listings/$id'
+      preLoaderRoute: typeof AuthenticatedSellerListingsIdRouteImport
+      parentRoute: typeof AuthenticatedSellerListingsRoute
+    }
   }
 }
 
@@ -424,11 +444,25 @@ const publicRouteRouteWithChildren = publicRouteRoute._addFileChildren(
   publicRouteRouteChildren,
 )
 
+interface AuthenticatedSellerListingsRouteChildren {
+  AuthenticatedSellerListingsIdRoute: typeof AuthenticatedSellerListingsIdRoute
+}
+
+const AuthenticatedSellerListingsRouteChildren: AuthenticatedSellerListingsRouteChildren =
+  {
+    AuthenticatedSellerListingsIdRoute: AuthenticatedSellerListingsIdRoute,
+  }
+
+const AuthenticatedSellerListingsRouteWithChildren =
+  AuthenticatedSellerListingsRoute._addFileChildren(
+    AuthenticatedSellerListingsRouteChildren,
+  )
+
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAiRoute: typeof AuthenticatedAiRoute
   AuthenticatedSecurityRoute: typeof AuthenticatedSecurityRoute
   AuthenticatedTwoFactorRoute: typeof AuthenticatedTwoFactorRoute
-  AuthenticatedSellerListingsRoute: typeof AuthenticatedSellerListingsRoute
+  AuthenticatedSellerListingsRoute: typeof AuthenticatedSellerListingsRouteWithChildren
   AuthenticatedSellerOnboardingRoute: typeof AuthenticatedSellerOnboardingRoute
 }
 
@@ -436,7 +470,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAiRoute: AuthenticatedAiRoute,
   AuthenticatedSecurityRoute: AuthenticatedSecurityRoute,
   AuthenticatedTwoFactorRoute: AuthenticatedTwoFactorRoute,
-  AuthenticatedSellerListingsRoute: AuthenticatedSellerListingsRoute,
+  AuthenticatedSellerListingsRoute:
+    AuthenticatedSellerListingsRouteWithChildren,
   AuthenticatedSellerOnboardingRoute: AuthenticatedSellerOnboardingRoute,
 }
 

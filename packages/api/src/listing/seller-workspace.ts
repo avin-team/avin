@@ -345,6 +345,13 @@ export const sellerWorkspaceRouter = {
       return assertDraft(input.id, context.session.user.id);
     }),
 
+  get: sellerProcedure
+    .input(z.object({ id: z.string() }))
+    .handler(async ({ context, input }) => {
+      await assertEligibleSeller(context.session.user.id);
+      return assertOwnedListing(input.id, context.session.user.id);
+    }),
+
   getMediaAccess: protectedProcedure
     .input(z.object({ listingId: z.string() }))
     .handler(async ({ context, input }) => {
@@ -470,7 +477,7 @@ export const sellerWorkspaceRouter = {
         });
       }
 
-      if (input.categoryId) {
+      if (input.categoryId && input.categoryId !== found.categoryId) {
         await assertActiveSubCategory(input.categoryId);
       }
 

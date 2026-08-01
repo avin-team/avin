@@ -1,4 +1,14 @@
 import { Alert, AlertDescription, AlertTitle } from "@avin/ui/components/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@avin/ui/components/alert-dialog";
 import { Badge } from "@avin/ui/components/badge";
 import { Button } from "@avin/ui/components/button";
 import {
@@ -20,7 +30,7 @@ import {
 } from "@avin/ui/components/select";
 import { Skeleton } from "@avin/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   AlertCircle,
   Archive,
@@ -32,7 +42,6 @@ import {
   Pause,
   Play,
   Plus,
-  Rocket,
   Wrench,
 } from "lucide-react";
 import { useState } from "react";
@@ -59,10 +68,15 @@ const STATUS_BADGE_VARIANTS: Record<
 
 export const ListingWorkspacePage = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate({ from: "/seller/listings" });
   const [parentCategoryId, setParentCategoryId] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [title, setTitle] = useState("");
   const [type, setType] = useState<"SERVICE" | "COURSE">("SERVICE");
+  const [archiveTarget, setArchiveTarget] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
 
   const categoriesQuery = useQuery(
     orpc.listing.discovery.categories.queryOptions()
@@ -73,7 +87,7 @@ export const ListingWorkspacePage = () => {
 
   const createMutation = useMutation(
     orpc.listing.sellerWorkspace.createDraft.mutationOptions({
-      onSuccess: async () => {
+      onSuccess: async (created) => {
         toast.success("Private draft created!");
         setTitle("");
         setParentCategoryId("");
@@ -81,23 +95,13 @@ export const ListingWorkspacePage = () => {
         await queryClient.invalidateQueries({
           queryKey: orpc.listing.sellerWorkspace.listMine.key(),
         });
-      },
-      onError: (err) => {
-        toast.error(err.message || "Failed to create draft");
-      },
-    })
-  );
-
-  const publishMutation = useMutation(
-    orpc.listing.sellerWorkspace.publish.mutationOptions({
-      onSuccess: async () => {
-        toast.success("Listing published successfully!");
-        await queryClient.invalidateQueries({
-          queryKey: orpc.listing.sellerWorkspace.listMine.key(),
+        await navigate({
+          params: { id: created.id },
+          to: "/seller/listings/$id",
         });
       },
       onError: (err) => {
-        toast.error(err.message || "Failed to publish listing");
+        toast.error(err.message || "Failed to create draft");
       },
     })
   );
@@ -133,6 +137,7 @@ export const ListingWorkspacePage = () => {
   const archiveMutation = useMutation(
     orpc.listing.sellerWorkspace.archive.mutationOptions({
       onSuccess: async () => {
+        setArchiveTarget(null);
         toast.success("Listing archived");
         await queryClient.invalidateQueries({
           queryKey: orpc.listing.sellerWorkspace.listMine.key(),
@@ -175,7 +180,6 @@ export const ListingWorkspacePage = () => {
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {listingsQuery.data.map((listing) => {
             const isPendingAction =
-              publishMutation.isPending ||
               pauseMutation.isPending ||
               resumeMutation.isPending ||
               archiveMutation.isPending;
@@ -219,33 +223,28 @@ export const ListingWorkspacePage = () => {
 
                   <CardFooter className="flex flex-col gap-2 border-t border-border/40 pt-3">
                     <div className="flex w-full items-center justify-between">
-                      <Link
-                        className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
-                        params={{ id: listing.slug ?? listing.id }}
-                        to="/listing/$id"
-                      >
-                        <span>View listing</span>
-                        <ExternalLink className="size-3" />
-                      </Link>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Link
+                          className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+                          params={{ id: listing.id }}
+                          to="/seller/listings/$id"
+                        >
+                          <FileEdit className="size-3" />
+                          <span>Edit listing</span>
+                        </Link>
+                        <Link
+                          className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:underline"
+                          params={{ id: listing.slug ?? listing.id }}
+                          to="/listing/$id"
+                        >
+                          <span>Preview</span>
+                          <ExternalLink className="size-3" />
+                        </Link>
+                      </div>
                     </div>
 
                     {/* Action buttons */}
                     <div className="flex w-full flex-wrap gap-2 pt-1">
-                      {listing.status === "DRAFT" ? (
-                        <Button
-                          className="h-8 text-xs"
-                          disabled={isPendingAction}
-                          onClick={() =>
-                            publishMutation.mutate({ id: listing.id })
-                          }
-                          size="sm"
-                          variant="default"
-                        >
-                          <Rocket className="mr-1 size-3" />
-                          Publish
-                        </Button>
-                      ) : null}
-
                       {listing.status === "PUBLISHED" ? (
                         <Button
                           className="h-8 text-xs"
@@ -281,7 +280,10 @@ export const ListingWorkspacePage = () => {
                           className="h-8 text-xs"
                           disabled={isPendingAction}
                           onClick={() =>
-                            archiveMutation.mutate({ id: listing.id })
+                            setArchiveTarget({
+                              id: listing.id,
+                              title: listing.title ?? "Untitled listing",
+                            })
                           }
                           size="sm"
                           variant="ghost"
@@ -322,8 +324,8 @@ export const ListingWorkspacePage = () => {
             </h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            Create drafts, publish offerings, edit listings, and manage your
-            listing lifecycle.
+            Create drafts, finish them step by step, and manage the listing
+            lifecycle without losing your work.
           </p>
         </header>
 
@@ -494,6 +496,38 @@ export const ListingWorkspacePage = () => {
           {renderListingsContent()}
         </section>
       </div>
+      <AlertDialog
+        onOpenChange={(open) => {
+          if (!open) {
+            setArchiveTarget(null);
+          }
+        }}
+        open={Boolean(archiveTarget)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive this listing?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {archiveTarget?.title} will be removed from your active listings.
+              Archived listings are retained for order history and cannot be
+              restored.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep listing</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (archiveTarget) {
+                  archiveMutation.mutate({ id: archiveTarget.id });
+                }
+              }}
+              variant="destructive"
+            >
+              Archive listing
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Shell>
   );
 };
