@@ -11,6 +11,7 @@ import { and, eq, or } from "drizzle-orm";
 import { z } from "zod";
 
 import { protectedProcedure, sellerProcedure } from "../access/procedures";
+import { slugify } from "../runtime/slug";
 import { getManagedListingImageKeysToDelete } from "../runtime/storage";
 
 export const CURRENT_SELLER_AGREEMENT_VERSION = "v1.0";
@@ -37,19 +38,6 @@ const draftFieldsSchema = z.object({
   warrantyDurationHours: z.number().int().min(0).nullable().optional(),
   warrantyTerms: z.string().max(10_000).nullable().optional(),
 });
-
-const slugify = (value: string): string =>
-  value
-    .normalize("NFD")
-    .replaceAll(/[\u0300-\u036F]/gu, "")
-    .replaceAll("đ", "d")
-    .replaceAll("Đ", "D")
-    .toLowerCase()
-    .trim()
-    .replaceAll(/[^a-z0-9\s-]/gu, "")
-    .replaceAll(/[\s_]+/gu, "-")
-    .replaceAll(/-+/gu, "-")
-    .replaceAll(/^-+|-+$/gu, "");
 
 const makeSlug = (title: string | null | undefined): string => {
   const base = title ? slugify(title) : "listing";

@@ -50,6 +50,13 @@
       "when": 1785553520714,
       "tag": "0006_classy_stingray",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785601524527,
+      "tag": "0007_luxuriant_stature",
+      "breakpoints": true
     }
   ]
 }

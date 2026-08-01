@@ -5,6 +5,7 @@
     "./context": "./src/runtime/context.ts",
     "./listing/seller-workspace": "./src/listing/seller-workspace.ts",
     "./router": "./src/router.ts",
+    "./seller-store/profile": "./src/seller-store/profile.ts",
     "./storage": "./src/runtime/storage.ts"
   },
   "scripts": {

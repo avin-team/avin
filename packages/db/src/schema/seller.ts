@@ -34,12 +34,14 @@ export const sellerProfile = pgTable(
   "seller_profile",
   {
     avatarUrl: text("avatar_url"),
+    bannerUrl: text("banner_url"),
     bankAccount: jsonb("bank_account").$type<BankAccount>(),
     bio: text("bio"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     id: uuid("id").defaultRandom().primaryKey(),
     phone: text("phone"),
     phoneVerified: boolean("phone_verified").default(false).notNull(),
+    storeSlug: text("store_slug").notNull(),
     storefrontName: text("storefront_name").notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
@@ -52,6 +54,7 @@ export const sellerProfile = pgTable(
   },
   (table) => [
     uniqueIndex("seller_profile_user_id_idx").on(table.userId),
+    uniqueIndex("seller_profile_store_slug_idx").on(table.storeSlug),
     index("seller_profile_phone_idx").on(table.phone),
   ]
 );

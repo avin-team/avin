@@ -29,6 +29,7 @@ import { Route as publicListingIdRouteImport } from './routes/(public)/listing/$
 import { Route as AuthenticatedSellerListingsRouteImport } from './routes/_authenticated/seller/listings'
 import { Route as AuthenticatedSellerOnboardingRouteImport } from './routes/_authenticated/seller/onboarding'
 import { Route as AuthenticatedSellerStoreRouteImport } from './routes/_authenticated/seller/store'
+import { Route as AuthenticatedSellerStorePreviewRouteImport } from './routes/_authenticated/seller/store-preview'
 import { Route as AuthenticatedSellerListingsIdRouteImport } from './routes/_authenticated/seller/listings/$id'
 
 const authRouteRoute = authRouteRouteImport.update({
@@ -132,6 +133,12 @@ const AuthenticatedSellerStoreRoute =
     path: '/seller/store',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedSellerStorePreviewRoute =
+  AuthenticatedSellerStorePreviewRouteImport.update({
+    id: '/seller/store-preview',
+    path: '/seller/store-preview',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSellerListingsIdRoute =
   AuthenticatedSellerListingsIdRouteImport.update({
     id: '/$id',
@@ -156,6 +163,7 @@ export interface FileRoutesByFullPath {
   '/seller/listings': typeof AuthenticatedSellerListingsRouteWithChildren
   '/seller/onboarding': typeof AuthenticatedSellerOnboardingRoute
   '/seller/store': typeof AuthenticatedSellerStoreRoute
+  '/seller/store-preview': typeof AuthenticatedSellerStorePreviewRoute
   '/category/': typeof publicCategoryIndexRoute
   '/seller/listings/$id': typeof AuthenticatedSellerListingsIdRoute
 }
@@ -176,6 +184,7 @@ export interface FileRoutesByTo {
   '/seller/listings': typeof AuthenticatedSellerListingsRouteWithChildren
   '/seller/onboarding': typeof AuthenticatedSellerOnboardingRoute
   '/seller/store': typeof AuthenticatedSellerStoreRoute
+  '/seller/store-preview': typeof AuthenticatedSellerStorePreviewRoute
   '/category': typeof publicCategoryIndexRoute
   '/seller/listings/$id': typeof AuthenticatedSellerListingsIdRoute
 }
@@ -200,6 +209,7 @@ export interface FileRoutesById {
   '/_authenticated/seller/listings': typeof AuthenticatedSellerListingsRouteWithChildren
   '/_authenticated/seller/onboarding': typeof AuthenticatedSellerOnboardingRoute
   '/_authenticated/seller/store': typeof AuthenticatedSellerStoreRoute
+  '/_authenticated/seller/store-preview': typeof AuthenticatedSellerStorePreviewRoute
   '/(public)/category/': typeof publicCategoryIndexRoute
   '/_authenticated/seller/listings/$id': typeof AuthenticatedSellerListingsIdRoute
 }
@@ -222,6 +232,7 @@ export interface FileRouteTypes {
     | '/seller/listings'
     | '/seller/onboarding'
     | '/seller/store'
+    | '/seller/store-preview'
     | '/category/'
     | '/seller/listings/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -242,6 +253,7 @@ export interface FileRouteTypes {
     | '/seller/listings'
     | '/seller/onboarding'
     | '/seller/store'
+    | '/seller/store-preview'
     | '/category'
     | '/seller/listings/$id'
   id:
@@ -265,6 +277,7 @@ export interface FileRouteTypes {
     | '/_authenticated/seller/listings'
     | '/_authenticated/seller/onboarding'
     | '/_authenticated/seller/store'
+    | '/_authenticated/seller/store-preview'
     | '/(public)/category/'
     | '/_authenticated/seller/listings/$id'
   fileRoutesById: FileRoutesById
@@ -422,6 +435,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSellerStoreRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/seller/store-preview': {
+      id: '/_authenticated/seller/store-preview'
+      path: '/seller/store-preview'
+      fullPath: '/seller/store-preview'
+      preLoaderRoute: typeof AuthenticatedSellerStorePreviewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/seller/listings/$id': {
       id: '/_authenticated/seller/listings/$id'
       path: '/$id'
@@ -485,6 +505,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSellerListingsRoute: typeof AuthenticatedSellerListingsRouteWithChildren
   AuthenticatedSellerOnboardingRoute: typeof AuthenticatedSellerOnboardingRoute
   AuthenticatedSellerStoreRoute: typeof AuthenticatedSellerStoreRoute
+  AuthenticatedSellerStorePreviewRoute: typeof AuthenticatedSellerStorePreviewRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -495,6 +516,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedSellerListingsRouteWithChildren,
   AuthenticatedSellerOnboardingRoute: AuthenticatedSellerOnboardingRoute,
   AuthenticatedSellerStoreRoute: AuthenticatedSellerStoreRoute,
+  AuthenticatedSellerStorePreviewRoute: AuthenticatedSellerStorePreviewRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

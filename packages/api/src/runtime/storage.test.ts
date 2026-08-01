@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   createListingImageKey,
   createSellerLogoKey,
+  createSellerBannerKey,
   createPublicMediaUrl,
   getManagedListingImageKeysToDelete,
   PUBLIC_MEDIA_BUCKET,
@@ -97,5 +98,19 @@ describe("seller logo storage helpers", () => {
     expect(createPublicMediaUrl(SUPABASE_URL, key)).toBe(
       `${SUPABASE_URL}/storage/v1/object/public/${PUBLIC_MEDIA_BUCKET}/${key}`
     );
+  });
+});
+
+describe("seller banner storage helpers", () => {
+  it("creates a managed key from the seller and MIME type", () => {
+    expect(createSellerBannerKey(SELLER_ID, "image/jpeg", NEW_OBJECT_ID)).toBe(
+      `sellers/${SELLER_ID}/banner/${NEW_OBJECT_ID}.jpg`
+    );
+  });
+
+  it("rejects MIME types outside the seller banner allowlist", () => {
+    expect(() =>
+      createSellerBannerKey(SELLER_ID, "image/gif", NEW_OBJECT_ID)
+    ).toThrow("Unsupported seller banner type");
   });
 });

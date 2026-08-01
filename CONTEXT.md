@@ -28,7 +28,7 @@ The globally unique, lowercase, URL-safe public address of a Store profile. A ne
 
 ### Store media
 
-Images that establish a Store profile's visual identity. An avatar is required for Store profile completion; a banner is optional. A Seller may save incomplete media privately.
+Images that establish a Store profile's visual identity. An avatar is required when saving a Store profile; a banner is optional. A Seller may keep the banner empty while the profile remains private.
 
 ### Store avatar
 

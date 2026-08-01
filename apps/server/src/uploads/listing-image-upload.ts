@@ -4,11 +4,15 @@ import {
 } from "@avin/api/listing/seller-workspace";
 import {
   createListingImageKey,
+  createSellerBannerKey,
   createSellerLogoKey,
   LISTING_IMAGE_CONTENT_TYPES,
   LISTING_IMAGE_MAX_BYTES,
   LISTING_IMAGE_UPLOAD_ROUTE,
   PUBLIC_MEDIA_BUCKET,
+  SELLER_BANNER_CONTENT_TYPES,
+  SELLER_BANNER_MAX_BYTES,
+  SELLER_BANNER_UPLOAD_ROUTE,
   SELLER_LOGO_CONTENT_TYPES,
   SELLER_LOGO_MAX_BYTES,
   SELLER_LOGO_UPLOAD_ROUTE,
@@ -24,6 +28,7 @@ const listingImageClientMetadataSchema = z.object({
 });
 
 const sellerLogoClientMetadataSchema = z.object({});
+const sellerBannerClientMetadataSchema = z.object({});
 
 export const createListingImageUploadRouter = (
   client: Router["client"]
@@ -104,6 +109,35 @@ export const createListingImageUploadRouter = (
           objectInfo: {
             cacheControl: "public, max-age=31536000, immutable",
             key: createSellerLogoKey(session.user.id, file.type),
+          },
+        };
+      },
+    }),
+    [SELLER_BANNER_UPLOAD_ROUTE]: route({
+      clientMetadataSchema: sellerBannerClientMetadataSchema,
+      fileTypes: [...SELLER_BANNER_CONTENT_TYPES],
+      maxFileSize: SELLER_BANNER_MAX_BYTES,
+      multipleFiles: false,
+      onBeforeUpload: async ({ file, req }) => {
+        const session = await auth.api.getSession({ headers: req.headers });
+        if (!session) {
+          throw new RejectUpload("Sign in before uploading a seller banner");
+        }
+
+        if (
+          !SELLER_BANNER_CONTENT_TYPES.includes(
+            file.type as (typeof SELLER_BANNER_CONTENT_TYPES)[number]
+          )
+        ) {
+          throw new RejectUpload(
+            "Seller banners must be JPEG, PNG, or WebP files"
+          );
+        }
+
+        return {
+          objectInfo: {
+            cacheControl: "public, max-age=31536000, immutable",
+            key: createSellerBannerKey(session.user.id, file.type),
           },
         };
       },

@@ -4,6 +4,8 @@ import { ORPCError } from "@orpc/server";
 import { and, desc, eq, gt } from "drizzle-orm";
 
 import { adminProcedure, protectedProcedure } from "../access/procedures";
+import type { Context } from "../runtime/context";
+import { createStoreSlug } from "../seller-store/profile";
 import {
   adminDecideApplicationInputSchema,
   adminGetApplicationInputSchema,
@@ -15,6 +17,23 @@ import {
   updateDraftProfileInputSchema,
   verifyPhoneOtpInputSchema,
 } from "./onboarding";
+
+const createAvailableStoreSlug = async (
+  db: Context["db"],
+  storefrontName: string
+): Promise<string> => {
+  const baseSlug = createStoreSlug(storefrontName);
+  const existingSlug = await db.query.sellerProfile.findFirst({
+    columns: { id: true },
+    where: (table, { eq: equals }) => equals(table.storeSlug, baseSlug),
+  });
+
+  if (!existingSlug) {
+    return baseSlug;
+  }
+
+  return `${baseSlug.slice(0, 90)}-${crypto.randomUUID().slice(0, 8)}`;
+};
 
 export const sellerApplicationRouter = {
   adminDecide: adminProcedure
@@ -316,6 +335,10 @@ export const sellerApplicationRouter = {
         return updated;
       }
 
+      const storeSlug = await createAvailableStoreSlug(
+        context.db,
+        input.storefrontName
+      );
       const [created] = await context.db
         .insert(sellerProfile)
         .values({
@@ -324,6 +347,7 @@ export const sellerApplicationRouter = {
           bio: input.bio,
           phone: input.phone,
           phoneVerified: Boolean(input.phone),
+          storeSlug,
           storefrontName: input.storefrontName,
           userId,
         })
@@ -379,12 +403,18 @@ export const sellerApplicationRouter = {
         return updated;
       }
 
+      const storefrontName = `${context.session.user.name} Store`;
+      const storeSlug = await createAvailableStoreSlug(
+        context.db,
+        storefrontName
+      );
       const [created] = await context.db
         .insert(sellerProfile)
         .values({
           phone: input.phone,
           phoneVerified: true,
-          storefrontName: `${context.session.user.name} Store`,
+          storeSlug,
+          storefrontName,
           userId,
         })
         .returning();

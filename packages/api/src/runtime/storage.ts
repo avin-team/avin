@@ -2,6 +2,7 @@ export const PUBLIC_MEDIA_BUCKET = "public-media";
 
 export const LISTING_IMAGE_UPLOAD_ROUTE = "listing-image";
 export const SELLER_LOGO_UPLOAD_ROUTE = "seller-logo";
+export const SELLER_BANNER_UPLOAD_ROUTE = "seller-banner";
 
 export interface ManagedObjectStore {
   deleteObject: (key: string) => Promise<void>;
@@ -18,6 +19,8 @@ export const LISTING_IMAGE_CONTENT_TYPES = [
 
 export const SELLER_LOGO_MAX_BYTES = LISTING_IMAGE_MAX_BYTES;
 export const SELLER_LOGO_CONTENT_TYPES = LISTING_IMAGE_CONTENT_TYPES;
+export const SELLER_BANNER_MAX_BYTES = LISTING_IMAGE_MAX_BYTES;
+export const SELLER_BANNER_CONTENT_TYPES = LISTING_IMAGE_CONTENT_TYPES;
 
 type ListingImageContentType = (typeof LISTING_IMAGE_CONTENT_TYPES)[number];
 
@@ -67,6 +70,25 @@ export const createSellerLogoKey = (
   }
 
   return `sellers/${sellerId}/logo/${objectId}.${extension}`;
+};
+
+export const createSellerBannerKey = (
+  sellerId: string,
+  contentType: string,
+  objectId = crypto.randomUUID()
+): string => {
+  const extension =
+    LISTING_IMAGE_EXTENSIONS[contentType as ListingImageContentType];
+
+  if (!extension) {
+    throw new Error(`Unsupported seller banner type: ${contentType}`);
+  }
+
+  if (!SAFE_PATH_SEGMENT.test(sellerId) || !SAFE_PATH_SEGMENT.test(objectId)) {
+    throw new Error("Invalid seller banner path segment");
+  }
+
+  return `sellers/${sellerId}/banner/${objectId}.${extension}`;
 };
 
 export const createPublicMediaUrl = (

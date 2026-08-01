@@ -16,13 +16,6 @@ export interface MockProduct {
   status: "Đang bán" | "Đang chuẩn bị";
 }
 
-export const MOCK_STORE_PROFILE = {
-  description:
-    "Mình cung cấp dịch vụ số và các sản phẩm kỹ thuật giúp bạn bắt đầu nhanh hơn.",
-  name: "Studio của Ngọc",
-  slug: "studio-cua-ngoc",
-};
-
 export const MOCK_PRODUCTS: MockProduct[] = [
   {
     category: "Thiết kế",
