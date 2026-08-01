@@ -15,7 +15,6 @@ import {
   Store,
   TicketPercent,
   UserRound,
-  Wallet,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -31,10 +30,8 @@ const getSectionLabel = (section: StoreSection): string => {
     developer: "Nhà phát triển",
     discounts: "Mã giảm giá",
     finance: "Tài chính",
-    images: "Hình ảnh & Banner",
     orders: "Đơn hàng",
     overview: "Tổng quan",
-    payments: "Thanh toán",
     products: "Sản phẩm",
     profile: "Hồ sơ gian hàng",
   };
@@ -64,18 +61,6 @@ const PLACEHOLDER_SECTIONS = {
     description: "Xem doanh thu, số dư có thể rút và lịch sử nhận tiền.",
     icon: Landmark,
     title: "Tài chính",
-  },
-  images: {
-    description:
-      "Tạo diện mạo giúp khách nhận ra gian hàng của bạn ngay từ lần đầu ghé thăm.",
-    icon: ImageIcon,
-    title: "Hình ảnh & Banner",
-  },
-  payments: {
-    description:
-      "Thiết lập nơi nhận tiền sau khi đơn hàng hoàn tất. Thông tin này chỉ bạn và Avin có thể xem.",
-    icon: Wallet,
-    title: "Thanh toán",
   },
 } as const;
 
@@ -274,7 +259,7 @@ export const StorePage = () => {
   return (
     <SellerLayout active={active} onChange={setActive}>
       <div className="min-w-0 px-4 pb-16 pt-6 sm:px-6 lg:px-8">
-        <div className="mx-auto w-full max-w-[1920px]">
+        <div className="mx-auto w-full max-w-[2048px]">
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border/60 pb-5">
             <div className="flex items-start gap-2">
               <SidebarTrigger className="mt-0.5 shrink-0" />

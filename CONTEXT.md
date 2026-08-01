@@ -16,7 +16,35 @@ An authenticated account representing a buyer on the marketplace. Every `User` i
 
 ### Seller
 
-An authenticated entity representing an independent seller/merchant on the marketplace. A `Seller` manages their store profile, publishes `Listing`s, fulfills `Order`s, and maintains a `SellerWallet`. Its public profile exposes only storefront name, avatar, optional bio, joined month/year, average rating and rating count, and completed-order count; bank and verification data remain private.
+An authenticated entity representing an independent seller/merchant on the marketplace. A `Seller` manages their store profile, publishes `Listing`s, fulfills `Order`s, and maintains a `SellerWallet`. Its public profile exposes only storefront name, avatar, Store description, joined month/year, average rating and rating count, and completed-order count; bank and verification data remain private.
+
+### Store profile
+
+The Seller-controlled identity and presentation of a storefront: its display name, public address, description, and visual identity. A complete profile requires a display name, Store slug, Store description, and Store avatar; the banner is optional. A profile may be saved privately before the Seller opens for business. Saving a draft or changes updates the profile but does not publish the storefront or make it available for sales.
+
+### Store slug
+
+The globally unique, lowercase, URL-safe public address of a Store profile. A new Store profile receives an initial slug derived from its name; a Seller may change it while the Store profile remains private, and the address must pass validation before it is saved.
+
+### Store media
+
+Images that establish a Store profile's visual identity. An avatar is required for Store profile completion; a banner is optional. A Seller may save incomplete media privately.
+
+### Store avatar
+
+The primary square image representing a Store profile. Existing product language may call the same asset the Seller's logo.
+
+### Store description
+
+The short public explanation of what a Seller offers, who it serves, and what Buyers can expect. It is a required part of a complete Store profile.
+
+### Store status
+
+The Store's selling availability state. A Store profile can remain `Nháp` / `Chưa mở bán` while its identity and media are being saved. Store profile changes do not alter this status; a separate opening workflow controls when the Store becomes available for sales.
+
+### Store preview
+
+A Seller-only rendering of a Store profile used to inspect its saved public presentation before the Store opens for business. A preview does not make the Store publicly available.
 
 ### SellerApplication
 

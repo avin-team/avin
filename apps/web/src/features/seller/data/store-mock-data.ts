@@ -1,16 +1,12 @@
 export type StoreSection =
   | "overview"
   | "profile"
-  | "images"
-  | "payments"
   | "products"
   | "orders"
   | "complaints"
   | "discounts"
   | "finance"
   | "developer";
-
-export type ProfileTab = "basic" | "media" | "payments";
 
 export interface MockProduct {
   category: string;
