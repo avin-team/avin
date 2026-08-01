@@ -1,14 +1,12 @@
 import {
   BarChart3,
   Code2,
-  ImageIcon,
   Landmark,
   LayoutDashboard,
   Package,
   ShoppingBag,
   TicketPercent,
   UserRound,
-  Wallet,
 } from "lucide-react";
 
 import type { SellerNavGroup } from "../types";
@@ -26,8 +24,6 @@ export const SELLER_NAV_GROUPS: SellerNavGroup[] = [
         needsAttention: true,
         value: "profile",
       },
-      { icon: ImageIcon, label: "Hình ảnh & Banner", value: "images" },
-      { icon: Wallet, label: "Thanh toán", value: "payments" },
     ],
     title: "Thiết lập gian hàng",
   },

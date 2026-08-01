@@ -6,15 +6,21 @@ import {
 import { env } from "@avin/env/web";
 import { Button } from "@avin/ui/components/button";
 import { FileDropzone } from "@avin/ui/components/file-dropzone";
+import type { FileDropzoneProps } from "@avin/ui/components/file-dropzone";
 import { useUploadFile } from "@better-upload/client";
 import { LoaderCircle, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
+
+export interface SellerLogoValue {
+  name: string;
+  url: string;
+}
 
 interface SellerLogoUploaderProps {
   disabled?: boolean;
   fileName: string;
   logoUrl: string;
-  onLogoChange: (value: { name: string; url: string }) => void;
+  onLogoChange: (value: SellerLogoValue) => void;
 }
 
 const ACCEPTED_IMAGE_TYPES = {
@@ -43,6 +49,10 @@ const getRejectionErrorMessage = (code: string | undefined): string => {
   }
   return "Hãy chọn một ảnh logo hợp lệ.";
 };
+
+type FileRejectionList = Parameters<
+  NonNullable<FileDropzoneProps["onFilesRejected"]>
+>[0];
 
 export const SellerLogoUploader = ({
   disabled = false,
@@ -89,17 +99,39 @@ export const SellerLogoUploader = ({
     onLogoChange({ name: "", url: "" });
   };
 
+  const handleFilesRejected = (rejections: FileRejectionList) => {
+    setErrorMessage(getRejectionErrorMessage(rejections[0]?.errors[0]?.code));
+  };
+
   const isDisabled = disabled || upload.isPending;
+  const dropzoneProps = {
+    accept: ACCEPTED_IMAGE_TYPES,
+    disabled,
+    error: errorMessage,
+    helperText: "PNG, JPG hoặc WebP · tối đa 5MB",
+    inputLabel: "Chọn logo gian hàng",
+    isUploading: upload.isPending,
+    maxFiles: 1,
+    maxSize: SELLER_LOGO_MAX_BYTES,
+    multiple: false,
+    onFilesRejected: handleFilesRejected,
+    onFilesSelected: handleFilesSelected,
+    progress: upload.progress,
+  };
 
   return (
     <div className="space-y-2">
       {logoUrl ? (
-        <div className="relative">
-          <div className="overflow-hidden rounded-2xl border border-border/60 bg-muted/20">
+        <div className="group relative">
+          <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-muted/20 transition-colors group-hover:border-primary group-hover:bg-primary/5">
             <img
               alt={fileName ? `Logo ${fileName}` : "Xem trước logo gian hàng"}
               className="aspect-square w-full object-cover"
               src={logoUrl}
+            />
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 bg-background/0 transition-colors group-hover:bg-background/15"
             />
             {upload.isPending ? (
               <div className="absolute inset-0 flex items-center justify-center bg-background/60">
@@ -111,25 +143,11 @@ export const SellerLogoUploader = ({
             ) : null}
           </div>
           <FileDropzone
-            accept={ACCEPTED_IMAGE_TYPES}
+            {...dropzoneProps}
             className="sr-only"
-            disabled={disabled}
-            error={errorMessage}
-            helperText="PNG, JPG hoặc WebP · tối đa 5MB"
-            inputLabel="Chọn logo gian hàng"
-            isUploading={upload.isPending}
             label="Thay logo"
-            maxFiles={1}
-            maxSize={SELLER_LOGO_MAX_BYTES}
-            onFilesRejected={(rejections) => {
-              setErrorMessage(
-                getRejectionErrorMessage(rejections[0]?.errors[0]?.code)
-              );
-            }}
-            onFilesSelected={handleFilesSelected}
-            progress={upload.progress}
             renderTrigger={({ open }) => (
-              <div className="absolute right-2 top-2 z-10 flex gap-1">
+              <div className="pointer-events-none absolute right-2 top-2 z-10 flex gap-1 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100">
                 <Button
                   aria-label="Thay logo"
                   disabled={isDisabled}
@@ -154,29 +172,13 @@ export const SellerLogoUploader = ({
                 </Button>
               </div>
             )}
-            multiple={false}
           />
         </div>
       ) : (
         <FileDropzone
-          accept={ACCEPTED_IMAGE_TYPES}
+          {...dropzoneProps}
           className="aspect-square min-h-0 p-3"
-          disabled={disabled}
-          error={errorMessage}
-          helperText="PNG, JPG hoặc WebP · tối đa 5MB"
-          inputLabel="Chọn logo gian hàng"
-          isUploading={upload.isPending}
           label="Thêm logo"
-          maxFiles={1}
-          maxSize={SELLER_LOGO_MAX_BYTES}
-          onFilesRejected={(rejections) => {
-            setErrorMessage(
-              getRejectionErrorMessage(rejections[0]?.errors[0]?.code)
-            );
-          }}
-          onFilesSelected={handleFilesSelected}
-          progress={upload.progress}
-          multiple={false}
         />
       )}
     </div>

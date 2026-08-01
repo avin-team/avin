@@ -19,6 +19,7 @@ import { orpc } from "@/utils/orpc";
 
 import { MOCK_STORE_PROFILE } from "../data/store-mock-data";
 import { SellerLogoUploader } from "./seller-logo-uploader";
+import type { SellerLogoValue } from "./seller-logo-uploader";
 
 interface StoreProfileState {
   avatarName: string;
@@ -118,7 +119,7 @@ const UploadZone = ({ fileName, label, onSelect, ratio }: UploadZoneProps) => (
 interface MediaProfileFormProps {
   avatarUrl: string;
   state: StoreProfileState;
-  onLogoChange: (value: { name: string; url: string }) => void;
+  onLogoChange: (value: SellerLogoValue) => void;
   onSelectFile: (name: string) => void;
 }
 
@@ -263,7 +264,7 @@ export const StoreProfilePanel = () => {
     setState((previous) => ({ ...previous, bannerName: name }));
   };
 
-  const handleLogoChange = (value: { name: string; url: string }) => {
+  const handleLogoChange = (value: SellerLogoValue) => {
     setState((previous) => ({
       ...previous,
       avatarName: value.name,
