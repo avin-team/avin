@@ -1,7 +1,11 @@
 import type { ServiceInputFieldType } from "@avin/db/schema/catalog";
 import { describe, expect, it } from "vitest";
 
-import { assertPublishable, canAccessListingMedia } from "./seller-workspace";
+import {
+  assertPublishable,
+  canAccessListingMedia,
+  canUploadListingImage,
+} from "./seller-workspace";
 
 describe("seller workspace listing publication rules", () => {
   const validCategory = {
@@ -177,6 +181,32 @@ describe("listing media access security rules (ADR 0009)", () => {
       canAccessListingMedia(buyerUser, {
         ...listingItem,
         category: hiddenCategory,
+      })
+    ).toBe(false);
+  });
+});
+
+describe("listing image upload authorization rules", () => {
+  it("allows an eligible seller to upload for a non-archived owned listing", () => {
+    expect(
+      canUploadListingImage("seller-123", {
+        sellerId: "seller-123",
+        status: "DRAFT",
+      })
+    ).toBe(true);
+  });
+
+  it("denies uploads for another seller's listing or an archived listing", () => {
+    expect(
+      canUploadListingImage("seller-123", {
+        sellerId: "seller-456",
+        status: "DRAFT",
+      })
+    ).toBe(false);
+    expect(
+      canUploadListingImage("seller-123", {
+        sellerId: "seller-123",
+        status: "ARCHIVED",
       })
     ).toBe(false);
   });

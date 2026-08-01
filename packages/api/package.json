@@ -3,7 +3,9 @@
   "type": "module",
   "exports": {
     "./context": "./src/runtime/context.ts",
-    "./router": "./src/router.ts"
+    "./listing/seller-workspace": "./src/listing/seller-workspace.ts",
+    "./router": "./src/router.ts",
+    "./storage": "./src/runtime/storage.ts"
   },
   "scripts": {
     "check-types": "tsc -b",

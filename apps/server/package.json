@@ -16,6 +16,7 @@
     "@avin/auth": "workspace:*",
     "@avin/db": "workspace:*",
     "@avin/env": "workspace:*",
+    "@better-upload/server": "3.0.19",
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
     "@orpc/zod": "catalog:",

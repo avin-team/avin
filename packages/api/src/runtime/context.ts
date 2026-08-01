@@ -4,9 +4,11 @@ import { db } from "@avin/db";
 import type { Context as HonoContext } from "hono";
 
 import { auditRecorder } from "./audit-recorder";
+import type { ManagedObjectStore } from "./storage";
 
 export interface CreateContextOptions {
   context: HonoContext;
+  storage?: ManagedObjectStore;
 }
 
 type AuthSession = Awaited<ReturnType<typeof auth.api.getSession>>;
@@ -28,6 +30,7 @@ export interface AuditRecorder {
 
 export const createContext = async ({
   context,
+  storage,
 }: CreateContextOptions): Promise<Context> => {
   const authClient =
     getAuthSurface(context.req.raw.headers) === AUTH_SURFACE.ADMIN
@@ -40,6 +43,7 @@ export const createContext = async ({
     audit: auditRecorder,
     db,
     session,
+    storage,
   };
 };
 
@@ -47,4 +51,5 @@ export interface Context {
   audit: AuditRecorder;
   db: typeof db;
   session: MarketplaceSession | null;
+  storage?: ManagedObjectStore;
 }

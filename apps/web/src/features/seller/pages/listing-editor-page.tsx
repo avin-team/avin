@@ -41,7 +41,6 @@ import {
   Rocket,
   Save,
   Trash2,
-  UploadCloud,
   Wrench,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -49,6 +48,7 @@ import type { ReactNode } from "react";
 import { toast } from "sonner";
 
 import { Shell } from "@/components/shell";
+import { ListingImageUploader } from "@/features/seller/components/listing-image-uploader";
 import { listingEditorFormSchema } from "@/features/seller/schemas/listing-editor-schema";
 import { orpc } from "@/utils/orpc";
 
@@ -315,20 +315,6 @@ const EditorFieldError = ({ field }: { field: AnyFieldApi }) => {
   return isInvalid ? <FieldError errors={field.state.meta.errors} /> : null;
 };
 
-const MediaGuidance = ({ disabled }: { disabled: boolean }) => (
-  <div className="flex min-h-36 flex-col items-center justify-center rounded-2xl border border-dashed border-primary/35 bg-primary/[0.03] p-6 text-center">
-    <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-      <UploadCloud className="size-5" />
-    </div>
-    <p className="mt-3 text-sm font-semibold">Primary image</p>
-    <p className="mt-1 text-xs text-muted-foreground">
-      {disabled
-        ? "Archived listings cannot be changed."
-        : "Paste an image URL below. File uploads are not available in this editor yet."}
-    </p>
-  </div>
-);
-
 type ServiceInputFieldPath =
   | `serviceInputFields[${number}].key`
   | `serviceInputFields[${number}].label`
@@ -519,6 +505,7 @@ const EditorStepContent = ({
   onParentCategoryChange,
   onRemoveInputField,
   parentCategoryId,
+  listingId,
   categories,
   stepId,
 }: {
@@ -531,6 +518,7 @@ const EditorStepContent = ({
   onParentCategoryChange: (parentCategoryId: string) => void;
   onRemoveInputField: (fieldId: string) => void;
   parentCategoryId: string;
+  listingId: string;
   stepId: EditorStepId;
 }) => {
   const parentCategories: { label: string; value: string }[] = [];
@@ -779,42 +767,19 @@ const EditorStepContent = ({
     case "media": {
       return (
         <div className="space-y-5">
-          <MediaGuidance disabled={disabled} />
-          <div className="grid gap-2">
-            <Label htmlFor="listing-editor-thumbnail">Primary image URL</Label>
-            <editorForm.Field name="thumbnailUrl">
-              {(field) => (
-                <Input
-                  aria-invalid={
-                    field.state.meta.isTouched && !field.state.meta.isValid
-                  }
-                  disabled={disabled}
-                  id="listing-editor-thumbnail"
-                  name={field.name}
-                  onBlur={field.handleBlur}
-                  onChange={(event) => {
-                    onDirty();
-                    field.handleChange(event.target.value);
-                  }}
-                  placeholder="https://example.com/your-cover-image.jpg"
-                  type="url"
-                  value={field.state.value}
-                />
-              )}
-            </editorForm.Field>
-            <FieldHint>
-              This image is shown first and is required before publishing.
-            </FieldHint>
-          </div>
-          {form.thumbnailUrl ? (
-            <div className="overflow-hidden rounded-2xl border border-border/60 bg-muted/20">
-              <img
-                alt="Listing primary preview"
-                className="aspect-video w-full object-cover"
-                src={form.thumbnailUrl}
-              />
-            </div>
-          ) : null}
+          <ListingImageUploader
+            disabled={disabled}
+            listingId={listingId}
+            onDirty={onDirty}
+            onImageChange={({ images, thumbnailUrl }) => {
+              editorForm.setFieldValue("images", images);
+              editorForm.setFieldValue("thumbnailUrl", thumbnailUrl);
+            }}
+            thumbnailUrl={form.thumbnailUrl}
+          />
+          <FieldHint>
+            This image is shown first and is required before publishing.
+          </FieldHint>
         </div>
       );
     }
@@ -1430,6 +1395,7 @@ const ListingEditorFormPage = ({
                   onParentCategoryChange={handleParentCategoryChange}
                   onRemoveInputField={handleRemoveInputField}
                   parentCategoryId={parentCategoryId}
+                  listingId={id}
                   stepId={activeStep.id}
                 />
               </CardContent>

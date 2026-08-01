@@ -1,0 +1,43 @@
+import type { ManagedObjectStore } from "@avin/api/storage";
+import { PUBLIC_MEDIA_BUCKET } from "@avin/api/storage";
+import { env } from "@avin/env/server";
+import type { Router } from "@better-upload/server";
+import { custom } from "@better-upload/server/clients";
+import { deleteObject } from "@better-upload/server/helpers";
+
+export interface ListingImageStorageRuntime {
+  client: Router["client"];
+  objectStore: ManagedObjectStore;
+}
+
+export const createListingImageStorage =
+  (): ListingImageStorageRuntime | null => {
+    const accessKeyId = env.SUPABASE_STORAGE_S3_ACCESS_KEY_ID;
+    const endpoint = env.SUPABASE_STORAGE_S3_ENDPOINT;
+    const region = env.SUPABASE_STORAGE_S3_REGION;
+    const secretAccessKey = env.SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY;
+
+    if (!accessKeyId || !endpoint || !region || !secretAccessKey) {
+      return null;
+    }
+
+    const endpointUrl = new URL(endpoint);
+    const host = `${endpointUrl.host}${endpointUrl.pathname.replace(/\/$/u, "")}`;
+    const client = custom({
+      accessKeyId,
+      forcePathStyle: true,
+      host,
+      region,
+      secretAccessKey,
+      secure: endpointUrl.protocol === "https:",
+    });
+
+    return {
+      client,
+      objectStore: {
+        deleteObject: (key) =>
+          deleteObject(client, { bucket: PUBLIC_MEDIA_BUCKET, key }),
+        supabaseUrl: env.SUPABASE_URL,
+      },
+    };
+  };

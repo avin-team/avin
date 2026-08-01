@@ -23,6 +23,10 @@ export const env = createEnv({
     SUPABASE_JWT_PRIVATE_JWK: z.string().min(1),
     SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
     SUPABASE_SECRET_KEY: z.string().min(1),
+    SUPABASE_STORAGE_S3_ACCESS_KEY_ID: z.string().min(1).optional(),
+    SUPABASE_STORAGE_S3_ENDPOINT: z.url().optional(),
+    SUPABASE_STORAGE_S3_REGION: z.string().min(1).optional(),
+    SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY: z.string().min(1).optional(),
     SUPABASE_URL: z.url(),
   },
 });

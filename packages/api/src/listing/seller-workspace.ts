@@ -11,6 +11,7 @@ import { and, eq, or } from "drizzle-orm";
 import { z } from "zod";
 
 import { protectedProcedure, sellerProcedure } from "../access/procedures";
+import { getManagedListingImageKeysToDelete } from "../runtime/storage";
 
 export const CURRENT_SELLER_AGREEMENT_VERSION = "v1.0";
 
@@ -283,6 +284,12 @@ export const canAccessListingMedia = (
   );
 };
 
+export const canUploadListingImage = (
+  userId: string,
+  listingItem: { sellerId: string; status: string }
+): boolean =>
+  listingItem.sellerId === userId && listingItem.status !== "ARCHIVED";
+
 export const sellerWorkspaceRouter = {
   archive: sellerProcedure
     .input(z.object({ id: z.string() }))
@@ -548,6 +555,32 @@ export const sellerWorkspaceRouter = {
         })
         .where(eq(listing.id, found.id))
         .returning();
+
+      const { storage } = context;
+      if (storage) {
+        const keysToDelete = getManagedListingImageKeysToDelete(
+          {
+            nextImages: input.images ?? found.images,
+            nextThumbnailUrl: Object.hasOwn(input, "thumbnailUrl")
+              ? (input.thumbnailUrl ?? null)
+              : found.thumbnailUrl,
+            previousImages: found.images,
+            previousThumbnailUrl: found.thumbnailUrl,
+          },
+          { supabaseUrl: storage.supabaseUrl }
+        );
+        const cleanupResults = await Promise.allSettled(
+          keysToDelete.map((key) => storage.deleteObject(key))
+        );
+        for (const result of cleanupResults) {
+          if (result.status === "rejected") {
+            console.error("Failed to clean up a replaced listing image", {
+              error: result.reason,
+            });
+          }
+        }
+      }
+
       return updated;
     }),
 };

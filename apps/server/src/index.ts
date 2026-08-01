@@ -15,7 +15,17 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 
+import {
+  handleListingImageUpload,
+  createListingImageUploadRouter,
+} from "./uploads/listing-image-upload";
+import { createListingImageStorage } from "./uploads/storage";
+
 const app = new Hono();
+const listingImageStorage = createListingImageStorage();
+const listingImageUploadRouter = listingImageStorage
+  ? createListingImageUploadRouter(listingImageStorage.client)
+  : null;
 
 app.use(logger());
 app.use(
@@ -32,6 +42,14 @@ app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 app.on(["POST", "GET"], "/api/admin-auth/*", (c) =>
   adminAuth.handler(c.req.raw)
 );
+
+app.post("/api/upload", (c) => {
+  if (!listingImageUploadRouter) {
+    return c.json({ error: "Listing image uploads are not configured" }, 503);
+  }
+
+  return handleListingImageUpload(c.req.raw, listingImageUploadRouter);
+});
 
 export const apiHandler = new OpenAPIHandler(appRouter, {
   interceptors: [
@@ -55,7 +73,10 @@ export const rpcHandler = new RPCHandler(appRouter, {
 });
 
 app.use("/*", async (c, next) => {
-  const context = await createContext({ context: c });
+  const context = await createContext({
+    context: c,
+    storage: listingImageStorage?.objectStore,
+  });
 
   const rpcResult = await rpcHandler.handle(c.req.raw, {
     context,
