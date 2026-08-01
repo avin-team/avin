@@ -4,10 +4,14 @@ import {
 } from "@avin/api/listing/seller-workspace";
 import {
   createListingImageKey,
+  createSellerLogoKey,
   LISTING_IMAGE_CONTENT_TYPES,
   LISTING_IMAGE_MAX_BYTES,
   LISTING_IMAGE_UPLOAD_ROUTE,
   PUBLIC_MEDIA_BUCKET,
+  SELLER_LOGO_CONTENT_TYPES,
+  SELLER_LOGO_MAX_BYTES,
+  SELLER_LOGO_UPLOAD_ROUTE,
 } from "@avin/api/storage";
 import { auth } from "@avin/auth";
 import { db } from "@avin/db";
@@ -18,6 +22,8 @@ import { z } from "zod";
 const listingImageClientMetadataSchema = z.object({
   listingId: z.uuid(),
 });
+
+const sellerLogoClientMetadataSchema = z.object({});
 
 export const createListingImageUploadRouter = (
   client: Router["client"]
@@ -69,6 +75,35 @@ export const createListingImageUploadRouter = (
           objectInfo: {
             cacheControl: "public, max-age=31536000, immutable",
             key: createListingImageKey(clientMetadata.listingId, file.type),
+          },
+        };
+      },
+    }),
+    [SELLER_LOGO_UPLOAD_ROUTE]: route({
+      clientMetadataSchema: sellerLogoClientMetadataSchema,
+      fileTypes: [...SELLER_LOGO_CONTENT_TYPES],
+      maxFileSize: SELLER_LOGO_MAX_BYTES,
+      multipleFiles: false,
+      onBeforeUpload: async ({ file, req }) => {
+        const session = await auth.api.getSession({ headers: req.headers });
+        if (!session) {
+          throw new RejectUpload("Sign in before uploading a seller logo");
+        }
+
+        if (
+          !SELLER_LOGO_CONTENT_TYPES.includes(
+            file.type as (typeof SELLER_LOGO_CONTENT_TYPES)[number]
+          )
+        ) {
+          throw new RejectUpload(
+            "Seller logos must be JPEG, PNG, or WebP files"
+          );
+        }
+
+        return {
+          objectInfo: {
+            cacheControl: "public, max-age=31536000, immutable",
+            key: createSellerLogoKey(session.user.id, file.type),
           },
         };
       },

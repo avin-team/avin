@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   createListingImageKey,
+  createSellerLogoKey,
   createPublicMediaUrl,
   getManagedListingImageKeysToDelete,
   PUBLIC_MEDIA_BUCKET,
@@ -9,6 +10,7 @@ import {
 
 const SUPABASE_URL = "https://example.supabase.co";
 const LISTING_ID = "11111111-1111-4111-8111-111111111111";
+const SELLER_ID = "seller_123";
 const OLD_OBJECT_ID = "22222222-2222-4222-8222-222222222222";
 const NEW_OBJECT_ID = "33333333-3333-4333-8333-333333333333";
 
@@ -73,5 +75,27 @@ describe("listing image storage helpers", () => {
         { supabaseUrl: SUPABASE_URL }
       )
     ).toEqual([]);
+  });
+});
+
+describe("seller logo storage helpers", () => {
+  it("creates a managed key from the seller and MIME type", () => {
+    expect(createSellerLogoKey(SELLER_ID, "image/png", OLD_OBJECT_ID)).toBe(
+      `sellers/${SELLER_ID}/logo/${OLD_OBJECT_ID}.png`
+    );
+  });
+
+  it("rejects MIME types outside the seller logo allowlist", () => {
+    expect(() =>
+      createSellerLogoKey(SELLER_ID, "image/gif", OLD_OBJECT_ID)
+    ).toThrow("Unsupported seller logo type");
+  });
+
+  it("builds a public URL for a seller logo", () => {
+    const key = createSellerLogoKey(SELLER_ID, "image/webp", NEW_OBJECT_ID);
+
+    expect(createPublicMediaUrl(SUPABASE_URL, key)).toBe(
+      `${SUPABASE_URL}/storage/v1/object/public/${PUBLIC_MEDIA_BUCKET}/${key}`
+    );
   });
 });

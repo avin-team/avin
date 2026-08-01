@@ -45,7 +45,7 @@ app.on(["POST", "GET"], "/api/admin-auth/*", (c) =>
 
 app.post("/api/upload", (c) => {
   if (!listingImageUploadRouter) {
-    return c.json({ error: "Listing image uploads are not configured" }, 503);
+    return c.json({ error: "Media uploads are not configured" }, 503);
   }
 
   return handleListingImageUpload(c.req.raw, listingImageUploadRouter);
