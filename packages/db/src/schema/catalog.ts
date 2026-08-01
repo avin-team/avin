@@ -45,7 +45,8 @@ export const listingType = pgEnum("listing_type", ["SERVICE", "COURSE"]);
 export const listingStatus = pgEnum("listing_status", [
   "DRAFT",
   "PUBLISHED",
-  "SUSPENDED",
+  "PAUSED",
+  "HIDDEN",
   "ARCHIVED",
 ]);
 
@@ -129,7 +130,7 @@ export const listing = pgTable(
     description: text("description"),
     id: uuid("id").defaultRandom().primaryKey(),
     // price in VND
-    priceAmount: integer("price_amount").notNull(),
+    priceAmount: integer("price_amount"),
     sellerId: text("seller_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
@@ -137,20 +138,22 @@ export const listing = pgTable(
       .$type<ServiceInputField[]>()
       .default([])
       .notNull(),
+    slug: text("slug").notNull().unique(),
     status: listingStatus("status").default("DRAFT").notNull(),
     thumbnailUrl: text("thumbnail_url"),
-    title: text("title").notNull(),
+    title: text("title"),
     type: listingType("type").notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
-    warrantyDurationHours: integer("warranty_duration_hours").notNull(),
-    warrantyTerms: text("warranty_terms").notNull(),
+    warrantyDurationHours: integer("warranty_duration_hours"),
+    warrantyTerms: text("warranty_terms"),
   },
   (table) => [
     index("listing_category_id_idx").on(table.categoryId),
     index("listing_seller_id_idx").on(table.sellerId),
+    index("listing_slug_idx").on(table.slug),
     index("listing_status_idx").on(table.status),
     index("listing_price_amount_idx").on(table.priceAmount),
     index("listing_created_at_idx").on(table.createdAt),

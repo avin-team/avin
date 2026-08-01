@@ -20,6 +20,7 @@ export interface ListingCardProps extends ComponentPropsWithoutRef<"div"> {
       name?: string | null;
     } | null;
     thumbnailUrl?: string | null;
+    slug?: string;
     title: string;
     type: "SERVICE" | "COURSE";
     warrantyDurationHours?: number | null;
@@ -41,7 +42,7 @@ export const ListingCard = ({ className, listing }: ListingCardProps) => {
           <div className="relative mb-3 aspect-video w-full overflow-hidden rounded-xl bg-muted/50">
             {listing.thumbnailUrl ? (
               <img
-                alt={listing.title}
+                alt={listing.title ?? "Listing thumbnail"}
                 className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                 src={listing.thumbnailUrl}
               />
@@ -90,7 +91,7 @@ export const ListingCard = ({ className, listing }: ListingCardProps) => {
           </div>
 
           {/* Listing Title */}
-          <Link params={{ id: listing.id }} to="/listing/$id">
+          <Link params={{ id: listing.slug ?? listing.id }} to="/listing/$id">
             <h3 className="line-clamp-2 text-base font-bold text-foreground transition-colors group-hover:text-primary">
               {listing.title}
             </h3>
@@ -127,7 +128,7 @@ export const ListingCard = ({ className, listing }: ListingCardProps) => {
 
             <div className="text-right">
               <span className="text-base font-extrabold text-primary">
-                {formatVND(listing.priceAmount)}
+                {formatVND(listing.priceAmount ?? 0)}
               </span>
             </div>
           </div>

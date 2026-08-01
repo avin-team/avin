@@ -7,6 +7,7 @@ describe("listing router interface", () => {
     expect(Object.keys(listingRouter).toSorted()).toEqual([
       "categoryGovernance",
       "discovery",
+      "sellerWorkspace",
     ]);
     expect(Object.keys(listingRouter.discovery).toSorted()).toEqual([
       "categories",
@@ -25,6 +26,16 @@ describe("listing router interface", () => {
       "updateParent",
       "updateStatus",
       "updateSub",
+    ]);
+    expect(Object.keys(listingRouter.sellerWorkspace).toSorted()).toEqual([
+      "archive",
+      "createDraft",
+      "getDraft",
+      "listMine",
+      "pause",
+      "publish",
+      "resume",
+      "updateDraft",
     ]);
   });
 });

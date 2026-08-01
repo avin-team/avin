@@ -22,7 +22,7 @@ export const ListingDetailPage = () => {
 
   const listingQuery = useQuery(
     orpc.listing.discovery.listingById.queryOptions({
-      input: { id },
+      input: { slug: id },
     })
   );
 
@@ -105,7 +105,7 @@ export const ListingDetailPage = () => {
               ) : null}
               <ChevronRight className="h-3.5 w-3.5 opacity-50" />
               <span className="max-w-[200px] truncate font-semibold text-foreground">
-                {listing.title}
+                {listing.title ?? "Untitled listing"}
               </span>
             </nav>
 
@@ -144,14 +144,14 @@ export const ListingDetailPage = () => {
 
                   {/* Title */}
                   <h1 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
-                    {listing.title}
+                    {listing.title ?? "Untitled listing"}
                   </h1>
 
                   {/* Thumbnail Banner */}
                   <div className="mt-6 aspect-video w-full overflow-hidden rounded-2xl bg-muted/40 border border-border/40">
                     {listing.thumbnailUrl ? (
                       <img
-                        alt={listing.title}
+                        alt={listing.title ?? "Listing thumbnail"}
                         className="h-full w-full object-cover"
                         src={listing.thumbnailUrl}
                       />
@@ -163,7 +163,7 @@ export const ListingDetailPage = () => {
                           <BookOpen className="h-16 w-16 text-primary/40" />
                         )}
                         <span className="mt-3 text-sm font-semibold text-muted-foreground">
-                          {listing.title}
+                          {listing.title ?? "Untitled listing"}
                         </span>
                       </div>
                     )}
@@ -240,7 +240,7 @@ export const ListingDetailPage = () => {
                     </span>
                     <div className="mt-1 flex items-baseline gap-2">
                       <span className="text-3xl font-black tracking-tight text-primary">
-                        {formatVND(listing.priceAmount)}
+                        {formatVND(listing.priceAmount ?? 0)}
                       </span>
                     </div>
                   </div>

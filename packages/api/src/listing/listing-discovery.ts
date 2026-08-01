@@ -67,12 +67,15 @@ export const listingDiscoveryRouter = {
   listingById: publicProcedure
     .input(
       z.object({
-        id: z.string(),
+        slug: z.string(),
       })
     )
     .handler(async ({ input }) => {
       const found = await db.query.listing.findFirst({
-        where: and(eq(listing.id, input.id), eq(listing.status, "PUBLISHED")),
+        where: and(
+          eq(listing.slug, input.slug),
+          eq(listing.status, "PUBLISHED")
+        ),
         with: {
           category: {
             with: {
@@ -89,7 +92,12 @@ export const listingDiscoveryRouter = {
         },
       });
 
-      if (!found) {
+      if (
+        !found ||
+        !found.category ||
+        found.category.status !== "ACTIVE" ||
+        found.category.parentCategory.status !== "ACTIVE"
+      ) {
         throw new ORPCError("NOT_FOUND", {
           message: "Listing not found or unavailable",
         });
@@ -120,13 +128,17 @@ export const listingDiscoveryRouter = {
       // Filter by category
       if (input.subSlug && input.parentSlug) {
         const parent = await db.query.parentCategory.findFirst({
-          where: eq(parentCategory.slug, input.parentSlug),
+          where: and(
+            eq(parentCategory.slug, input.parentSlug),
+            eq(parentCategory.status, "ACTIVE")
+          ),
         });
         if (parent) {
           const sub = await db.query.subCategory.findFirst({
             where: and(
               eq(subCategory.parentId, parent.id),
-              eq(subCategory.slug, input.subSlug)
+              eq(subCategory.slug, input.subSlug),
+              eq(subCategory.status, "ACTIVE")
             ),
           });
           if (sub) {
@@ -139,8 +151,13 @@ export const listingDiscoveryRouter = {
         }
       } else if (input.parentSlug) {
         const parent = await db.query.parentCategory.findFirst({
-          where: eq(parentCategory.slug, input.parentSlug),
-          with: { subCategories: true },
+          where: and(
+            eq(parentCategory.slug, input.parentSlug),
+            eq(parentCategory.status, "ACTIVE")
+          ),
+          with: {
+            subCategories: { where: eq(subCategory.status, "ACTIVE") },
+          },
         });
 
         if (parent && parent.subCategories.length > 0) {
@@ -200,7 +217,11 @@ export const listingDiscoveryRouter = {
       });
 
       return {
-        items,
+        items: items.map((item) => ({
+          ...item,
+          priceAmount: item.priceAmount ?? 0,
+          title: item.title ?? "Untitled listing",
+        })),
         page: input.page,
         total,
         totalPages,
