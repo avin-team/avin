@@ -3,8 +3,9 @@ import { describe, expect, it } from "vitest";
 import { listingRouter } from "./router";
 
 describe("listing router interface", () => {
-  it("exposes discovery and governance under the Listing aggregate", () => {
+  it("exposes discovery, governance, workspace, and admin moderation under the Listing aggregate", () => {
     expect(Object.keys(listingRouter).toSorted()).toEqual([
+      "adminModeration",
       "categoryGovernance",
       "discovery",
       "sellerWorkspace",
@@ -31,11 +32,17 @@ describe("listing router interface", () => {
       "archive",
       "createDraft",
       "getDraft",
+      "getMediaAccess",
       "listMine",
       "pause",
       "publish",
       "resume",
       "updateDraft",
+    ]);
+    expect(Object.keys(listingRouter.adminModeration).toSorted()).toEqual([
+      "archive",
+      "hide",
+      "restore",
     ]);
   });
 });

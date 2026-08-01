@@ -23,15 +23,20 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
   AlertCircle,
+  Archive,
   ExternalLink,
   FileEdit,
   FolderKanban,
   GraduationCap,
   Loader2,
+  Pause,
+  Play,
   Plus,
+  Rocket,
   Wrench,
 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { Shell } from "@/components/shell";
 import { orpc } from "@/utils/orpc";
@@ -40,6 +45,28 @@ const TYPE_OPTIONS: { label: string; value: "SERVICE" | "COURSE" }[] = [
   { label: "Service", value: "SERVICE" },
   { label: "Course", value: "COURSE" },
 ];
+
+const getStatusBadgeVariant = (
+  status: "DRAFT" | "PUBLISHED" | "PAUSED" | "HIDDEN" | "ARCHIVED"
+) => {
+  switch (status) {
+    case "PUBLISHED": {
+      return "default";
+    }
+    case "PAUSED": {
+      return "secondary";
+    }
+    case "HIDDEN": {
+      return "destructive";
+    }
+    case "ARCHIVED": {
+      return "outline";
+    }
+    default: {
+      return "outline";
+    }
+  }
+};
 
 export const ListingWorkspacePage = () => {
   const queryClient = useQueryClient();
@@ -54,15 +81,76 @@ export const ListingWorkspacePage = () => {
   const listingsQuery = useQuery(
     orpc.listing.sellerWorkspace.listMine.queryOptions()
   );
+
   const createMutation = useMutation(
     orpc.listing.sellerWorkspace.createDraft.mutationOptions({
       onSuccess: async () => {
+        toast.success("Private draft created!");
         setTitle("");
         setParentCategoryId("");
         setCategoryId("");
         await queryClient.invalidateQueries({
           queryKey: orpc.listing.sellerWorkspace.listMine.key(),
         });
+      },
+      onError: (err) => {
+        toast.error(err.message || "Failed to create draft");
+      },
+    })
+  );
+
+  const publishMutation = useMutation(
+    orpc.listing.sellerWorkspace.publish.mutationOptions({
+      onSuccess: async () => {
+        toast.success("Listing published successfully!");
+        await queryClient.invalidateQueries({
+          queryKey: orpc.listing.sellerWorkspace.listMine.key(),
+        });
+      },
+      onError: (err) => {
+        toast.error(err.message || "Failed to publish listing");
+      },
+    })
+  );
+
+  const pauseMutation = useMutation(
+    orpc.listing.sellerWorkspace.pause.mutationOptions({
+      onSuccess: async () => {
+        toast.success("Listing paused");
+        await queryClient.invalidateQueries({
+          queryKey: orpc.listing.sellerWorkspace.listMine.key(),
+        });
+      },
+      onError: (err) => {
+        toast.error(err.message || "Failed to pause listing");
+      },
+    })
+  );
+
+  const resumeMutation = useMutation(
+    orpc.listing.sellerWorkspace.resume.mutationOptions({
+      onSuccess: async () => {
+        toast.success("Listing resumed & published!");
+        await queryClient.invalidateQueries({
+          queryKey: orpc.listing.sellerWorkspace.listMine.key(),
+        });
+      },
+      onError: (err) => {
+        toast.error(err.message || "Failed to resume listing");
+      },
+    })
+  );
+
+  const archiveMutation = useMutation(
+    orpc.listing.sellerWorkspace.archive.mutationOptions({
+      onSuccess: async () => {
+        toast.success("Listing archived");
+        await queryClient.invalidateQueries({
+          queryKey: orpc.listing.sellerWorkspace.listMine.key(),
+        });
+      },
+      onError: (err) => {
+        toast.error(err.message || "Failed to archive listing");
       },
     })
   );
@@ -87,8 +175,8 @@ export const ListingWorkspacePage = () => {
     if (listingsQuery.isLoading) {
       return (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Skeleton className="h-32 w-full rounded-2xl" />
-          <Skeleton className="h-32 w-full rounded-2xl" />
+          <Skeleton className="h-44 w-full rounded-2xl" />
+          <Skeleton className="h-44 w-full rounded-2xl" />
         </div>
       );
     }
@@ -96,61 +184,138 @@ export const ListingWorkspacePage = () => {
     if (listingsQuery.data?.length) {
       return (
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {listingsQuery.data.map((listing) => (
-            <li key={listing.id}>
-              <Card className="flex h-full flex-col justify-between transition-shadow hover:shadow-lg">
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="line-clamp-1 font-medium">
+          {listingsQuery.data.map((listing) => {
+            const isPendingAction =
+              publishMutation.isPending ||
+              pauseMutation.isPending ||
+              resumeMutation.isPending ||
+              archiveMutation.isPending;
+
+            return (
+              <li key={listing.id}>
+                <Card className="flex h-full flex-col justify-between transition-shadow hover:shadow-lg">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <CardTitle className="line-clamp-1 font-medium">
+                        <Link
+                          className="transition-colors hover:text-primary hover:underline"
+                          params={{ id: listing.slug ?? listing.id }}
+                          to="/listing/$id"
+                        >
+                          {listing.title ?? "Untitled draft"}
+                        </Link>
+                      </CardTitle>
+                      <Badge variant={getStatusBadgeVariant(listing.status)}>
+                        {listing.status}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="flex-1 space-y-2">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      {listing.type === "COURSE" ? (
+                        <GraduationCap className="size-3.5" />
+                      ) : (
+                        <Wrench className="size-3.5" />
+                      )}
+                      <span>{listing.type}</span>
+                    </div>
+
+                    {listing.priceAmount ? (
+                      <p className="text-sm font-semibold text-primary">
+                        {listing.priceAmount.toLocaleString("vi-VN")} VND
+                      </p>
+                    ) : null}
+                  </CardContent>
+
+                  <CardFooter className="flex flex-col gap-2 border-t border-border/40 pt-3">
+                    <div className="flex w-full items-center justify-between">
                       <Link
-                        className="transition-colors hover:text-primary hover:underline"
+                        className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
                         params={{ id: listing.slug ?? listing.id }}
                         to="/listing/$id"
                       >
-                        {listing.title ?? "Untitled draft"}
+                        <span>View listing</span>
+                        <ExternalLink className="size-3" />
                       </Link>
-                    </CardTitle>
-                    <Badge
-                      variant={
-                        listing.status === "PUBLISHED" ? "default" : "outline"
-                      }
-                    >
-                      {listing.status}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="flex-1">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    {listing.type === "COURSE" ? (
-                      <GraduationCap className="size-3.5" />
-                    ) : (
-                      <Wrench className="size-3.5" />
-                    )}
-                    <span>{listing.type}</span>
-                  </div>
-                </CardContent>
-                <CardFooter className="border-t border-border/40 pt-3">
-                  <Link
-                    className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
-                    params={{ id: listing.slug ?? listing.id }}
-                    to="/listing/$id"
-                  >
-                    <span>View listing</span>
-                    <ExternalLink className="size-3" />
-                  </Link>
-                </CardFooter>
-              </Card>
-            </li>
-          ))}
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="flex w-full flex-wrap gap-2 pt-1">
+                      {listing.status === "DRAFT" ? (
+                        <Button
+                          className="h-8 text-xs"
+                          disabled={isPendingAction}
+                          onClick={() =>
+                            publishMutation.mutate({ id: listing.id })
+                          }
+                          size="sm"
+                          variant="default"
+                        >
+                          <Rocket className="mr-1 size-3" />
+                          Publish
+                        </Button>
+                      ) : null}
+
+                      {listing.status === "PUBLISHED" ? (
+                        <Button
+                          className="h-8 text-xs"
+                          disabled={isPendingAction}
+                          onClick={() =>
+                            pauseMutation.mutate({ id: listing.id })
+                          }
+                          size="sm"
+                          variant="outline"
+                        >
+                          <Pause className="mr-1 size-3" />
+                          Pause
+                        </Button>
+                      ) : null}
+
+                      {listing.status === "PAUSED" ? (
+                        <Button
+                          className="h-8 text-xs"
+                          disabled={isPendingAction}
+                          onClick={() =>
+                            resumeMutation.mutate({ id: listing.id })
+                          }
+                          size="sm"
+                          variant="default"
+                        >
+                          <Play className="mr-1 size-3" />
+                          Resume
+                        </Button>
+                      ) : null}
+
+                      {listing.status === "ARCHIVED" ? null : (
+                        <Button
+                          className="h-8 text-xs"
+                          disabled={isPendingAction}
+                          onClick={() =>
+                            archiveMutation.mutate({ id: listing.id })
+                          }
+                          size="sm"
+                          variant="ghost"
+                        >
+                          <Archive className="mr-1 size-3 text-muted-foreground" />
+                          Archive
+                        </Button>
+                      )}
+                    </div>
+                  </CardFooter>
+                </Card>
+              </li>
+            );
+          })}
         </ul>
       );
     }
 
     return (
       <Card className="flex flex-col items-center justify-center p-8 text-center">
-        <FileEdit className="size-10 text-muted-foreground/60 mb-2" />
+        <FileEdit className="mb-2 size-10 text-muted-foreground/60" />
         <p className="font-medium text-muted-foreground">No listings yet</p>
-        <p className="text-xs text-muted-foreground/80 mt-1">
+        <p className="mt-1 text-xs text-muted-foreground/80">
           Create a draft above to get started.
         </p>
       </Card>
@@ -164,11 +329,12 @@ export const ListingWorkspacePage = () => {
           <div className="flex items-center gap-2">
             <FolderKanban className="size-6 text-primary" />
             <h1 className="text-2xl font-bold tracking-tight">
-              My listing drafts
+              My listing workspace
             </h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            Create a private draft and complete it before publishing.
+            Create drafts, publish offerings, edit listings, and manage your
+            listing lifecycle.
           </p>
         </header>
 
@@ -202,7 +368,7 @@ export const ListingWorkspacePage = () => {
                   }
                   value={type}
                 >
-                  <SelectTrigger id="listing-type" className="w-full">
+                  <SelectTrigger className="w-full" id="listing-type">
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -234,8 +400,8 @@ export const ListingWorkspacePage = () => {
                   value={parentCategoryId}
                 >
                   <SelectTrigger
-                    id="listing-parent-category"
                     className="w-full"
+                    id="listing-parent-category"
                   >
                     <SelectValue
                       placeholder={
@@ -263,7 +429,7 @@ export const ListingWorkspacePage = () => {
                   onValueChange={(val) => setCategoryId(val ?? "")}
                   value={categoryId}
                 >
-                  <SelectTrigger id="listing-category" className="w-full">
+                  <SelectTrigger className="w-full" id="listing-category">
                     <SelectValue
                       placeholder={
                         parentCategoryId
@@ -297,7 +463,8 @@ export const ListingWorkspacePage = () => {
                   <AlertCircle className="size-4" />
                   <AlertTitle>Error</AlertTitle>
                   <AlertDescription>
-                    Unable to create this draft. Please try again.
+                    {createMutation.error.message ||
+                      "Unable to create this draft. Please try again."}
                   </AlertDescription>
                 </Alert>
               ) : null}

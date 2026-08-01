@@ -43,6 +43,13 @@
       "when": 1785549344282,
       "tag": "0005_adorable_bulldozer",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785553520714,
+      "tag": "0006_classy_stingray",
+      "breakpoints": true
     }
   ]
 }

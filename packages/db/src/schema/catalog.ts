@@ -130,7 +130,9 @@ export const listing = pgTable(
     description: text("description"),
     id: uuid("id").defaultRandom().primaryKey(),
     // price in VND
+    images: jsonb("images").$type<string[]>().default([]).notNull(),
     priceAmount: integer("price_amount"),
+    processingTimeHours: integer("processing_time_hours"),
     sellerId: text("seller_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),

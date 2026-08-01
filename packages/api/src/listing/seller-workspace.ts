@@ -10,9 +10,9 @@ import { ORPCError } from "@orpc/server";
 import { and, eq, or } from "drizzle-orm";
 import { z } from "zod";
 
-import { sellerProcedure } from "../access/procedures";
+import { protectedProcedure, sellerProcedure } from "../access/procedures";
 
-const CURRENT_SELLER_AGREEMENT_VERSION = "v1.0";
+export const CURRENT_SELLER_AGREEMENT_VERSION = "v1.0";
 
 const listingTypeSchema = z.enum(["SERVICE", "COURSE"]);
 const listingStatusSchema = z.enum([
@@ -26,9 +26,11 @@ const listingStatusSchema = z.enum([
 const draftFieldsSchema = z.object({
   categoryId: z.string().optional(),
   description: z.string().max(10_000).nullable().optional(),
-  priceAmount: z.number().int().min(0).nullable().optional(),
+  images: z.array(z.string()).optional(),
+  priceAmount: z.number().int().nullable().optional(),
+  processingTimeHours: z.number().int().nullable().optional(),
   serviceInputFields: z.array(serviceInputFieldSchema).optional(),
-  thumbnailUrl: z.url().nullable().optional(),
+  thumbnailUrl: z.string().nullable().optional(),
   title: z.string().max(200).nullable().optional(),
   type: listingTypeSchema.optional(),
   warrantyDurationHours: z.number().int().min(0).nullable().optional(),
@@ -53,7 +55,7 @@ const makeSlug = (title: string | null | undefined): string => {
   return `${base || "listing"}-${crypto.randomUUID().slice(0, 8)}`;
 };
 
-const assertEligibleSeller = async (userId: string): Promise<void> => {
+export const assertEligibleSeller = async (userId: string): Promise<void> => {
   const [account, application] = await Promise.all([
     db.query.user.findFirst({ where: eq(userTable.id, userId) }),
     db.query.sellerApplication.findFirst({
@@ -81,7 +83,7 @@ const assertEligibleSeller = async (userId: string): Promise<void> => {
   }
 };
 
-const assertActiveSubCategory = async (categoryId: string): Promise<void> => {
+export const assertActiveSubCategory = async (categoryId: string) => {
   const category = await db.query.subCategory.findFirst({
     where: and(
       eq(subCategory.id, categoryId),
@@ -99,6 +101,8 @@ const assertActiveSubCategory = async (categoryId: string): Promise<void> => {
       message: "Listing category must be active",
     });
   }
+
+  return category;
 };
 
 const assertDraft = async (id: string, userId: string) => {
@@ -131,25 +135,137 @@ const assertOwnedListing = async (id: string, userId: string) => {
   return found;
 };
 
-const assertPublishable = (draft: {
-  priceAmount: number | null;
-  title: string | null;
-  warrantyDurationHours: number | null;
-  warrantyTerms: string | null;
-}) => {
-  if (
-    !draft.title?.trim() ||
-    draft.priceAmount === null ||
-    draft.priceAmount === undefined ||
-    draft.warrantyDurationHours === null ||
-    draft.warrantyDurationHours === undefined ||
-    !draft.warrantyTerms?.trim()
-  ) {
+export const assertPublishable = (
+  draft: {
+    description: string | null;
+    images?: string[] | null;
+    priceAmount: number | null;
+    processingTimeHours: number | null;
+    slug: string;
+    thumbnailUrl: string | null;
+    title: string | null;
+    warrantyDurationHours: number | null;
+    warrantyTerms: string | null;
+  },
+  category: {
+    warrantyBounds: { minHours: number; maxHours: number };
+  }
+) => {
+  if (!draft.title?.trim()) {
     throw new ORPCError("BAD_REQUEST", {
-      message:
-        "Listing needs a title, price, and warranty details before publishing",
+      message: "Listing title is required",
     });
   }
+
+  if (!draft.description?.trim()) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Listing description is required",
+    });
+  }
+
+  if (!draft.slug?.trim()) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Listing slug is required",
+    });
+  }
+
+  if (
+    draft.priceAmount === null ||
+    draft.priceAmount === undefined ||
+    !Number.isInteger(draft.priceAmount) ||
+    draft.priceAmount <= 0
+  ) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Listing price must be a positive integer VND amount",
+    });
+  }
+
+  if (
+    draft.processingTimeHours === null ||
+    draft.processingTimeHours === undefined ||
+    !Number.isInteger(draft.processingTimeHours) ||
+    draft.processingTimeHours <= 0
+  ) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Processing Expectation (in hours) must be a positive integer",
+    });
+  }
+
+  const primaryImage =
+    draft.thumbnailUrl?.trim() || (draft.images && draft.images[0]?.trim());
+  if (!primaryImage) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Listing must have a designated primary image",
+    });
+  }
+
+  if (
+    draft.warrantyDurationHours === null ||
+    draft.warrantyDurationHours === undefined ||
+    !Number.isInteger(draft.warrantyDurationHours)
+  ) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Warranty duration in hours is required",
+    });
+  }
+
+  const { minHours, maxHours } = category.warrantyBounds;
+  if (
+    draft.warrantyDurationHours < minHours ||
+    draft.warrantyDurationHours > maxHours
+  ) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: `Warranty duration (${draft.warrantyDurationHours}h) must be within category bounds (${minHours}h - ${maxHours}h)`,
+    });
+  }
+
+  if (!draft.warrantyTerms?.trim()) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Warranty terms are required",
+    });
+  }
+
+  if (draft.serviceInputFields && Array.isArray(draft.serviceInputFields)) {
+    for (const field of draft.serviceInputFields) {
+      const parsed = serviceInputFieldSchema.safeParse(field);
+      if (!parsed.success) {
+        throw new ORPCError("BAD_REQUEST", {
+          message: "All service input fields must be valid",
+        });
+      }
+    }
+  }
+};
+
+export const canAccessListingMedia = (
+  user: { id: string; role?: string | null } | null | undefined,
+  listingItem: {
+    sellerId: string;
+    status: string;
+    category?: { status: string; parentCategory?: { status: string } } | null;
+  }
+): boolean => {
+  if (!user) {
+    return (
+      listingItem.status === "PUBLISHED" &&
+      listingItem.category?.status === "ACTIVE" &&
+      listingItem.category?.parentCategory?.status === "ACTIVE"
+    );
+  }
+
+  if (user.role === "ADMIN") {
+    return true;
+  }
+
+  if (user.id === listingItem.sellerId) {
+    return true;
+  }
+
+  return (
+    listingItem.status === "PUBLISHED" &&
+    listingItem.category?.status === "ACTIVE" &&
+    listingItem.category?.parentCategory?.status === "ACTIVE"
+  );
 };
 
 export const sellerWorkspaceRouter = {
@@ -190,7 +306,9 @@ export const sellerWorkspaceRouter = {
           categoryId: input.categoryId,
           description: input.description,
           id: crypto.randomUUID(),
+          images: input.images ?? [],
           priceAmount: input.priceAmount,
+          processingTimeHours: input.processingTimeHours,
           sellerId: context.session.user.id,
           serviceInputFields: input.serviceInputFields ?? [],
           slug: makeSlug(input.title),
@@ -210,6 +328,38 @@ export const sellerWorkspaceRouter = {
     .handler(async ({ context, input }) => {
       await assertEligibleSeller(context.session.user.id);
       return assertDraft(input.id, context.session.user.id);
+    }),
+
+  getMediaAccess: protectedProcedure
+    .input(z.object({ listingId: z.string() }))
+    .handler(async ({ context, input }) => {
+      const found = await db.query.listing.findFirst({
+        where: eq(listing.id, input.listingId),
+        with: {
+          category: {
+            with: {
+              parentCategory: true,
+            },
+          },
+        },
+      });
+
+      if (!found) {
+        throw new ORPCError("NOT_FOUND", { message: "Listing not found" });
+      }
+
+      const hasAccess = canAccessListingMedia(context.session.user, found);
+      if (!hasAccess) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "Media access is restricted for this listing",
+        });
+      }
+
+      return {
+        hasAccess: true,
+        images: found.images,
+        thumbnailUrl: found.thumbnailUrl,
+      };
     }),
 
   listMine: sellerProcedure
@@ -255,11 +405,18 @@ export const sellerWorkspaceRouter = {
     .handler(async ({ context, input }) => {
       await assertEligibleSeller(context.session.user.id);
       const draft = await assertDraft(input.id, context.session.user.id);
-      await assertActiveSubCategory(draft.categoryId);
-      assertPublishable(draft);
+      const category = await assertActiveSubCategory(draft.categoryId);
+      assertPublishable(draft, category);
+
+      const primaryImage = draft.thumbnailUrl ?? draft.images?.[0] ?? null;
+
       const [updated] = await db
         .update(listing)
-        .set({ status: "PUBLISHED", updatedAt: new Date() })
+        .set({
+          status: "PUBLISHED",
+          thumbnailUrl: primaryImage,
+          updatedAt: new Date(),
+        })
         .where(eq(listing.id, draft.id))
         .returning();
       return updated;
@@ -275,8 +432,9 @@ export const sellerWorkspaceRouter = {
           message: "Only paused listings can be resumed",
         });
       }
-      await assertActiveSubCategory(found.categoryId);
-      assertPublishable(found);
+      const category = await assertActiveSubCategory(found.categoryId);
+      assertPublishable(found, category);
+
       const [updated] = await db
         .update(listing)
         .set({ status: "PUBLISHED", updatedAt: new Date() })
@@ -289,7 +447,14 @@ export const sellerWorkspaceRouter = {
     .input(draftFieldsSchema.extend({ id: z.string() }))
     .handler(async ({ context, input }) => {
       await assertEligibleSeller(context.session.user.id);
-      const draft = await assertDraft(input.id, context.session.user.id);
+      const found = await assertOwnedListing(input.id, context.session.user.id);
+
+      if (found.status === "ARCHIVED") {
+        throw new ORPCError("BAD_REQUEST", {
+          message: "Archived listings cannot be modified",
+        });
+      }
+
       if (input.categoryId) {
         await assertActiveSubCategory(input.categoryId);
       }
@@ -301,8 +466,12 @@ export const sellerWorkspaceRouter = {
           ...(Object.hasOwn(input, "description")
             ? { description: input.description }
             : {}),
+          ...(input.images ? { images: input.images } : {}),
           ...(Object.hasOwn(input, "priceAmount")
             ? { priceAmount: input.priceAmount }
+            : {}),
+          ...(Object.hasOwn(input, "processingTimeHours")
+            ? { processingTimeHours: input.processingTimeHours }
             : {}),
           ...(input.serviceInputFields
             ? { serviceInputFields: input.serviceInputFields }
@@ -320,7 +489,7 @@ export const sellerWorkspaceRouter = {
             : {}),
           updatedAt: new Date(),
         })
-        .where(eq(listing.id, draft.id))
+        .where(eq(listing.id, found.id))
         .returning();
       return updated;
     }),
