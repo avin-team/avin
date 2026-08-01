@@ -14,7 +14,7 @@ export const SellerLayout = ({
   children,
   onChange,
 }: SellerLayoutProps) => (
-  <SidebarProvider className="min-h-[calc(100svh-4rem)]">
+  <SidebarProvider className="min-h-[calc(100svh-4rem)] border-t border-border/60">
     <SellerAppSidebar active={active} onChange={onChange} />
     <SidebarInset className="min-h-[calc(100svh-4rem)]">
       {children}
