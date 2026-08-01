@@ -6,6 +6,16 @@ import { z } from "zod";
 
 import { publicProcedure } from "../access/procedures";
 
+export const getListingIdentifierCandidates = (
+  identifier: string
+): { id?: string; slug: string } => {
+  if (!z.uuid().safeParse(identifier).success) {
+    return { slug: identifier };
+  }
+
+  return { id: identifier, slug: identifier };
+};
+
 export const listingDiscoveryRouter = {
   categories: publicProcedure.handler(async () => {
     // Only return ACTIVE parents and ACTIVE sub-categories for public buyers
@@ -71,8 +81,11 @@ export const listingDiscoveryRouter = {
       })
     )
     .handler(async ({ context, input }) => {
+      const identifier = getListingIdentifierCandidates(input.slug);
       const found = await db.query.listing.findFirst({
-        where: or(eq(listing.slug, input.slug), eq(listing.id, input.slug)),
+        where: identifier.id
+          ? or(eq(listing.slug, identifier.slug), eq(listing.id, identifier.id))
+          : eq(listing.slug, identifier.slug),
         with: {
           category: {
             with: {
