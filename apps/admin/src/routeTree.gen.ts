@@ -22,6 +22,7 @@ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedCategoriesIndexRouteImport } from './routes/_authenticated/categories/index'
 import { Route as AuthenticatedDisputesIndexRouteImport } from './routes/_authenticated/disputes/index'
 import { Route as AuthenticatedDisputesDisputeIdRouteImport } from './routes/_authenticated/disputes/$disputeId'
+import { Route as AuthenticatedListingsIndexRouteImport } from './routes/_authenticated/listings/index'
 import { Route as AuthenticatedSellerApplicationsIndexRouteImport } from './routes/_authenticated/seller-applications/index'
 import { Route as AuthenticatedSellerApplicationsApplicationIdRouteImport } from './routes/_authenticated/seller-applications/$applicationId'
 import { Route as AuthenticatedSellersIndexRouteImport } from './routes/_authenticated/sellers/index'
@@ -95,6 +96,12 @@ const AuthenticatedDisputesDisputeIdRoute =
     path: '/disputes/$disputeId',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedListingsIndexRoute =
+  AuthenticatedListingsIndexRouteImport.update({
+    id: '/listings/',
+    path: '/listings/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedSellerApplicationsIndexRoute =
   AuthenticatedSellerApplicationsIndexRouteImport.update({
     id: '/seller-applications/',
@@ -141,6 +148,7 @@ export interface FileRoutesByFullPath {
   '/sellers/$sellerId': typeof AuthenticatedSellersSellerIdRoute
   '/categories/': typeof AuthenticatedCategoriesIndexRoute
   '/disputes/': typeof AuthenticatedDisputesIndexRoute
+  '/listings/': typeof AuthenticatedListingsIndexRoute
   '/seller-applications/': typeof AuthenticatedSellerApplicationsIndexRoute
   '/sellers/': typeof AuthenticatedSellersIndexRoute
   '/withdrawals/': typeof AuthenticatedWithdrawalsIndexRoute
@@ -160,6 +168,7 @@ export interface FileRoutesByTo {
   '/sellers/$sellerId': typeof AuthenticatedSellersSellerIdRoute
   '/categories': typeof AuthenticatedCategoriesIndexRoute
   '/disputes': typeof AuthenticatedDisputesIndexRoute
+  '/listings': typeof AuthenticatedListingsIndexRoute
   '/seller-applications': typeof AuthenticatedSellerApplicationsIndexRoute
   '/sellers': typeof AuthenticatedSellersIndexRoute
   '/withdrawals': typeof AuthenticatedWithdrawalsIndexRoute
@@ -181,6 +190,7 @@ export interface FileRoutesById {
   '/_authenticated/sellers/$sellerId': typeof AuthenticatedSellersSellerIdRoute
   '/_authenticated/categories/': typeof AuthenticatedCategoriesIndexRoute
   '/_authenticated/disputes/': typeof AuthenticatedDisputesIndexRoute
+  '/_authenticated/listings/': typeof AuthenticatedListingsIndexRoute
   '/_authenticated/seller-applications/': typeof AuthenticatedSellerApplicationsIndexRoute
   '/_authenticated/sellers/': typeof AuthenticatedSellersIndexRoute
   '/_authenticated/withdrawals/': typeof AuthenticatedWithdrawalsIndexRoute
@@ -202,6 +212,7 @@ export interface FileRouteTypes {
     | '/sellers/$sellerId'
     | '/categories/'
     | '/disputes/'
+    | '/listings/'
     | '/seller-applications/'
     | '/sellers/'
     | '/withdrawals/'
@@ -221,6 +232,7 @@ export interface FileRouteTypes {
     | '/sellers/$sellerId'
     | '/categories'
     | '/disputes'
+    | '/listings'
     | '/seller-applications'
     | '/sellers'
     | '/withdrawals'
@@ -241,6 +253,7 @@ export interface FileRouteTypes {
     | '/_authenticated/sellers/$sellerId'
     | '/_authenticated/categories/'
     | '/_authenticated/disputes/'
+    | '/_authenticated/listings/'
     | '/_authenticated/seller-applications/'
     | '/_authenticated/sellers/'
     | '/_authenticated/withdrawals/'
@@ -350,6 +363,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDisputesDisputeIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/listings/': {
+      id: '/_authenticated/listings/'
+      path: '/listings'
+      fullPath: '/listings/'
+      preLoaderRoute: typeof AuthenticatedListingsIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/seller-applications/': {
       id: '/_authenticated/seller-applications/'
       path: '/seller-applications'
@@ -396,6 +416,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedSellersSellerIdRoute: typeof AuthenticatedSellersSellerIdRoute
   AuthenticatedCategoriesIndexRoute: typeof AuthenticatedCategoriesIndexRoute
   AuthenticatedDisputesIndexRoute: typeof AuthenticatedDisputesIndexRoute
+  AuthenticatedListingsIndexRoute: typeof AuthenticatedListingsIndexRoute
   AuthenticatedSellerApplicationsIndexRoute: typeof AuthenticatedSellerApplicationsIndexRoute
   AuthenticatedSellersIndexRoute: typeof AuthenticatedSellersIndexRoute
   AuthenticatedWithdrawalsIndexRoute: typeof AuthenticatedWithdrawalsIndexRoute
@@ -410,6 +431,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedSellersSellerIdRoute: AuthenticatedSellersSellerIdRoute,
   AuthenticatedCategoriesIndexRoute: AuthenticatedCategoriesIndexRoute,
   AuthenticatedDisputesIndexRoute: AuthenticatedDisputesIndexRoute,
+  AuthenticatedListingsIndexRoute: AuthenticatedListingsIndexRoute,
   AuthenticatedSellerApplicationsIndexRoute:
     AuthenticatedSellerApplicationsIndexRoute,
   AuthenticatedSellersIndexRoute: AuthenticatedSellersIndexRoute,

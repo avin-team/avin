@@ -2,6 +2,7 @@ import {
   AlertCircle,
   ClipboardCheck,
   FolderTree,
+  Gavel,
   Landmark,
   LayoutDashboard,
   Settings,
@@ -29,6 +30,11 @@ export const sidebarData: SidebarData = {
           icon: FolderTree,
           title: "Danh mục & Chính sách",
           url: "/categories",
+        },
+        {
+          icon: Gavel,
+          title: "Moderation Listing",
+          url: "/listings",
         },
         {
           icon: Store,

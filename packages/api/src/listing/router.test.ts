@@ -42,7 +42,9 @@ describe("listing router interface", () => {
     ]);
     expect(Object.keys(listingRouter.adminModeration).toSorted()).toEqual([
       "archive",
+      "auditLog",
       "hide",
+      "list",
       "restore",
     ]);
   });

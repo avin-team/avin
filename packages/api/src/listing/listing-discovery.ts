@@ -16,6 +16,15 @@ export const getListingIdentifierCandidates = (
   return { id: identifier, slug: identifier };
 };
 
+export const isListingPubliclyAvailable = (
+  listingStatus: "DRAFT" | "PUBLISHED" | "PAUSED" | "HIDDEN" | "ARCHIVED",
+  categoryStatus: "ACTIVE" | "HIDDEN" | "ARCHIVED",
+  parentCategoryStatus: "ACTIVE" | "HIDDEN" | "ARCHIVED"
+): boolean =>
+  listingStatus === "PUBLISHED" &&
+  categoryStatus === "ACTIVE" &&
+  parentCategoryStatus === "ACTIVE";
+
 export const listingDiscoveryRouter = {
   categories: publicProcedure.handler(async () => {
     // Only return ACTIVE parents and ACTIVE sub-categories for public buyers
@@ -111,10 +120,11 @@ export const listingDiscoveryRouter = {
       const user = context.session?.user;
       const isAdmin = user?.role === "ADMIN";
       const isOwner = user?.id === found.sellerId;
-      const isPubliclyAvailable =
-        found.status === "PUBLISHED" &&
-        found.category.status === "ACTIVE" &&
-        found.category.parentCategory.status === "ACTIVE";
+      const isPubliclyAvailable = isListingPubliclyAvailable(
+        found.status,
+        found.category.status,
+        found.category.parentCategory.status
+      );
 
       if (!isAdmin && !isOwner && !isPubliclyAvailable) {
         throw new ORPCError("NOT_FOUND", {
