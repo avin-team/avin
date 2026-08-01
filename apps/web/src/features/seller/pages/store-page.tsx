@@ -274,20 +274,7 @@ export const StorePage = () => {
 
   return (
     <Shell className="max-w-none px-0 pb-16" variant="default">
-      <div className="mx-auto w-full max-w-[1920px] px-4 pt-2 sm:px-6 lg:px-8">
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
-          <div className="flex items-center gap-2 text-primary">
-            <Store className="size-4" />
-            <span className="font-semibold">Kênh bán hàng</span>
-            <span className="text-muted-foreground">
-              Giao diện frontend mock · Chưa kết nối dữ liệu thật
-            </span>
-          </div>
-          <Badge variant="outline">Mock UI</Badge>
-        </div>
-      </div>
-
-      <div className="mt-5 grid min-h-[calc(100vh-12rem)] grid-cols-1 overflow-hidden border-y border-border bg-background lg:grid-cols-[250px_minmax(0,1fr)]">
+      <div className="grid min-h-[calc(100vh-8rem)] grid-cols-1 overflow-hidden border-y border-border bg-background lg:grid-cols-[250px_minmax(0,1fr)]">
         <StoreSidebar active={active} onChange={setActive} />
         <div className="min-w-0 p-5 sm:p-7 lg:p-9">
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border/60 pb-5">
