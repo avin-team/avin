@@ -34,12 +34,12 @@ export const SellerAppSidebar = ({
       <SellerAppTitle />
     </SidebarHeader>
     <SidebarContent>
-      {SELLER_NAV_GROUPS.map((group) => (
+      {SELLER_NAV_GROUPS.map((props) => (
         <SellerNavGroup
           active={active}
-          group={group}
-          key={group.title}
+          key={props.title}
           onChange={onChange}
+          {...props}
         />
       ))}
     </SidebarContent>
