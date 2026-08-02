@@ -50,7 +50,7 @@ const makeSlug = (title: string | null | undefined): string => {
   return `${base || "listing"}-${crypto.randomUUID().slice(0, 8)}`;
 };
 
-const getPrimaryListingImage = (
+export const getPrimaryListingImage = (
   images: string[] | null | undefined,
   thumbnailUrl: string | null | undefined
 ): string | null => images?.[0]?.trim() || thumbnailUrl?.trim() || null;
@@ -418,6 +418,27 @@ export const sellerWorkspaceRouter = {
       return { id: deleted.id };
     }),
 
+  discardImageUploads: sellerProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        imageUrls: z.array(z.string()).max(LISTING_IMAGE_MAX_COUNT),
+      })
+    )
+    .handler(async ({ context, input }) => {
+      await assertEligibleSeller(context.session.user.id);
+      const found = await assertOwnedListing(input.id, context.session.user.id);
+
+      await cleanupUnreferencedListingImages(context.storage, {
+        nextImages: found.images,
+        nextThumbnailUrl: found.thumbnailUrl,
+        previousImages: input.imageUrls,
+        previousThumbnailUrl: null,
+      });
+
+      return { id: found.id };
+    }),
+
   getDraft: sellerProcedure
     .input(z.object({ id: z.string() }))
     .handler(async ({ context, input }) => {
@@ -586,7 +607,7 @@ export const sellerWorkspaceRouter = {
       let nextThumbnailUrl = found.thumbnailUrl;
       if (hasImagesInput) {
         nextThumbnailUrl = getPrimaryListingImage(nextImages, null);
-      } else if (hasThumbnailInput) {
+      } else if (hasThumbnailInput && nextImages.length === 0) {
         nextThumbnailUrl = input.thumbnailUrl ?? null;
       }
 

@@ -32,6 +32,7 @@ describe("listing router interface", () => {
       "archive",
       "createDraft",
       "deleteDraft",
+      "discardImageUploads",
       "get",
       "getDraft",
       "getMediaAccess",

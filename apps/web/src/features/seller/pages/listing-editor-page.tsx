@@ -370,6 +370,7 @@ const EditorStepContent = ({
   editorForm,
   form,
   onDirty,
+  onImagesUploaded,
   onImageUploadingChange,
   onParentCategoryChange,
   parentCategoryId,
@@ -382,6 +383,7 @@ const EditorStepContent = ({
   editorForm: ListingEditorFormApi;
   form: ListingEditorForm;
   onDirty: () => void;
+  onImagesUploaded: (imageUrls: string[]) => void;
   onImageUploadingChange: (isUploading: boolean) => void;
   onParentCategoryChange: (parentCategoryId: string) => void;
   parentCategoryId: string;
@@ -744,6 +746,7 @@ const EditorStepContent = ({
               editorForm.setFieldValue("images", images);
               editorForm.setFieldValue("thumbnailUrl", thumbnailUrl);
             }}
+            onImagesUploaded={onImagesUploaded}
             onUploadingChange={onImageUploadingChange}
             thumbnailUrl={form.thumbnailUrl}
           />
@@ -1022,6 +1025,7 @@ const ListingEditorFormPage = ({
     isNew ? "unsaved" : "saved"
   );
   const [isImageUploading, setIsImageUploading] = useState(false);
+  const pendingImageUploadsRef = useRef<string[]>([]);
   const listingStatus = listing.status;
   const isArchived = listingStatus === "ARCHIVED";
   const isPublished = listingStatus === "PUBLISHED";
@@ -1037,6 +1041,9 @@ const ListingEditorFormPage = ({
         setSaveStatus("saved");
       },
     })
+  );
+  const discardImageUploadsMutation = useMutation(
+    orpc.listing.sellerWorkspace.discardImageUploads.mutationOptions()
   );
   const { mutateAsync: updateDraftAsync } = updateDraftMutation;
   const saveQueueRef = useRef<Promise<unknown> | null>(null);
@@ -1202,6 +1209,7 @@ const ListingEditorFormPage = ({
 
   const isActionPending =
     createDraftMutation.isPending ||
+    discardImageUploadsMutation.isPending ||
     isImageUploading ||
     updateDraftMutation.isPending ||
     publishMutation.isPending ||
@@ -1237,11 +1245,13 @@ const ListingEditorFormPage = ({
         setSaveStatus("unsaved");
         return false;
       }
+      pendingImageUploadsRef.current = [];
       return true;
     }
 
     try {
       await enqueueSave({ id: draftId, ...buildUpdateInput(form) });
+      pendingImageUploadsRef.current = [];
       return true;
     } catch {
       return false;
@@ -1283,6 +1293,30 @@ const ListingEditorFormPage = ({
 
   const handleReturnToProducts = async () => {
     await handleNavigateFromEditor("products");
+  };
+
+  const handleDiscardChanges = async () => {
+    const targetSection = pendingNavigationSectionRef.current ?? "products";
+    if (draftId && pendingImageUploadsRef.current.length > 0) {
+      try {
+        await discardImageUploadsMutation.mutateAsync({
+          id: draftId,
+          imageUrls: pendingImageUploadsRef.current,
+        });
+        pendingImageUploadsRef.current = [];
+      } catch {
+        pendingNavigationSectionRef.current = targetSection;
+        toast.error("Không thể dọn ảnh chưa lưu. Vui lòng thử lại.");
+        return;
+      }
+    }
+
+    setIsDiscardDialogOpen(false);
+    pendingNavigationSectionRef.current = null;
+    await navigate({
+      search: { section: targetSection },
+      to: "/seller/store",
+    });
   };
 
   const handlePrimaryAction = async () => {
@@ -1560,6 +1594,14 @@ const ListingEditorFormPage = ({
                     editorForm={editorForm}
                     form={form}
                     onDirty={markUnsaved}
+                    onImagesUploaded={(imageUrls) =>
+                      (pendingImageUploadsRef.current = [
+                        ...new Set([
+                          ...pendingImageUploadsRef.current,
+                          ...imageUrls,
+                        ]),
+                      ])
+                    }
                     onImageUploadingChange={setIsImageUploading}
                     onParentCategoryChange={handleParentCategoryChange}
                     parentCategoryId={parentCategoryId}
@@ -1696,16 +1738,7 @@ const ListingEditorFormPage = ({
           <AlertDialogFooter>
             <AlertDialogCancel>Tiếp tục chỉnh sửa</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => {
-                const targetSection =
-                  pendingNavigationSectionRef.current ?? "products";
-                setIsDiscardDialogOpen(false);
-                pendingNavigationSectionRef.current = null;
-                void navigate({
-                  search: { section: targetSection },
-                  to: "/seller/store",
-                });
-              }}
+              onClick={() => void handleDiscardChanges()}
               variant="destructive"
             >
               Bỏ thay đổi

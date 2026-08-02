@@ -37,6 +37,7 @@ interface ListingImageUploaderProps {
   listingId: string;
   onDirty: () => void;
   onImageChange: (value: { images: string[]; thumbnailUrl: string }) => void;
+  onImagesUploaded?: (imageUrls: string[]) => void;
   onUploadingChange?: (isUploading: boolean) => void;
   thumbnailUrl: string;
 }
@@ -79,6 +80,7 @@ export const ListingImageUploader = ({
   listingId,
   onDirty,
   onImageChange,
+  onImagesUploaded,
   onUploadingChange,
   thumbnailUrl,
 }: ListingImageUploaderProps) => {
@@ -204,6 +206,7 @@ export const ListingImageUploader = ({
 
         if (uploadedUrls.length > 0) {
           commitImages([...currentImages, ...uploadedUrls]);
+          onImagesUploaded?.(uploadedUrls);
         }
 
         addFailedUploads(
@@ -292,6 +295,12 @@ export const ListingImageUploader = ({
   };
 
   const handleFilesRejected = (rejections: FileRejection[]) => {
+    addFailedUploads(
+      rejections.map((rejection) => ({
+        file: rejection.file,
+        message: getRejectionErrorMessage(rejection.errors[0]?.code),
+      }))
+    );
     setErrorMessage(getRejectionErrorMessage(rejections[0]?.errors[0]?.code));
   };
 

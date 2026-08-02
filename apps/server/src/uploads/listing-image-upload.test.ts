@@ -3,7 +3,7 @@ import {
   LISTING_IMAGE_MAX_COUNT,
   LISTING_IMAGE_UPLOAD_ROUTE,
 } from "@avin/api/storage";
-import type { Router } from "@better-upload/server";
+import { custom } from "@better-upload/server/clients";
 import { describe, expect, it, vi } from "vitest";
 
 import { createListingImageUploadRouter } from "./listing-image-upload";
@@ -30,8 +30,15 @@ vi.mock("@avin/api/listing/seller-workspace", () => ({
 }));
 
 const getListingImageRoute = () => {
-  const routeFactory = createListingImageUploadRouter({} as Router["client"])
-    .routes[LISTING_IMAGE_UPLOAD_ROUTE];
+  const routeFactory = createListingImageUploadRouter(
+    custom({
+      accessKeyId: "test",
+      host: "localhost",
+      region: "test",
+      secretAccessKey: "test",
+      secure: false,
+    })
+  ).routes[LISTING_IMAGE_UPLOAD_ROUTE];
   if (!routeFactory) {
     throw new Error("Listing image upload route is not configured");
   }

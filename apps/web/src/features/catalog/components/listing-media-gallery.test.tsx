@@ -15,17 +15,16 @@ const TestObserver = function TestObserver() {
 beforeEach(() => {
   vi.stubGlobal(
     "matchMedia",
-    (query: string) =>
-      ({
-        addEventListener: vi.fn(),
-        addListener: vi.fn(),
-        dispatchEvent: vi.fn(),
-        matches: false,
-        media: query,
-        onchange: null,
-        removeEventListener: vi.fn(),
-        removeListener: vi.fn(),
-      }) as unknown as MediaQueryList
+    (query: string): MediaQueryList => ({
+      addEventListener: vi.fn(),
+      addListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+      matches: false,
+      media: query,
+      onchange: null,
+      removeEventListener: vi.fn(),
+      removeListener: vi.fn(),
+    })
   );
   vi.stubGlobal("IntersectionObserver", TestObserver);
   vi.stubGlobal("ResizeObserver", TestObserver);

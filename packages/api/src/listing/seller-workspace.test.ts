@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { assertStoreProfileComplete } from "../seller-store/public-visibility";
 import {
   assertDeletableDraft,
+  getPrimaryListingImage,
   assertPublishable,
   canAccessListingMedia,
   canUploadListingImage,
@@ -31,6 +32,15 @@ describe("seller workspace listing publication rules", () => {
 
   it("passes validation when all publication fields are valid and within warranty bounds", () => {
     expect(() => assertPublishable(validListing, validCategory)).not.toThrow();
+  });
+
+  it("uses the first image as the cover when a thumbnail value is stale", () => {
+    expect(
+      getPrimaryListingImage(
+        ["https://storage.avin.internal/listing-1/first.jpg"],
+        "https://storage.avin.internal/listing-1/old-cover.jpg"
+      )
+    ).toBe("https://storage.avin.internal/listing-1/first.jpg");
   });
 
   it("requires a complete Store profile before a Listing can be published", () => {
