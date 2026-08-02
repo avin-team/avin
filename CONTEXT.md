@@ -91,10 +91,22 @@ A line item within an `Order`, capturing the snapshotted `Listing`, quantity, un
 
 ### UserWallet
 
-The financial account belonging to a `User`. Used to hold deposits of at least `5,000 VND` (via bank transfer VietQR/payOS/SePay) and pay for purchases. P0 imposes no Avin-specific maximum deposit beyond bank or payment-provider limits.
+The financial account belonging to a `User`. Used to hold deposits of at least `5,000 VND` through an embedded VietQR bank-transfer flow monitored by SePay, and to pay for purchases. P0 imposes no Avin-specific maximum deposit beyond bank or payment-provider limits.
 
 - **Available Balance**: Deposited funds that the `User` can spend on a new purchase.
 - **Held Balance**: Funds committed to an active `EscrowHold`; visible to the `User` but unavailable for another purchase.
+
+The balances are the current summary of the UserWallet and must always reconcile with the immutable `Posting`s in its `LedgerAccount`s.
+
+The User-facing wallet history contains only monetary events that actually occurred. An uncredited or abandoned `Deposit request` is not a Transaction and does not appear in that history.
+
+### Deposit request
+
+A `User`'s one-time intent to add a specified integer VND amount to their `UserWallet` through a VietQR transfer displayed inside Avin and monitored by SePay. P0 transfers all use one Avin receiving bank account, while each explicit creation receives a new payment reference consisting of the `AV` prefix plus 12 random uppercase letters or digits, embedded with the exact amount in the transfer instruction. The reference is unique and contains neither an internal identifier nor User information. A request is `PENDING` until it is credited exactly once, after which it is `CREDITED`; it has no expired, cancelled, or abandoned financial state. Leaving the deposit flow abandons only the user interface and does not cancel the request. A later valid notification still credits the request exactly once even after the User has left the flow, so multiple pending requests may coexist. Pending requests remain available to Admins for investigation but do not appear in the User-facing wallet history.
+
+### Deposit reconciliation
+
+An Admin review of a SePay payment notification whose reference, currency, or amount cannot be matched exactly to a `Deposit request`, including a second distinct payment for a request that has already been credited. Reconciliation may associate the payment only with an existing Deposit request, never directly with an arbitrarily selected User; no `UserWallet` credit exists until the association is confirmed. A confirmed reconciliation credits the exact amount SePay reports as received, rather than the amount originally requested. A payment that cannot be associated with any request remains unresolved for support or external refund handling.
 
 ### SellerWallet
 
@@ -109,9 +121,17 @@ In P0, a `Seller` requests withdrawal of at least `5,000 VND` from Available Bal
 
 A financial hold entity tied 1-to-1 with an `OrderItem`. Holds the item's buyer payment in escrow during fulfillment and warranty before releasing funds to `SellerWallet` (minus platform commission) or refunding `UserWallet`. It is created atomically with moving the matching amount from `UserWallet` Available Balance to Held Balance.
 
+### LedgerAccount
+
+An account in Avin's financial ledger representing where monetary value is held or owed, including platform bank clearing, UserWallet Available and Held balances, SellerWallet Pending and Available balances, escrow, and platform commission.
+
+### Posting
+
+An immutable debit or credit applied to one `LedgerAccount` as part of a `Transaction`. Every Transaction has at least two Postings whose debits and credits balance exactly.
+
 ### Transaction
 
-An immutable financial ledger entry recording every monetary event (`DEPOSIT`, `PURCHASE_HOLD`, `ESCROW_RELEASE`, `PLATFORM_COMMISSION`, `REFUND`, `WITHDRAWAL_REQUEST`, `WITHDRAWAL_PAID`). A deposit is credited only after an idempotent, verified payment-provider webhook; its provider transaction ID uniquely identifies the credit.
+An immutable, authoritative financial event composed of balanced `Posting`s and exposed to participants as one meaningful wallet-history item (`DEPOSIT`, `PURCHASE_HOLD`, `ESCROW_RELEASE`, `PLATFORM_COMMISSION`, `REFUND`, `WITHDRAWAL_REQUEST`, `WITHDRAWAL_PAID`, `REVERSAL`). A deposit is credited only after an idempotent, verified payment-provider notification; its provider transaction ID uniquely identifies the credit, so a retried notification cannot create money twice. One `Deposit request` may be credited automatically at most once; any later payment with a distinct provider transaction ID requires `Deposit reconciliation`. A financial correction never edits or deletes history: a REVERSAL Transaction links to and posts the exact inverse of the original Transaction before any corrected Transaction is appended. An automated reversal cannot make a wallet balance negative; an insufficient-balance correction requires separate operational handling.
 
 ### Dispute
 

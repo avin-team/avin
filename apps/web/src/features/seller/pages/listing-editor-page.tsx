@@ -22,6 +22,7 @@ import {
 import { FieldError } from "@avin/ui/components/field";
 import { Input } from "@avin/ui/components/input";
 import { Label } from "@avin/ui/components/label";
+import { NumberInput } from "@avin/ui/components/number-input";
 import { Progress } from "@avin/ui/components/progress";
 import {
   Select,
@@ -47,11 +48,8 @@ import {
   FileCheck2,
   ListChecks,
   PackageCheck,
-  PencilLine,
-  Plus,
   Rocket,
   Save,
-  Trash2,
   Wrench,
 } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -65,7 +63,6 @@ import { orpc } from "@/utils/orpc";
 
 import type { StoreSection } from "../data/store-types";
 import {
-  areListingServiceInputsValid,
   getFirstIncompleteEditorStepIndex,
   isListingEditorStepLocked,
   LISTING_EDITOR_STEP_ORDER,
@@ -138,20 +135,12 @@ const EDITOR_STEP_COPY: Record<
   { description: string; label: string }
 > = {
   basics: {
-    description: "Tên, loại và danh mục",
+    description: "Tên, loại, danh mục, giá và thời gian hoàn thành",
     label: "Thông tin cơ bản",
-  },
-  inputs: {
-    description: "Những gì khách hàng cần cung cấp",
-    label: "Thông tin từ khách",
   },
   media: {
     description: "Ảnh đại diện và thư viện ảnh",
     label: "Hình ảnh",
-  },
-  offer: {
-    description: "Giá bán và thời gian hoàn thành",
-    label: "Giá & thực hiện",
   },
   warranty: { description: "Thời hạn và điều khoản", label: "Bảo hành" },
 };
@@ -160,13 +149,6 @@ const EDITOR_STEPS = LISTING_EDITOR_STEP_ORDER.map((id) => ({
   ...EDITOR_STEP_COPY[id],
   id,
 }));
-
-const INPUT_TYPE_ITEMS = [
-  { label: "Văn bản ngắn", value: "text" },
-  { label: "URL", value: "url" },
-  { label: "Tệp", value: "file" },
-  { label: "Số", value: "number" },
-];
 
 const LISTING_TYPE_ITEMS = [
   { label: "Dịch vụ", value: "SERVICE" },
@@ -239,7 +221,12 @@ const isListingType = (
 ): type is "COURSE" | "SERVICE" => type === "COURSE" || type === "SERVICE";
 
 const parseInteger = (value: string): number | null => {
-  const parsed = Number(value);
+  const trimmedValue = value.trim();
+  if (!trimmedValue) {
+    return null;
+  }
+
+  const parsed = Number(trimmedValue);
   return Number.isInteger(parsed) ? parsed : null;
 };
 
@@ -307,9 +294,6 @@ const getReadinessItems = (
   const processingTime = parseInteger(form.processingTimeHours);
   const warrantyDuration = parseInteger(form.warrantyDurationHours);
   const primaryImage = form.thumbnailUrl.trim() || form.images[0]?.trim();
-  const serviceInputsValid =
-    form.type === "COURSE" ||
-    areListingServiceInputsValid(form.serviceInputFields);
   const warrantyInBounds = Boolean(
     category &&
     warrantyDuration !== null &&
@@ -350,25 +334,19 @@ const getReadinessItems = (
       complete: price !== null && price > 0,
       id: "price",
       label: "Giá bán hợp lệ",
-      step: "offer",
+      step: "basics",
     },
     {
       complete: processingTime !== null && processingTime > 0,
       id: "processing-time",
       label: "Thời gian hoàn thành",
-      step: "offer",
+      step: "basics",
     },
     {
       complete: Boolean(primaryImage),
       id: "primary-image",
       label: "Ảnh đại diện",
       step: "media",
-    },
-    {
-      complete: serviceInputsValid,
-      id: "service-inputs",
-      label: "Thông tin khách hợp lệ",
-      step: "inputs",
     },
     {
       complete: warrantyInBounds,
@@ -396,195 +374,12 @@ const EditorFieldError = ({ field }: { field: AnyFieldApi }) => {
   return isInvalid ? <FieldError errors={field.state.meta.errors} /> : null;
 };
 
-type ServiceInputFieldPath =
-  | `serviceInputFields[${number}].key`
-  | `serviceInputFields[${number}].label`
-  | `serviceInputFields[${number}].required`
-  | `serviceInputFields[${number}].type`;
-
-const InputFieldEditor = ({
-  disabled,
-  editorForm,
-  field,
-  fieldIndex,
-  onDirty,
-  onRemove,
-}: {
-  disabled: boolean;
-  editorForm: ListingEditorFormApi;
-  field: ServiceInputField;
-  fieldIndex: number;
-  onDirty: () => void;
-  onRemove: () => void;
-}) => (
-  <div className="space-y-3 rounded-2xl border border-border/60 bg-muted/20 p-4">
-    <div className="flex items-start justify-between gap-3">
-      <div>
-        <p className="text-sm font-semibold">Thông tin khách hàng</p>
-        <p className="text-xs text-muted-foreground">
-          Mô tả thông tin khách cần cung cấp trước khi bạn bắt đầu.
-        </p>
-      </div>
-      <Button
-        aria-label={`Xóa ${field.label || "yêu cầu của khách hàng"}`}
-        disabled={disabled}
-        onClick={onRemove}
-        size="icon-sm"
-        type="button"
-        variant="ghost"
-      >
-        <Trash2 />
-      </Button>
-    </div>
-    <div className="grid gap-3 sm:grid-cols-2">
-      <div className="grid gap-2">
-        <Label htmlFor={`input-label-${field.id}`}>Nhãn hiển thị</Label>
-        <editorForm.Field
-          name={
-            `serviceInputFields[${fieldIndex}].label` as ServiceInputFieldPath
-          }
-        >
-          {(inputField) => {
-            const isInvalid =
-              inputField.state.meta.isTouched && !inputField.state.meta.isValid;
-            return (
-              <>
-                <Input
-                  aria-invalid={isInvalid}
-                  disabled={disabled}
-                  id={`input-label-${field.id}`}
-                  name={inputField.name}
-                  onBlur={inputField.handleBlur}
-                  onChange={(event) => {
-                    onDirty();
-                    inputField.handleChange(event.target.value);
-                  }}
-                  placeholder="Tài liệu thương hiệu"
-                  value={
-                    typeof inputField.state.value === "string"
-                      ? inputField.state.value
-                      : ""
-                  }
-                />
-                <EditorFieldError field={inputField} />
-              </>
-            );
-          }}
-        </editorForm.Field>
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor={`input-key-${field.id}`}>Khóa dữ liệu</Label>
-        <editorForm.Field
-          name={
-            `serviceInputFields[${fieldIndex}].key` as ServiceInputFieldPath
-          }
-        >
-          {(inputField) => {
-            const isInvalid =
-              inputField.state.meta.isTouched && !inputField.state.meta.isValid;
-            return (
-              <>
-                <Input
-                  aria-invalid={isInvalid}
-                  disabled={disabled}
-                  id={`input-key-${field.id}`}
-                  name={inputField.name}
-                  onBlur={inputField.handleBlur}
-                  onChange={(event) => {
-                    onDirty();
-                    inputField.handleChange(event.target.value);
-                  }}
-                  placeholder="tai_lieu_thuong_hieu"
-                  value={
-                    typeof inputField.state.value === "string"
-                      ? inputField.state.value
-                      : ""
-                  }
-                />
-                <EditorFieldError field={inputField} />
-              </>
-            );
-          }}
-        </editorForm.Field>
-      </div>
-    </div>
-    <div className="grid gap-3 sm:grid-cols-2">
-      <div className="grid gap-2">
-        <Label htmlFor={`input-type-${field.id}`}>Kiểu trả lời</Label>
-        <editorForm.Field
-          name={
-            `serviceInputFields[${fieldIndex}].type` as ServiceInputFieldPath
-          }
-        >
-          {(inputField) => (
-            <Select
-              disabled={disabled}
-              items={INPUT_TYPE_ITEMS}
-              onValueChange={(value) => {
-                if (
-                  value === "file" ||
-                  value === "number" ||
-                  value === "text" ||
-                  value === "url"
-                ) {
-                  onDirty();
-                  inputField.handleChange(value);
-                }
-              }}
-              value={
-                typeof inputField.state.value === "string"
-                  ? inputField.state.value
-                  : "text"
-              }
-            >
-              <SelectTrigger id={`input-type-${field.id}`}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="text">Văn bản ngắn</SelectItem>
-                <SelectItem value="url">URL</SelectItem>
-                <SelectItem value="file">Tệp</SelectItem>
-                <SelectItem value="number">Số</SelectItem>
-              </SelectContent>
-            </Select>
-          )}
-        </editorForm.Field>
-      </div>
-      <editorForm.Field
-        name={
-          `serviceInputFields[${fieldIndex}].required` as ServiceInputFieldPath
-        }
-      >
-        {(inputField) => (
-          <label className="flex items-center gap-2 self-end pb-2 text-sm">
-            <input
-              checked={inputField.state.value === true}
-              className="size-4 accent-primary"
-              disabled={disabled}
-              name={inputField.name}
-              onBlur={inputField.handleBlur}
-              onChange={(event) => {
-                onDirty();
-                inputField.handleChange(event.target.checked);
-              }}
-              type="checkbox"
-            />
-            Bắt buộc với khách hàng
-          </label>
-        )}
-      </editorForm.Field>
-    </div>
-  </div>
-);
-
 const EditorStepContent = ({
   disabled,
   editorForm,
   form,
-  onAddInputField,
   onDirty,
   onParentCategoryChange,
-  onRemoveInputField,
   parentCategoryId,
   listingId,
   categories,
@@ -594,10 +389,8 @@ const EditorStepContent = ({
   disabled: boolean;
   editorForm: ListingEditorFormApi;
   form: ListingEditorForm;
-  onAddInputField: () => void;
   onDirty: () => void;
   onParentCategoryChange: (parentCategoryId: string) => void;
-  onRemoveInputField: (fieldId: string) => void;
   parentCategoryId: string;
   listingId: string;
   stepId: ListingEditorStepId;
@@ -777,73 +570,71 @@ const EditorStepContent = ({
               }}
             </editorForm.Field>
           </div>
-        </div>
-      );
-    }
-    case "offer": {
-      return (
-        <div className="grid gap-5 sm:grid-cols-2">
-          <div className="grid gap-2">
-            <Label htmlFor="listing-editor-price">Giá bán (VND)</Label>
-            <editorForm.Field name="priceAmount">
-              {(field) => (
-                <Input
-                  aria-invalid={
-                    field.state.meta.isTouched && !field.state.meta.isValid
-                  }
-                  disabled={disabled}
-                  id="listing-editor-price"
-                  inputMode="numeric"
-                  name={field.name}
-                  onBlur={field.handleBlur}
-                  onChange={(event) => {
-                    onDirty();
-                    field.handleChange(event.target.value);
-                  }}
-                  placeholder="1500000"
-                  value={field.state.value}
-                />
-              )}
-            </editorForm.Field>
-            <FieldHint>
-              Nhập số nguyên dương theo đơn vị Việt Nam đồng.
-            </FieldHint>
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="listing-editor-processing">
-              Thời gian hoàn thành (giờ)
-            </Label>
-            <editorForm.Field name="processingTimeHours">
-              {(field) => (
-                <Input
-                  aria-invalid={
-                    field.state.meta.isTouched && !field.state.meta.isValid
-                  }
-                  disabled={disabled}
-                  id="listing-editor-processing"
-                  inputMode="numeric"
-                  name={field.name}
-                  onBlur={field.handleBlur}
-                  onChange={(event) => {
-                    onDirty();
-                    field.handleChange(event.target.value);
-                  }}
-                  placeholder="48"
-                  value={field.state.value}
-                />
-              )}
-            </editorForm.Field>
-            <FieldHint>Khi nào khách hàng có thể nhận kết quả?</FieldHint>
-          </div>
-          <div className="rounded-2xl bg-muted/45 p-4 text-sm leading-6 text-muted-foreground sm:col-span-2">
-            <div className="flex items-center gap-2 font-semibold text-foreground">
-              <PackageCheck className="size-4 text-primary" />
-              Kiểm tra thông tin cho khách
+          <div className="grid gap-5 border-t border-border/60 pt-5 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label htmlFor="listing-editor-price">Giá bán (VND)</Label>
+              <editorForm.Field name="priceAmount">
+                {(field) => (
+                  <NumberInput
+                    aria-invalid={
+                      field.state.meta.isTouched && !field.state.meta.isValid
+                    }
+                    disabled={disabled}
+                    id="listing-editor-price"
+                    inputProps={{ onBlur: field.handleBlur }}
+                    name={field.name}
+                    min={1}
+                    onValueChange={(value) => {
+                      onDirty();
+                      field.handleChange(value === null ? "" : String(value));
+                    }}
+                    placeholder="1500000"
+                    step={1}
+                    value={parseInteger(field.state.value)}
+                  />
+                )}
+              </editorForm.Field>
+              <FieldHint>
+                Nhập số nguyên dương theo đơn vị Việt Nam đồng.
+              </FieldHint>
             </div>
-            <p className="mt-1">
-              Giá bán và thời gian hoàn thành sẽ hiển thị cùng nhau trên gian
-              hàng.
-            </p>
+            <div className="grid gap-2">
+              <Label htmlFor="listing-editor-processing">
+                Thời gian hoàn thành (giờ)
+              </Label>
+              <editorForm.Field name="processingTimeHours">
+                {(field) => (
+                  <NumberInput
+                    aria-invalid={
+                      field.state.meta.isTouched && !field.state.meta.isValid
+                    }
+                    disabled={disabled}
+                    id="listing-editor-processing"
+                    inputProps={{ onBlur: field.handleBlur }}
+                    name={field.name}
+                    min={1}
+                    onValueChange={(value) => {
+                      onDirty();
+                      field.handleChange(value === null ? "" : String(value));
+                    }}
+                    placeholder="48"
+                    step={1}
+                    value={parseInteger(field.state.value)}
+                  />
+                )}
+              </editorForm.Field>
+              <FieldHint>Khi nào khách hàng có thể nhận kết quả?</FieldHint>
+            </div>
+            <div className="rounded-2xl bg-muted/45 p-4 text-sm leading-6 text-muted-foreground sm:col-span-2">
+              <div className="flex items-center gap-2 font-semibold text-foreground">
+                <PackageCheck className="size-4 text-primary" />
+                Kiểm tra thông tin cho khách
+              </div>
+              <p className="mt-1">
+                Giá bán và thời gian hoàn thành sẽ hiển thị cùng nhau trên gian
+                hàng.
+              </p>
+            </div>
           </div>
         </div>
       );
@@ -867,39 +658,6 @@ const EditorStepContent = ({
         </div>
       );
     }
-    case "inputs": {
-      return (
-        <div className="space-y-4">
-          <div className="flex items-start gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm leading-6 text-muted-foreground">
-            <PencilLine className="mt-1 size-4 shrink-0 text-primary" />
-            <p>
-              Những câu hỏi này hiển thị với khách sau khi họ đặt mua. Hãy viết
-              đủ cụ thể để bạn có thể bắt đầu công việc ngay.
-            </p>
-          </div>
-          {form.serviceInputFields.map((field, fieldIndex) => (
-            <InputFieldEditor
-              disabled={disabled}
-              editorForm={editorForm}
-              field={field}
-              fieldIndex={fieldIndex}
-              key={field.id}
-              onDirty={onDirty}
-              onRemove={() => onRemoveInputField(field.id)}
-            />
-          ))}
-          <Button
-            disabled={disabled}
-            onClick={onAddInputField}
-            type="button"
-            variant="outline"
-          >
-            <Plus />
-            Thêm thông tin khách cần cung cấp
-          </Button>
-        </div>
-      );
-    }
     case "warranty": {
       return (
         <div className="space-y-5">
@@ -909,21 +667,23 @@ const EditorStepContent = ({
             </Label>
             <editorForm.Field name="warrantyDurationHours">
               {(field) => (
-                <Input
+                <NumberInput
                   aria-invalid={
                     field.state.meta.isTouched && !field.state.meta.isValid
                   }
                   disabled={disabled}
                   id="listing-editor-warranty-duration"
-                  inputMode="numeric"
+                  inputProps={{ onBlur: field.handleBlur }}
                   name={field.name}
-                  onBlur={field.handleBlur}
-                  onChange={(event) => {
+                  max={selectedCategory?.warrantyBounds.maxHours}
+                  min={selectedCategory?.warrantyBounds.minHours}
+                  onValueChange={(value) => {
                     onDirty();
-                    field.handleChange(event.target.value);
+                    field.handleChange(value === null ? "" : String(value));
                   }}
                   placeholder="72"
-                  value={field.state.value}
+                  step={1}
+                  value={parseInteger(field.state.value)}
                 />
               )}
             </editorForm.Field>
@@ -1357,27 +1117,6 @@ const ListingEditorFormPage = ({
     editorForm.setFieldValue("categoryId", "");
   };
 
-  const handleAddInputField = () => {
-    markUnsaved();
-    editorForm.setFieldValue("serviceInputFields", (current) => [
-      ...current,
-      {
-        id: crypto.randomUUID(),
-        key: "",
-        label: "",
-        required: true,
-        type: "text",
-      },
-    ]);
-  };
-
-  const handleRemoveInputField = (fieldId: string) => {
-    markUnsaved();
-    editorForm.setFieldValue("serviceInputFields", (current) =>
-      current.filter((field) => field.id !== fieldId)
-    );
-  };
-
   const isActionPending =
     createDraftMutation.isPending ||
     updateDraftMutation.isPending ||
@@ -1603,7 +1342,7 @@ const ListingEditorFormPage = ({
 
           <nav
             aria-label="Các bước hoàn thiện sản phẩm"
-            className="grid gap-2 md:grid-cols-5"
+            className="grid gap-2 md:grid-cols-3"
           >
             {EDITOR_STEPS.map((step, index) => {
               const isActive = index === activeStepIndex;
@@ -1736,10 +1475,8 @@ const ListingEditorFormPage = ({
                     disabled={isEditorStepDisabled}
                     editorForm={editorForm}
                     form={form}
-                    onAddInputField={handleAddInputField}
                     onDirty={markUnsaved}
                     onParentCategoryChange={handleParentCategoryChange}
-                    onRemoveInputField={handleRemoveInputField}
                     parentCategoryId={parentCategoryId}
                     listingId={draftId ?? "new"}
                     stepId={activeStep.id}
@@ -1756,13 +1493,29 @@ const ListingEditorFormPage = ({
                     <ArrowLeft />
                     Quay lại
                   </Button>
-                  <Button
-                    disabled={isNextStepDisabled}
-                    onClick={() => void handleNextStep()}
-                  >
-                    Tiếp theo
-                    <ArrowRight />
-                  </Button>
+                  {activeStepIndex === EDITOR_STEPS.length - 1 &&
+                  primaryActionAvailable ? (
+                    <Button
+                      disabled={
+                        isActionPending ||
+                        isArchived ||
+                        !isReadyToPublish ||
+                        isHidden
+                      }
+                      onClick={handlePrimaryAction}
+                    >
+                      <Rocket />
+                      {primaryActionLabel}
+                    </Button>
+                  ) : (
+                    <Button
+                      disabled={isNextStepDisabled}
+                      onClick={() => void handleNextStep()}
+                    >
+                      Tiếp theo
+                      <ArrowRight />
+                    </Button>
+                  )}
                 </CardFooter>
               </Card>
             </section>

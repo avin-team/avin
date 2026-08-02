@@ -1,0 +1,3 @@
+# Use embedded VietQR with SePay bank webhooks for wallet deposits
+
+Avin will render each UserWallet deposit's VietQR transfer instruction inside Avin against one configured receiving bank account, identify it with a unique `AV` payment reference, and confirm incoming funds through HMAC-authenticated SePay bank webhooks plus scheduled API reconciliation every 15 minutes. P0 deliberately does not redirect Buyers to SePay's hosted Payment Gateway or create a Virtual Account per deposit: keeping the whole flow in Avin gives the intended Buyer experience, at the cost of Avin owning exact-match processing, idempotency, and reconciliation.

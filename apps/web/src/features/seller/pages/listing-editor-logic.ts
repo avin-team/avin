@@ -1,8 +1,6 @@
 export const LISTING_EDITOR_STEP_ORDER = [
   "basics",
-  "offer",
   "media",
-  "inputs",
   "warranty",
 ] as const;
 
@@ -19,18 +17,6 @@ export interface ListingEditorServiceInput {
   label: string;
   type: "file" | "number" | "text" | "url";
 }
-
-export const areListingServiceInputsValid = (
-  fields: readonly ListingEditorServiceInput[]
-): boolean =>
-  fields.length > 0 &&
-  fields.every(
-    (field) =>
-      field.id.trim() &&
-      field.key.trim() &&
-      field.label.trim() &&
-      ["file", "number", "text", "url"].includes(field.type)
-  );
 
 export const isListingEditorStepLocked = (
   isNew: boolean,

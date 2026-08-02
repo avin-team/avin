@@ -1,21 +1,23 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  areListingServiceInputsValid,
   getFirstIncompleteEditorStepIndex,
   isListingEditorStepLocked,
+  LISTING_EDITOR_STEP_ORDER,
 } from "./listing-editor-logic";
 import type { ListingEditorStep } from "./listing-editor-logic";
 
 const steps: ListingEditorStep[] = [
   { complete: true, step: "basics" },
-  { complete: false, step: "offer" },
-  { complete: true, step: "media" },
-  { complete: false, step: "inputs" },
+  { complete: false, step: "media" },
   { complete: false, step: "warranty" },
 ];
 
 describe("listing editor navigation helpers", () => {
+  it("only includes implemented editor steps", () => {
+    expect(LISTING_EDITOR_STEP_ORDER).toEqual(["basics", "media", "warranty"]);
+  });
+
   it("opens an existing listing at the first incomplete step", () => {
     expect(getFirstIncompleteEditorStepIndex(steps)).toBe(1);
   });
@@ -25,21 +27,7 @@ describe("listing editor navigation helpers", () => {
       getFirstIncompleteEditorStepIndex(
         steps.map((item) => ({ ...item, complete: true }))
       )
-    ).toBe(4);
-  });
-
-  it("does not mark an empty buyer-input list as complete", () => {
-    expect(areListingServiceInputsValid([])).toBe(false);
-    expect(
-      areListingServiceInputsValid([
-        {
-          id: "field-1",
-          key: "profile_link",
-          label: "Đường dẫn trang cá nhân",
-          type: "url",
-        },
-      ])
-    ).toBe(true);
+    ).toBe(2);
   });
 
   it("locks later new listing steps until a draft exists", () => {
