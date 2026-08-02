@@ -101,6 +101,7 @@ export const SellerNavGroup = ({
                       render={
                         <button
                           aria-label={item.label}
+                          className="w-full"
                           onClick={() => {
                             onChange(item.value);
                             setOpenMobile(false);

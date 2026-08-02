@@ -1,6 +1,6 @@
 import { cn } from "@avin/ui/lib/utils";
 import { Link } from "@tanstack/react-router";
-import { Search, Zap } from "lucide-react";
+import { Search } from "lucide-react";
 import { motion } from "motion/react";
 import React, { useEffect, useRef, useState } from "react";
 
@@ -78,11 +78,12 @@ export const Header = () => {
               whileHover={{ scale: 1.02 }}
             >
               <Link className="flex items-center space-x-3" to="/">
-                <div className="relative">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-                    <Zap className="h-5 w-5" />
-                  </div>
-                  <div className="absolute -top-1 -right-1 h-3 w-3 animate-pulse rounded-full bg-primary" />
+                <div className="relative flex size-9 items-center justify-center overflow-hidden rounded-xl bg-muted/20 shadow-sm border border-border/60">
+                  <img
+                    alt="Avin Logo"
+                    className="size-full object-cover"
+                    src="/logo.png"
+                  />
                 </div>
                 <div className="flex flex-col">
                   <span className="text-lg font-bold text-foreground">
