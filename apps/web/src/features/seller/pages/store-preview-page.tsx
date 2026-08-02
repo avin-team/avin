@@ -71,7 +71,7 @@ export const StorePreviewPage = () => {
                   Xem trước gian hàng
                 </h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Đây là bản xem trước riêng tư. Gian hàng chưa hiển thị cho
+                  Kiểm tra cách hồ sơ gian hàng hiển thị trước khi chia sẻ với
                   khách hàng.
                 </p>
               </div>

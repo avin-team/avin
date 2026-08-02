@@ -43,6 +43,7 @@ export const sellerProfile = pgTable(
     phoneVerified: boolean("phone_verified").default(false).notNull(),
     storeSlug: text("store_slug").notNull(),
     storefrontName: text("storefront_name").notNull(),
+    storeSlugLockedAt: timestamp("store_slug_locked_at"),
     updatedAt: timestamp("updated_at")
       .defaultNow()
       .$onUpdate(() => new Date())

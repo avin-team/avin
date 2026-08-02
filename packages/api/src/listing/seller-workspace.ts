@@ -5,7 +5,7 @@ import {
   serviceInputFieldSchema,
   subCategory,
 } from "@avin/db/schema/catalog";
-import { sellerApplication } from "@avin/db/schema/seller";
+import { sellerApplication, sellerProfile } from "@avin/db/schema/seller";
 import { ORPCError } from "@orpc/server";
 import { and, eq, or } from "drizzle-orm";
 import { z } from "zod";
@@ -14,6 +14,8 @@ import { protectedProcedure, sellerProcedure } from "../access/procedures";
 import { slugify } from "../runtime/slug";
 import type { ManagedObjectStore } from "../runtime/storage";
 import { getManagedListingImageKeysToDelete } from "../runtime/storage";
+import { isSellerEnforced } from "../seller-store/profile";
+import { assertStoreProfileComplete } from "../seller-store/public-visibility";
 
 export const CURRENT_SELLER_AGREEMENT_VERSION = "v1.0";
 
@@ -54,16 +56,12 @@ export const assertEligibleSeller = async (userId: string): Promise<void> => {
     }),
   ]);
 
-  const isBanned =
-    account?.banned === true ||
-    (account?.banExpires !== null &&
-      account?.banExpires !== undefined &&
-      account.banExpires > new Date());
+  const isEnforced = isSellerEnforced(account);
 
   if (
     !account ||
     account.role !== "SELLER" ||
-    isBanned ||
+    isEnforced ||
     application?.status !== "APPROVED" ||
     application.sellerAgreementVersion !== CURRENT_SELLER_AGREEMENT_VERSION
   ) {
@@ -492,6 +490,10 @@ export const sellerWorkspaceRouter = {
     .input(z.object({ id: z.string() }))
     .handler(async ({ context, input }) => {
       await assertEligibleSeller(context.session.user.id);
+      const profile = await db.query.sellerProfile.findFirst({
+        where: eq(sellerProfile.userId, context.session.user.id),
+      });
+      assertStoreProfileComplete(profile);
       const draft = await assertDraft(input.id, context.session.user.id);
       const category = await assertActiveSubCategory(draft.categoryId);
       assertPublishable(draft, category);
@@ -514,6 +516,10 @@ export const sellerWorkspaceRouter = {
     .input(z.object({ id: z.string() }))
     .handler(async ({ context, input }) => {
       await assertEligibleSeller(context.session.user.id);
+      const profile = await db.query.sellerProfile.findFirst({
+        where: eq(sellerProfile.userId, context.session.user.id),
+      });
+      assertStoreProfileComplete(profile);
       const found = await assertOwnedListing(input.id, context.session.user.id);
       if (found.status !== "PAUSED") {
         throw new ORPCError("BAD_REQUEST", {

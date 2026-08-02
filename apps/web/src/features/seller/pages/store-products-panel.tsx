@@ -258,7 +258,8 @@ export const StoreProductsPanel = () => {
             </span>
             <h2 className="mt-4 font-semibold">Gian hàng chưa có sản phẩm</h2>
             <p className="mt-1 max-w-md text-sm leading-6 text-muted-foreground">
-              Tạo sản phẩm đầu tiên để bắt đầu hoàn thiện gian hàng và mở bán.
+              Tạo sản phẩm đầu tiên để bắt đầu giới thiệu dịch vụ tới khách
+              hàng.
             </p>
             <Button className="mt-5" onClick={openNewEditor}>
               <Plus />

@@ -26,6 +26,7 @@ import { Route as authSellerLoginRouteImport } from './routes/(auth)/seller/logi
 import { Route as publicCategoryIndexRouteImport } from './routes/(public)/category/index'
 import { Route as publicCategoryParentSlugRouteImport } from './routes/(public)/category/$parentSlug'
 import { Route as publicListingIdRouteImport } from './routes/(public)/listing/$id'
+import { Route as publicStoreSlugRouteImport } from './routes/(public)/store/$slug'
 import { Route as AuthenticatedSellerListingsRouteImport } from './routes/_authenticated/seller/listings'
 import { Route as AuthenticatedSellerOnboardingRouteImport } from './routes/_authenticated/seller/onboarding'
 import { Route as AuthenticatedSellerStoreRouteImport } from './routes/_authenticated/seller/store'
@@ -117,6 +118,11 @@ const publicListingIdRoute = publicListingIdRouteImport.update({
   path: '/listing/$id',
   getParentRoute: () => publicRouteRoute,
 } as any)
+const publicStoreSlugRoute = publicStoreSlugRouteImport.update({
+  id: '/store/$slug',
+  path: '/store/$slug',
+  getParentRoute: () => publicRouteRoute,
+} as any)
 const AuthenticatedSellerListingsRoute =
   AuthenticatedSellerListingsRouteImport.update({
     id: '/seller/listings',
@@ -174,6 +180,7 @@ export interface FileRoutesByFullPath {
   '/seller/login': typeof authSellerLoginRoute
   '/category/$parentSlug': typeof publicCategoryParentSlugRoute
   '/listing/$id': typeof publicListingIdRoute
+  '/store/$slug': typeof publicStoreSlugRoute
   '/seller/listings': typeof AuthenticatedSellerListingsRouteWithChildren
   '/seller/onboarding': typeof AuthenticatedSellerOnboardingRoute
   '/seller/store': typeof AuthenticatedSellerStoreRoute
@@ -197,6 +204,7 @@ export interface FileRoutesByTo {
   '/seller/login': typeof authSellerLoginRoute
   '/category/$parentSlug': typeof publicCategoryParentSlugRoute
   '/listing/$id': typeof publicListingIdRoute
+  '/store/$slug': typeof publicStoreSlugRoute
   '/seller/listings': typeof AuthenticatedSellerListingsRouteWithChildren
   '/seller/onboarding': typeof AuthenticatedSellerOnboardingRoute
   '/seller/store': typeof AuthenticatedSellerStoreRoute
@@ -224,6 +232,7 @@ export interface FileRoutesById {
   '/(auth)/seller/login': typeof authSellerLoginRoute
   '/(public)/category/$parentSlug': typeof publicCategoryParentSlugRoute
   '/(public)/listing/$id': typeof publicListingIdRoute
+  '/(public)/store/$slug': typeof publicStoreSlugRoute
   '/_authenticated/seller/listings': typeof AuthenticatedSellerListingsRouteWithChildren
   '/_authenticated/seller/onboarding': typeof AuthenticatedSellerOnboardingRoute
   '/_authenticated/seller/store': typeof AuthenticatedSellerStoreRoute
@@ -249,6 +258,7 @@ export interface FileRouteTypes {
     | '/seller/login'
     | '/category/$parentSlug'
     | '/listing/$id'
+    | '/store/$slug'
     | '/seller/listings'
     | '/seller/onboarding'
     | '/seller/store'
@@ -272,6 +282,7 @@ export interface FileRouteTypes {
     | '/seller/login'
     | '/category/$parentSlug'
     | '/listing/$id'
+    | '/store/$slug'
     | '/seller/listings'
     | '/seller/onboarding'
     | '/seller/store'
@@ -298,6 +309,7 @@ export interface FileRouteTypes {
     | '/(auth)/seller/login'
     | '/(public)/category/$parentSlug'
     | '/(public)/listing/$id'
+    | '/(public)/store/$slug'
     | '/_authenticated/seller/listings'
     | '/_authenticated/seller/onboarding'
     | '/_authenticated/seller/store'
@@ -440,6 +452,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof publicListingIdRouteImport
       parentRoute: typeof publicRouteRoute
     }
+    '/(public)/store/$slug': {
+      id: '/(public)/store/$slug'
+      path: '/store/$slug'
+      fullPath: '/store/$slug'
+      preLoaderRoute: typeof publicStoreSlugRouteImport
+      parentRoute: typeof publicRouteRoute
+    }
     '/_authenticated/seller/listings': {
       id: '/_authenticated/seller/listings'
       path: '/seller/listings'
@@ -510,6 +529,7 @@ interface publicRouteRouteChildren {
   publicIndexRoute: typeof publicIndexRoute
   publicCategoryParentSlugRoute: typeof publicCategoryParentSlugRoute
   publicListingIdRoute: typeof publicListingIdRoute
+  publicStoreSlugRoute: typeof publicStoreSlugRoute
   publicCategoryIndexRoute: typeof publicCategoryIndexRoute
 }
 
@@ -517,6 +537,7 @@ const publicRouteRouteChildren: publicRouteRouteChildren = {
   publicIndexRoute: publicIndexRoute,
   publicCategoryParentSlugRoute: publicCategoryParentSlugRoute,
   publicListingIdRoute: publicListingIdRoute,
+  publicStoreSlugRoute: publicStoreSlugRoute,
   publicCategoryIndexRoute: publicCategoryIndexRoute,
 }
 

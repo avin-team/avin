@@ -1,11 +1,18 @@
+import { listing } from "@avin/db/schema/catalog";
 import { sellerProfile } from "@avin/db/schema/seller";
 import { ORPCError } from "@orpc/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { z } from "zod";
 
-import { protectedProcedure } from "../access/procedures";
+import { protectedProcedure, publicProcedure } from "../access/procedures";
 import { findSellerProfile } from "../seller-application/onboarding";
-import { storeProfileInputSchema } from "./profile";
+import { STORE_SLUG_PATTERN, storeProfileInputSchema } from "./profile";
 import type { PublicStoreProfile } from "./profile";
+import {
+  findPublicStoreProfile,
+  getStoreVisibility,
+  isStoreSlugLocked,
+} from "./public-visibility";
 
 const sellerStoreProcedure = protectedProcedure.use(
   async ({ context, next }) => {
@@ -43,27 +50,112 @@ const toPublicStoreProfile = (profile: typeof sellerProfile.$inferSelect) =>
 
 export const sellerStoreRouter = {
   getProfile: sellerStoreProcedure.handler(async ({ context }) => {
-    const profile = await findSellerProfile(
-      context.db,
-      context.session.user.id
-    );
+    const userId = context.session.user.id;
+    const profile = await findSellerProfile(context.db, userId);
 
     return {
       profile: profile ? toPublicStoreProfile(profile) : null,
-      status: "DRAFT" as const,
+      ...(await getStoreVisibility(context.db, userId)),
     };
   }),
+
+  getPublicBySlug: publicProcedure
+    .input(
+      z.object({
+        slug: z.string().trim().min(2).max(100).regex(STORE_SLUG_PATTERN),
+      })
+    )
+    .handler(async ({ context, input }) => {
+      const profile = await findPublicStoreProfile(context.db, input.slug);
+
+      if (!profile) {
+        throw new ORPCError("NOT_FOUND", {
+          message: "Store not found or unavailable",
+        });
+      }
+
+      const listingRows = await context.db.query.listing.findMany({
+        columns: {
+          createdAt: true,
+          id: true,
+          priceAmount: true,
+          slug: true,
+          thumbnailUrl: true,
+          title: true,
+          type: true,
+        },
+        limit: 51,
+        orderBy: (table, { desc }) => [desc(table.createdAt)],
+        where: and(
+          eq(listing.sellerId, profile.userId),
+          eq(listing.status, "PUBLISHED")
+        ),
+        with: {
+          category: {
+            columns: {
+              status: true,
+            },
+            with: {
+              parentCategory: {
+                columns: {
+                  status: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const hasMore = listingRows.length > 50;
+      const listings = listingRows.slice(0, 50);
+
+      return {
+        hasMore,
+        listings: listings.flatMap((item) => {
+          if (
+            item.category.status !== "ACTIVE" ||
+            item.category.parentCategory.status !== "ACTIVE"
+          ) {
+            return [];
+          }
+
+          return [
+            {
+              createdAt: item.createdAt,
+              id: item.id,
+              priceAmount: item.priceAmount,
+              slug: item.slug,
+              thumbnailUrl: item.thumbnailUrl,
+              title: item.title,
+              type: item.type,
+            },
+          ];
+        }),
+        profile: toPublicStoreProfile(profile),
+      };
+    }),
 
   updateProfile: sellerStoreProcedure
     .input(storeProfileInputSchema)
     .handler(async ({ context, input }) => {
       const userId = context.session.user.id;
       const existingProfile = await findSellerProfile(context.db, userId);
+
+      if (
+        existingProfile &&
+        input.storeSlug !== existingProfile.storeSlug &&
+        (await isStoreSlugLocked(context.db, existingProfile))
+      ) {
+        throw new ORPCError("BAD_REQUEST", {
+          message: "Không thể đổi đường dẫn khi gian hàng đã public",
+        });
+      }
+
       const conflictingProfile = await context.db.query.sellerProfile.findFirst(
         {
           columns: { id: true },
-          where: (table, { and, eq: equals, ne: notEquals }) =>
-            and(
+          where: (table, { and: all, eq: equals, ne: notEquals }) =>
+            all(
               equals(table.storeSlug, input.storeSlug),
               existingProfile
                 ? notEquals(table.id, existingProfile.id)
@@ -98,9 +190,11 @@ export const sellerStoreRouter = {
           });
         }
 
+        await isStoreSlugLocked(context.db, updated);
+
         return {
           profile: toPublicStoreProfile(updated),
-          status: "DRAFT" as const,
+          ...(await getStoreVisibility(context.db, userId)),
         };
       }
 
@@ -122,9 +216,11 @@ export const sellerStoreRouter = {
         });
       }
 
+      await isStoreSlugLocked(context.db, created);
+
       return {
         profile: toPublicStoreProfile(created),
-        status: "DRAFT" as const,
+        ...(await getStoreVisibility(context.db, userId)),
       };
     }),
 };

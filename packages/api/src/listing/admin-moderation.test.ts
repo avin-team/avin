@@ -14,6 +14,7 @@ const { dbMock } = vi.hoisted(() => ({
       auditLog: { findMany: vi.fn() },
       listing: { findFirst: vi.fn(), findMany: vi.fn() },
       sellerApplication: { findFirst: vi.fn() },
+      sellerProfile: { findFirst: vi.fn() },
       subCategory: { findFirst: vi.fn() },
       user: { findFirst: vi.fn() },
     },
@@ -243,6 +244,12 @@ describe("Listing moderation transition rules", () => {
     dbMock.query.sellerApplication.findFirst.mockResolvedValue({
       sellerAgreementVersion: "v1.0",
       status: "APPROVED",
+    });
+    dbMock.query.sellerProfile.findFirst.mockResolvedValue({
+      avatarUrl: "https://example.com/avatar.png",
+      bio: "A complete store profile",
+      storeSlug: "trusted-seller",
+      storefrontName: "Trusted Seller",
     });
     dbMock.query.subCategory.findFirst.mockResolvedValue({
       parentCategory: { status: "ACTIVE" },

@@ -1,6 +1,7 @@
 import type { ServiceInputFieldType } from "@avin/db/schema/catalog";
 import { describe, expect, it } from "vitest";
 
+import { assertStoreProfileComplete } from "../seller-store/public-visibility";
 import {
   assertDeletableDraft,
   assertPublishable,
@@ -30,6 +31,26 @@ describe("seller workspace listing publication rules", () => {
 
   it("passes validation when all publication fields are valid and within warranty bounds", () => {
     expect(() => assertPublishable(validListing, validCategory)).not.toThrow();
+  });
+
+  it("requires a complete Store profile before a Listing can be published", () => {
+    expect(() =>
+      assertStoreProfileComplete({
+        avatarUrl: null,
+        bio: "Dịch vụ số cho người bán.",
+        storeSlug: "studio-cua-ngoc",
+        storefrontName: "Studio của Ngọc",
+      })
+    ).toThrow("Store profile must be complete before publishing a listing");
+
+    expect(() =>
+      assertStoreProfileComplete({
+        avatarUrl: "https://example.com/avatar.png",
+        bio: "Dịch vụ số cho người bán.",
+        storeSlug: "studio-cua-ngoc",
+        storefrontName: "Studio của Ngọc",
+      })
+    ).not.toThrow();
   });
 
   it("rejects publication when title is missing or empty", () => {

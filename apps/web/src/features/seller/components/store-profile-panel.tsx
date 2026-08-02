@@ -1,4 +1,5 @@
 import { createStoreSlug } from "@avin/api/seller-store/profile";
+import type { StoreVisibilityReason } from "@avin/api/seller-store/profile";
 import { Badge } from "@avin/ui/components/badge";
 import { Button } from "@avin/ui/components/button";
 import {
@@ -53,11 +54,44 @@ interface StoreProfileEditorState {
   savedDraft: StoreProfileDraft;
 }
 
+type StoreVisibilityStatus = "PRIVATE" | "PUBLIC";
+
+const getStoreVisibilityLabel = (reason: StoreVisibilityReason): string => {
+  if (reason === "PUBLIC") {
+    return "Đã public";
+  }
+  if (reason === "PENDING_APPROVAL") {
+    return "Đang chờ duyệt";
+  }
+  if (reason === "ENFORCED") {
+    return "Đang bị hạn chế";
+  }
+  return "Đang hoàn thiện hồ sơ";
+};
+
+const getStoreVisibilityDescription = (
+  reason: StoreVisibilityReason
+): string => {
+  if (reason === "PUBLIC") {
+    return "Khách hàng có thể xem hồ sơ gian hàng của bạn.";
+  }
+  if (reason === "PENDING_APPROVAL") {
+    return "Hồ sơ đã đủ thông tin và sẽ public sau khi Seller được duyệt.";
+  }
+  if (reason === "ENFORCED") {
+    return "Gian hàng đang được ẩn trong thời gian Seller bị hạn chế.";
+  }
+  return "Hồ sơ sẽ public khi đủ các trường bắt buộc và Seller đủ điều kiện.";
+};
+
 interface BasicProfileFormProps {
   draft: StoreProfileDraft;
   onBioChange: (value: string) => void;
   onNameChange: (value: string) => void;
   onSlugChange: (value: string) => void;
+  slugLocked: boolean;
+  status: StoreVisibilityStatus;
+  visibilityReason: StoreVisibilityReason;
 }
 
 interface MediaProfileFormProps {
@@ -100,6 +134,9 @@ const BasicProfileForm = ({
   onBioChange,
   onNameChange,
   onSlugChange,
+  slugLocked,
+  status,
+  visibilityReason,
 }: BasicProfileFormProps) => (
   <FieldGroup className="gap-6">
     <div className="grid gap-4 sm:grid-cols-2">
@@ -121,13 +158,15 @@ const BasicProfileForm = ({
         </FieldLabel>
         <Input
           className={FIELD_CLASS_NAME}
+          disabled={slugLocked}
           id="store-slug"
           onChange={(event) => onSlugChange(event.target.value)}
           value={draft.storeSlug}
         />
         <FieldDescription>
-          Địa chỉ công khai của gian hàng, chỉ dùng chữ thường, số và dấu gạch
-          ngang.
+          {slugLocked
+            ? "Đường dẫn được giữ nguyên để các liên kết đã chia sẻ không bị hỏng."
+            : "Địa chỉ công khai của gian hàng, chỉ dùng chữ thường, số và dấu gạch ngang."}
         </FieldDescription>
       </Field>
     </div>
@@ -148,11 +187,12 @@ const BasicProfileForm = ({
     <Field>
       <FieldLabel>Trạng thái gian hàng</FieldLabel>
       <div className="flex h-10 items-center rounded-xl border border-border bg-background px-3">
-        <Badge variant="outline">Nháp</Badge>
+        <Badge variant={status === "PUBLIC" ? "default" : "outline"}>
+          {getStoreVisibilityLabel(visibilityReason)}
+        </Badge>
       </div>
       <FieldDescription>
-        Hồ sơ được lưu riêng tư. Gian hàng chỉ bắt đầu hiển thị sau khi bạn mở
-        bán.
+        {getStoreVisibilityDescription(visibilityReason)}
       </FieldDescription>
     </Field>
   </FieldGroup>
@@ -273,8 +313,8 @@ export const StorefrontPreviewCard = ({
             /{slug || "duong-dan-gian-hang"}
           </p>
           <div className="mt-4 grid grid-cols-2 gap-2 text-center text-[11px] text-muted-foreground">
-            <div className="rounded-lg bg-muted/50 p-2">0 sản phẩm</div>
-            <div className="rounded-lg bg-muted/50 p-2">Chưa mở bán</div>
+            <div className="rounded-lg bg-muted/50 p-2">Hồ sơ gian hàng</div>
+            <div className="rounded-lg bg-muted/50 p-2">Bản xem trước</div>
           </div>
         </div>
       </div>
@@ -283,23 +323,26 @@ export const StorefrontPreviewCard = ({
 );
 
 const CompletionCard = ({ draft }: { draft: StoreProfileDraft }) => {
-  const hasRequiredText = Boolean(
-    draft.storefrontName.trim() && draft.storeSlug.trim() && draft.bio?.trim()
-  );
-
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-base">Trạng thái hồ sơ</CardTitle>
         <CardDescription>
-          Hoàn thiện các mục để sẵn sàng mở bán.
+          Hoàn thiện các trường bắt buộc để public hồ sơ.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3 text-sm">
         {[
-          { done: hasRequiredText, label: "Tạo gian hàng" },
-          { done: Boolean(draft.avatarUrl), label: "Thêm hình ảnh" },
-          { done: false, label: "Chọn sản phẩm để mở bán" },
+          {
+            done: Boolean(draft.storefrontName.trim()),
+            label: "Tên gian hàng",
+          },
+          {
+            done: Boolean(draft.storeSlug.trim()),
+            label: "Đường dẫn gian hàng",
+          },
+          { done: Boolean(draft.bio?.trim()), label: "Mô tả gian hàng" },
+          { done: Boolean(draft.avatarUrl), label: "Ảnh đại diện" },
         ].map((item) => (
           <div className="flex items-center gap-2" key={item.label}>
             <span
@@ -323,12 +366,18 @@ interface StoreProfileEditorProps {
   onPreview: () => void;
   onSaved: () => void;
   profile: StoreProfileData | null;
+  slugLocked: boolean;
+  status: StoreVisibilityStatus;
+  visibilityReason: StoreVisibilityReason;
 }
 
 const StoreProfileEditor = ({
   onPreview,
   onSaved,
   profile,
+  slugLocked,
+  status,
+  visibilityReason,
 }: StoreProfileEditorProps) => {
   const [editorState, setEditorState] = useState<StoreProfileEditorState>(
     () => {
@@ -442,7 +491,7 @@ const StoreProfileEditor = ({
           </div>
           <Button onClick={onPreview} size="sm" type="button" variant="outline">
             <Eye data-icon="inline-start" />
-            Xem trang gian hàng
+            Xem trước gian hàng
           </Button>
         </div>
       </div>
@@ -451,7 +500,7 @@ const StoreProfileEditor = ({
           <CardHeader>
             <CardTitle>Thông tin gian hàng</CardTitle>
             <CardDescription>
-              Hoàn thiện hồ sơ và diện mạo trước khi mở bán.
+              Hoàn thiện hồ sơ và diện mạo để khách hàng có thể xem gian hàng.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-8">
@@ -474,6 +523,9 @@ const StoreProfileEditor = ({
                   },
                 }));
               }}
+              slugLocked={slugLocked}
+              status={status}
+              visibilityReason={visibilityReason}
             />
             <div className="border-t border-border/60 pt-6">
               <MediaProfileForm
@@ -534,6 +586,9 @@ export const StoreProfilePanel = () => {
         void profileQuery.refetch();
       }}
       profile={profileQuery.data.profile}
+      slugLocked={profileQuery.data.slugLocked}
+      status={profileQuery.data.status}
+      visibilityReason={profileQuery.data.visibilityReason}
     />
   );
 };

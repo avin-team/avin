@@ -1,11 +1,13 @@
 import { auditLog } from "@avin/db/schema/auth";
 import { listing } from "@avin/db/schema/catalog";
+import { sellerProfile } from "@avin/db/schema/seller";
 import { ORPCError } from "@orpc/server";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { adminProcedure } from "../access/procedures";
 import type { Context } from "../runtime/context";
+import { assertStoreProfileComplete } from "../seller-store/public-visibility";
 import {
   assertActiveSubCategory,
   assertEligibleSeller,
@@ -129,6 +131,10 @@ const moderateListing = async ({
 
   if (action === "RESTORE") {
     await assertEligibleSeller(found.sellerId);
+    const profile = await context.db.query.sellerProfile.findFirst({
+      where: eq(sellerProfile.userId, found.sellerId),
+    });
+    assertStoreProfileComplete(profile);
     const category = await assertActiveSubCategory(found.categoryId);
     assertPublishable(found, category);
   }

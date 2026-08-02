@@ -1,0 +1,5 @@
+# Store profile visibility is independent of Listing lifecycle
+
+**Status**: accepted
+
+A Store profile becomes public when the Seller is approved, non-enforced, and its required identity fields are complete, regardless of whether the Seller has any Listing or whether those Listings are public. A Seller may create a private draft profile and draft Listings before the Store profile is complete, but every transition into `PUBLISHED`—Seller publish, Seller resume, or Admin restore—requires Seller approval, non-enforcement, and a complete profile; it does not require a separate Store-opening action or depend on the number of other Listings. An empty public Store is valid, while an enforced Seller's Store profile is hidden and becomes public again automatically when enforcement is lifted if the other conditions still hold. Once public, the Store slug is permanently locked so a temporary private state cannot break shared URLs. This keeps Store identity separate from the Listing lifecycle without exposing an unapproved or enforced Seller before the Seller identity is ready.

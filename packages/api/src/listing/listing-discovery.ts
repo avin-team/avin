@@ -1,10 +1,12 @@
 import { db } from "@avin/db";
+import { user as userTable } from "@avin/db/schema/auth";
 import { listing, parentCategory, subCategory } from "@avin/db/schema/catalog";
 import { ORPCError } from "@orpc/server";
 import { and, count, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { publicProcedure } from "../access/procedures";
+import { isSellerEnforced } from "../seller-store/profile";
 
 export const getListingIdentifierCandidates = (
   identifier: string
@@ -120,13 +122,24 @@ export const listingDiscoveryRouter = {
       const user = context.session?.user;
       const isAdmin = user?.role === "ADMIN";
       const isOwner = user?.id === found.sellerId;
+      const sellerAccount = await db.query.user.findFirst({
+        columns: {
+          banExpires: true,
+          banned: true,
+        },
+        where: eq(userTable.id, found.sellerId),
+      });
       const isPubliclyAvailable = isListingPubliclyAvailable(
         found.status,
         found.category.status,
         found.category.parentCategory.status
       );
 
-      if (!isAdmin && !isOwner && !isPubliclyAvailable) {
+      if (
+        !isAdmin &&
+        !isOwner &&
+        (!isPubliclyAvailable || isSellerEnforced(sellerAccount))
+      ) {
         throw new ORPCError("NOT_FOUND", {
           message: "Listing not found or unavailable",
         });
@@ -148,7 +161,21 @@ export const listingDiscoveryRouter = {
       })
     )
     .handler(async ({ input }) => {
-      const conditions = [eq(listing.status, "PUBLISHED")];
+      const conditions = [
+        eq(listing.status, "PUBLISHED"),
+        sql`NOT EXISTS (
+          SELECT 1
+          FROM ${userTable}
+          WHERE ${userTable.id} = ${listing.sellerId}
+            AND (
+              ${userTable.banned} = true
+              OR (
+                ${userTable.banExpires} IS NOT NULL
+                AND ${userTable.banExpires} > ${new Date()}
+              )
+            )
+        )`,
+      ];
 
       if (input.type) {
         conditions.push(eq(listing.type, input.type));

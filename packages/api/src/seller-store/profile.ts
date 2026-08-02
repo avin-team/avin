@@ -27,6 +27,64 @@ export const storeProfileInputSchema = z.object({
 
 export type StoreProfileInput = z.infer<typeof storeProfileInputSchema>;
 
+export type StoreVisibilityReason =
+  | "ENFORCED"
+  | "INCOMPLETE_PROFILE"
+  | "NO_PROFILE"
+  | "PENDING_APPROVAL"
+  | "PUBLIC";
+
+export interface StoreProfileCompletenessData {
+  avatarUrl?: string | null;
+  bio?: string | null;
+  storeSlugLockedAt?: Date | null;
+  storeSlug?: string | null;
+  storefrontName?: string | null;
+}
+
+export interface StorePublicEligibilityInput {
+  account?: {
+    banExpires?: Date | null;
+    banned?: boolean | null;
+    role?: string | null;
+  } | null;
+  application?: {
+    status?: string | null;
+  } | null;
+  now?: Date;
+  profile?: StoreProfileCompletenessData | null;
+}
+
+export const isStoreProfileComplete = (
+  profile: StoreProfileCompletenessData | null | undefined
+): boolean =>
+  Boolean(
+    profile?.storefrontName?.trim() &&
+    profile.storeSlug?.trim() &&
+    profile.bio?.trim() &&
+    profile.avatarUrl?.trim()
+  );
+
+export const isSellerEnforced = (
+  account: StorePublicEligibilityInput["account"],
+  now = new Date()
+): boolean =>
+  account?.banned === true ||
+  (account?.banExpires !== null &&
+    account?.banExpires !== undefined &&
+    account.banExpires > now);
+
+export const isStorePubliclyEligible = ({
+  account,
+  application,
+  now,
+  profile,
+}: StorePublicEligibilityInput): boolean =>
+  account?.role === "SELLER" &&
+  !isSellerEnforced(account, now) &&
+  application?.status === "APPROVED" &&
+  isStoreProfileComplete(profile);
+
 export const createStoreSlug = (storefrontName: string): string =>
   slugify(storefrontName) || "store";
 

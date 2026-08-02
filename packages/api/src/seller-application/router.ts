@@ -6,6 +6,7 @@ import { and, desc, eq, gt } from "drizzle-orm";
 import { adminProcedure, protectedProcedure } from "../access/procedures";
 import type { Context } from "../runtime/context";
 import { createStoreSlug } from "../seller-store/profile";
+import { isStoreSlugLocked } from "../seller-store/public-visibility";
 import {
   adminDecideApplicationInputSchema,
   adminGetApplicationInputSchema,
@@ -86,6 +87,11 @@ export const sellerApplicationRouter = {
           .update(user)
           .set({ role: "SELLER" })
           .where(eq(user.id, app.userId));
+
+        const profile = await context.db.query.sellerProfile.findFirst({
+          where: eq(sellerProfile.id, app.sellerProfileId),
+        });
+        await isStoreSlugLocked(context.db, profile ?? null);
       }
 
       return {
@@ -332,6 +338,8 @@ export const sellerApplicationRouter = {
           .where(eq(sellerProfile.id, existingProfile.id))
           .returning();
 
+        await isStoreSlugLocked(context.db, updated ?? null);
+
         return updated;
       }
 
@@ -352,6 +360,8 @@ export const sellerApplicationRouter = {
           userId,
         })
         .returning();
+
+      await isStoreSlugLocked(context.db, created ?? null);
 
       return created;
     }),
