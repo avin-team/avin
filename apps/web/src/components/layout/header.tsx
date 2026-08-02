@@ -1,13 +1,12 @@
 import { cn } from "@avin/ui/lib/utils";
 import { Link } from "@tanstack/react-router";
-import { Search } from "lucide-react";
 import { motion } from "motion/react";
 import React, { useEffect, useRef, useState } from "react";
 
-import { ModeToggle } from "@/components/mode-toggle";
 import { siteConfig } from "@/config/site";
 import { UserMenu } from "@/features/auth/components/user-menu";
 import { CartButton } from "@/features/commerce/components/cart-button";
+import { WalletButton } from "@/features/wallet/components/wallet-button";
 
 import { MainNav } from "./main-nav";
 import { MobileNav, MobileNavTrigger } from "./mobile-nav";
@@ -103,19 +102,7 @@ export const Header = () => {
               className="flex items-center gap-3"
               variants={itemVariants}
             >
-              <div className="hidden items-center gap-3 lg:flex">
-                <motion.button
-                  aria-label="Tìm kiếm"
-                  className="rounded-lg p-2 text-muted-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  type="button"
-                >
-                  <Search className="h-5 w-5" />
-                </motion.button>
-
-                <ModeToggle />
-              </div>
+              <WalletButton />
 
               <CartButton />
 

@@ -1,4 +1,9 @@
 import { ACCOUNT_ROLE } from "@avin/auth/permissions";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@avin/ui/components/avatar";
 import { Button } from "@avin/ui/components/button";
 import {
   DropdownMenu,
@@ -11,6 +16,7 @@ import {
 } from "@avin/ui/components/dropdown-menu";
 import { Skeleton } from "@avin/ui/components/skeleton";
 import { Link, useNavigate } from "@tanstack/react-router";
+import { LogOut, ShieldCheck, Store } from "lucide-react";
 import { toast } from "sonner";
 
 import { authClient } from "@/features/auth/api/auth-client";
@@ -20,20 +26,20 @@ export const UserMenu = () => {
   const { data: session, isPending } = authClient.useSession();
 
   if (isPending) {
-    return <Skeleton className="h-9 w-24" />;
+    return <Skeleton className="size-9 rounded-full" />;
   }
 
   if (!session) {
     return (
       <div className="flex items-center space-x-3">
         <Link
-          className="px-4 py-2 text-sm font-medium text-foreground/80 transition-colors duration-200 hover:text-foreground"
+          className="px-4 py-2 text-foreground/80 font-medium text-sm transition-colors duration-200 hover:text-foreground"
           to="/login"
         >
           Đăng nhập
         </Link>
         <Link
-          className="inline-flex items-center space-x-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition-all duration-200 hover:bg-primary/90"
+          className="inline-flex items-center space-x-2 rounded-lg bg-primary px-5 py-2.5 font-medium text-primary-foreground text-sm shadow-sm transition-all duration-200 hover:bg-primary/90"
           to="/login"
         >
           <span>Bắt đầu ngay</span>
@@ -43,32 +49,62 @@ export const UserMenu = () => {
   }
 
   const isSeller = session.user.role === ACCOUNT_ROLE.SELLER;
+  const name = session.user.name ?? "User";
+  const initials = name
+    .trim()
+    .split(" ")
+    .filter(Boolean)
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="outline" />}>
-        {session.user.name}
+      <DropdownMenuTrigger
+        render={
+          <Button
+            aria-label="Menu tài khoản"
+            className="relative size-9 rounded-full border border-border/60 p-0 shadow-sm transition-transform hover:scale-105"
+            variant="ghost"
+          />
+        }
+      >
+        <Avatar className="size-9 rounded-full">
+          <AvatarImage alt={name} src={session.user.image ?? undefined} />
+          <AvatarFallback className="bg-primary/10 font-semibold text-xs text-primary">
+            {initials}
+          </AvatarFallback>
+        </Avatar>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="bg-card">
+      <DropdownMenuContent align="end" className="w-60 bg-card p-2 shadow-lg">
         <DropdownMenuGroup>
-          <DropdownMenuLabel>Tài khoản của tôi</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem>{session.user.email}</DropdownMenuItem>
-          {session.user.role === ACCOUNT_ROLE.BUYER ? (
-            <DropdownMenuItem
-              onClick={async () => {
-                await navigate({ to: "/wallet" });
-              }}
-            >
-              Ví của tôi
-            </DropdownMenuItem>
-          ) : null}
+          <DropdownMenuLabel className="p-2 font-normal">
+            <div className="flex items-center gap-3">
+              <Avatar className="size-9 shrink-0">
+                <AvatarImage alt={name} src={session.user.image ?? undefined} />
+                <AvatarFallback className="bg-primary/10 font-semibold text-xs text-primary">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex min-w-0 flex-col space-y-0.5">
+                <p className="truncate font-semibold text-foreground text-sm leading-tight">
+                  {name}
+                </p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {session.user.email}
+                </p>
+              </div>
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator className="my-1" />
           {isSeller ? (
             <DropdownMenuItem
               onClick={async () => {
                 await navigate({ to: "/seller/store" });
               }}
             >
+              <Store className="me-2 size-4" />
               Mở gian hàng
             </DropdownMenuItem>
           ) : (
@@ -79,6 +115,7 @@ export const UserMenu = () => {
                 });
               }}
             >
+              <Store className="me-2 size-4" />
               Đăng ký Người bán
             </DropdownMenuItem>
           )}
@@ -89,8 +126,10 @@ export const UserMenu = () => {
               });
             }}
           >
+            <ShieldCheck className="me-2 size-4" />
             Bảo mật tài khoản
           </DropdownMenuItem>
+          <DropdownMenuSeparator className="my-1" />
           <DropdownMenuItem
             onClick={async () => {
               try {
@@ -110,6 +149,7 @@ export const UserMenu = () => {
             }}
             variant="destructive"
           >
+            <LogOut className="me-2 size-4" />
             Đăng xuất
           </DropdownMenuItem>
         </DropdownMenuGroup>
