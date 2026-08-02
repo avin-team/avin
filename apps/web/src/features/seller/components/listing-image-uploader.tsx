@@ -24,25 +24,17 @@ const ACCEPTED_IMAGE_TYPES = {
   "image/webp": [".webp"],
 };
 
-const getUploadErrorMessage = (error: unknown): string => {
-  if (typeof error === "object" && error !== null && "message" in error) {
-    const { message } = error as { message?: unknown };
-    if (typeof message === "string" && message.length > 0) {
-      return message;
-    }
-  }
-
-  return "The image could not be uploaded. Try again.";
-};
+const getUploadErrorMessage = (): string =>
+  "Không thể tải ảnh lên. Vui lòng thử lại.";
 
 const getRejectionErrorMessage = (code: string | undefined): string => {
   if (code === "file-too-large") {
-    return "Image must be 5 MB or smaller.";
+    return "Ảnh phải có dung lượng từ 5 MB trở xuống.";
   }
   if (code === "file-invalid-type") {
-    return "Use a JPEG, PNG, or WebP image.";
+    return "Chỉ dùng ảnh JPEG, PNG hoặc WebP.";
   }
-  return "Choose one valid listing image and try again.";
+  return "Chọn một ảnh sản phẩm hợp lệ rồi thử lại.";
 };
 
 export const ListingImageUploader = ({
@@ -56,7 +48,7 @@ export const ListingImageUploader = ({
   const upload = useUploadFile({
     api: `${env.VITE_SERVER_URL}/api/upload`,
     credentials: "include",
-    onError: (error) => setErrorMessage(getUploadErrorMessage(error)),
+    onError: () => setErrorMessage(getUploadErrorMessage()),
     route: LISTING_IMAGE_UPLOAD_ROUTE,
   });
 
@@ -79,8 +71,8 @@ export const ListingImageUploader = ({
       );
       onDirty();
       onImageChange({ images: [publicUrl], thumbnailUrl: publicUrl });
-    } catch (error) {
-      setErrorMessage(getUploadErrorMessage(error));
+    } catch {
+      setErrorMessage(getUploadErrorMessage());
     }
   };
 
@@ -102,7 +94,7 @@ export const ListingImageUploader = ({
       {thumbnailUrl ? (
         <div className="overflow-hidden rounded-2xl border border-border/60 bg-muted/20">
           <img
-            alt="Listing primary preview"
+            alt="Xem trước ảnh đại diện sản phẩm"
             className="aspect-video w-full object-cover"
             src={thumbnailUrl}
           />
@@ -112,12 +104,10 @@ export const ListingImageUploader = ({
         accept={ACCEPTED_IMAGE_TYPES}
         disabled={disabled}
         error={errorMessage}
-        helperText="JPEG, PNG, or WebP · maximum 5 MB"
-        inputLabel="Choose a listing primary image"
+        helperText="JPEG, PNG hoặc WebP · tối đa 5 MB"
+        inputLabel="Chọn ảnh đại diện sản phẩm"
         isUploading={upload.isPending}
-        label={
-          thumbnailUrl ? "Drop a replacement image" : "Add a primary image"
-        }
+        label={thumbnailUrl ? "Thả ảnh thay thế vào đây" : "Thêm ảnh đại diện"}
         maxFiles={1}
         maxSize={LISTING_IMAGE_MAX_BYTES}
         onFilesRejected={(rejections) => {
@@ -127,6 +117,11 @@ export const ListingImageUploader = ({
         }}
         onFilesSelected={handleFilesSelected}
         progress={upload.progress}
+        browseHelperText="Kéo thả hoặc bấm để chọn ảnh"
+        progressLabel="Tiến độ tải ảnh"
+        progressSuffix="đã tải"
+        uploadingHelperText="Vui lòng chờ trong khi ảnh được tải lên."
+        uploadingLabel="Đang tải ảnh…"
         renderTrigger={({ open }) => (
           <div className="flex flex-wrap justify-center gap-2">
             {thumbnailUrl ? (
@@ -138,7 +133,7 @@ export const ListingImageUploader = ({
                 variant="outline"
               >
                 <RefreshCw />
-                Replace image
+                Thay ảnh
               </Button>
             ) : (
               <Button
@@ -148,7 +143,7 @@ export const ListingImageUploader = ({
                 type="button"
               >
                 <ImagePlus />
-                Choose image
+                Chọn ảnh
               </Button>
             )}
             {thumbnailUrl ? (
@@ -160,7 +155,7 @@ export const ListingImageUploader = ({
                 variant="ghost"
               >
                 <Trash2 />
-                Remove
+                Xóa ảnh
               </Button>
             ) : null}
           </div>

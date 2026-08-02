@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   formatSellerListingPrice,
+  getSellerListingActionLabel,
   getSellerListingStatusLabel,
   getSellerListingTypeLabel,
 } from "./store-products-logic";
@@ -17,5 +18,12 @@ describe("seller product display helpers", () => {
   it("formats prices and keeps an explicit empty state", () => {
     expect(formatSellerListingPrice(300_000)).toBe("300.000 ₫");
     expect(formatSellerListingPrice(null)).toBe("Chưa đặt giá");
+  });
+
+  it("uses an action label that matches the listing lifecycle", () => {
+    expect(getSellerListingActionLabel("DRAFT")).toBe("Tiếp tục hoàn thiện");
+    expect(getSellerListingActionLabel("PUBLISHED")).toBe("Chỉnh sửa");
+    expect(getSellerListingActionLabel("PAUSED")).toBe("Chỉnh sửa");
+    expect(getSellerListingActionLabel("HIDDEN")).toBe("Xem & chỉnh sửa");
   });
 });

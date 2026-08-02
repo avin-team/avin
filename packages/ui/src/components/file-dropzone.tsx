@@ -24,6 +24,11 @@ export interface FileDropzoneProps {
   onFilesSelected: (files: File[]) => void;
   progress?: number;
   renderTrigger?: (props: FileDropzoneTriggerRenderProps) => ReactNode;
+  browseHelperText?: ReactNode;
+  progressLabel?: string;
+  progressSuffix?: string;
+  uploadingHelperText?: ReactNode;
+  uploadingLabel?: string;
 }
 
 export function FileDropzone({
@@ -42,6 +47,11 @@ export function FileDropzone({
   onFilesSelected,
   progress,
   renderTrigger,
+  browseHelperText = "Drag and drop or click to browse",
+  progressLabel = "Upload progress",
+  progressSuffix = "uploaded",
+  uploadingHelperText = "Please wait while the file is uploaded.",
+  uploadingLabel = "Uploading file…",
 }: FileDropzoneProps) {
   const isDisabled = disabled || isUploading;
   const { getInputProps, getRootProps, isDragActive, isDragReject, open } =
@@ -88,18 +98,18 @@ export function FileDropzone({
           <FileUp aria-hidden="true" className="size-7 text-primary" />
         )}
         <p className="font-semibold text-foreground">
-          {isUploading ? "Uploading file…" : label}
+          {isUploading ? uploadingLabel : label}
         </p>
         <p className="text-sm text-muted-foreground">
           {isUploading
             ? progress === undefined
-              ? "Please wait while the file is uploaded."
-              : `${Math.round(progress * 100)}% uploaded`
-            : "Drag and drop or click to browse"}
+              ? uploadingHelperText
+              : `${Math.round(progress * 100)}% ${progressSuffix}`
+            : browseHelperText}
         </p>
         {isUploading && progress !== undefined ? (
           <Progress
-            aria-label="Upload progress"
+            aria-label={progressLabel}
             className="mt-2 w-full max-w-xs"
             value={progress * 100}
           />

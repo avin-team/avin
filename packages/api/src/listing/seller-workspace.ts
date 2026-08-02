@@ -12,6 +12,7 @@ import { z } from "zod";
 
 import { protectedProcedure, sellerProcedure } from "../access/procedures";
 import { slugify } from "../runtime/slug";
+import type { ManagedObjectStore } from "../runtime/storage";
 import { getManagedListingImageKeysToDelete } from "../runtime/storage";
 
 export const CURRENT_SELLER_AGREEMENT_VERSION = "v1.0";
@@ -119,6 +120,42 @@ const assertDraft = async (
   }
 
   return draft;
+};
+
+export const assertDeletableDraft = (listingItem: { status: string }): void => {
+  if (listingItem.status !== "DRAFT") {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Only draft listings can be deleted",
+    });
+  }
+};
+
+const cleanupUnreferencedListingImages = async (
+  storage: ManagedObjectStore | undefined,
+  references: {
+    nextImages?: string[] | null;
+    nextThumbnailUrl?: string | null;
+    previousImages?: string[] | null;
+    previousThumbnailUrl?: string | null;
+  }
+): Promise<void> => {
+  if (!storage) {
+    return;
+  }
+
+  const keysToDelete = getManagedListingImageKeysToDelete(references, {
+    supabaseUrl: storage.supabaseUrl,
+  });
+  const cleanupResults = await Promise.allSettled(
+    keysToDelete.map((key) => storage.deleteObject(key))
+  );
+  for (const result of cleanupResults) {
+    if (result.status === "rejected") {
+      console.error("Failed to clean up listing image", {
+        error: result.reason,
+      });
+    }
+  }
 };
 
 const assertOwnedListing = async (
@@ -333,6 +370,40 @@ export const sellerWorkspaceRouter = {
       return created;
     }),
 
+  deleteDraft: sellerProcedure
+    .input(z.object({ id: z.string() }))
+    .handler(async ({ context, input }) => {
+      await assertEligibleSeller(context.session.user.id);
+      const draft = await assertDraft(input.id, context.session.user.id);
+      assertDeletableDraft(draft);
+
+      const [deleted] = await db
+        .delete(listing)
+        .where(
+          and(
+            eq(listing.id, draft.id),
+            eq(listing.sellerId, context.session.user.id),
+            eq(listing.status, "DRAFT")
+          )
+        )
+        .returning();
+
+      if (!deleted) {
+        throw new ORPCError("NOT_FOUND", {
+          message: "Draft listing not found",
+        });
+      }
+
+      await cleanupUnreferencedListingImages(context.storage, {
+        nextImages: [],
+        nextThumbnailUrl: null,
+        previousImages: deleted.images,
+        previousThumbnailUrl: deleted.thumbnailUrl,
+      });
+
+      return { id: deleted.id };
+    }),
+
   getDraft: sellerProcedure
     .input(z.object({ id: z.string() }))
     .handler(async ({ context, input }) => {
@@ -544,30 +615,14 @@ export const sellerWorkspaceRouter = {
         .where(eq(listing.id, found.id))
         .returning();
 
-      const { storage } = context;
-      if (storage) {
-        const keysToDelete = getManagedListingImageKeysToDelete(
-          {
-            nextImages: input.images ?? found.images,
-            nextThumbnailUrl: Object.hasOwn(input, "thumbnailUrl")
-              ? (input.thumbnailUrl ?? null)
-              : found.thumbnailUrl,
-            previousImages: found.images,
-            previousThumbnailUrl: found.thumbnailUrl,
-          },
-          { supabaseUrl: storage.supabaseUrl }
-        );
-        const cleanupResults = await Promise.allSettled(
-          keysToDelete.map((key) => storage.deleteObject(key))
-        );
-        for (const result of cleanupResults) {
-          if (result.status === "rejected") {
-            console.error("Failed to clean up a replaced listing image", {
-              error: result.reason,
-            });
-          }
-        }
-      }
+      await cleanupUnreferencedListingImages(context.storage, {
+        nextImages: input.images ?? found.images,
+        nextThumbnailUrl: Object.hasOwn(input, "thumbnailUrl")
+          ? (input.thumbnailUrl ?? null)
+          : found.thumbnailUrl,
+        previousImages: found.images,
+        previousThumbnailUrl: found.thumbnailUrl,
+      });
 
       return updated;
     }),

@@ -2,6 +2,7 @@ import type { ServiceInputFieldType } from "@avin/db/schema/catalog";
 import { describe, expect, it } from "vitest";
 
 import {
+  assertDeletableDraft,
   assertPublishable,
   canAccessListingMedia,
   canUploadListingImage,
@@ -209,5 +210,20 @@ describe("listing image upload authorization rules", () => {
         status: "ARCHIVED",
       })
     ).toBe(false);
+  });
+});
+
+describe("draft deletion rules", () => {
+  it("allows only an unpublished draft to be deleted", () => {
+    expect(() => assertDeletableDraft({ status: "DRAFT" })).not.toThrow();
+  });
+
+  it("rejects deleting any listing that has left the draft state", () => {
+    expect(() => assertDeletableDraft({ status: "PUBLISHED" })).toThrow(
+      "Only draft listings can be deleted"
+    );
+    expect(() => assertDeletableDraft({ status: "PAUSED" })).toThrow(
+      "Only draft listings can be deleted"
+    );
   });
 });

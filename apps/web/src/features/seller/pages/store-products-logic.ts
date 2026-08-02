@@ -31,6 +31,18 @@ export const getSellerListingStatusClass = (
   status: SellerListingStatus
 ): string => LISTING_STATUS_CLASSES[status];
 
+export const getSellerListingActionLabel = (
+  status: SellerListingStatus
+): string => {
+  if (status === "DRAFT") {
+    return "Tiếp tục hoàn thiện";
+  }
+  if (status === "HIDDEN") {
+    return "Xem & chỉnh sửa";
+  }
+  return "Chỉnh sửa";
+};
+
 export const getSellerListingTypeLabel = (type: SellerListingType): string =>
   type === "COURSE" ? "Khóa học" : "Dịch vụ";
 

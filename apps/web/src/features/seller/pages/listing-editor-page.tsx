@@ -1,4 +1,14 @@
 import { Alert, AlertDescription, AlertTitle } from "@avin/ui/components/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@avin/ui/components/alert-dialog";
 import { Badge } from "@avin/ui/components/badge";
 import { Button } from "@avin/ui/components/button";
 import {
@@ -20,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@avin/ui/components/select";
+import { SidebarTrigger } from "@avin/ui/components/sidebar";
 import { Skeleton } from "@avin/ui/components/skeleton";
 import { Textarea } from "@avin/ui/components/textarea";
 import { useForm, useStore } from "@tanstack/react-form";
@@ -47,10 +58,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 
-import { Shell } from "@/components/shell";
 import { ListingImageUploader } from "@/features/seller/components/listing-image-uploader";
+import { SellerLayout } from "@/features/seller/layout/seller-layout";
 import { listingEditorFormSchema } from "@/features/seller/schemas/listing-editor-schema";
 import { orpc } from "@/utils/orpc";
+
+import type { StoreSection } from "../data/store-types";
+import {
+  getFirstIncompleteEditorStepIndex,
+  LISTING_EDITOR_STEP_ORDER,
+} from "./listing-editor-logic";
+import type { ListingEditorStepId } from "./listing-editor-logic";
 
 type ListingStatus = "DRAFT" | "HIDDEN" | "PAUSED" | "PUBLISHED" | "ARCHIVED";
 
@@ -73,7 +91,7 @@ interface ListingEditorForm {
   serviceInputFields: ServiceInputField[];
   thumbnailUrl: string;
   title: string;
-  type: "COURSE" | "SERVICE";
+  type: "" | "COURSE" | "SERVICE";
   warrantyDurationHours: string;
   warrantyTerms: string;
 }
@@ -104,50 +122,65 @@ interface EditorCategory {
   warrantyBounds: { maxHours: number; minHours: number };
 }
 
-type EditorStepId = "basics" | "inputs" | "media" | "offer" | "warranty";
-
 interface ReadinessItem {
   complete: boolean;
   id: string;
   label: string;
-  step: EditorStepId;
+  step: ListingEditorStepId;
 }
 
 type SaveStatus = "error" | "saved" | "saving" | "unsaved";
 
 const MAX_LONG_TEXT_LENGTH = 10_000;
 const MAX_TITLE_LENGTH = 200;
+const NEW_DRAFT_CREATION_DELAY_MS = 250;
 
-const EDITOR_STEPS: {
-  description: string;
-  id: EditorStepId;
-  label: string;
-}[] = [
-  { description: "Name and promise", id: "basics", label: "Basics" },
-  { description: "Price and delivery", id: "offer", label: "Offer" },
-  { description: "Make it tangible", id: "media", label: "Media" },
-  { description: "What buyers provide", id: "inputs", label: "Inputs" },
-  { description: "Set expectations", id: "warranty", label: "Warranty" },
-];
+const EDITOR_STEP_COPY: Record<
+  ListingEditorStepId,
+  { description: string; label: string }
+> = {
+  basics: {
+    description: "Tên, loại và danh mục",
+    label: "Thông tin cơ bản",
+  },
+  inputs: {
+    description: "Những gì khách hàng cần cung cấp",
+    label: "Thông tin từ khách",
+  },
+  media: {
+    description: "Ảnh đại diện và thư viện ảnh",
+    label: "Hình ảnh",
+  },
+  offer: {
+    description: "Giá bán và thời gian hoàn thành",
+    label: "Giá & thực hiện",
+  },
+  warranty: { description: "Thời hạn và điều khoản", label: "Bảo hành" },
+};
+
+const EDITOR_STEPS = LISTING_EDITOR_STEP_ORDER.map((id) => ({
+  ...EDITOR_STEP_COPY[id],
+  id,
+}));
 
 const INPUT_TYPE_ITEMS = [
-  { label: "Short text", value: "text" },
+  { label: "Văn bản ngắn", value: "text" },
   { label: "URL", value: "url" },
-  { label: "File", value: "file" },
-  { label: "Number", value: "number" },
+  { label: "Tệp", value: "file" },
+  { label: "Số", value: "number" },
 ];
 
 const LISTING_TYPE_ITEMS = [
-  { label: "Service", value: "SERVICE" },
-  { label: "Course", value: "COURSE" },
+  { label: "Dịch vụ", value: "SERVICE" },
+  { label: "Khóa học", value: "COURSE" },
 ];
 
 const STATUS_LABELS: Record<ListingStatus, string> = {
-  ARCHIVED: "Archived",
-  DRAFT: "Draft",
-  HIDDEN: "Hidden by Avin",
-  PAUSED: "Paused",
-  PUBLISHED: "Published",
+  ARCHIVED: "Đã lưu trữ",
+  DRAFT: "Bản nháp",
+  HIDDEN: "Đang ẩn",
+  PAUSED: "Tạm dừng",
+  PUBLISHED: "Đang bán",
 };
 
 const getSaveIndicatorClass = (status: SaveStatus): string => {
@@ -162,15 +195,42 @@ const getSaveIndicatorClass = (status: SaveStatus): string => {
 
 const getSaveStatusLabel = (status: SaveStatus): string => {
   if (status === "saving") {
-    return "Saving…";
+    return "Đang lưu…";
   }
   if (status === "unsaved") {
-    return "Unsaved changes";
+    return "Chưa lưu";
   }
   if (status === "error") {
-    return "Save failed";
+    return "Lưu thất bại";
   }
-  return "Saved just now";
+  return "Đã lưu vừa xong";
+};
+
+const getNewSaveStatusLabel = (
+  status: SaveStatus,
+  isNew: boolean,
+  draftId: string | null
+): string => {
+  if (!isNew || draftId) {
+    return getSaveStatusLabel(status);
+  }
+  if (status === "saving") {
+    return "Đang tạo bản nháp…";
+  }
+  if (status === "error") {
+    return "Chưa thể tạo bản nháp";
+  }
+  return "Chọn loại và danh mục để bắt đầu";
+};
+
+const getEditorTypeLabel = (type: ListingEditorForm["type"]): string => {
+  if (type === "SERVICE") {
+    return "Dịch vụ";
+  }
+  if (type === "COURSE") {
+    return "Khóa học";
+  }
+  return "Sản phẩm";
 };
 
 const parseInteger = (value: string): number | null => {
@@ -187,9 +247,23 @@ const buildUpdateInput = (form: ListingEditorForm) => ({
   serviceInputFields: form.serviceInputFields,
   thumbnailUrl: form.thumbnailUrl.trim() || null,
   title: form.title.trim() || null,
-  type: form.type,
+  type: form.type || undefined,
   warrantyDurationHours: parseInteger(form.warrantyDurationHours),
   warrantyTerms: form.warrantyTerms.trim() || null,
+});
+
+const buildCreateDraftInput = (
+  form: ListingEditorForm,
+  type: "COURSE" | "SERVICE",
+  category: EditorCategory | undefined
+) => ({
+  ...buildUpdateInput(form),
+  categoryId: form.categoryId,
+  serviceInputFields:
+    form.serviceInputFields.length > 0
+      ? form.serviceInputFields
+      : (category?.defaultServiceInputs ?? []),
+  type,
 });
 
 type ListingEditorUpdateInput = {
@@ -246,7 +320,13 @@ const getReadinessItems = (
     {
       complete: Boolean(form.categoryId && category),
       id: "category",
-      label: "Category selected",
+      label: "Đã chọn danh mục",
+      step: "basics",
+    },
+    {
+      complete: form.type === "SERVICE" || form.type === "COURSE",
+      id: "type",
+      label: "Đã chọn loại sản phẩm",
       step: "basics",
     },
     {
@@ -254,7 +334,7 @@ const getReadinessItems = (
         Boolean(form.title.trim()) &&
         form.title.trim().length <= MAX_TITLE_LENGTH,
       id: "title",
-      label: "Clear listing title",
+      label: "Tên sản phẩm rõ ràng",
       step: "basics",
     },
     {
@@ -262,37 +342,37 @@ const getReadinessItems = (
         Boolean(form.description.trim()) &&
         form.description.trim().length <= MAX_LONG_TEXT_LENGTH,
       id: "description",
-      label: "Description",
+      label: "Mô tả",
       step: "basics",
     },
     {
       complete: price !== null && price > 0,
       id: "price",
-      label: "Positive price",
+      label: "Giá bán hợp lệ",
       step: "offer",
     },
     {
       complete: processingTime !== null && processingTime > 0,
       id: "processing-time",
-      label: "Processing time",
+      label: "Thời gian hoàn thành",
       step: "offer",
     },
     {
       complete: Boolean(primaryImage),
       id: "primary-image",
-      label: "Primary image",
+      label: "Ảnh đại diện",
       step: "media",
     },
     {
       complete: serviceInputsValid,
       id: "service-inputs",
-      label: "Buyer requirements are valid",
+      label: "Thông tin khách hợp lệ",
       step: "inputs",
     },
     {
       complete: warrantyInBounds,
       id: "warranty-duration",
-      label: "Warranty duration in range",
+      label: "Thời hạn bảo hành trong giới hạn",
       step: "warranty",
     },
     {
@@ -300,7 +380,7 @@ const getReadinessItems = (
         Boolean(form.warrantyTerms.trim()) &&
         form.warrantyTerms.trim().length <= MAX_LONG_TEXT_LENGTH,
       id: "warranty-terms",
-      label: "Warranty terms",
+      label: "Điều khoản bảo hành",
       step: "warranty",
     },
   ];
@@ -339,13 +419,13 @@ const InputFieldEditor = ({
   <div className="space-y-3 rounded-2xl border border-border/60 bg-muted/20 p-4">
     <div className="flex items-start justify-between gap-3">
       <div>
-        <p className="text-sm font-semibold">Buyer requirement</p>
+        <p className="text-sm font-semibold">Thông tin khách hàng</p>
         <p className="text-xs text-muted-foreground">
-          Describe what the buyer must provide before you start.
+          Mô tả thông tin khách cần cung cấp trước khi bạn bắt đầu.
         </p>
       </div>
       <Button
-        aria-label={`Remove ${field.label || "buyer requirement"}`}
+        aria-label={`Xóa ${field.label || "yêu cầu của khách hàng"}`}
         disabled={disabled}
         onClick={onRemove}
         size="icon-sm"
@@ -357,7 +437,7 @@ const InputFieldEditor = ({
     </div>
     <div className="grid gap-3 sm:grid-cols-2">
       <div className="grid gap-2">
-        <Label htmlFor={`input-label-${field.id}`}>Label</Label>
+        <Label htmlFor={`input-label-${field.id}`}>Nhãn hiển thị</Label>
         <editorForm.Field
           name={
             `serviceInputFields[${fieldIndex}].label` as ServiceInputFieldPath
@@ -378,7 +458,7 @@ const InputFieldEditor = ({
                     onDirty();
                     inputField.handleChange(event.target.value);
                   }}
-                  placeholder="Brand assets"
+                  placeholder="Tài liệu thương hiệu"
                   value={
                     typeof inputField.state.value === "string"
                       ? inputField.state.value
@@ -392,7 +472,7 @@ const InputFieldEditor = ({
         </editorForm.Field>
       </div>
       <div className="grid gap-2">
-        <Label htmlFor={`input-key-${field.id}`}>Key</Label>
+        <Label htmlFor={`input-key-${field.id}`}>Khóa dữ liệu</Label>
         <editorForm.Field
           name={
             `serviceInputFields[${fieldIndex}].key` as ServiceInputFieldPath
@@ -413,7 +493,7 @@ const InputFieldEditor = ({
                     onDirty();
                     inputField.handleChange(event.target.value);
                   }}
-                  placeholder="brand_assets"
+                  placeholder="tai_lieu_thuong_hieu"
                   value={
                     typeof inputField.state.value === "string"
                       ? inputField.state.value
@@ -429,7 +509,7 @@ const InputFieldEditor = ({
     </div>
     <div className="grid gap-3 sm:grid-cols-2">
       <div className="grid gap-2">
-        <Label htmlFor={`input-type-${field.id}`}>Response type</Label>
+        <Label htmlFor={`input-type-${field.id}`}>Kiểu trả lời</Label>
         <editorForm.Field
           name={
             `serviceInputFields[${fieldIndex}].type` as ServiceInputFieldPath
@@ -460,10 +540,10 @@ const InputFieldEditor = ({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="text">Short text</SelectItem>
+                <SelectItem value="text">Văn bản ngắn</SelectItem>
                 <SelectItem value="url">URL</SelectItem>
-                <SelectItem value="file">File</SelectItem>
-                <SelectItem value="number">Number</SelectItem>
+                <SelectItem value="file">Tệp</SelectItem>
+                <SelectItem value="number">Số</SelectItem>
               </SelectContent>
             </Select>
           )}
@@ -488,7 +568,7 @@ const InputFieldEditor = ({
               }}
               type="checkbox"
             />
-            Required from buyer
+            Bắt buộc với khách hàng
           </label>
         )}
       </editorForm.Field>
@@ -519,7 +599,7 @@ const EditorStepContent = ({
   onRemoveInputField: (fieldId: string) => void;
   parentCategoryId: string;
   listingId: string;
-  stepId: EditorStepId;
+  stepId: ListingEditorStepId;
 }) => {
   const parentCategories: { label: string; value: string }[] = [];
   const subCategories: { label: string; value: string }[] = [];
@@ -545,7 +625,7 @@ const EditorStepContent = ({
       return (
         <div className="space-y-5">
           <div className="grid gap-2">
-            <Label htmlFor="listing-editor-title">Listing title</Label>
+            <Label htmlFor="listing-editor-title">Tên sản phẩm</Label>
             <editorForm.Field name="title">
               {(field) => {
                 const isInvalid =
@@ -563,7 +643,7 @@ const EditorStepContent = ({
                         onDirty();
                         field.handleChange(event.target.value);
                       }}
-                      placeholder="Give your service a clear name"
+                      placeholder="Đặt tên rõ ràng để khách dễ tìm"
                       value={field.state.value}
                     />
                     <EditorFieldError field={field} />
@@ -571,11 +651,11 @@ const EditorStepContent = ({
                 );
               }}
             </editorForm.Field>
-            <FieldHint>Use the words a buyer would search for.</FieldHint>
+            <FieldHint>Dùng những từ khách hàng thường tìm kiếm.</FieldHint>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
-              <Label htmlFor="listing-editor-type">Type</Label>
+              <Label htmlFor="listing-editor-type">Loại sản phẩm</Label>
               <editorForm.Field name="type">
                 {(field) => (
                   <Select
@@ -590,23 +670,25 @@ const EditorStepContent = ({
                     value={field.state.value}
                   >
                     <SelectTrigger id="listing-editor-type">
-                      <SelectValue />
+                      <SelectValue placeholder="Chọn loại sản phẩm" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="SERVICE">
                         <span className="flex items-center gap-2">
                           <Wrench className="size-4 text-muted-foreground" />
-                          Service
+                          Dịch vụ
                         </span>
                       </SelectItem>
-                      <SelectItem value="COURSE">Course</SelectItem>
+                      <SelectItem value="COURSE">Khóa học</SelectItem>
                     </SelectContent>
                   </Select>
                 )}
               </editorForm.Field>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="listing-editor-parent-category">Category</Label>
+              <Label htmlFor="listing-editor-parent-category">
+                Nhóm danh mục
+              </Label>
               <Select
                 disabled={disabled}
                 items={parentCategories}
@@ -618,7 +700,7 @@ const EditorStepContent = ({
                 value={parentCategoryId}
               >
                 <SelectTrigger id="listing-editor-parent-category">
-                  <SelectValue placeholder="Choose a category" />
+                  <SelectValue placeholder="Chọn nhóm danh mục" />
                 </SelectTrigger>
                 <SelectContent>
                   {parentCategories.map((category) => (
@@ -631,7 +713,7 @@ const EditorStepContent = ({
             </div>
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="listing-editor-sub-category">Sub-category</Label>
+            <Label htmlFor="listing-editor-sub-category">Danh mục con</Label>
             <editorForm.Field name="categoryId">
               {(field) => (
                 <Select
@@ -646,7 +728,7 @@ const EditorStepContent = ({
                   value={field.state.value}
                 >
                   <SelectTrigger id="listing-editor-sub-category">
-                    <SelectValue placeholder="Choose a sub-category" />
+                    <SelectValue placeholder="Chọn danh mục con" />
                   </SelectTrigger>
                   <SelectContent>
                     {subCategories.map((category) => (
@@ -660,13 +742,13 @@ const EditorStepContent = ({
             </editorForm.Field>
             {selectedCategory ? (
               <FieldHint>
-                Warranty range: {selectedCategory.warrantyBounds.minHours}–
-                {selectedCategory.warrantyBounds.maxHours} hours.
+                Thời hạn bảo hành: {selectedCategory.warrantyBounds.minHours}–
+                {selectedCategory.warrantyBounds.maxHours} giờ.
               </FieldHint>
             ) : null}
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="listing-editor-description">Description</Label>
+            <Label htmlFor="listing-editor-description">Mô tả</Label>
             <editorForm.Field name="description">
               {(field) => {
                 const isInvalid =
@@ -684,7 +766,7 @@ const EditorStepContent = ({
                         onDirty();
                         field.handleChange(event.target.value);
                       }}
-                      placeholder="Describe your process, deliverables, and what makes this valuable"
+                      placeholder="Mô tả quy trình, kết quả bàn giao và giá trị khách hàng nhận được"
                       rows={7}
                       value={field.state.value}
                     />
@@ -701,7 +783,7 @@ const EditorStepContent = ({
       return (
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="grid gap-2">
-            <Label htmlFor="listing-editor-price">Price (VND)</Label>
+            <Label htmlFor="listing-editor-price">Giá bán (VND)</Label>
             <editorForm.Field name="priceAmount">
               {(field) => (
                 <Input
@@ -723,12 +805,12 @@ const EditorStepContent = ({
               )}
             </editorForm.Field>
             <FieldHint>
-              Use a positive integer amount in Vietnamese đồng.
+              Nhập số nguyên dương theo đơn vị Việt Nam đồng.
             </FieldHint>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="listing-editor-processing">
-              Processing time (hours)
+              Thời gian hoàn thành (giờ)
             </Label>
             <editorForm.Field name="processingTimeHours">
               {(field) => (
@@ -750,15 +832,16 @@ const EditorStepContent = ({
                 />
               )}
             </editorForm.Field>
-            <FieldHint>When can the buyer expect delivery?</FieldHint>
+            <FieldHint>Khi nào khách hàng có thể nhận kết quả?</FieldHint>
           </div>
           <div className="rounded-2xl bg-muted/45 p-4 text-sm leading-6 text-muted-foreground sm:col-span-2">
             <div className="flex items-center gap-2 font-semibold text-foreground">
               <PackageCheck className="size-4 text-primary" />
-              Buyer clarity check
+              Kiểm tra thông tin cho khách
             </div>
             <p className="mt-1">
-              Price and turnaround appear together on the storefront listing.
+              Giá bán và thời gian hoàn thành sẽ hiển thị cùng nhau trên gian
+              hàng.
             </p>
           </div>
         </div>
@@ -778,7 +861,7 @@ const EditorStepContent = ({
             thumbnailUrl={form.thumbnailUrl}
           />
           <FieldHint>
-            This image is shown first and is required before publishing.
+            Ảnh này được hiển thị đầu tiên và bắt buộc trước khi đăng bán.
           </FieldHint>
         </div>
       );
@@ -789,8 +872,8 @@ const EditorStepContent = ({
           <div className="flex items-start gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm leading-6 text-muted-foreground">
             <PencilLine className="mt-1 size-4 shrink-0 text-primary" />
             <p>
-              These questions are shown to buyers after they order. Keep them
-              specific enough that you can start work immediately.
+              Những câu hỏi này hiển thị với khách sau khi họ đặt mua. Hãy viết
+              đủ cụ thể để bạn có thể bắt đầu công việc ngay.
             </p>
           </div>
           {form.serviceInputFields.map((field, fieldIndex) => (
@@ -811,7 +894,7 @@ const EditorStepContent = ({
             variant="outline"
           >
             <Plus />
-            Add buyer requirement
+            Thêm thông tin khách cần cung cấp
           </Button>
         </div>
       );
@@ -821,7 +904,7 @@ const EditorStepContent = ({
         <div className="space-y-5">
           <div className="grid gap-2 sm:max-w-xs">
             <Label htmlFor="listing-editor-warranty-duration">
-              Duration (hours)
+              Thời hạn (giờ)
             </Label>
             <editorForm.Field name="warrantyDurationHours">
               {(field) => (
@@ -845,14 +928,14 @@ const EditorStepContent = ({
             </editorForm.Field>
             {selectedCategory ? (
               <FieldHint>
-                Must be between {selectedCategory.warrantyBounds.minHours} and{" "}
-                {selectedCategory.warrantyBounds.maxHours} hours.
+                Phải nằm trong khoảng {selectedCategory.warrantyBounds.minHours}{" "}
+                đến {selectedCategory.warrantyBounds.maxHours} giờ.
               </FieldHint>
             ) : null}
           </div>
           <div className="grid gap-2">
             <Label htmlFor="listing-editor-warranty-terms">
-              Warranty terms
+              Điều khoản bảo hành
             </Label>
             <editorForm.Field name="warrantyTerms">
               {(field) => {
@@ -871,7 +954,7 @@ const EditorStepContent = ({
                         onDirty();
                         field.handleChange(event.target.value);
                       }}
-                      placeholder="Explain what is covered and how buyers should request help."
+                      placeholder="Nêu phạm vi bảo hành và cách khách hàng yêu cầu hỗ trợ."
                       rows={6}
                       value={field.state.value}
                     />
@@ -891,14 +974,76 @@ const EditorStepContent = ({
 };
 
 const ReadinessPanel = ({
+  compact = false,
   items,
   onSelectStep,
 }: {
+  compact?: boolean;
   items: ReadinessItem[];
-  onSelectStep: (step: EditorStepId) => void;
+  onSelectStep: (step: ListingEditorStepId) => void;
 }) => {
   const completedCount = items.filter((item) => item.complete).length;
   const progress = Math.round((completedCount / items.length) * 100);
+
+  const checklist = (
+    <ul className="space-y-3">
+      {items.map((item) => (
+        <li key={item.id}>
+          <button
+            className="flex w-full items-start gap-2.5 text-left text-sm"
+            onClick={() => onSelectStep(item.step)}
+            type="button"
+          >
+            <span
+              className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border ${
+                item.complete
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border text-transparent"
+              }`}
+            >
+              <Check className="size-2.5" />
+            </span>
+            <span
+              className={
+                item.complete ? "text-foreground" : "text-muted-foreground"
+              }
+            >
+              {item.label}
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+
+  const progressNote =
+    progress < 100 ? (
+      <div className="mt-5 flex items-start gap-2 rounded-xl bg-muted/50 p-3 text-xs leading-5 text-muted-foreground">
+        <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-primary" />
+        <span>Hoàn tất các mục còn thiếu để mở khóa đăng bán.</span>
+      </div>
+    ) : null;
+
+  if (compact) {
+    return (
+      <details className="rounded-2xl border border-primary/20 bg-card">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 outline-none focus-visible:ring-2 focus-visible:ring-primary">
+          <span className="flex items-center gap-2 text-sm font-semibold">
+            <ListChecks className="size-4 text-primary" />
+            Sẵn sàng đăng bán · {completedCount}/{items.length}
+          </span>
+          <Badge variant="secondary">{progress}%</Badge>
+        </summary>
+        <div className="border-t border-border/60 p-4">
+          <Progress value={progress}>
+            <span className="sr-only">Đã hoàn thành {progress}%</span>
+          </Progress>
+          <div className="mt-4">{checklist}</div>
+          {progressNote}
+        </div>
+      </details>
+    );
+  }
 
   return (
     <Card className="border-primary/20">
@@ -907,70 +1052,43 @@ const ReadinessPanel = ({
           <div>
             <CardTitle className="flex items-center gap-2 text-base">
               <ListChecks className="size-4 text-primary" />
-              Publish readiness
+              Sẵn sàng đăng bán
             </CardTitle>
             <CardDescription className="mt-1">
-              {completedCount} of {items.length} requirements complete
+              Đã hoàn thành {completedCount}/{items.length} điều kiện
             </CardDescription>
           </div>
           <Badge variant="secondary">{progress}%</Badge>
         </div>
         <Progress value={progress}>
-          <span className="sr-only">{progress} percent complete</span>
+          <span className="sr-only">Đã hoàn thành {progress}%</span>
         </Progress>
       </CardHeader>
       <CardContent>
-        <ul className="space-y-3">
-          {items.map((item) => (
-            <li key={item.id}>
-              <button
-                className="flex w-full items-start gap-2.5 text-left text-sm"
-                onClick={() => onSelectStep(item.step)}
-                type="button"
-              >
-                <span
-                  className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border ${
-                    item.complete
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border text-transparent"
-                  }`}
-                >
-                  <Check className="size-2.5" />
-                </span>
-                <span
-                  className={
-                    item.complete ? "text-foreground" : "text-muted-foreground"
-                  }
-                >
-                  {item.label}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-        {progress < 100 ? (
-          <div className="mt-5 flex items-start gap-2 rounded-xl bg-muted/50 p-3 text-xs leading-5 text-muted-foreground">
-            <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-primary" />
-            <span>Finish the remaining items to unlock publishing.</span>
-          </div>
-        ) : null}
+        {checklist}
+        {progressNote}
       </CardContent>
     </Card>
   );
 };
 
-const ListingEditorLoading = () => (
-  <Shell variant="default">
-    <div className="mx-auto max-w-7xl space-y-6">
-      <Skeleton className="h-8 w-48" />
-      <Skeleton className="h-14 w-96 max-w-full" />
-      <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)_280px]">
-        <Skeleton className="h-72 w-full" />
-        <Skeleton className="h-[560px] w-full" />
-        <Skeleton className="h-96 w-full" />
+const ListingEditorLoading = ({
+  onNavigate,
+}: {
+  onNavigate: (section: StoreSection) => void;
+}) => (
+  <SellerLayout active="products" onChange={onNavigate}>
+    <main className="min-w-0 px-4 pb-16 pt-6 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl space-y-6">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-14 w-96 max-w-full" />
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
+          <Skeleton className="h-[560px] w-full" />
+          <Skeleton className="h-96 w-full" />
+        </div>
       </div>
-    </div>
-  </Shell>
+    </main>
+  </SellerLayout>
 );
 
 interface ListingEditorListing {
@@ -984,22 +1102,38 @@ interface ListingEditorListing {
   status: ListingStatus;
   thumbnailUrl: string | null;
   title: string | null;
-  type: "COURSE" | "SERVICE";
+  type: "" | "COURSE" | "SERVICE";
   warrantyDurationHours: number | null;
   warrantyTerms: string | null;
 }
 
+const EMPTY_NEW_LISTING: ListingEditorListing = {
+  categoryId: "",
+  description: null,
+  id: "new",
+  images: [],
+  priceAmount: null,
+  processingTimeHours: null,
+  serviceInputFields: [],
+  status: "DRAFT",
+  thumbnailUrl: null,
+  title: null,
+  type: "",
+  warrantyDurationHours: null,
+  warrantyTerms: null,
+};
+
 const ListingEditorFormPage = ({
   categories: categoryOptions,
   listing,
+  isNew = false,
 }: {
   categories: EditorCategory[];
   listing: ListingEditorListing;
+  isNew?: boolean;
 }) => {
-  const { id } = listing;
   const navigate = useNavigate({ from: "/seller/listings/$id" });
   const queryClient = useQueryClient();
-  const [activeStepIndex, setActiveStepIndex] = useState(0);
   const initialCategory = categoryOptions.find(
     (category) => category.id === listing.categoryId
   );
@@ -1022,12 +1156,19 @@ const ListingEditorFormPage = ({
   const [parentCategoryId, setParentCategoryId] = useState(
     initialCategory?.parentId ?? ""
   );
+  const [draftId, setDraftId] = useState<string | null>(
+    isNew ? null : listing.id
+  );
+  const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
+  const pendingNavigationSectionRef = useRef<StoreSection | null>(null);
+  const [hasCreateAttempt, setHasCreateAttempt] = useState(false);
   const hasDefaultInputsToPersist =
+    !isNew &&
     listing.status !== "ARCHIVED" &&
     listing.serviceInputFields.length === 0 &&
     (initialCategory?.defaultServiceInputs.length ?? 0) > 0;
   const [saveStatus, setSaveStatus] = useState<SaveStatus>(
-    hasDefaultInputsToPersist ? "unsaved" : "saved"
+    isNew || hasDefaultInputsToPersist ? "unsaved" : "saved"
   );
   const listingStatus = listing.status;
   const isArchived = listingStatus === "ARCHIVED";
@@ -1036,9 +1177,9 @@ const ListingEditorFormPage = ({
 
   const updateDraftMutation = useMutation(
     orpc.listing.sellerWorkspace.updateDraft.mutationOptions({
-      onError: (error) => {
+      onError: () => {
         setSaveStatus("error");
-        toast.error(error.message || "Unable to save listing changes");
+        toast.error("Không thể lưu thay đổi sản phẩm. Vui lòng thử lại.");
       },
       onSuccess: () => {
         setSaveStatus("saved");
@@ -1071,7 +1212,10 @@ const ListingEditorFormPage = ({
     [updateDraftAsync]
   );
   const editorForm = useListingEditorForm(initialForm, async (value) => {
-    await enqueueSave({ id, ...buildUpdateInput(value) });
+    if (!draftId) {
+      return;
+    }
+    await enqueueSave({ id: draftId, ...buildUpdateInput(value) });
   });
   const form = useStore(editorForm.store, (state) => state.values);
   const selectedCategory = categoryOptions.find(
@@ -1079,13 +1223,83 @@ const ListingEditorFormPage = ({
   );
   const readinessItems = getReadinessItems(form, selectedCategory);
   const isReadyToPublish = readinessItems.every((item) => item.complete);
+  const [activeStepIndex, setActiveStepIndex] = useState(() =>
+    isNew ? 0 : getFirstIncompleteEditorStepIndex(readinessItems)
+  );
+  const isNewFormDirty =
+    isNew &&
+    !draftId &&
+    Boolean(
+      form.type ||
+      parentCategoryId ||
+      form.categoryId ||
+      form.title.trim() ||
+      form.description.trim()
+    );
+  const createDraftMutation = useMutation(
+    orpc.listing.sellerWorkspace.createDraft.mutationOptions({
+      onError: () => {
+        setHasCreateAttempt(false);
+        setSaveStatus("error");
+        toast.error("Không thể tạo bản nháp sản phẩm. Vui lòng thử lại.");
+      },
+    })
+  );
+  const createDraft = useCallback(async () => {
+    if (
+      !isNew ||
+      draftId ||
+      hasCreateAttempt ||
+      (form.type !== "COURSE" && form.type !== "SERVICE") ||
+      !form.categoryId
+    ) {
+      return;
+    }
+
+    setHasCreateAttempt(true);
+    setSaveStatus("saving");
+    const draftInput = buildCreateDraftInput(form, form.type, selectedCategory);
+    try {
+      const created = await createDraftMutation.mutateAsync(draftInput);
+      if (form.serviceInputFields.length === 0 && selectedCategory) {
+        editorForm.setFieldValue(
+          "serviceInputFields",
+          draftInput.serviceInputFields
+        );
+      }
+      setDraftId(created.id);
+      setSaveStatus("saved");
+      await queryClient.invalidateQueries({
+        queryKey: orpc.listing.sellerWorkspace.listMine.key(),
+      });
+      await navigate({
+        params: { id: created.id },
+        replace: true,
+        to: "/seller/listings/$id",
+      });
+    } catch {
+      // The mutation's error handler keeps the form available for retry.
+    }
+  }, [
+    createDraftMutation,
+    draftId,
+    editorForm,
+    form,
+    hasCreateAttempt,
+    isNew,
+    navigate,
+    queryClient,
+    selectedCategory,
+  ]);
   const publishMutation = useMutation(
     orpc.listing.sellerWorkspace.publish.mutationOptions({
-      onError: (error) => {
-        toast.error(error.message || "Unable to publish listing");
+      onError: () => {
+        toast.error(
+          "Không thể đăng bán sản phẩm. Vui lòng kiểm tra các mục còn thiếu."
+        );
       },
       onSuccess: async () => {
-        toast.success("Listing published successfully");
+        toast.success("Sản phẩm đã được đăng bán.");
         await queryClient.invalidateQueries({
           queryKey: orpc.listing.sellerWorkspace.listMine.key(),
         });
@@ -1098,11 +1312,13 @@ const ListingEditorFormPage = ({
   );
   const resumeMutation = useMutation(
     orpc.listing.sellerWorkspace.resume.mutationOptions({
-      onError: (error) => {
-        toast.error(error.message || "Unable to resume listing");
+      onError: () => {
+        toast.error(
+          "Không thể đăng bán lại sản phẩm. Vui lòng kiểm tra các mục còn thiếu."
+        );
       },
       onSuccess: async () => {
-        toast.success("Listing resumed and published");
+        toast.success("Sản phẩm đã được đăng bán lại.");
         await queryClient.invalidateQueries({
           queryKey: orpc.listing.sellerWorkspace.listMine.key(),
         });
@@ -1115,7 +1331,17 @@ const ListingEditorFormPage = ({
   );
 
   useEffect(() => {
-    if (isArchived) {
+    if (isNew) {
+      if (!draftId && saveStatus !== "error" && form.type && form.categoryId) {
+        const timeoutId = window.setTimeout(() => {
+          void createDraft();
+        }, NEW_DRAFT_CREATION_DELAY_MS);
+        return () => window.clearTimeout(timeoutId);
+      }
+      return;
+    }
+
+    if (isArchived || !draftId) {
       return;
     }
 
@@ -1128,7 +1354,7 @@ const ListingEditorFormPage = ({
       setSaveStatus("saving");
       const persistAutosave = async (): Promise<void> => {
         try {
-          await enqueueSave({ id, ...buildUpdateInput(form) });
+          await enqueueSave({ id: draftId, ...buildUpdateInput(form) });
         } catch {
           // The mutation's error handler provides feedback to the seller.
         }
@@ -1137,13 +1363,30 @@ const ListingEditorFormPage = ({
     }, 700);
 
     return () => window.clearTimeout(timeoutId);
-  }, [enqueueSave, form, id, isArchived, isPublished, isReadyToPublish]);
+  }, [
+    createDraft,
+    draftId,
+    enqueueSave,
+    form,
+    isArchived,
+    isNew,
+    isPublished,
+    isReadyToPublish,
+    saveStatus,
+  ]);
 
   const activeStep = EDITOR_STEPS[activeStepIndex];
-  const stepIsComplete = (stepId: EditorStepId) =>
+  const stepIsComplete = (stepId: ListingEditorStepId) =>
     readinessItems
       .filter((item) => item.step === stepId)
       .every((item) => item.complete);
+  const handleSelectStep = (stepId: ListingEditorStepId) => {
+    const nextStepIndex = EDITOR_STEPS.findIndex((step) => step.id === stepId);
+    if (isNew && !draftId && nextStepIndex > 0) {
+      return;
+    }
+    setActiveStepIndex(nextStepIndex);
+  };
   const markUnsaved = () => setSaveStatus("unsaved");
 
   const handleParentCategoryChange = (nextParentCategoryId: string) => {
@@ -1173,34 +1416,75 @@ const ListingEditorFormPage = ({
     );
   };
 
+  const isActionPending =
+    createDraftMutation.isPending ||
+    updateDraftMutation.isPending ||
+    publishMutation.isPending ||
+    resumeMutation.isPending;
+
   const saveNow = async (): Promise<boolean> => {
+    if (!draftId) {
+      return false;
+    }
     if (isArchived || (isPublished && !isReadyToPublish)) {
       if (isPublished) {
-        toast.error("Complete the readiness checklist before saving changes");
+        toast.error("Hoàn tất checklist trước khi lưu thay đổi.");
       }
       return false;
     }
 
     setSaveStatus("saving");
-    await editorForm.handleSubmit();
-    if (!editorForm.state.isValid) {
-      setSaveStatus("unsaved");
+    if (isPublished) {
+      await editorForm.handleSubmit();
+      if (!editorForm.state.isValid) {
+        setSaveStatus("unsaved");
+        return false;
+      }
+      return true;
+    }
+
+    try {
+      await enqueueSave({ id: draftId, ...buildUpdateInput(form) });
+      return true;
+    } catch {
       return false;
     }
-    return true;
   };
 
-  const handleSaveAndExit = async () => {
-    try {
-      if (await saveNow()) {
-        await navigate({
-          search: { section: "products" },
-          to: "/seller/store",
-        });
+  const handleNavigateFromEditor = async (section: StoreSection) => {
+    if (isActionPending) {
+      toast.info("Đang lưu thay đổi…");
+      return;
+    }
+
+    if (isNew && !draftId) {
+      if (isNewFormDirty) {
+        pendingNavigationSectionRef.current = section;
+        setIsDiscardDialogOpen(true);
+        return;
       }
+      await navigate({
+        search: { section },
+        to: "/seller/store",
+      });
+      return;
+    }
+
+    try {
+      if (saveStatus !== "saved" && !(await saveNow())) {
+        return;
+      }
+      await navigate({
+        search: { section },
+        to: "/seller/store",
+      });
     } catch {
       // The mutation already surfaces the error to the seller.
     }
+  };
+
+  const handleReturnToProducts = async () => {
+    await handleNavigateFromEditor("products");
   };
 
   const handlePrimaryAction = async () => {
@@ -1212,308 +1496,384 @@ const ListingEditorFormPage = ({
       if (!(await saveNow())) {
         return;
       }
-      if (listingStatus === "DRAFT") {
-        await publishMutation.mutateAsync({ id });
-      } else if (listingStatus === "PAUSED") {
-        await resumeMutation.mutateAsync({ id });
+      if (listingStatus === "DRAFT" && draftId) {
+        await publishMutation.mutateAsync({ id: draftId });
+      } else if (listingStatus === "PAUSED" && draftId) {
+        await resumeMutation.mutateAsync({ id: draftId });
       }
     } catch {
       // The mutation already surfaces the error to the seller.
     }
   };
 
-  const isActionPending =
-    updateDraftMutation.isPending ||
-    publishMutation.isPending ||
-    resumeMutation.isPending;
   const primaryActionLabel =
-    listingStatus === "PAUSED" ? "Resume listing" : "Publish listing";
+    listingStatus === "PAUSED" ? "Đăng bán lại" : "Đăng bán sản phẩm";
   const primaryActionAvailable =
     listingStatus === "DRAFT" || listingStatus === "PAUSED";
   const saveIndicatorClass = getSaveIndicatorClass(saveStatus);
-  const saveStatusLabel = getSaveStatusLabel(saveStatus);
+  const saveStatusLabel = getNewSaveStatusLabel(saveStatus, isNew, draftId);
+  const editorTypeLabel = isNew
+    ? "Tạo sản phẩm"
+    : getEditorTypeLabel(form.type);
+  const editorStatusLabel = isNew
+    ? "Bản nháp mới"
+    : STATUS_LABELS[listingStatus];
+  const editorTitle =
+    form.title || (isNew ? "Sản phẩm mới" : "Đặt tên sản phẩm");
+  const handleStoreNavigation = (section: StoreSection) => {
+    void handleNavigateFromEditor(section);
+  };
 
   return (
-    <Shell variant="default">
-      <div className="mx-auto max-w-7xl space-y-6 pb-28">
-        <header className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <Link
-              className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-              onClick={(event) => {
-                if (isActionPending) {
-                  event.preventDefault();
-                  toast.info("Saving your changes…");
-                  return;
-                }
+    <SellerLayout active="products" onChange={handleStoreNavigation}>
+      <main className="min-w-0 px-4 pb-28 pt-6 sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-[1600px] space-y-6">
+          <header className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <SidebarTrigger className="shrink-0" />
+                <Link
+                  className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+                  onClick={(event) => {
+                    if (isActionPending) {
+                      event.preventDefault();
+                      toast.info("Đang lưu thay đổi…");
+                      return;
+                    }
 
-                if (saveStatus === "error" || saveStatus === "unsaved") {
-                  event.preventDefault();
-                  void handleSaveAndExit();
-                }
-              }}
-              search={{ section: "products" }}
-              to="/seller/store"
-            >
-              <ArrowLeft className="size-4" />
-              Sản phẩm
-            </Link>
-            <div className="flex flex-wrap items-center gap-3">
-              <Badge variant="outline">{STATUS_LABELS[listingStatus]}</Badge>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span
-                  className={`size-1.5 rounded-full ${saveIndicatorClass}`}
-                />
-                {saveStatusLabel}
+                    if (isNew && !draftId) {
+                      event.preventDefault();
+                      void handleReturnToProducts();
+                      return;
+                    }
+
+                    if (saveStatus !== "saved") {
+                      event.preventDefault();
+                      void handleReturnToProducts();
+                    }
+                  }}
+                  search={{ section: "products" }}
+                  to="/seller/store"
+                >
+                  <ArrowLeft className="size-4" />
+                  Sản phẩm
+                </Link>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <Badge variant="outline">{STATUS_LABELS[listingStatus]}</Badge>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span
+                    className={`size-1.5 rounded-full ${saveIndicatorClass}`}
+                  />
+                  {saveStatusLabel}
+                </div>
               </div>
             </div>
-          </div>
-          <div className="max-w-3xl space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
-              {form.type === "SERVICE" ? "New service" : "New course"} ·{" "}
-              {STATUS_LABELS[listingStatus]}
-            </p>
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              {form.title || "Set up your listing"}
-            </h1>
-            <p className="text-sm leading-6 text-muted-foreground">
-              Complete each step at your own pace. Your changes are saved
-              automatically.
-            </p>
-          </div>
-        </header>
-
-        {isHidden ? (
-          <Alert>
-            <AlertCircle className="size-4" />
-            <AlertTitle>This listing is hidden by Avin</AlertTitle>
-            <AlertDescription>
-              You can update the content, but publication remains controlled by
-              the moderation team.
-            </AlertDescription>
-          </Alert>
-        ) : null}
-        {isArchived ? (
-          <Alert>
-            <AlertCircle className="size-4" />
-            <AlertTitle>This listing is archived</AlertTitle>
-            <AlertDescription>
-              Archived listings are retained for order history and cannot be
-              edited or restored.
-            </AlertDescription>
-          </Alert>
-        ) : null}
-        {saveStatus === "error" ? (
-          <Alert variant="destructive">
-            <AlertCircle className="size-4" />
-            <AlertTitle>We could not save your latest change</AlertTitle>
-            <AlertDescription>
-              Check your connection and try again.
-            </AlertDescription>
-          </Alert>
-        ) : null}
-
-        <div className="grid items-start gap-6 lg:grid-cols-[220px_minmax(0,1fr)_280px]">
-          <aside className="space-y-3 lg:sticky lg:top-6">
-            <div className="px-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-              Setup progress
+            <div className="max-w-3xl space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+                {editorTypeLabel} · {editorStatusLabel}
+              </p>
+              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+                {editorTitle}
+              </h1>
+              <p className="text-sm leading-6 text-muted-foreground">
+                Hoàn thiện từng bước theo tốc độ của bạn. Thay đổi sẽ được tự
+                động lưu.
+              </p>
             </div>
-            <nav aria-label="Listing setup steps" className="space-y-1">
-              {EDITOR_STEPS.map((step, index) => {
-                const isActive = index === activeStepIndex;
-                const isComplete = stepIsComplete(step.id);
-                let stepIndicatorClass = "border-border text-muted-foreground";
-                if (isComplete) {
-                  stepIndicatorClass =
-                    "border-primary bg-primary text-primary-foreground";
-                }
-                if (isActive) {
-                  stepIndicatorClass =
-                    "border-primary-foreground/40 bg-primary-foreground/15";
-                }
-                return (
-                  <button
-                    className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition-colors ${
-                      isActive
-                        ? "bg-primary text-primary-foreground"
-                        : "hover:bg-muted"
-                    }`}
-                    key={step.id}
-                    onClick={() => setActiveStepIndex(index)}
-                    type="button"
-                  >
-                    <span
-                      className={`flex size-7 shrink-0 items-center justify-center rounded-full border text-xs font-bold ${stepIndicatorClass}`}
-                    >
-                      {isComplete ? <Check className="size-3.5" /> : index + 1}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-sm font-semibold">
-                        {step.label}
-                      </span>
-                      <span
-                        className={`block truncate text-xs ${
-                          isActive
-                            ? "text-primary-foreground/70"
-                            : "text-muted-foreground"
-                        }`}
-                      >
-                        {step.description}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-            </nav>
-            <Card className="hidden bg-muted/25 lg:block">
-              <CardContent className="flex gap-2 p-3 text-xs leading-5 text-muted-foreground">
-                <Save className="mt-0.5 size-3.5 shrink-0 text-primary" />
-                Autosaved as you edit. You can return to any step later.
-              </CardContent>
-            </Card>
-          </aside>
+          </header>
 
-          <main>
-            <Card className="min-h-[560px]">
-              <CardHeader className="border-b border-border/60">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
-                      Step {activeStepIndex + 1} of {EDITOR_STEPS.length}
-                    </p>
-                    <CardTitle className="mt-2 text-2xl">
-                      {activeStep.label}
-                    </CardTitle>
-                    <CardDescription className="mt-1">
-                      {activeStep.description}
-                    </CardDescription>
-                  </div>
-                  <div className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
-                    <Clock3 className="size-3.5 text-primary" />
-                    Autosave on
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="p-6 sm:p-8">
-                <EditorStepContent
-                  categories={categoryOptions}
-                  disabled={isArchived}
-                  editorForm={editorForm}
-                  form={form}
-                  onAddInputField={handleAddInputField}
-                  onDirty={markUnsaved}
-                  onParentCategoryChange={handleParentCategoryChange}
-                  onRemoveInputField={handleRemoveInputField}
-                  parentCategoryId={parentCategoryId}
-                  listingId={id}
-                  stepId={activeStep.id}
-                />
-              </CardContent>
-              <CardFooter className="justify-between border-t border-border/60">
-                <Button
-                  disabled={isActionPending || activeStepIndex === 0}
-                  onClick={() =>
-                    setActiveStepIndex((index) => Math.max(index - 1, 0))
-                  }
-                  variant="ghost"
+          <nav
+            aria-label="Các bước hoàn thiện sản phẩm"
+            className="grid gap-2 md:grid-cols-5"
+          >
+            {EDITOR_STEPS.map((step, index) => {
+              const isActive = index === activeStepIndex;
+              const isComplete = stepIsComplete(step.id);
+              const isLocked = isNew && !draftId && index > 0;
+              let stepIndicatorClass = "border-border text-muted-foreground";
+              if (isComplete) {
+                stepIndicatorClass =
+                  "border-primary bg-primary text-primary-foreground";
+              }
+              if (isActive) {
+                stepIndicatorClass =
+                  "border-primary-foreground/40 bg-primary-foreground/15";
+              }
+              return (
+                <button
+                  className={`flex items-center gap-3 rounded-2xl border px-3 py-3 text-left transition-colors ${
+                    isActive
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-card hover:bg-muted"
+                  } ${isLocked ? "cursor-not-allowed opacity-50" : ""}`}
+                  disabled={isLocked || isActionPending}
+                  key={step.id}
+                  onClick={() => setActiveStepIndex(index)}
+                  type="button"
                 >
-                  <ArrowLeft />
-                  Back
+                  <span
+                    className={`flex size-7 shrink-0 items-center justify-center rounded-full border text-xs font-bold ${stepIndicatorClass}`}
+                  >
+                    {isComplete ? <Check className="size-3.5" /> : index + 1}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-semibold">
+                      {step.label}
+                    </span>
+                    <span
+                      className={`block truncate text-xs ${
+                        isActive
+                          ? "text-primary-foreground/70"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {step.description}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
+
+          {isHidden ? (
+            <Alert>
+              <AlertCircle className="size-4" />
+              <AlertTitle>Sản phẩm này đang bị Avin ẩn</AlertTitle>
+              <AlertDescription>
+                Bạn vẫn có thể cập nhật nội dung, nhưng việc đăng bán do đội ngũ
+                kiểm duyệt kiểm soát.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {isArchived ? (
+            <Alert>
+              <AlertCircle className="size-4" />
+              <AlertTitle>Sản phẩm này đã được lưu trữ</AlertTitle>
+              <AlertDescription>
+                Sản phẩm đã lưu trữ được giữ cho lịch sử đơn hàng và không thể
+                chỉnh sửa hoặc khôi phục.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {!isNew && saveStatus === "error" ? (
+            <Alert variant="destructive">
+              <AlertCircle className="size-4" />
+              <AlertTitle>Không thể lưu thay đổi mới nhất</AlertTitle>
+              <AlertDescription>Kiểm tra kết nối rồi thử lại.</AlertDescription>
+            </Alert>
+          ) : null}
+
+          {isNew && saveStatus === "error" ? (
+            <Alert variant="destructive">
+              <AlertCircle className="size-4" />
+              <AlertTitle>Chưa thể tạo bản nháp</AlertTitle>
+              <AlertDescription className="flex flex-wrap items-center gap-3">
+                Dữ liệu bạn đã nhập vẫn còn trên màn hình.
+                <Button
+                  onClick={() => void createDraft()}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  Thử lại
                 </Button>
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
+          <div className="xl:hidden">
+            <ReadinessPanel
+              compact
+              items={readinessItems}
+              onSelectStep={handleSelectStep}
+            />
+          </div>
+
+          <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
+            <section>
+              <Card className="min-h-[560px]">
+                <CardHeader className="border-b border-border/60">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+                        Bước {activeStepIndex + 1}/{EDITOR_STEPS.length}
+                      </p>
+                      <CardTitle className="mt-2 text-2xl">
+                        {activeStep.label}
+                      </CardTitle>
+                      <CardDescription className="mt-1">
+                        {activeStep.description}
+                      </CardDescription>
+                    </div>
+                    <div className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
+                      <Clock3 className="size-3.5 text-primary" />
+                      Tự động lưu
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6 sm:p-8">
+                  <EditorStepContent
+                    categories={categoryOptions}
+                    disabled={
+                      isArchived ||
+                      isActionPending ||
+                      (isNew && !draftId && activeStep.id !== "basics")
+                    }
+                    editorForm={editorForm}
+                    form={form}
+                    onAddInputField={handleAddInputField}
+                    onDirty={markUnsaved}
+                    onParentCategoryChange={handleParentCategoryChange}
+                    onRemoveInputField={handleRemoveInputField}
+                    parentCategoryId={parentCategoryId}
+                    listingId={draftId ?? "new"}
+                    stepId={activeStep.id}
+                  />
+                </CardContent>
+                <CardFooter className="justify-between border-t border-border/60">
+                  <Button
+                    disabled={isActionPending || activeStepIndex === 0}
+                    onClick={() =>
+                      setActiveStepIndex((index) => Math.max(index - 1, 0))
+                    }
+                    variant="ghost"
+                  >
+                    <ArrowLeft />
+                    Quay lại
+                  </Button>
+                  <Button
+                    disabled={
+                      isActionPending ||
+                      (isNew && !draftId) ||
+                      activeStepIndex === EDITOR_STEPS.length - 1
+                    }
+                    onClick={() =>
+                      setActiveStepIndex((index) =>
+                        Math.min(index + 1, EDITOR_STEPS.length - 1)
+                      )
+                    }
+                  >
+                    Tiếp theo
+                    <ArrowRight />
+                  </Button>
+                </CardFooter>
+              </Card>
+            </section>
+
+            <aside className="hidden space-y-4 xl:sticky xl:top-6 xl:block">
+              <ReadinessPanel
+                items={readinessItems}
+                onSelectStep={handleSelectStep}
+              />
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-sm">
+                    <Eye className="size-4 text-primary" />
+                    Tiếp theo là gì?
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 text-xs leading-5 text-muted-foreground">
+                  <p>
+                    Xem trước gian hàng, sau đó đăng bán khi mọi điều kiện đã
+                    hoàn tất.
+                  </p>
+                  <div className="flex items-center gap-2 rounded-xl bg-muted/50 p-3">
+                    <FileCheck2 className="size-4 shrink-0 text-primary" />
+                    {isPublished
+                      ? "Thay đổi của sản phẩm đang bán được tự động lưu."
+                      : "Bạn có thể quay lại bất kỳ bước nào sau."}
+                  </div>
+                </CardContent>
+              </Card>
+            </aside>
+          </div>
+
+          <div className="sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card/95 p-3 shadow-xl backdrop-blur">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Save className="size-3.5 text-primary" />
+              {saveStatusLabel}
+            </div>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button
+                disabled={isActionPending || isArchived}
+                onClick={() => void handleReturnToProducts()}
+                variant="outline"
+              >
+                Quay lại sản phẩm
+              </Button>
+              {primaryActionAvailable ? (
                 <Button
                   disabled={
                     isActionPending ||
-                    activeStepIndex === EDITOR_STEPS.length - 1
+                    isArchived ||
+                    !isReadyToPublish ||
+                    isHidden
                   }
-                  onClick={() =>
-                    setActiveStepIndex((index) =>
-                      Math.min(index + 1, EDITOR_STEPS.length - 1)
-                    )
-                  }
+                  onClick={handlePrimaryAction}
                 >
-                  Continue
-                  <ArrowRight />
+                  <Rocket />
+                  {primaryActionLabel}
                 </Button>
-              </CardFooter>
-            </Card>
-          </main>
-
-          <aside className="space-y-4 lg:sticky lg:top-6">
-            <ReadinessPanel
-              items={readinessItems}
-              onSelectStep={(stepId) =>
-                setActiveStepIndex(
-                  EDITOR_STEPS.findIndex((step) => step.id === stepId)
-                )
-              }
-            />
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-sm">
-                  <Eye className="size-4 text-primary" />
-                  What happens next?
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 text-xs leading-5 text-muted-foreground">
-                <p>
-                  Review the storefront preview, then publish when every
-                  requirement is complete.
-                </p>
-                <div className="flex items-center gap-2 rounded-xl bg-muted/50 p-3">
-                  <FileCheck2 className="size-4 shrink-0 text-primary" />
-                  {isPublished
-                    ? "Published changes save automatically."
-                    : "You can return to any step later."}
-                </div>
-              </CardContent>
-            </Card>
-          </aside>
-        </div>
-
-        <div className="sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card/95 p-3 shadow-xl backdrop-blur">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Save className="size-3.5 text-primary" />
-            {saveStatus === "saving"
-              ? "Saving your draft…"
-              : "Your draft is safe"}
+              ) : null}
+              {!isReadyToPublish && primaryActionAvailable ? (
+                <span className="basis-full text-right text-[11px] text-muted-foreground sm:basis-auto">
+                  Hoàn tất checklist để tiếp tục.
+                </span>
+              ) : null}
+            </div>
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <Button
-              disabled={isActionPending || isArchived}
-              onClick={handleSaveAndExit}
-              variant="outline"
+        </div>
+      </main>
+      <AlertDialog
+        onOpenChange={(open) => {
+          setIsDiscardDialogOpen(open);
+          if (!open) {
+            pendingNavigationSectionRef.current = null;
+          }
+        }}
+        open={isDiscardDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Bỏ sản phẩm mới?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Những thông tin này chưa được lưu và sẽ bị mất nếu bạn rời khỏi
+              màn hình.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Tiếp tục chỉnh sửa</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const targetSection =
+                  pendingNavigationSectionRef.current ?? "products";
+                setIsDiscardDialogOpen(false);
+                pendingNavigationSectionRef.current = null;
+                void navigate({
+                  search: { section: targetSection },
+                  to: "/seller/store",
+                });
+              }}
+              variant="destructive"
             >
-              Save & exit
-            </Button>
-            {primaryActionAvailable ? (
-              <Button
-                disabled={
-                  isActionPending || isArchived || !isReadyToPublish || isHidden
-                }
-                onClick={handlePrimaryAction}
-              >
-                <Rocket />
-                {primaryActionLabel}
-              </Button>
-            ) : null}
-            {!isReadyToPublish && primaryActionAvailable ? (
-              <span className="basis-full text-right text-[11px] text-muted-foreground sm:basis-auto">
-                Complete the readiness checklist to continue.
-              </span>
-            ) : null}
-          </div>
-        </div>
-      </div>
-    </Shell>
+              Bỏ thay đổi
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </SellerLayout>
   );
 };
 
 export const ListingEditorPage = () => {
   const { id } = useParams({ from: "/_authenticated/seller/listings/$id" });
   const navigate = useNavigate({ from: "/seller/listings/$id" });
-  const listingQuery = useQuery(
-    orpc.listing.sellerWorkspace.get.queryOptions({ input: { id } })
-  );
+  const isNew = id === "new";
+  const listingQuery = useQuery({
+    ...orpc.listing.sellerWorkspace.get.queryOptions({ input: { id } }),
+    enabled: !isNew,
+  });
   const categoriesQuery = useQuery(
     orpc.listing.discovery.categories.queryOptions()
   );
@@ -1521,38 +1881,69 @@ export const ListingEditorPage = () => {
     () => getCategoryOptions(categoriesQuery.data ?? []),
     [categoriesQuery.data]
   );
+  const handleStoreNavigation = (section: StoreSection) => {
+    void navigate({ search: { section }, to: "/seller/store" });
+  };
 
-  if (listingQuery.isLoading || categoriesQuery.isLoading) {
-    return <ListingEditorLoading />;
+  if (categoriesQuery.isLoading || (!isNew && listingQuery.isLoading)) {
+    return <ListingEditorLoading onNavigate={handleStoreNavigation} />;
+  }
+
+  if (isNew) {
+    if (categoriesQuery.isError) {
+      return (
+        <SellerLayout active="products" onChange={handleStoreNavigation}>
+          <main className="min-w-0 px-4 pb-16 pt-6 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-2xl py-12">
+              <Alert variant="destructive">
+                <AlertCircle className="size-4" />
+                <AlertTitle>Không thể tải danh mục</AlertTitle>
+                <AlertDescription>
+                  Vui lòng thử lại để tạo sản phẩm.
+                </AlertDescription>
+              </Alert>
+            </div>
+          </main>
+        </SellerLayout>
+      );
+    }
+
+    return (
+      <ListingEditorFormPage
+        categories={categoryOptions}
+        isNew
+        listing={EMPTY_NEW_LISTING}
+      />
+    );
   }
 
   if (listingQuery.isError || categoriesQuery.isError || !listingQuery.data) {
     return (
-      <Shell variant="default">
-        <div className="mx-auto max-w-2xl py-12">
-          <Alert variant="destructive">
-            <AlertCircle className="size-4" />
-            <AlertTitle>Unable to open this listing</AlertTitle>
-            <AlertDescription>
-              {listingQuery.error?.message ||
-                categoriesQuery.error?.message ||
-                "The listing may no longer be available to your seller account."}
-            </AlertDescription>
-          </Alert>
-          <Button
-            className="mt-4"
-            onClick={() =>
-              navigate({
-                search: { section: "products" },
-                to: "/seller/store",
-              })
-            }
-          >
-            <ArrowLeft />
-            Về danh sách sản phẩm
-          </Button>
-        </div>
-      </Shell>
+      <SellerLayout active="products" onChange={handleStoreNavigation}>
+        <main className="min-w-0 px-4 pb-16 pt-6 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-2xl py-12">
+            <Alert variant="destructive">
+              <AlertCircle className="size-4" />
+              <AlertTitle>Không thể mở sản phẩm</AlertTitle>
+              <AlertDescription>
+                Sản phẩm có thể không còn khả dụng với tài khoản seller của bạn.
+              </AlertDescription>
+            </Alert>
+            <Button
+              className="mt-4"
+              onClick={() =>
+                navigate({
+                  search: { section: "products" },
+                  to: "/seller/store",
+                })
+              }
+            >
+              <ArrowLeft />
+              Về danh sách sản phẩm
+            </Button>
+          </div>
+        </main>
+      </SellerLayout>
     );
   }
 

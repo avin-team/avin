@@ -321,7 +321,7 @@ const StoreContent = ({
 export const StorePage = () => {
   const search = useSearch({ from: "/_authenticated/seller/store" });
   const [active, setActive] = useState<StoreSection>(
-    search.section === "products" ? "products" : "overview"
+    search.section ?? "overview"
   );
 
   return (

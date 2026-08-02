@@ -31,6 +31,7 @@ describe("listing router interface", () => {
     expect(Object.keys(listingRouter.sellerWorkspace).toSorted()).toEqual([
       "archive",
       "createDraft",
+      "deleteDraft",
       "get",
       "getDraft",
       "getMediaAccess",
