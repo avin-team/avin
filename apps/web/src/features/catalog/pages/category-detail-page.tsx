@@ -9,18 +9,21 @@ import type { SortByOption } from "../components/category-detail-view";
 
 export const CategoryDetailPage = () => {
   const { parentSlug } = useParams({ strict: false });
-  const searchParams = useSearch({ strict: false }) as {
-    page?: number;
-    search?: string;
-    sortBy?: SortByOption;
-    subSlug?: string;
-  };
-  const navigate = useNavigate({ from: "/category/$parentSlug" });
+  const searchParams = useSearch({ strict: false }) as
+    | {
+        page?: number;
+        search?: string;
+        sortBy?: SortByOption;
+        subSlug?: string;
+      }
+    | undefined;
 
-  const page = searchParams.page ?? 1;
-  const search = searchParams.search ?? "";
-  const sortBy: SortByOption = searchParams.sortBy ?? "newest";
-  const selectedSubSlug = searchParams.subSlug;
+  const page = searchParams?.page ?? 1;
+  const search = searchParams?.search ?? "";
+  const sortBy: SortByOption = searchParams?.sortBy ?? "newest";
+  const selectedSubSlug = searchParams?.subSlug;
+
+  const navigate = useNavigate({ from: "/category/$parentSlug" });
 
   // Fetch Parent Category metadata
   const categoryQuery = useQuery(

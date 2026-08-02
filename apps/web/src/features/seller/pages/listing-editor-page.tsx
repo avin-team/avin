@@ -34,6 +34,7 @@ import {
 import { SidebarTrigger } from "@avin/ui/components/sidebar";
 import { Skeleton } from "@avin/ui/components/skeleton";
 import { Textarea } from "@avin/ui/components/textarea";
+import { cn } from "@avin/ui/lib/utils";
 import { useForm, useStore } from "@tanstack/react-form";
 import type { AnyFieldApi } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -46,6 +47,7 @@ import {
   Clock3,
   Eye,
   FileCheck2,
+  GraduationCap,
   ListChecks,
   PackageCheck,
   Rocket,
@@ -64,6 +66,7 @@ import { orpc } from "@/utils/orpc";
 import type { StoreSection } from "../data/store-types";
 import {
   getFirstIncompleteEditorStepIndex,
+  getServiceInputFieldsForDraft,
   isListingEditorStepLocked,
   LISTING_EDITOR_STEP_ORDER,
 } from "./listing-editor-logic";
@@ -110,7 +113,6 @@ const useListingEditorForm = (
 type ListingEditorFormApi = ReturnType<typeof useListingEditorForm>;
 
 interface EditorCategory {
-  defaultServiceInputs: ServiceInputField[];
   id: string;
   name: string;
   parentId: string;
@@ -149,11 +151,6 @@ const EDITOR_STEPS = LISTING_EDITOR_STEP_ORDER.map((id) => ({
   ...EDITOR_STEP_COPY[id],
   id,
 }));
-
-const LISTING_TYPE_ITEMS = [
-  { label: "Dịch vụ", value: "SERVICE" },
-  { label: "Khóa học", value: "COURSE" },
-];
 
 const STATUS_LABELS: Record<ListingStatus, string> = {
   ARCHIVED: "Đã lưu trữ",
@@ -246,15 +243,11 @@ const buildUpdateInput = (form: ListingEditorForm) => ({
 
 const buildCreateDraftInput = (
   form: ListingEditorForm,
-  type: "COURSE" | "SERVICE",
-  category: EditorCategory | undefined
+  type: "COURSE" | "SERVICE"
 ) => ({
   ...buildUpdateInput(form),
   categoryId: form.categoryId,
-  serviceInputFields:
-    form.serviceInputFields.length > 0
-      ? form.serviceInputFields
-      : (category?.defaultServiceInputs ?? []),
+  serviceInputFields: getServiceInputFieldsForDraft(form.serviceInputFields),
   type,
 });
 
@@ -267,7 +260,6 @@ const getCategoryOptions = (
     id: string;
     name: string;
     subCategories: {
-      defaultServiceInputs: ServiceInputField[];
       id: string;
       name: string;
       parentId: string;
@@ -277,7 +269,6 @@ const getCategoryOptions = (
 ): EditorCategory[] =>
   parents.flatMap((parent) =>
     parent.subCategories.map((category) => ({
-      defaultServiceInputs: category.defaultServiceInputs,
       id: category.id,
       name: category.name,
       parentId: category.parentId,
@@ -447,38 +438,132 @@ const EditorStepContent = ({
             </editorForm.Field>
             <FieldHint>Dùng những từ khách hàng thường tìm kiếm.</FieldHint>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <Label htmlFor="listing-editor-type">Loại sản phẩm</Label>
-              <editorForm.Field name="type">
-                {(field) => (
-                  <Select
+          <div className="grid gap-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium text-foreground">
+                Loại sản phẩm
+              </Label>
+              <span className="text-xs text-muted-foreground">
+                Chọn 1 trong 2 hình thức cung cấp
+              </span>
+            </div>
+            <editorForm.Field name="type">
+              {(field) => (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <button
+                    className={cn(
+                      "group relative flex cursor-pointer flex-col justify-between rounded-2xl border p-4 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                      field.state.value === "SERVICE"
+                        ? "border-primary/80 bg-primary/5 text-foreground shadow-sm ring-1 ring-primary/30"
+                        : "border-border/70 bg-card hover:border-foreground/30 hover:bg-accent/40 text-muted-foreground",
+                      disabled && "cursor-not-allowed opacity-50"
+                    )}
                     disabled={disabled}
-                    items={LISTING_TYPE_ITEMS}
-                    onValueChange={(value) => {
-                      if (value === "COURSE" || value === "SERVICE") {
+                    onClick={() => {
+                      if (!disabled) {
                         onDirty();
-                        field.handleChange(value);
+                        field.handleChange("SERVICE");
                       }
                     }}
-                    value={field.state.value}
+                    type="button"
                   >
-                    <SelectTrigger id="listing-editor-type">
-                      <SelectValue placeholder="Chọn loại sản phẩm" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="SERVICE">
-                        <span className="flex items-center gap-2">
-                          <Wrench className="size-4 text-muted-foreground" />
-                          Dịch vụ
-                        </span>
-                      </SelectItem>
-                      <SelectItem value="COURSE">Khóa học</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              </editorForm.Field>
-            </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={cn(
+                            "flex size-10 items-center justify-center rounded-xl transition-colors",
+                            field.state.value === "SERVICE"
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted text-muted-foreground group-hover:bg-muted/80 group-hover:text-foreground"
+                          )}
+                        >
+                          <Wrench className="size-5" />
+                        </div>
+                        <div>
+                          <div className="font-semibold text-foreground">
+                            Dịch vụ
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Hoàn thành & Bàn giao
+                          </div>
+                        </div>
+                      </div>
+                      <div
+                        className={cn(
+                          "flex size-5 shrink-0 items-center justify-center rounded-full border transition-all",
+                          field.state.value === "SERVICE"
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-muted-foreground/30 text-transparent"
+                        )}
+                      >
+                        <Check className="size-3 stroke-[3]" />
+                      </div>
+                    </div>
+                    <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+                      Dành cho dịch vụ làm theo yêu cầu, cày thuê, thiết kế, tư
+                      vấn hoặc cung cấp giải pháp.
+                    </p>
+                  </button>
+
+                  <button
+                    className={cn(
+                      "group relative flex cursor-pointer flex-col justify-between rounded-2xl border p-4 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                      field.state.value === "COURSE"
+                        ? "border-primary/80 bg-primary/5 text-foreground shadow-sm ring-1 ring-primary/30"
+                        : "border-border/70 bg-card hover:border-foreground/30 hover:bg-accent/40 text-muted-foreground",
+                      disabled && "cursor-not-allowed opacity-50"
+                    )}
+                    disabled={disabled}
+                    onClick={() => {
+                      if (!disabled) {
+                        onDirty();
+                        field.handleChange("COURSE");
+                      }
+                    }}
+                    type="button"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={cn(
+                            "flex size-10 items-center justify-center rounded-xl transition-colors",
+                            field.state.value === "COURSE"
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted text-muted-foreground group-hover:bg-muted/80 group-hover:text-foreground"
+                          )}
+                        >
+                          <GraduationCap className="size-5" />
+                        </div>
+                        <div>
+                          <div className="font-semibold text-foreground">
+                            Khóa học
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Đào tạo & Hướng dẫn
+                          </div>
+                        </div>
+                      </div>
+                      <div
+                        className={cn(
+                          "flex size-5 shrink-0 items-center justify-center rounded-full border transition-all",
+                          field.state.value === "COURSE"
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-muted-foreground/30 text-transparent"
+                        )}
+                      >
+                        <Check className="size-3 stroke-[3]" />
+                      </div>
+                    </div>
+                    <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+                      Dành cho bài giảng video, tài liệu hướng dẫn, khóa đào tạo
+                      trực tuyến dành cho học viên.
+                    </p>
+                  </button>
+                </div>
+              )}
+            </editorForm.Field>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label htmlFor="listing-editor-parent-category">
                 Nhóm danh mục
@@ -493,7 +578,10 @@ const EditorStepContent = ({
                 }}
                 value={parentCategoryId}
               >
-                <SelectTrigger id="listing-editor-parent-category">
+                <SelectTrigger
+                  className="w-full"
+                  id="listing-editor-parent-category"
+                >
                   <SelectValue placeholder="Chọn nhóm danh mục" />
                 </SelectTrigger>
                 <SelectContent>
@@ -505,42 +593,45 @@ const EditorStepContent = ({
                 </SelectContent>
               </Select>
             </div>
+            <div className="grid gap-2">
+              <Label htmlFor="listing-editor-sub-category">Danh mục con</Label>
+              <editorForm.Field name="categoryId">
+                {(field) => (
+                  <Select
+                    disabled={disabled || !parentCategoryId}
+                    items={subCategories}
+                    onValueChange={(value) => {
+                      if (value) {
+                        onDirty();
+                        field.handleChange(value);
+                      }
+                    }}
+                    value={field.state.value}
+                  >
+                    <SelectTrigger
+                      className="w-full"
+                      id="listing-editor-sub-category"
+                    >
+                      <SelectValue placeholder="Chọn danh mục con" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {subCategories.map((category) => (
+                        <SelectItem key={category.value} value={category.value}>
+                          {category.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </editorForm.Field>
+            </div>
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="listing-editor-sub-category">Danh mục con</Label>
-            <editorForm.Field name="categoryId">
-              {(field) => (
-                <Select
-                  disabled={disabled || !parentCategoryId}
-                  items={subCategories}
-                  onValueChange={(value) => {
-                    if (value) {
-                      onDirty();
-                      field.handleChange(value);
-                    }
-                  }}
-                  value={field.state.value}
-                >
-                  <SelectTrigger id="listing-editor-sub-category">
-                    <SelectValue placeholder="Chọn danh mục con" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {subCategories.map((category) => (
-                      <SelectItem key={category.value} value={category.value}>
-                        {category.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </editorForm.Field>
-            {selectedCategory ? (
-              <FieldHint>
-                Thời hạn bảo hành: {selectedCategory.warrantyBounds.minHours}–
-                {selectedCategory.warrantyBounds.maxHours} giờ.
-              </FieldHint>
-            ) : null}
-          </div>
+          {selectedCategory ? (
+            <FieldHint>
+              Thời hạn bảo hành: {selectedCategory.warrantyBounds.minHours}–
+              {selectedCategory.warrantyBounds.maxHours} giờ.
+            </FieldHint>
+          ) : null}
           <div className="grid gap-2">
             <Label htmlFor="listing-editor-description">Mô tả</Label>
             <editorForm.Field name="description">
@@ -904,10 +995,9 @@ const ListingEditorFormPage = ({
     images: listing.images ?? [],
     priceAmount: listing.priceAmount?.toString() ?? "",
     processingTimeHours: listing.processingTimeHours?.toString() ?? "",
-    serviceInputFields:
-      listing.serviceInputFields.length > 0
-        ? listing.serviceInputFields
-        : (initialCategory?.defaultServiceInputs ?? []),
+    serviceInputFields: getServiceInputFieldsForDraft(
+      listing.serviceInputFields
+    ),
     thumbnailUrl: listing.thumbnailUrl ?? "",
     title: listing.title ?? "",
     type: listing.type,
@@ -923,13 +1013,8 @@ const ListingEditorFormPage = ({
   const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
   const pendingNavigationSectionRef = useRef<StoreSection | null>(null);
   const [hasCreateAttempt, setHasCreateAttempt] = useState(false);
-  const hasDefaultInputsToPersist =
-    !isNew &&
-    listing.status !== "ARCHIVED" &&
-    listing.serviceInputFields.length === 0 &&
-    (initialCategory?.defaultServiceInputs.length ?? 0) > 0;
   const [saveStatus, setSaveStatus] = useState<SaveStatus>(
-    isNew || hasDefaultInputsToPersist ? "unsaved" : "saved"
+    isNew ? "unsaved" : "saved"
   );
   const listingStatus = listing.status;
   const isArchived = listingStatus === "ARCHIVED";
@@ -1022,15 +1107,9 @@ const ListingEditorFormPage = ({
 
     setHasCreateAttempt(true);
     setSaveStatus("saving");
-    const draftInput = buildCreateDraftInput(form, form.type, selectedCategory);
+    const draftInput = buildCreateDraftInput(form, form.type);
     try {
       const created = await createDraftMutation.mutateAsync(draftInput);
-      if (form.serviceInputFields.length === 0 && selectedCategory) {
-        editorForm.setFieldValue(
-          "serviceInputFields",
-          draftInput.serviceInputFields
-        );
-      }
       setDraftId(created.id);
       setSaveStatus("saved");
       await queryClient.invalidateQueries({
@@ -1048,13 +1127,11 @@ const ListingEditorFormPage = ({
     }
   }, [
     createDraftMutation,
-    editorForm,
     form,
     hasCreateAttempt,
     canCreateDraft,
     navigate,
     queryClient,
-    selectedCategory,
   ]);
   const publishMutation = useMutation(
     orpc.listing.sellerWorkspace.publish.mutationOptions({

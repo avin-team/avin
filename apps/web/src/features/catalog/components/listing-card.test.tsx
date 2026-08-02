@@ -40,8 +40,16 @@ describe("ListingCard", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("150.000 ₫")).toBeInTheDocument();
     expect(screen.getByText("Agency Viêt Nam")).toBeInTheDocument();
-    expect(screen.getByText("Dịch vụ")).toBeInTheDocument();
     expect(screen.getByText("Lấy lại tài khoản")).toBeInTheDocument();
     expect(screen.getByText("Bảo hành 168h")).toBeInTheDocument();
+  });
+
+  it("makes the entire listing card navigate to the listing detail page", () => {
+    render(<ListingCard listing={mockListing} />);
+
+    const link = screen.getByRole("link");
+
+    expect(link).toHaveAttribute("href", "/listing/list-1");
+    expect(screen.getByText("150.000 ₫").closest("a")).toBe(link);
   });
 });

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   getFirstIncompleteEditorStepIndex,
+  getServiceInputFieldsForDraft,
   isListingEditorStepLocked,
   LISTING_EDITOR_STEP_ORDER,
 } from "./listing-editor-logic";
@@ -33,5 +34,18 @@ describe("listing editor navigation helpers", () => {
   it("locks later new listing steps until a draft exists", () => {
     expect(isListingEditorStepLocked(true, false, 1)).toBe(true);
     expect(isListingEditorStepLocked(false, true, 1)).toBe(false);
+  });
+
+  it("does not add category buyer-input defaults to a new listing", () => {
+    const categoryDefaults = [
+      {
+        id: "profile-link",
+        key: "profile_link",
+        label: "Link Profile",
+        type: "url" as const,
+      },
+    ];
+
+    expect(getServiceInputFieldsForDraft([], categoryDefaults)).toEqual([]);
   });
 });

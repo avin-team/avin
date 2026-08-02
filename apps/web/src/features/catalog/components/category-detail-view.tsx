@@ -13,8 +13,8 @@ import {
   ChevronRight,
   Filter,
   Grid3X3,
-  Grid2X2,
   Home,
+  List,
   RotateCcw,
   Search,
 } from "lucide-react";
@@ -77,7 +77,7 @@ export interface CategoryDetailViewProps {
 }
 
 export const CategoryDetailView = ({
-  categoryLoading,
+  categoryLoading: _categoryLoading,
   isError,
   isLoading,
   listingsData,
@@ -92,7 +92,7 @@ export const CategoryDetailView = ({
   selectedSubSlug,
   sortBy,
 }: CategoryDetailViewProps) => {
-  const [gridCols, setGridCols] = useState<3 | 4>(4);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const activeSub = parentCategory?.subCategories?.find(
     (s) => s.slug === selectedSubSlug
   );
@@ -102,227 +102,211 @@ export const CategoryDetailView = ({
       {/* Breadcrumb Navigation */}
       <nav
         aria-label="Breadcrumb"
-        className="flex items-center space-x-2 text-xs font-medium text-muted-foreground"
+        className="flex items-center text-xs text-muted-foreground"
       >
-        <Link className="flex items-center hover:text-foreground" to="/">
-          <Home className="h-3.5 w-3.5" />
-        </Link>
-        <ChevronRight className="h-3.5 w-3.5 opacity-50" />
-        <Link className="hover:text-foreground" to="/category">
-          Dịch vụ
-        </Link>
-        <ChevronRight className="h-3.5 w-3.5 opacity-50" />
-        <span className="font-semibold text-foreground">
-          {parentCategory?.name ?? parentSlug}
-        </span>
+        <ol className="flex items-center space-x-1.5 flex-wrap gap-y-1">
+          <li>
+            <Link
+              className="flex items-center gap-1 hover:text-foreground transition-colors"
+              to="/"
+            >
+              <Home className="h-3.5 w-3.5" />
+              <span>Trang chủ</span>
+            </Link>
+          </li>
+          <ChevronRight className="h-3 w-3 shrink-0 opacity-50" />
+          <li>
+            {parentCategory ? (
+              <span className="font-semibold text-foreground">
+                {parentCategory.name}
+              </span>
+            ) : (
+              <span className="capitalize">
+                {parentSlug?.replaceAll("-", " ")}
+              </span>
+            )}
+          </li>
+          {activeSub && (
+            <>
+              <ChevronRight className="h-3 w-3 shrink-0 opacity-50" />
+              <li className="font-medium text-primary">{activeSub.name}</li>
+            </>
+          )}
+        </ol>
       </nav>
 
-      {/* Header Banner - Compact & Modern */}
-      {categoryLoading && (
-        <div className="h-28 animate-pulse rounded-2xl border border-border/50 bg-muted/40 p-6" />
-      )}
-      {!categoryLoading && parentCategory && (
-        <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-r from-card via-background to-card p-6 shadow-xs">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-xs">
-              <CategoryIcon className="h-6 w-6" slug={parentCategory.slug} />
+      {/* Category Banner / Header */}
+      <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-gradient-to-r from-primary/10 via-card to-background p-6 md:p-8 shadow-sm backdrop-blur-md">
+        <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 h-64 w-64 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+              <CategoryIcon
+                className="h-4 w-4"
+                slug={parentSlug ?? "default"}
+              />
+              <span>{parentCategory?.name ?? "Danh mục dịch vụ"}</span>
             </div>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-                {parentCategory.name}
-              </h1>
-              {parentCategory.description ? (
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {parentCategory.description}
-                </p>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Main E-Commerce Split Layout */}
-      <div className="grid gap-6 lg:grid-cols-12">
-        {/* Left Sidebar Filter Panel */}
-        <aside className="lg:col-span-3">
-          <div className="sticky top-20 space-y-7 rounded-2xl border border-border/60 bg-card p-6 shadow-xs">
-            {/* Filter Panel Header */}
-            <div className="flex items-center justify-between border-b border-border/50 pb-4">
-              <h2 className="flex items-center gap-2 text-sm font-extrabold text-foreground tracking-tight">
-                <Filter className="h-4 w-4 text-primary" /> Bộ lọc tìm kiếm
-              </h2>
-              {(selectedSubSlug || search || sortBy !== "newest") && (
+            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground">
+              {activeSub
+                ? activeSub.name
+                : (parentCategory?.name ?? "Dịch vụ sản phẩm")}
+            </h1>
+
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {parentCategory?.description ??
+                "Khám phá các dịch vụ & giải pháp chuyên nghiệp từ những người bán uy tín đã được xác thực."}
+            </p>
+          </div>
+
+          {/* Quick Count Badge */}
+          {listingsData && (
+            <div className="shrink-0 rounded-2xl border border-border/80 bg-background/80 px-4 py-3 text-center shadow-xs backdrop-blur-sm">
+              <span className="block text-2xl font-black text-primary">
+                {listingsData.total}
+              </span>
+              <span className="text-[11px] font-medium text-muted-foreground">
+                Sản phẩm & Dịch vụ
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Main Catalog Layout */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
+        {/* Left Sidebar Filters */}
+        <aside className="space-y-6 lg:col-span-1">
+          {/* Sub-categories Card */}
+          <div className="rounded-2xl border border-border/60 bg-card/60 p-5 shadow-xs backdrop-blur-md space-y-4">
+            <div className="flex items-center justify-between border-b border-border/40 pb-3">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-primary" />
+                <h2 className="text-sm font-bold text-foreground">
+                  Phân loại chi tiết
+                </h2>
+              </div>
+              {selectedSubSlug && (
                 <button
-                  className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-primary transition-colors"
-                  onClick={() => {
-                    onSubSelect(undefined);
-                    onSearchChange("");
-                    onSortChange("newest");
-                  }}
+                  className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary transition-colors"
+                  onClick={() => onSubSelect(undefined)}
                   type="button"
                 >
-                  <RotateCcw className="h-3.5 w-3.5" /> Đặt lại
+                  <RotateCcw className="h-3 w-3" />
+                  <span>Xóa lọc</span>
                 </button>
               )}
             </div>
 
-            {/* Section 1: Search Input */}
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-3">
-                Tìm kiếm từ khóa
-              </label>
-              <div className="relative">
-                <Search className="absolute left-3.5 top-3 h-4 w-4 text-muted-foreground" />
-                <input
-                  className="w-full rounded-xl border border-border/80 bg-background/80 pl-10 pr-3.5 py-2.5 text-xs text-foreground placeholder:text-muted-foreground transition-colors focus:border-primary focus:bg-background focus:outline-hidden"
-                  onChange={(e) => onSearchChange(e.target.value)}
-                  placeholder="Nhập từ khóa..."
-                  type="text"
-                  value={search}
-                />
-              </div>
-            </div>
+            <div className="space-y-1">
+              <button
+                className={`w-full flex items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition-all ${
+                  selectedSubSlug
+                    ? "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    : "bg-primary text-primary-foreground font-semibold shadow-xs"
+                }`}
+                onClick={() => onSubSelect(undefined)}
+                type="button"
+              >
+                <span>Tất cả dịch vụ</span>
+                {!selectedSubSlug && <CheckCircle2 className="h-3.5 w-3.5" />}
+              </button>
 
-            {/* Section 2: Subcategories Vertical List */}
-            {parentCategory?.subCategories &&
-            parentCategory.subCategories.length > 0 ? (
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-3">
-                  Phân loại dịch vụ
-                </label>
-                <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+              {parentCategory?.subCategories?.map((sub) => {
+                const isSelected = selectedSubSlug === sub.slug;
+                return (
                   <button
-                    className={`flex w-full items-center justify-between gap-2 rounded-xl px-3.5 py-2.5 text-xs text-left font-medium transition-all ${
-                      selectedSubSlug === undefined
-                        ? "bg-primary text-primary-foreground shadow-xs font-semibold"
-                        : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                    key={sub.id}
+                    className={`w-full flex items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition-all ${
+                      isSelected
+                        ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
                     }`}
-                    onClick={() => onSubSelect(undefined)}
+                    onClick={() => onSubSelect(sub.slug)}
                     type="button"
                   >
-                    <span>Tất cả dịch vụ</span>
-                    {selectedSubSlug === undefined && (
-                      <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    <span className="truncate text-left pr-2">{sub.name}</span>
+                    {isSelected && (
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
                     )}
                   </button>
-
-                  {parentCategory.subCategories.map((sub) => {
-                    const isSelected = selectedSubSlug === sub.slug;
-                    return (
-                      <button
-                        key={sub.id}
-                        className={`flex w-full items-center justify-between gap-2 rounded-xl px-3.5 py-2.5 text-xs text-left font-medium leading-relaxed transition-all ${
-                          isSelected
-                            ? "bg-primary text-primary-foreground shadow-xs font-semibold"
-                            : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
-                        }`}
-                        onClick={() => onSubSelect(sub.slug)}
-                        type="button"
-                      >
-                        <span className="line-clamp-2">{sub.name}</span>
-                        {isSelected && (
-                          <CheckCircle2 className="h-4 w-4 shrink-0" />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : null}
+                );
+              })}
+            </div>
           </div>
         </aside>
 
-        {/* Right Main Content Area */}
-        <main className="space-y-6 lg:col-span-9">
-          {/* Active Filter Chips & View Toolbar */}
-          <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 sm:flex-row sm:items-center sm:justify-between shadow-xs">
-            <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span className="font-semibold text-foreground">
-                {listingsData
-                  ? `${listingsData.total} sản phẩm`
-                  : "Đang tải..."}
-              </span>
-
-              {activeSub && (
-                <span className="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-2.5 py-1 font-semibold text-primary">
-                  {activeSub.name}
-                  <button
-                    className="ml-1 text-primary hover:opacity-75"
-                    onClick={() => onSubSelect(undefined)}
-                    type="button"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-
-              {search && (
-                <span className="inline-flex items-center gap-1 rounded-lg bg-muted px-2.5 py-1 font-medium text-foreground">
-                  Từ khóa: &quot;{search}&quot;
-                  <button
-                    className="ml-1 text-muted-foreground hover:text-foreground"
-                    onClick={() => onSearchChange("")}
-                    type="button"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
+        {/* Right Content Area */}
+        <main className="space-y-6 lg:col-span-3">
+          {/* Top Control Bar (Search, Sort, Grid/List view toggle) */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 rounded-2xl border border-border/60 bg-card/60 p-4 shadow-xs backdrop-blur-md">
+            {/* Search Input */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                className="w-full rounded-xl border border-border/80 bg-background/80 pl-10 pr-4 py-2 text-xs font-medium text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-hidden focus:ring-1 focus:ring-primary transition-all"
+                onChange={(e) => onSearchChange(e.target.value)}
+                placeholder="Tìm kiếm dịch vụ..."
+                type="text"
+                value={search}
+              />
             </div>
 
-            {/* Right Controls: Common UI Select Dropdown & Density switch */}
-            <div className="flex flex-wrap items-center gap-3 self-end sm:self-auto">
-              {/* UI Library Select Dropdown */}
+            {/* Sort & Density Controls */}
+            <div className="flex items-center gap-3 justify-between sm:justify-end shrink-0">
+              {/* Sort Select */}
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-muted-foreground hidden sm:inline">
+                <span className="text-xs text-muted-foreground shrink-0 hidden md:inline">
                   Sắp xếp:
                 </span>
                 <Select
                   items={SORT_ITEMS}
-                  onValueChange={(val) => onSortChange(val as SortByOption)}
                   value={sortBy}
+                  onValueChange={(val) => onSortChange(val as SortByOption)}
                 >
-                  <SelectTrigger
-                    className="rounded-xl border border-border/80 bg-background px-3 font-semibold text-xs text-foreground shadow-2xs focus-visible:ring-primary/30"
-                    size="sm"
-                  >
+                  <SelectTrigger className="h-9 w-[140px] text-xs font-medium rounded-xl border-border/80 bg-background/80">
                     <SelectValue placeholder="Sắp xếp theo" />
                   </SelectTrigger>
                   <SelectContent align="end">
-                    <SelectItem value="newest">Mới nhất</SelectItem>
-                    <SelectItem value="price_asc">Giá tăng dần</SelectItem>
-                    <SelectItem value="price_desc">Giá giảm dần</SelectItem>
+                    {SORT_ITEMS.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              {/* View Density Switcher */}
+              {/* View Density Switcher (Grid 3-col vs List 1-col) */}
               <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">Hiển thị:</span>
-                <div className="flex items-center rounded-lg border border-border bg-muted/40 p-0.5">
+                <span className="text-xs text-muted-foreground shrink-0 hidden md:inline">
+                  Hiển thị:
+                </span>
+                <div className="flex items-center rounded-xl border border-border bg-muted/40 p-1">
                   <button
-                    className={`rounded-md p-1.5 transition-all ${
-                      gridCols === 3
-                        ? "bg-background text-foreground shadow-xs"
+                    className={`rounded-lg p-1.5 transition-all ${
+                      viewMode === "grid"
+                        ? "bg-background text-primary shadow-xs"
                         : "text-muted-foreground hover:text-foreground"
                     }`}
-                    onClick={() => setGridCols(3)}
+                    onClick={() => setViewMode("grid")}
                     title="Lưới 3 cột"
                     type="button"
                   >
-                    <Grid2X2 className="h-4 w-4" />
+                    <Grid3X3 className="h-4 w-4" />
                   </button>
                   <button
-                    className={`rounded-md p-1.5 transition-all ${
-                      gridCols === 4
-                        ? "bg-background text-foreground shadow-xs"
+                    className={`rounded-lg p-1.5 transition-all ${
+                      viewMode === "list"
+                        ? "bg-background text-primary shadow-xs"
                         : "text-muted-foreground hover:text-foreground"
                     }`}
-                    onClick={() => setGridCols(4)}
-                    title="Lưới 4 cột"
+                    onClick={() => setViewMode("list")}
+                    title="Danh sách 1 cột"
                     type="button"
                   >
-                    <Grid3X3 className="h-4 w-4" />
+                    <List className="h-4 w-4" />
                   </button>
                 </div>
               </div>
@@ -339,7 +323,7 @@ export const CategoryDetailView = ({
                 Không thể tải sản phẩm. Vui lòng thử lại.
               </p>
               <button
-                className="mt-4 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground"
+                className="mt-4 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90 transition-all"
                 onClick={onRefetch}
                 type="button"
               >
@@ -351,14 +335,18 @@ export const CategoryDetailView = ({
           {listingsData && listingsData.items.length > 0 && (
             <div className="space-y-6">
               <div
-                className={`grid gap-5 ${
-                  gridCols === 3
-                    ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
-                    : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
-                }`}
+                className={
+                  viewMode === "list"
+                    ? "space-y-4"
+                    : "grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+                }
               >
                 {listingsData.items.map((item) => (
-                  <ListingCard key={item.id} listing={item} />
+                  <ListingCard
+                    key={item.id}
+                    listing={item}
+                    variant={viewMode}
+                  />
                 ))}
               </div>
 

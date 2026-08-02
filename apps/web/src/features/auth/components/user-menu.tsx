@@ -55,22 +55,13 @@ export const UserMenu = () => {
           <DropdownMenuSeparator />
           <DropdownMenuItem>{session.user.email}</DropdownMenuItem>
           {session.user.role === ACCOUNT_ROLE.BUYER ? (
-            <>
-              <DropdownMenuItem
-                onClick={async () => {
-                  await navigate({ to: "/cart" });
-                }}
-              >
-                Giỏ hàng
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={async () => {
-                  await navigate({ to: "/wallet" });
-                }}
-              >
-                Ví của tôi
-              </DropdownMenuItem>
-            </>
+            <DropdownMenuItem
+              onClick={async () => {
+                await navigate({ to: "/wallet" });
+              }}
+            >
+              Ví của tôi
+            </DropdownMenuItem>
           ) : null}
           {isSeller ? (
             <DropdownMenuItem

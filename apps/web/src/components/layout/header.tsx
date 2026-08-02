@@ -7,6 +7,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { ModeToggle } from "@/components/mode-toggle";
 import { siteConfig } from "@/config/site";
 import { UserMenu } from "@/features/auth/components/user-menu";
+import { CartButton } from "@/features/commerce/components/cart-button";
 
 import { MainNav } from "./main-nav";
 import { MobileNav, MobileNavTrigger } from "./mobile-nav";
@@ -99,26 +100,34 @@ export const Header = () => {
             <MainNav items={siteConfig.mainNav} />
 
             <motion.div
-              className="hidden items-center space-x-3 lg:flex"
+              className="flex items-center gap-3"
               variants={itemVariants}
             >
-              <motion.button
-                className="rounded-lg p-2 text-muted-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Search className="h-5 w-5" />
-              </motion.button>
+              <div className="hidden items-center gap-3 lg:flex">
+                <motion.button
+                  aria-label="Tìm kiếm"
+                  className="rounded-lg p-2 text-muted-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  type="button"
+                >
+                  <Search className="h-5 w-5" />
+                </motion.button>
 
-              <ModeToggle />
+                <ModeToggle />
+              </div>
 
-              <UserMenu />
+              <CartButton />
+
+              <div className="hidden lg:block">
+                <UserMenu />
+              </div>
+
+              <MobileNavTrigger
+                isOpen={isMobileMenuOpen}
+                onToggle={() => setIsMobileMenuOpen((prev) => !prev)}
+              />
             </motion.div>
-
-            <MobileNavTrigger
-              isOpen={isMobileMenuOpen}
-              onToggle={() => setIsMobileMenuOpen((prev) => !prev)}
-            />
           </div>
         </div>
       </motion.header>

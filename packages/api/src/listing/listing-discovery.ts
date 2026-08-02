@@ -141,6 +141,14 @@ export const listingDiscoveryRouter = {
               name: true,
             },
           },
+          sellerProfile: {
+            columns: {
+              avatarUrl: true,
+              id: true,
+              storeSlug: true,
+              storefrontName: true,
+            },
+          },
         },
       });
 
@@ -176,7 +184,21 @@ export const listingDiscoveryRouter = {
         });
       }
 
-      return found;
+      const {
+        sellerProfile: foundProfile,
+        seller: foundSeller,
+        ...foundRest
+      } = found;
+
+      return {
+        ...foundRest,
+        seller: {
+          id: foundProfile?.id ?? foundSeller.id,
+          image: foundProfile?.avatarUrl ?? foundSeller.image,
+          name: foundProfile?.storefrontName ?? foundSeller.name,
+          storeSlug: foundProfile?.storeSlug ?? null,
+        },
+      };
     }),
 
   listings: publicProcedure
@@ -293,15 +315,33 @@ export const listingDiscoveryRouter = {
               name: true,
             },
           },
+          sellerProfile: {
+            columns: {
+              avatarUrl: true,
+              id: true,
+              storeSlug: true,
+              storefrontName: true,
+            },
+          },
         },
       });
 
       return {
-        items: items.map((item) => ({
-          ...item,
-          priceAmount: item.priceAmount ?? 0,
-          title: item.title ?? "Untitled listing",
-        })),
+        items: items.map((item) => {
+          const { sellerProfile: prof, seller: sel, ...rest } = item;
+
+          return {
+            ...rest,
+            priceAmount: item.priceAmount ?? 0,
+            seller: {
+              id: prof?.id ?? sel.id,
+              image: prof?.avatarUrl ?? sel.image,
+              name: prof?.storefrontName ?? sel.name,
+              storeSlug: prof?.storeSlug ?? null,
+            },
+            title: item.title ?? "Untitled listing",
+          };
+        }),
         page: input.page,
         total,
         totalPages,

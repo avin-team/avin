@@ -14,6 +14,7 @@ import {
 import { z } from "zod";
 
 import { user } from "./auth";
+import { sellerProfile } from "./seller";
 
 export const serviceInputFieldTypeSchema = z.enum([
   "text",
@@ -185,5 +186,9 @@ export const listingRelations = relations(listing, ({ one }) => ({
   seller: one(user, {
     fields: [listing.sellerId],
     references: [user.id],
+  }),
+  sellerProfile: one(sellerProfile, {
+    fields: [listing.sellerId],
+    references: [sellerProfile.userId],
   }),
 }));

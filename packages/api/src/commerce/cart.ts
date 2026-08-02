@@ -3,6 +3,7 @@ import { user as userTable } from "@avin/db/schema/auth";
 import { listing, parentCategory, subCategory } from "@avin/db/schema/catalog";
 import type { ServiceInputField } from "@avin/db/schema/catalog";
 import { cart, cartItem } from "@avin/db/schema/commerce";
+import { sellerProfile } from "@avin/db/schema/seller";
 import { ORPCError } from "@orpc/server";
 import { and, asc, eq } from "drizzle-orm";
 
@@ -93,11 +94,13 @@ export const getCart = async (
       listingType: listing.type,
       parentCategoryStatus: parentCategory.status,
       processingTimeHours: listing.processingTimeHours,
+      sellerAvatarUrl: sellerProfile.avatarUrl,
       sellerBanned: userTable.banned,
       sellerBanExpires: userTable.banExpires,
       sellerId: userTable.id,
       sellerImage: userTable.image,
       sellerName: userTable.name,
+      sellerStorefrontName: sellerProfile.storefrontName,
       selected: cartItem.selected,
       serviceInputFields: listing.serviceInputFields,
       warrantyDurationHours: listing.warrantyDurationHours,
@@ -109,6 +112,7 @@ export const getCart = async (
     .innerJoin(subCategory, eq(listing.categoryId, subCategory.id))
     .innerJoin(parentCategory, eq(subCategory.parentId, parentCategory.id))
     .innerJoin(userTable, eq(listing.sellerId, userTable.id))
+    .leftJoin(sellerProfile, eq(listing.sellerId, sellerProfile.userId))
     .where(and(eq(cart.id, cartRow.id), eq(cart.userId, userId)))
     .orderBy(asc(cartItem.createdAt), asc(cartItem.id));
 
@@ -167,8 +171,8 @@ export const getCart = async (
       selected: row.selected,
       seller: {
         id: row.sellerId,
-        image: row.sellerImage,
-        name: row.sellerName,
+        image: row.sellerAvatarUrl ?? row.sellerImage,
+        name: row.sellerStorefrontName ?? row.sellerName,
       },
     });
   }

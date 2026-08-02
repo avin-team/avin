@@ -18,6 +18,11 @@ export interface ListingEditorServiceInput {
   type: "file" | "number" | "text" | "url";
 }
 
+export const getServiceInputFieldsForDraft = <T>(
+  serviceInputFields: T[],
+  _categoryDefaults: T[] = []
+): T[] => serviceInputFields;
+
 export const isListingEditorStepLocked = (
   isNew: boolean,
   hasDraft: boolean,

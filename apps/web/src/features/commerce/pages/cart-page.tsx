@@ -26,6 +26,11 @@ import { z } from "zod";
 
 import { Shell } from "@/components/shell";
 import {
+  removeCartItemOptimistically,
+  setCartItemSelectedOptimistically,
+} from "@/features/commerce/cart-cache";
+import type { CartView } from "@/features/commerce/cart-cache";
+import {
   walletSummaryQueryOptions,
   walletTransactionsQueryOptions,
 } from "@/features/wallet/api/wallet-api";
@@ -147,18 +152,20 @@ const validateRequiredInputFields = (
   return undefined;
 };
 
-const CartItemCard = ({
+export const CartItemCard = ({
   children,
   item,
   onRemove,
   onToggle,
-  pending,
+  actionPending,
+  selectionPending,
 }: {
+  actionPending: boolean;
   children?: ReactNode;
   item: CartItem;
   onRemove: () => void;
   onToggle: (selected: boolean) => void;
-  pending: boolean;
+  selectionPending: boolean;
 }) => (
   <Card className={item.selected ? "border-primary/40" : "opacity-80"}>
     <CardContent className="space-y-5 p-5">
@@ -167,7 +174,7 @@ const CartItemCard = ({
           aria-label={`Chọn ${item.listing.title ?? "Listing"}`}
           checked={item.selected}
           className="mt-1 size-4 accent-primary"
-          disabled={pending}
+          disabled={actionPending}
           onChange={(event) => onToggle(event.target.checked)}
           type="checkbox"
         />
@@ -222,7 +229,7 @@ const CartItemCard = ({
         </div>
         <Button
           aria-label={`Xóa ${item.listing.title ?? "Listing"} khỏi Cart`}
-          disabled={pending}
+          disabled={actionPending || selectionPending}
           onClick={onRemove}
           size="icon-sm"
           type="button"
@@ -265,11 +272,11 @@ const CheckoutSummary = ({
       <div className="space-y-2 text-xs text-muted-foreground">
         <p className="flex items-center gap-2">
           <CheckCircle2 className="size-4 text-emerald-500" />
-          Mỗi Seller nhận một Order riêng
+          Mỗi người bán có đơn hàng riêng
         </p>
         <p className="flex items-center gap-2">
           <LockKeyhole className="size-4 text-primary" />
-          Tiền chuyển từ Available sang Held atomically
+          Giữ tiền an toàn tới khi hoàn tất
         </p>
       </div>
       {hasUnavailableSelected ? (
@@ -293,6 +300,11 @@ export const CartPage = () => {
   const [contractChanged, setContractChanged] = useState(false);
   const checkoutKey = useRef<string | null>(null);
   const confirmationRequested = useRef(false);
+  const selectionQueueRef = useRef<Promise<void> | null>(null);
+  const pendingSelectionCountRef = useRef(0);
+  const selectionLastServerCartRef = useRef<CartView | null>(null);
+  const selectionHadErrorRef = useRef(false);
+  const [selectionPending, setSelectionPending] = useState(false);
 
   const getCheckoutKey = (): string => {
     if (checkoutKey.current === null) {
@@ -307,27 +319,100 @@ export const CartPage = () => {
     });
   };
 
-  const toggleMutation = useMutation({
-    ...orpc.commerce.cart.setSelected.mutationOptions(),
-    onSuccess: invalidateCart,
-    onError: (error) => {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Không thể cập nhật Cart. Vui lòng thử lại."
-      );
-    },
-  });
+  const toggleMutation = useMutation(
+    orpc.commerce.cart.setSelected.mutationOptions()
+  );
+  const queueSelectionUpdate = (variables: {
+    listingId: string;
+    selected: boolean;
+  }): void => {
+    const cartQueryKey = orpc.commerce.cart.get.queryOptions().queryKey;
+    queryClient.setQueryData<CartView>(cartQueryKey, (currentCart) =>
+      setCartItemSelectedOptimistically(
+        currentCart,
+        variables.listingId,
+        variables.selected
+      )
+    );
+    pendingSelectionCountRef.current += 1;
+    setSelectionPending(true);
+
+    const runSelectionUpdate = async (): Promise<void> => {
+      try {
+        const serverCart = await toggleMutation.mutateAsync(variables);
+        selectionLastServerCartRef.current = serverCart;
+      } catch (error) {
+        selectionHadErrorRef.current = true;
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Không thể cập nhật Cart. Vui lòng thử lại."
+        );
+      }
+      pendingSelectionCountRef.current -= 1;
+      if (pendingSelectionCountRef.current === 0) {
+        if (
+          selectionHadErrorRef.current ||
+          selectionLastServerCartRef.current === null
+        ) {
+          await invalidateCart();
+        } else {
+          queryClient.setQueryData(
+            cartQueryKey,
+            selectionLastServerCartRef.current
+          );
+        }
+        selectionLastServerCartRef.current = null;
+        selectionHadErrorRef.current = false;
+        setSelectionPending(false);
+      }
+    };
+
+    const previousPromise = selectionQueueRef.current;
+    const queuedRequest = (async () => {
+      if (previousPromise) {
+        try {
+          await previousPromise;
+        } catch {
+          // ignore previous error
+        }
+      }
+      await runSelectionUpdate();
+    })();
+
+    selectionQueueRef.current = queuedRequest;
+  };
   const removeMutation = useMutation({
     ...orpc.commerce.cart.remove.mutationOptions(),
-    onSuccess: invalidateCart,
-    onError: (error) => {
+    onMutate: async ({ listingId }) => {
+      const cartQueryKey = orpc.commerce.cart.get.queryOptions().queryKey;
+      await queryClient.cancelQueries({ queryKey: cartQueryKey });
+      const previousCart = queryClient.getQueryData<CartView>(cartQueryKey);
+
+      queryClient.setQueryData<CartView>(cartQueryKey, (currentCart) =>
+        removeCartItemOptimistically(currentCart, listingId)
+      );
+
+      return { previousCart };
+    },
+    onError: (error, _variables, context) => {
+      const cartQueryKey = orpc.commerce.cart.get.queryOptions().queryKey;
+      if (context?.previousCart) {
+        queryClient.setQueryData(cartQueryKey, context.previousCart);
+      }
       toast.error(
         error instanceof Error
           ? error.message
           : "Không thể xóa Listing khỏi Cart. Vui lòng thử lại."
       );
     },
+    onSuccess: (cart) => {
+      queryClient.setQueryData(
+        orpc.commerce.cart.get.queryOptions().queryKey,
+        cart
+      );
+    },
+    onSettled: invalidateCart,
   });
   const checkoutMutation = useMutation(
     orpc.commerce.checkout.create.mutationOptions()
@@ -340,10 +425,8 @@ export const CartPage = () => {
   const hasMissingContract = selectedItems.some(
     (item) => item.contractFingerprint === null
   );
-  const busy =
-    toggleMutation.isPending ||
-    removeMutation.isPending ||
-    checkoutMutation.isPending;
+  const actionPending = removeMutation.isPending || checkoutMutation.isPending;
+  const busy = actionPending || selectionPending;
 
   const submitCheckout = async (
     inputValues: InputValues,
@@ -473,12 +556,13 @@ export const CartPage = () => {
                       removeMutation.mutate({ listingId: item.listing.id });
                     }}
                     onToggle={(selected) => {
-                      toggleMutation.mutate({
+                      queueSelectionUpdate({
                         listingId: item.listing.id,
                         selected,
                       });
                     }}
-                    pending={busy}
+                    actionPending={actionPending}
+                    selectionPending={selectionPending}
                   >
                     {item.selected &&
                     item.available &&
@@ -629,7 +713,7 @@ export const CartPage = () => {
                         size="lg"
                         type="submit"
                       >
-                        Checkout an toàn
+                        Thanh toán an toàn
                       </Button>
                     </>
                   )}

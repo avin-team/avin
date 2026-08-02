@@ -16,6 +16,8 @@ import {
 import { toast } from "sonner";
 
 import { Shell } from "@/components/shell";
+import { addCartItemOptimistically } from "@/features/commerce/cart-cache";
+import type { CartView } from "@/features/commerce/cart-cache";
 import { formatVND } from "@/utils/format";
 import { orpc } from "@/utils/orpc";
 
@@ -31,20 +33,39 @@ export const ListingDetailPage = () => {
   );
 
   const listing = listingQuery.data;
+  const cartQueryKey = orpc.commerce.cart.get.queryOptions().queryKey;
   const addToCartMutation = useMutation({
     ...orpc.commerce.cart.add.mutationOptions(),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: orpc.commerce.cart.get.queryOptions().queryKey,
-      });
-      await navigate({ to: "/cart" });
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: cartQueryKey });
+      const previousCart = queryClient.getQueryData<CartView>(cartQueryKey);
+
+      if (listing) {
+        queryClient.setQueryData<CartView>(cartQueryKey, (currentCart) =>
+          addCartItemOptimistically(currentCart, listing)
+        );
+      }
+
+      return { previousCart };
     },
-    onError: (error) => {
+    onError: (error, _variables, context) => {
+      if (context?.previousCart) {
+        queryClient.setQueryData(cartQueryKey, context.previousCart);
+      } else {
+        queryClient.removeQueries({ exact: true, queryKey: cartQueryKey });
+      }
       toast.error(
         error instanceof Error
           ? error.message
           : "Không thể thêm Listing vào Cart."
       );
+    },
+    onSuccess: async (cart) => {
+      queryClient.setQueryData(cartQueryKey, cart);
+      await navigate({ to: "/cart" });
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: cartQueryKey });
     },
   });
   const isService = listing?.type === "SERVICE";
@@ -198,35 +219,6 @@ export const ListingDetailPage = () => {
                       {listing.description || "Chưa có mô tả."}
                     </p>
                   </div>
-
-                  {/* Service Input Requirements if applicable */}
-                  {listing.serviceInputFields &&
-                  listing.serviceInputFields.length > 0 ? (
-                    <div className="mt-8 rounded-2xl border border-border/60 bg-muted/30 p-5 space-y-3">
-                      <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-primary" />
-                        Thông tin yêu cầu từ người mua
-                      </h3>
-                      <ul className="space-y-1.5 text-xs text-muted-foreground">
-                        {listing.serviceInputFields.map((field) => (
-                          <li
-                            key={field.id}
-                            className="flex items-center gap-2"
-                          >
-                            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                            <span className="font-semibold text-foreground">
-                              {field.label}
-                            </span>
-                            {field.required ? (
-                              <span className="text-destructive font-semibold">
-                                (Bắt buộc)
-                              </span>
-                            ) : null}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
 
                   {/* Warranty & Terms Section */}
                   {listing.warrantyDurationHours ? (
