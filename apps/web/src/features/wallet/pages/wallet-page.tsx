@@ -125,11 +125,12 @@ export const WalletPage = () => {
   const [loadedCursors, setLoadedCursors] = useState<(string | undefined)[]>([
     undefined,
   ]);
+  const hasLoadedAdditionalPages = loadedCursors.length > 1;
   const transactionQueries = useQueries({
     queries: loadedCursors.map((pageCursor, pageIndex) => ({
       ...walletTransactionsQueryOptions(pageCursor),
       refetchInterval:
-        pageIndex === 0
+        pageIndex === 0 && !hasLoadedAdditionalPages
           ? (query: {
               state: {
                 data?: { items: Pick<WalletTransaction, "status">[] };
@@ -142,7 +143,7 @@ export const WalletPage = () => {
                 : false
           : false,
       refetchIntervalInBackground: false,
-      refetchOnWindowFocus: pageIndex === 0,
+      refetchOnWindowFocus: pageIndex === 0 && !hasLoadedAdditionalPages,
     })),
   });
   const transactionsQuery = transactionQueries.at(-1);
@@ -153,11 +154,12 @@ export const WalletPage = () => {
     ) ?? false;
   const summaryQuery = useQuery({
     ...walletSummaryQueryOptions(),
-    refetchInterval: hasRefreshableTransaction
-      ? TRANSACTION_REFRESH_INTERVAL_MS
-      : false,
+    refetchInterval:
+      hasRefreshableTransaction && !hasLoadedAdditionalPages
+        ? TRANSACTION_REFRESH_INTERVAL_MS
+        : false,
     refetchIntervalInBackground: false,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: !hasLoadedAdditionalPages,
   });
 
   const transactions = useMemo(
