@@ -13,6 +13,32 @@ export interface ListingEditorStep {
   step: ListingEditorStepId;
 }
 
+export interface ListingEditorServiceInput {
+  id: string;
+  key: string;
+  label: string;
+  type: "file" | "number" | "text" | "url";
+}
+
+export const areListingServiceInputsValid = (
+  fields: readonly ListingEditorServiceInput[]
+): boolean =>
+  fields.length > 0 &&
+  fields.every(
+    (field) =>
+      field.id.trim() &&
+      field.key.trim() &&
+      field.label.trim() &&
+      ["file", "number", "text", "url"].includes(field.type)
+  );
+
+export const isListingEditorStepLocked = (
+  isNew: boolean,
+  hasDraft: boolean,
+  canCreateDraft: boolean,
+  stepIndex: number
+): boolean => isNew && !hasDraft && !canCreateDraft && stepIndex > 0;
+
 export const getFirstIncompleteEditorStepIndex = (
   items: ListingEditorStep[]
 ): number => {

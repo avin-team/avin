@@ -65,7 +65,9 @@ import { orpc } from "@/utils/orpc";
 
 import type { StoreSection } from "../data/store-types";
 import {
+  areListingServiceInputsValid,
   getFirstIncompleteEditorStepIndex,
+  isListingEditorStepLocked,
   LISTING_EDITOR_STEP_ORDER,
 } from "./listing-editor-logic";
 import type { ListingEditorStepId } from "./listing-editor-logic";
@@ -305,13 +307,9 @@ const getReadinessItems = (
   const processingTime = parseInteger(form.processingTimeHours);
   const warrantyDuration = parseInteger(form.warrantyDurationHours);
   const primaryImage = form.thumbnailUrl.trim() || form.images[0]?.trim();
-  const serviceInputsValid = form.serviceInputFields.every(
-    (field) =>
-      field.id.trim() &&
-      field.key.trim() &&
-      field.label.trim() &&
-      ["file", "number", "text", "url"].includes(field.type)
-  );
+  const serviceInputsValid =
+    form.type === "COURSE" ||
+    areListingServiceInputsValid(form.serviceInputFields);
   const warrantyInBounds = Boolean(
     category &&
     warrantyDuration !== null &&
@@ -1241,7 +1239,14 @@ const ListingEditorFormPage = ({
       parentCategoryId ||
       form.categoryId ||
       form.title.trim() ||
-      form.description.trim()
+      form.description.trim() ||
+      form.priceAmount.trim() ||
+      form.processingTimeHours.trim() ||
+      form.images.length > 0 ||
+      form.thumbnailUrl.trim() ||
+      form.serviceInputFields.length > 0 ||
+      form.warrantyDurationHours.trim() ||
+      form.warrantyTerms.trim()
     );
   const createDraftMutation = useMutation(
     orpc.listing.sellerWorkspace.createDraft.mutationOptions({
@@ -1339,7 +1344,14 @@ const ListingEditorFormPage = ({
       .every((item) => item.complete);
   const handleSelectStep = (stepId: ListingEditorStepId) => {
     const nextStepIndex = EDITOR_STEPS.findIndex((step) => step.id === stepId);
-    if (isNew && !draftId && nextStepIndex > 0) {
+    if (
+      isListingEditorStepLocked(
+        isNew,
+        Boolean(draftId),
+        canCreateDraft,
+        nextStepIndex
+      )
+    ) {
       return;
     }
     setActiveStepIndex(nextStepIndex);
@@ -1571,7 +1583,12 @@ const ListingEditorFormPage = ({
             {EDITOR_STEPS.map((step, index) => {
               const isActive = index === activeStepIndex;
               const isComplete = stepIsComplete(step.id);
-              const isLocked = isNew && !draftId && index > 0;
+              const isLocked = isListingEditorStepLocked(
+                isNew,
+                Boolean(draftId),
+                canCreateDraft,
+                index
+              );
               let stepIndicatorClass = "border-border text-muted-foreground";
               if (isComplete) {
                 stepIndicatorClass =
@@ -1590,7 +1607,7 @@ const ListingEditorFormPage = ({
                   } ${isLocked ? "cursor-not-allowed opacity-50" : ""}`}
                   disabled={isLocked || isActionPending}
                   key={step.id}
-                  onClick={() => setActiveStepIndex(index)}
+                  onClick={() => handleSelectStep(step.id)}
                   type="button"
                 >
                   <span
@@ -1699,7 +1716,13 @@ const ListingEditorFormPage = ({
                     disabled={
                       isArchived ||
                       isActionPending ||
-                      (isNew && !draftId && activeStep.id !== "basics")
+                      isListingEditorStepLocked(
+                        isNew,
+                        Boolean(draftId),
+                        canCreateDraft,
+                        activeStepIndex
+                      ) ||
+                      (isNew && !draftId && activeStep.id === "media")
                     }
                     editorForm={editorForm}
                     form={form}
@@ -1726,7 +1749,12 @@ const ListingEditorFormPage = ({
                   <Button
                     disabled={
                       isActionPending ||
-                      (isNew && !draftId) ||
+                      isListingEditorStepLocked(
+                        isNew,
+                        Boolean(draftId),
+                        canCreateDraft,
+                        activeStepIndex + 1
+                      ) ||
                       activeStepIndex === EDITOR_STEPS.length - 1
                     }
                     onClick={() =>
