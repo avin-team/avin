@@ -234,7 +234,7 @@ const buildUpdateInput = (form: ListingEditorForm) => ({
   priceAmount: parseInteger(form.priceAmount),
   processingTimeHours: parseInteger(form.processingTimeHours),
   serviceInputFields: form.serviceInputFields,
-  thumbnailUrl: form.thumbnailUrl.trim() || null,
+  thumbnailUrl: form.images[0]?.trim() || form.thumbnailUrl.trim() || null,
   title: form.title.trim() || null,
   type: form.type || undefined,
   warrantyDurationHours: parseInteger(form.warrantyDurationHours),
@@ -284,7 +284,7 @@ const getReadinessItems = (
   const price = parseInteger(form.priceAmount);
   const processingTime = parseInteger(form.processingTimeHours);
   const warrantyDuration = parseInteger(form.warrantyDurationHours);
-  const primaryImage = form.thumbnailUrl.trim() || form.images[0]?.trim();
+  const primaryImage = form.images[0]?.trim() || form.thumbnailUrl.trim();
   const warrantyInBounds = Boolean(
     category &&
     warrantyDuration !== null &&
@@ -370,6 +370,7 @@ const EditorStepContent = ({
   editorForm,
   form,
   onDirty,
+  onImageUploadingChange,
   onParentCategoryChange,
   parentCategoryId,
   listingId,
@@ -381,6 +382,7 @@ const EditorStepContent = ({
   editorForm: ListingEditorFormApi;
   form: ListingEditorForm;
   onDirty: () => void;
+  onImageUploadingChange: (isUploading: boolean) => void;
   onParentCategoryChange: (parentCategoryId: string) => void;
   parentCategoryId: string;
   listingId: string;
@@ -735,16 +737,19 @@ const EditorStepContent = ({
         <div className="space-y-5">
           <ListingImageUploader
             disabled={disabled}
+            images={form.images}
             listingId={listingId}
             onDirty={onDirty}
             onImageChange={({ images, thumbnailUrl }) => {
               editorForm.setFieldValue("images", images);
               editorForm.setFieldValue("thumbnailUrl", thumbnailUrl);
             }}
+            onUploadingChange={onImageUploadingChange}
             thumbnailUrl={form.thumbnailUrl}
           />
           <FieldHint>
-            Ảnh này được hiển thị đầu tiên và bắt buộc trước khi đăng bán.
+            Ảnh đầu tiên là ảnh đại diện. Bạn có thể thêm tối đa 5 ảnh khác; cần
+            ít nhất một ảnh trước khi đăng bán.
           </FieldHint>
         </div>
       );
@@ -1016,6 +1021,7 @@ const ListingEditorFormPage = ({
   const [saveStatus, setSaveStatus] = useState<SaveStatus>(
     isNew ? "unsaved" : "saved"
   );
+  const [isImageUploading, setIsImageUploading] = useState(false);
   const listingStatus = listing.status;
   const isArchived = listingStatus === "ARCHIVED";
   const isPublished = listingStatus === "PUBLISHED";
@@ -1196,6 +1202,7 @@ const ListingEditorFormPage = ({
 
   const isActionPending =
     createDraftMutation.isPending ||
+    isImageUploading ||
     updateDraftMutation.isPending ||
     publishMutation.isPending ||
     resumeMutation.isPending;
@@ -1553,6 +1560,7 @@ const ListingEditorFormPage = ({
                     editorForm={editorForm}
                     form={form}
                     onDirty={markUnsaved}
+                    onImageUploadingChange={setIsImageUploading}
                     onParentCategoryChange={handleParentCategoryChange}
                     parentCategoryId={parentCategoryId}
                     listingId={draftId ?? "new"}

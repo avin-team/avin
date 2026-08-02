@@ -10,6 +10,9 @@ export interface ManagedObjectStore {
 }
 
 export const LISTING_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+export const LISTING_IMAGE_MAX_COUNT = 6;
+export const LISTING_IMAGE_MIN_HEIGHT = 600;
+export const LISTING_IMAGE_MIN_WIDTH = 800;
 
 export const LISTING_IMAGE_CONTENT_TYPES = [
   "image/jpeg",

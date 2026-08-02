@@ -100,6 +100,17 @@ describe("seller workspace listing publication rules", () => {
     ).toThrow("Listing must have a designated primary image");
   });
 
+  it("rejects publication when a listing has more than six images", () => {
+    const images = Array.from(
+      { length: 7 },
+      (_, index) => `https://storage.avin.internal/listing-1/${index}.jpg`
+    );
+
+    expect(() =>
+      assertPublishable({ ...validListing, images }, validCategory)
+    ).toThrow("A listing can have at most 6 images");
+  });
+
   it("rejects publication when warranty duration is below category min hours", () => {
     expect(() =>
       assertPublishable(

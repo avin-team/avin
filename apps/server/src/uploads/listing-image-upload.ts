@@ -7,6 +7,7 @@ import {
   createSellerBannerKey,
   createSellerLogoKey,
   LISTING_IMAGE_CONTENT_TYPES,
+  LISTING_IMAGE_MAX_COUNT,
   LISTING_IMAGE_MAX_BYTES,
   LISTING_IMAGE_UPLOAD_ROUTE,
   PUBLIC_MEDIA_BUCKET,
@@ -40,8 +41,9 @@ export const createListingImageUploadRouter = (
       clientMetadataSchema: listingImageClientMetadataSchema,
       fileTypes: [...LISTING_IMAGE_CONTENT_TYPES],
       maxFileSize: LISTING_IMAGE_MAX_BYTES,
-      multipleFiles: false,
-      onBeforeUpload: async ({ clientMetadata, file, req }) => {
+      maxFiles: LISTING_IMAGE_MAX_COUNT,
+      multipleFiles: true,
+      onBeforeUpload: async ({ clientMetadata, files, req }) => {
         const session = await auth.api.getSession({ headers: req.headers });
         if (!session) {
           throw new RejectUpload("Sign in before uploading a listing image");
@@ -66,21 +68,23 @@ export const createListingImageUploadRouter = (
           );
         }
 
-        if (
-          !LISTING_IMAGE_CONTENT_TYPES.includes(
-            file.type as (typeof LISTING_IMAGE_CONTENT_TYPES)[number]
-          )
-        ) {
-          throw new RejectUpload(
-            "Listing images must be JPEG, PNG, or WebP files"
-          );
+        for (const file of files) {
+          if (
+            !LISTING_IMAGE_CONTENT_TYPES.includes(
+              file.type as (typeof LISTING_IMAGE_CONTENT_TYPES)[number]
+            )
+          ) {
+            throw new RejectUpload(
+              "Listing images must be JPEG, PNG, or WebP files"
+            );
+          }
         }
 
         return {
-          objectInfo: {
+          generateObjectInfo: ({ file }) => ({
             cacheControl: "public, max-age=31536000, immutable",
             key: createListingImageKey(clientMetadata.listingId, file.type),
-          },
+          }),
         };
       },
     }),

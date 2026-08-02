@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner";
 
 import { Shell } from "@/components/shell";
+import { ListingMediaGallery } from "@/features/catalog/components/listing-media-gallery";
 import { addCartItemOptimistically } from "@/features/commerce/cart-cache";
 import type { CartView } from "@/features/commerce/cart-cache";
 import { formatVND } from "@/utils/format";
@@ -33,6 +34,12 @@ export const ListingDetailPage = () => {
   );
 
   const listing = listingQuery.data;
+  let listingImages: string[] = [];
+  if (listing?.images?.length) {
+    listingImages = listing.images;
+  } else if (listing?.thumbnailUrl) {
+    listingImages = [listing.thumbnailUrl];
+  }
   const cartQueryKey = orpc.commerce.cart.get.queryOptions().queryKey;
   const addToCartMutation = useMutation({
     ...orpc.commerce.cart.add.mutationOptions(),
@@ -188,24 +195,25 @@ export const ListingDetailPage = () => {
                     {listing.title ?? "Untitled listing"}
                   </h1>
 
-                  {/* Thumbnail Banner */}
-                  <div className="mt-6 aspect-video w-full overflow-hidden rounded-2xl bg-muted/40 border border-border/40">
-                    {listing.thumbnailUrl ? (
-                      <img
-                        alt={listing.title ?? "Listing thumbnail"}
-                        className="h-full w-full object-cover"
-                        src={listing.thumbnailUrl}
+                  {/* Listing media gallery */}
+                  <div className="mt-6">
+                    {listingImages.length > 0 ? (
+                      <ListingMediaGallery
+                        images={listingImages}
+                        title={listing.title ?? "Listing"}
                       />
                     ) : (
-                      <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-primary/10 via-muted/30 to-background p-8 text-center">
-                        {isService ? (
-                          <Wrench className="h-16 w-16 text-primary/40" />
-                        ) : (
-                          <BookOpen className="h-16 w-16 text-primary/40" />
-                        )}
-                        <span className="mt-3 text-sm font-semibold text-muted-foreground">
-                          {listing.title ?? "Untitled listing"}
-                        </span>
+                      <div className="aspect-video w-full overflow-hidden rounded-2xl border border-border/40 bg-muted/40">
+                        <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-primary/10 via-muted/30 to-background p-8 text-center">
+                          {isService ? (
+                            <Wrench className="h-16 w-16 text-primary/40" />
+                          ) : (
+                            <BookOpen className="h-16 w-16 text-primary/40" />
+                          )}
+                          <span className="mt-3 text-sm font-semibold text-muted-foreground">
+                            {listing.title ?? "Untitled listing"}
+                          </span>
+                        </div>
                       </div>
                     )}
                   </div>

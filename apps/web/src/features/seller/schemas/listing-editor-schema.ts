@@ -1,3 +1,4 @@
+import { LISTING_IMAGE_MAX_COUNT } from "@avin/api/storage";
 import * as z from "zod";
 
 const serviceInputFieldSchema = z.object({
@@ -11,7 +12,7 @@ const serviceInputFieldSchema = z.object({
 export const listingEditorFormSchema = z.object({
   categoryId: z.string(),
   description: z.string().max(10_000),
-  images: z.array(z.string()),
+  images: z.array(z.string()).max(LISTING_IMAGE_MAX_COUNT),
   priceAmount: z.string(),
   processingTimeHours: z.string(),
   serviceInputFields: z.array(serviceInputFieldSchema),

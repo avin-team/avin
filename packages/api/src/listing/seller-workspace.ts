@@ -13,7 +13,10 @@ import { z } from "zod";
 import { protectedProcedure, sellerProcedure } from "../access/procedures";
 import { slugify } from "../runtime/slug";
 import type { ManagedObjectStore } from "../runtime/storage";
-import { getManagedListingImageKeysToDelete } from "../runtime/storage";
+import {
+  getManagedListingImageKeysToDelete,
+  LISTING_IMAGE_MAX_COUNT,
+} from "../runtime/storage";
 import { isSellerEnforced } from "../seller-store/profile";
 import { assertStoreProfileComplete } from "../seller-store/public-visibility";
 
@@ -31,7 +34,7 @@ const listingStatusSchema = z.enum([
 const draftFieldsSchema = z.object({
   categoryId: z.string().optional(),
   description: z.string().max(10_000).nullable().optional(),
-  images: z.array(z.string()).optional(),
+  images: z.array(z.string()).max(LISTING_IMAGE_MAX_COUNT).optional(),
   priceAmount: z.number().int().nullable().optional(),
   processingTimeHours: z.number().int().nullable().optional(),
   serviceInputFields: z.array(serviceInputFieldSchema).optional(),
@@ -46,6 +49,11 @@ const makeSlug = (title: string | null | undefined): string => {
   const base = title ? slugify(title) : "listing";
   return `${base || "listing"}-${crypto.randomUUID().slice(0, 8)}`;
 };
+
+const getPrimaryListingImage = (
+  images: string[] | null | undefined,
+  thumbnailUrl: string | null | undefined
+): string | null => images?.[0]?.trim() || thumbnailUrl?.trim() || null;
 
 export const assertEligibleSeller = async (userId: string): Promise<void> => {
   const [account, application] = await Promise.all([
@@ -208,6 +216,12 @@ export const assertPublishable = (
     });
   }
 
+  if ((draft.images?.length ?? 0) > LISTING_IMAGE_MAX_COUNT) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: `A listing can have at most ${LISTING_IMAGE_MAX_COUNT} images`,
+    });
+  }
+
   if (
     draft.priceAmount === null ||
     draft.priceAmount === undefined ||
@@ -230,8 +244,7 @@ export const assertPublishable = (
     });
   }
 
-  const primaryImage =
-    draft.thumbnailUrl?.trim() || (draft.images && draft.images[0]?.trim());
+  const primaryImage = getPrimaryListingImage(draft.images, draft.thumbnailUrl);
   if (!primaryImage) {
     throw new ORPCError("BAD_REQUEST", {
       message: "Listing must have a designated primary image",
@@ -357,7 +370,10 @@ export const sellerWorkspaceRouter = {
           sellerId: context.session.user.id,
           serviceInputFields: input.serviceInputFields ?? [],
           slug: makeSlug(input.title),
-          thumbnailUrl: input.thumbnailUrl,
+          thumbnailUrl: getPrimaryListingImage(
+            input.images,
+            input.thumbnailUrl
+          ),
           title: input.title,
           type: input.type,
           warrantyDurationHours: input.warrantyDurationHours,
@@ -498,7 +514,10 @@ export const sellerWorkspaceRouter = {
       const category = await assertActiveSubCategory(draft.categoryId);
       assertPublishable(draft, category);
 
-      const primaryImage = draft.thumbnailUrl ?? draft.images?.[0] ?? null;
+      const primaryImage = getPrimaryListingImage(
+        draft.images,
+        draft.thumbnailUrl
+      );
 
       const [updated] = await db
         .update(listing)
@@ -529,9 +548,17 @@ export const sellerWorkspaceRouter = {
       const category = await assertActiveSubCategory(found.categoryId);
       assertPublishable(found, category);
 
+      const primaryImage = getPrimaryListingImage(
+        found.images,
+        found.thumbnailUrl
+      );
       const [updated] = await db
         .update(listing)
-        .set({ status: "PUBLISHED", updatedAt: new Date() })
+        .set({
+          status: "PUBLISHED",
+          thumbnailUrl: primaryImage,
+          updatedAt: new Date(),
+        })
         .where(eq(listing.id, found.id))
         .returning();
       return updated;
@@ -553,6 +580,16 @@ export const sellerWorkspaceRouter = {
         await assertActiveSubCategory(input.categoryId);
       }
 
+      const hasImagesInput = Object.hasOwn(input, "images");
+      const hasThumbnailInput = Object.hasOwn(input, "thumbnailUrl");
+      const nextImages = hasImagesInput ? (input.images ?? []) : found.images;
+      let nextThumbnailUrl = found.thumbnailUrl;
+      if (hasImagesInput) {
+        nextThumbnailUrl = getPrimaryListingImage(nextImages, null);
+      } else if (hasThumbnailInput) {
+        nextThumbnailUrl = input.thumbnailUrl ?? null;
+      }
+
       if (found.status === "PUBLISHED") {
         const targetCategoryId = input.categoryId ?? found.categoryId;
         const category = await assertActiveSubCategory(targetCategoryId);
@@ -562,7 +599,7 @@ export const sellerWorkspaceRouter = {
             description: Object.hasOwn(input, "description")
               ? (input.description ?? null)
               : found.description,
-            images: input.images ?? found.images,
+            images: nextImages,
             priceAmount: Object.hasOwn(input, "priceAmount")
               ? (input.priceAmount ?? null)
               : found.priceAmount,
@@ -571,9 +608,7 @@ export const sellerWorkspaceRouter = {
               : found.processingTimeHours,
             serviceInputFields:
               input.serviceInputFields ?? found.serviceInputFields,
-            thumbnailUrl: Object.hasOwn(input, "thumbnailUrl")
-              ? (input.thumbnailUrl ?? null)
-              : found.thumbnailUrl,
+            thumbnailUrl: nextThumbnailUrl,
             title: Object.hasOwn(input, "title")
               ? (input.title ?? null)
               : found.title,
@@ -595,7 +630,7 @@ export const sellerWorkspaceRouter = {
           ...(Object.hasOwn(input, "description")
             ? { description: input.description }
             : {}),
-          ...(input.images ? { images: input.images } : {}),
+          ...(hasImagesInput ? { images: nextImages } : {}),
           ...(Object.hasOwn(input, "priceAmount")
             ? { priceAmount: input.priceAmount }
             : {}),
@@ -605,8 +640,8 @@ export const sellerWorkspaceRouter = {
           ...(input.serviceInputFields
             ? { serviceInputFields: input.serviceInputFields }
             : {}),
-          ...(Object.hasOwn(input, "thumbnailUrl")
-            ? { thumbnailUrl: input.thumbnailUrl }
+          ...(hasImagesInput || hasThumbnailInput
+            ? { thumbnailUrl: nextThumbnailUrl }
             : {}),
           ...(Object.hasOwn(input, "title") ? { title: input.title } : {}),
           ...(input.type ? { type: input.type } : {}),
@@ -622,10 +657,8 @@ export const sellerWorkspaceRouter = {
         .returning();
 
       await cleanupUnreferencedListingImages(context.storage, {
-        nextImages: input.images ?? found.images,
-        nextThumbnailUrl: Object.hasOwn(input, "thumbnailUrl")
-          ? (input.thumbnailUrl ?? null)
-          : found.thumbnailUrl,
+        nextImages,
+        nextThumbnailUrl,
         previousImages: found.images,
         previousThumbnailUrl: found.thumbnailUrl,
       });
