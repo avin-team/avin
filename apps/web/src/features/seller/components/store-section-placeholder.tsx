@@ -3,7 +3,7 @@ import { Button } from "@avin/ui/components/button";
 import { ArrowRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-import type { StoreSection } from "../data/store-mock-data";
+import type { StoreSection } from "../data/store-types";
 
 interface StoreSectionPlaceholderProps {
   active: StoreSection;

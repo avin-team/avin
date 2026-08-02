@@ -1089,7 +1089,10 @@ const ListingEditorFormPage = ({
         await queryClient.invalidateQueries({
           queryKey: orpc.listing.sellerWorkspace.listMine.key(),
         });
-        await navigate({ to: "/seller/listings" });
+        await navigate({
+          search: { section: "products" },
+          to: "/seller/store",
+        });
       },
     })
   );
@@ -1103,7 +1106,10 @@ const ListingEditorFormPage = ({
         await queryClient.invalidateQueries({
           queryKey: orpc.listing.sellerWorkspace.listMine.key(),
         });
-        await navigate({ to: "/seller/listings" });
+        await navigate({
+          search: { section: "products" },
+          to: "/seller/store",
+        });
       },
     })
   );
@@ -1187,7 +1193,10 @@ const ListingEditorFormPage = ({
   const handleSaveAndExit = async () => {
     try {
       if (await saveNow()) {
-        await navigate({ to: "/seller/listings" });
+        await navigate({
+          search: { section: "products" },
+          to: "/seller/store",
+        });
       }
     } catch {
       // The mutation already surfaces the error to the seller.
@@ -1243,10 +1252,11 @@ const ListingEditorFormPage = ({
                   void handleSaveAndExit();
                 }
               }}
-              to="/seller/listings"
+              search={{ section: "products" }}
+              to="/seller/store"
             >
               <ArrowLeft className="size-4" />
-              All listings
+              Sản phẩm
             </Link>
             <div className="flex flex-wrap items-center gap-3">
               <Badge variant="outline">{STATUS_LABELS[listingStatus]}</Badge>
@@ -1531,10 +1541,15 @@ export const ListingEditorPage = () => {
           </Alert>
           <Button
             className="mt-4"
-            onClick={() => navigate({ to: "/seller/listings" })}
+            onClick={() =>
+              navigate({
+                search: { section: "products" },
+                to: "/seller/store",
+              })
+            }
           >
             <ArrowLeft />
-            Back to listings
+            Về danh sách sản phẩm
           </Button>
         </div>
       </Shell>

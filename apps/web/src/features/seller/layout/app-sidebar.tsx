@@ -12,7 +12,7 @@ import {
 import { Link } from "@tanstack/react-router";
 import { Eye, Store } from "lucide-react";
 
-import type { StoreSection } from "../data/store-mock-data";
+import type { StoreSection } from "../data/store-types";
 import { SellerAppTitle } from "./app-title";
 import { SELLER_NAV_GROUPS } from "./data/sidebar-data";
 import { SellerNavGroup } from "./nav-group";

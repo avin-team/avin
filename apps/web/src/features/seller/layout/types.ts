@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 
-import type { StoreSection } from "../data/store-mock-data";
+import type { StoreSection } from "../data/store-types";
 
 export interface SellerNavItem {
   icon: LucideIcon;

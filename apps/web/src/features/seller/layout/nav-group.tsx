@@ -16,7 +16,7 @@ import {
 } from "@avin/ui/components/sidebar";
 import { ChevronRight, ShoppingBag } from "lucide-react";
 
-import type { StoreSection } from "../data/store-mock-data";
+import type { StoreSection } from "../data/store-types";
 import type { SellerNavGroup as SellerNavGroupData } from "./types";
 
 interface SellerNavGroupProps extends SellerNavGroupData {

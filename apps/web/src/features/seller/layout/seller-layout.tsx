@@ -1,6 +1,6 @@
 import { SidebarInset, SidebarProvider } from "@avin/ui/components/sidebar";
 
-import type { StoreSection } from "../data/store-mock-data";
+import type { StoreSection } from "../data/store-types";
 import { SellerAppSidebar } from "./app-sidebar";
 
 interface SellerLayoutProps {
