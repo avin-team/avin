@@ -1,0 +1,1 @@
+ALTER TABLE "sepay_payment_event" ADD COLUMN "raw_body" text NOT NULL;

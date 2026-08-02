@@ -2,6 +2,7 @@ import { devToolsMiddleware } from "@ai-sdk/devtools";
 import { google } from "@ai-sdk/google";
 import { createContext } from "@avin/api/context";
 import { appRouter } from "@avin/api/router";
+import { handleSePayWebhook } from "@avin/api/wallet/webhook";
 import { adminAuth, auth } from "@avin/auth";
 import { AUTH_SURFACE_HEADER } from "@avin/auth/auth-surfaces";
 import { env } from "@avin/env/server";
@@ -15,6 +16,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 
+import { startSePayReconciliationSchedule } from "./jobs/sepay-reconciliation";
 import {
   handleListingImageUpload,
   createListingImageUploadRouter,
@@ -26,6 +28,12 @@ const listingImageStorage = createListingImageStorage();
 const listingImageUploadRouter = listingImageStorage
   ? createListingImageUploadRouter(listingImageStorage.client)
   : null;
+
+const sePayWebhookConfiguration = {
+  receivingAccountNumber: env.SEPAY_BANK_ACCOUNT ?? "",
+  secret: env.SEPAY_WEBHOOK_SECRET ?? "",
+  timestampWindowSeconds: env.SEPAY_WEBHOOK_TIMESTAMP_WINDOW_SECONDS,
+};
 
 app.use(logger());
 app.use(
@@ -50,6 +58,14 @@ app.post("/api/upload", (c) => {
 
   return handleListingImageUpload(c.req.raw, listingImageUploadRouter);
 });
+
+const sePayWebhook = (c: { req: { raw: Request } }) =>
+  handleSePayWebhook({
+    configuration: sePayWebhookConfiguration,
+    request: c.req.raw,
+  });
+
+app.post("/webhook/sepay", sePayWebhook);
 
 export const apiHandler = new OpenAPIHandler(appRouter, {
   interceptors: [
@@ -117,3 +133,5 @@ app.post("/ai", async (c) => {
 app.get("/", (c) => c.text("OK"));
 
 export default app;
+
+startSePayReconciliationSchedule();

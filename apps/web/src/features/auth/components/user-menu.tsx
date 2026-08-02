@@ -54,6 +54,15 @@ export const UserMenu = () => {
           <DropdownMenuLabel>Tài khoản của tôi</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem>{session.user.email}</DropdownMenuItem>
+          {session.user.role === ACCOUNT_ROLE.BUYER ? (
+            <DropdownMenuItem
+              onClick={async () => {
+                await navigate({ to: "/wallet" });
+              }}
+            >
+              Ví của tôi
+            </DropdownMenuItem>
+          ) : null}
           {isSeller ? (
             <DropdownMenuItem
               onClick={async () => {

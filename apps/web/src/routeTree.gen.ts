@@ -30,6 +30,8 @@ import { Route as AuthenticatedSellerListingsRouteImport } from './routes/_authe
 import { Route as AuthenticatedSellerOnboardingRouteImport } from './routes/_authenticated/seller/onboarding'
 import { Route as AuthenticatedSellerStoreRouteImport } from './routes/_authenticated/seller/store'
 import { Route as AuthenticatedSellerStorePreviewRouteImport } from './routes/_authenticated/seller/store-preview'
+import { Route as AuthenticatedWalletIndexRouteImport } from './routes/_authenticated/wallet/index'
+import { Route as AuthenticatedWalletDepositRouteImport } from './routes/_authenticated/wallet/deposit'
 import { Route as AuthenticatedSellerListingsIdRouteImport } from './routes/_authenticated/seller/listings/$id'
 
 const authRouteRoute = authRouteRouteImport.update({
@@ -139,6 +141,18 @@ const AuthenticatedSellerStorePreviewRoute =
     path: '/seller/store-preview',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedWalletIndexRoute =
+  AuthenticatedWalletIndexRouteImport.update({
+    id: '/wallet/',
+    path: '/wallet/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedWalletDepositRoute =
+  AuthenticatedWalletDepositRouteImport.update({
+    id: '/wallet/deposit',
+    path: '/wallet/deposit',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSellerListingsIdRoute =
   AuthenticatedSellerListingsIdRouteImport.update({
     id: '/$id',
@@ -164,7 +178,9 @@ export interface FileRoutesByFullPath {
   '/seller/onboarding': typeof AuthenticatedSellerOnboardingRoute
   '/seller/store': typeof AuthenticatedSellerStoreRoute
   '/seller/store-preview': typeof AuthenticatedSellerStorePreviewRoute
+  '/wallet/deposit': typeof AuthenticatedWalletDepositRoute
   '/category/': typeof publicCategoryIndexRoute
+  '/wallet/': typeof AuthenticatedWalletIndexRoute
   '/seller/listings/$id': typeof AuthenticatedSellerListingsIdRoute
 }
 export interface FileRoutesByTo {
@@ -185,7 +201,9 @@ export interface FileRoutesByTo {
   '/seller/onboarding': typeof AuthenticatedSellerOnboardingRoute
   '/seller/store': typeof AuthenticatedSellerStoreRoute
   '/seller/store-preview': typeof AuthenticatedSellerStorePreviewRoute
+  '/wallet/deposit': typeof AuthenticatedWalletDepositRoute
   '/category': typeof publicCategoryIndexRoute
+  '/wallet': typeof AuthenticatedWalletIndexRoute
   '/seller/listings/$id': typeof AuthenticatedSellerListingsIdRoute
 }
 export interface FileRoutesById {
@@ -210,7 +228,9 @@ export interface FileRoutesById {
   '/_authenticated/seller/onboarding': typeof AuthenticatedSellerOnboardingRoute
   '/_authenticated/seller/store': typeof AuthenticatedSellerStoreRoute
   '/_authenticated/seller/store-preview': typeof AuthenticatedSellerStorePreviewRoute
+  '/_authenticated/wallet/deposit': typeof AuthenticatedWalletDepositRoute
   '/(public)/category/': typeof publicCategoryIndexRoute
+  '/_authenticated/wallet/': typeof AuthenticatedWalletIndexRoute
   '/_authenticated/seller/listings/$id': typeof AuthenticatedSellerListingsIdRoute
 }
 export interface FileRouteTypes {
@@ -233,7 +253,9 @@ export interface FileRouteTypes {
     | '/seller/onboarding'
     | '/seller/store'
     | '/seller/store-preview'
+    | '/wallet/deposit'
     | '/category/'
+    | '/wallet/'
     | '/seller/listings/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -254,7 +276,9 @@ export interface FileRouteTypes {
     | '/seller/onboarding'
     | '/seller/store'
     | '/seller/store-preview'
+    | '/wallet/deposit'
     | '/category'
+    | '/wallet'
     | '/seller/listings/$id'
   id:
     | '__root__'
@@ -278,7 +302,9 @@ export interface FileRouteTypes {
     | '/_authenticated/seller/onboarding'
     | '/_authenticated/seller/store'
     | '/_authenticated/seller/store-preview'
+    | '/_authenticated/wallet/deposit'
     | '/(public)/category/'
+    | '/_authenticated/wallet/'
     | '/_authenticated/seller/listings/$id'
   fileRoutesById: FileRoutesById
 }
@@ -442,6 +468,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSellerStorePreviewRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/wallet/': {
+      id: '/_authenticated/wallet/'
+      path: '/wallet'
+      fullPath: '/wallet/'
+      preLoaderRoute: typeof AuthenticatedWalletIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/wallet/deposit': {
+      id: '/_authenticated/wallet/deposit'
+      path: '/wallet/deposit'
+      fullPath: '/wallet/deposit'
+      preLoaderRoute: typeof AuthenticatedWalletDepositRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/seller/listings/$id': {
       id: '/_authenticated/seller/listings/$id'
       path: '/$id'
@@ -506,6 +546,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSellerOnboardingRoute: typeof AuthenticatedSellerOnboardingRoute
   AuthenticatedSellerStoreRoute: typeof AuthenticatedSellerStoreRoute
   AuthenticatedSellerStorePreviewRoute: typeof AuthenticatedSellerStorePreviewRoute
+  AuthenticatedWalletDepositRoute: typeof AuthenticatedWalletDepositRoute
+  AuthenticatedWalletIndexRoute: typeof AuthenticatedWalletIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -517,6 +559,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSellerOnboardingRoute: AuthenticatedSellerOnboardingRoute,
   AuthenticatedSellerStoreRoute: AuthenticatedSellerStoreRoute,
   AuthenticatedSellerStorePreviewRoute: AuthenticatedSellerStorePreviewRoute,
+  AuthenticatedWalletDepositRoute: AuthenticatedWalletDepositRoute,
+  AuthenticatedWalletIndexRoute: AuthenticatedWalletIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

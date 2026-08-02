@@ -20,6 +20,17 @@ export const env = createEnv({
       .default("development"),
     RESEND_API_KEY: z.string().min(1),
     RESEND_FROM_EMAIL: z.email(),
+    SEPAY_API_TOKEN: z.string().min(1).optional(),
+    SEPAY_BANK_ACCOUNT: z.string().min(1).optional(),
+    SEPAY_BANK_ACCOUNT_NAME: z.string().min(1).optional(),
+    SEPAY_BANK_CODE: z.string().min(1).optional(),
+    SEPAY_TRANSACTIONS_API_URL: z.url().optional(),
+    SEPAY_WEBHOOK_SECRET: z.string().min(1).optional(),
+    SEPAY_WEBHOOK_TIMESTAMP_WINDOW_SECONDS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(300),
     SUPABASE_JWT_PRIVATE_JWK: z.string().min(1),
     SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
     SUPABASE_SECRET_KEY: z.string().min(1),

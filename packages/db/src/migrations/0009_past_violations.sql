@@ -1,0 +1,1 @@
+ALTER TABLE "ledger_transaction" ADD CONSTRAINT "ledger_transaction_reversal_of_id_ledger_transaction_id_fk" FOREIGN KEY ("reversal_of_id") REFERENCES "public"."ledger_transaction"("id") ON DELETE restrict ON UPDATE no action;
