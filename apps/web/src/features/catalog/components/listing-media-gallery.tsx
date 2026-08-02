@@ -122,7 +122,7 @@ export const ListingMediaGallery = ({
 
       <Dialog onOpenChange={setIsLightboxOpen} open={isLightboxOpen}>
         <DialogContent
-          className="max-w-6xl border-none bg-black/95 p-2"
+          className="max-w-6xl border-none bg-black/95 p-2 sm:max-w-6xl"
           showCloseButton
         >
           <DialogTitle className="sr-only">

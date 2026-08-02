@@ -82,6 +82,7 @@ describe("ListingMediaGallery", () => {
     );
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toHaveClass("sm:max-w-6xl");
     expect(
       screen.getAllByAltText("Thiết kế logo · ảnh 3").length
     ).toBeGreaterThan(0);
