@@ -1,6 +1,7 @@
 import { Badge } from "@avin/ui/components/badge";
 import { Button } from "@avin/ui/components/button";
 import { SidebarTrigger } from "@avin/ui/components/sidebar";
+import { useQuery } from "@tanstack/react-query";
 import {
   AlertCircle,
   BarChart3,
@@ -18,11 +19,14 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+import { orpc } from "@/utils/orpc";
+
 import { StoreProfilePanel } from "../components/store-profile-panel";
 import { StoreSectionPlaceholder } from "../components/store-section-placeholder";
 import { MOCK_PRODUCTS } from "../data/store-mock-data";
 import type { MockProduct, StoreSection } from "../data/store-mock-data";
 import { SellerLayout } from "../layout/seller-layout";
+import { getStoreProfileCompletion } from "./store-overview-logic";
 
 const getSectionLabel = (section: StoreSection): string => {
   const labels: Record<StoreSection, string> = {
@@ -64,95 +68,136 @@ const PLACEHOLDER_SECTIONS = {
   },
 } as const;
 
-const StoreOverview = () => (
-  <div className="space-y-4">
-    <div className="rounded-2xl border border-amber-400/20 bg-amber-400/5 p-5">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex gap-3">
-          <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-amber-400/15 text-amber-300">
-            <AlertCircle className="size-4" />
+const StoreOverview = () => {
+  const profileQuery = useQuery(orpc.sellerStore.getProfile.queryOptions());
+
+  if (profileQuery.isPending) {
+    return (
+      <div className="rounded-2xl border border-border bg-card p-8 text-sm text-muted-foreground">
+        Đang tải tổng quan gian hàng...
+      </div>
+    );
+  }
+
+  if (profileQuery.isError) {
+    return (
+      <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-sm text-destructive">
+        Không thể tải tổng quan gian hàng. Vui lòng thử lại.
+      </div>
+    );
+  }
+
+  const profileCompletion = getStoreProfileCompletion(
+    profileQuery.data.profile
+  );
+  const productCount = MOCK_PRODUCTS.length;
+  const activeProductCount = MOCK_PRODUCTS.filter(
+    (product) => product.status === "Đang bán"
+  ).length;
+  const tasks = [
+    { action: "Đã xong", done: true, label: "Tạo tài khoản seller" },
+    {
+      action: profileCompletion.isComplete ? "Đã xong" : "Thiết lập",
+      done: profileCompletion.isComplete,
+      label: "Hoàn thiện hồ sơ gian hàng",
+    },
+    {
+      action: productCount > 0 ? "Đã xong" : "Thiết lập",
+      done: productCount > 0,
+      label: "Chọn sản phẩm để mở bán",
+    },
+  ];
+  const completedTaskCount = tasks.filter((task) => task.done).length;
+  const stats = [
+    {
+      icon: UserRound,
+      label: "Hồ sơ",
+      value: `${profileCompletion.percentage}%`,
+    },
+    { icon: Package, label: "Sản phẩm", value: `${productCount}` },
+    {
+      icon: BarChart3,
+      label: "Đang bán",
+      value: `${activeProductCount}`,
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-amber-400/20 bg-amber-400/5 p-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex gap-3">
+            <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-amber-400/15 text-amber-300">
+              <AlertCircle className="size-4" />
+            </div>
+            <div>
+              <p className="font-semibold">Gian hàng chưa mở bán</p>
+              <p className="mt-1 max-w-xl text-sm leading-6 text-muted-foreground">
+                Hoàn thiện hồ sơ và ít nhất một sản phẩm. Bạn sẽ được xem trước
+                mọi thứ trước khi mở cho khách hàng.
+              </p>
+            </div>
           </div>
+          <Button>Mở gian hàng</Button>
+        </div>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-3">
+        {stats.map((stat) => {
+          const Icon = stat.icon;
+          return (
+            <div
+              className="rounded-2xl border border-border bg-card p-5"
+              key={stat.label}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">
+                  {stat.label}
+                </span>
+                <Icon className="size-4 text-muted-foreground" />
+              </div>
+              <p className="mt-3 text-2xl font-bold">{stat.value}</p>
+            </div>
+          );
+        })}
+      </div>
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="font-semibold">Gian hàng chưa mở bán</p>
-            <p className="mt-1 max-w-xl text-sm leading-6 text-muted-foreground">
-              Hoàn thiện hồ sơ và ít nhất một sản phẩm. Bạn sẽ được xem trước
-              mọi thứ trước khi mở cho khách hàng.
+            <p className="font-semibold">Việc cần làm</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Ba việc nhỏ để gian hàng sẵn sàng đón khách.
             </p>
           </div>
+          <span className="text-xs text-muted-foreground">
+            {completedTaskCount}/{tasks.length} hoàn thành
+          </span>
         </div>
-        <Button>Mở gian hàng</Button>
-      </div>
-    </div>
-    <div className="grid gap-4 sm:grid-cols-3">
-      {[
-        { icon: UserRound, label: "Hồ sơ", value: "0%" },
-        { icon: Package, label: "Sản phẩm", value: "3" },
-        { icon: BarChart3, label: "Đang bán", value: "1" },
-      ].map((stat) => {
-        const Icon = stat.icon;
-        return (
-          <div
-            className="rounded-2xl border border-border bg-card p-5"
-            key={stat.label}
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">
-                {stat.label}
+        <div className="mt-4 space-y-2">
+          {tasks.map((task) => (
+            <div
+              className="flex items-center gap-3 rounded-xl bg-muted/30 p-3"
+              key={task.label}
+            >
+              <span
+                className={`flex size-6 items-center justify-center rounded-full ${task.done ? "bg-primary text-primary-foreground" : "border border-border text-transparent"}`}
+              >
+                <Check className="size-3.5" />
               </span>
-              <Icon className="size-4 text-muted-foreground" />
+              <span
+                className={`flex-1 text-sm ${task.done ? "text-muted-foreground line-through" : "font-medium"}`}
+              >
+                {task.label}
+              </span>
+              <Button size="sm" variant={task.done ? "ghost" : "outline"}>
+                {task.action}
+              </Button>
             </div>
-            <p className="mt-3 text-2xl font-bold">{stat.value}</p>
-          </div>
-        );
-      })}
-    </div>
-    <div className="rounded-2xl border border-border bg-card p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="font-semibold">Việc cần làm</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Ba việc nhỏ để gian hàng sẵn sàng đón khách.
-          </p>
+          ))}
         </div>
-        <span className="text-xs text-muted-foreground">1/3 hoàn thành</span>
-      </div>
-      <div className="mt-4 space-y-2">
-        {[
-          { action: "Đã xong", done: true, label: "Tạo tài khoản seller" },
-          {
-            action: "Thiết lập",
-            done: false,
-            label: "Hoàn thiện hồ sơ gian hàng",
-          },
-          {
-            action: "Thiết lập",
-            done: false,
-            label: "Chọn sản phẩm để mở bán",
-          },
-        ].map((task) => (
-          <div
-            className="flex items-center gap-3 rounded-xl bg-muted/30 p-3"
-            key={task.label}
-          >
-            <span
-              className={`flex size-6 items-center justify-center rounded-full ${task.done ? "bg-primary text-primary-foreground" : "border border-border text-transparent"}`}
-            >
-              <Check className="size-3.5" />
-            </span>
-            <span
-              className={`flex-1 text-sm ${task.done ? "text-muted-foreground line-through" : "font-medium"}`}
-            >
-              {task.label}
-            </span>
-            <Button size="sm" variant={task.done ? "ghost" : "outline"}>
-              {task.action}
-            </Button>
-          </div>
-        ))}
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const MockProductRow = ({ product }: { product: MockProduct }) => (
   <div className="flex items-start gap-3 py-4">
