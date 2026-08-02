@@ -2,7 +2,17 @@ import { db } from "@avin/db";
 import { user as userTable } from "@avin/db/schema/auth";
 import { listing, parentCategory, subCategory } from "@avin/db/schema/catalog";
 import { ORPCError } from "@orpc/server";
-import { and, count, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import {
+  and,
+  count,
+  eq,
+  getTableName,
+  ilike,
+  inArray,
+  or,
+  sql,
+} from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 import { z } from "zod";
 
 import { publicProcedure } from "../access/procedures";
@@ -27,16 +37,22 @@ export const isListingPubliclyAvailable = (
   categoryStatus === "ACTIVE" &&
   parentCategoryStatus === "ACTIVE";
 
-export const sellerIsNotEnforcedCondition = (now = new Date()) => sql`
+const sellerAccountTableName = getTableName(userTable);
+const sellerAccountIdColumnName = userTable.id.name;
+const sellerAccountBannedColumnName = userTable.banned.name;
+const sellerAccountBanExpiresColumnName = userTable.banExpires.name;
+
+export const sellerIsNotEnforcedCondition = (now = new Date()): SQL<unknown> =>
+  sql`
   NOT EXISTS (
     SELECT 1
-    FROM "user" AS seller_account
-    WHERE seller_account."id" = ${listing.sellerId}
+    FROM ${sql.identifier(sellerAccountTableName)} AS seller_account
+    WHERE seller_account.${sql.identifier(sellerAccountIdColumnName)} = ${listing.sellerId}
       AND (
-        seller_account."banned" = true
+        seller_account.${sql.identifier(sellerAccountBannedColumnName)} = true
         OR (
-          seller_account."ban_expires" IS NOT NULL
-          AND seller_account."ban_expires" > ${now}
+          seller_account.${sql.identifier(sellerAccountBanExpiresColumnName)} IS NOT NULL
+          AND seller_account.${sql.identifier(sellerAccountBanExpiresColumnName)} > ${now}
         )
       )
   )
