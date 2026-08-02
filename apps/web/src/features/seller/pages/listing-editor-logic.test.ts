@@ -42,9 +42,8 @@ describe("listing editor navigation helpers", () => {
     ).toBe(true);
   });
 
-  it("unlocks new listing steps after the basics can create a draft", () => {
-    expect(isListingEditorStepLocked(true, false, false, 1)).toBe(true);
-    expect(isListingEditorStepLocked(true, false, true, 1)).toBe(false);
-    expect(isListingEditorStepLocked(false, true, false, 1)).toBe(false);
+  it("locks later new listing steps until a draft exists", () => {
+    expect(isListingEditorStepLocked(true, false, 1)).toBe(true);
+    expect(isListingEditorStepLocked(false, true, 1)).toBe(false);
   });
 });

@@ -207,7 +207,8 @@ const getSaveStatusLabel = (status: SaveStatus): string => {
 const getNewSaveStatusLabel = (
   status: SaveStatus,
   isNew: boolean,
-  draftId: string | null
+  draftId: string | null,
+  canCreateDraft: boolean
 ): string => {
   if (!isNew || draftId) {
     return getSaveStatusLabel(status);
@@ -218,7 +219,9 @@ const getNewSaveStatusLabel = (
   if (status === "error") {
     return "Chưa thể tạo bản nháp";
   }
-  return "Chọn loại và danh mục để bắt đầu";
+  return canCreateDraft
+    ? "Bấm “Tiếp theo” để lưu bản nháp"
+    : "Chọn loại và danh mục để bắt đầu";
 };
 
 const getEditorTypeLabel = (type: ListingEditorForm["type"]): string => {
@@ -1334,12 +1337,7 @@ const ListingEditorFormPage = ({
 
   const activeStep = EDITOR_STEPS[activeStepIndex];
   const isEditorStepLocked = (stepIndex: number): boolean =>
-    isListingEditorStepLocked(
-      isNew,
-      Boolean(draftId),
-      canCreateDraft,
-      stepIndex
-    );
+    isListingEditorStepLocked(isNew, Boolean(draftId), stepIndex);
   const stepIsComplete = (stepId: ListingEditorStepId) =>
     readinessItems
       .filter((item) => item.step === stepId)
@@ -1483,6 +1481,23 @@ const ListingEditorFormPage = ({
     }
   };
 
+  const handleNextStep = async (): Promise<void> => {
+    if (isActionPending || activeStepIndex === EDITOR_STEPS.length - 1) {
+      return;
+    }
+
+    if (isNew && !draftId && activeStepIndex === 0) {
+      await saveNow();
+      return;
+    }
+
+    if (isEditorStepLocked(activeStepIndex + 1)) {
+      return;
+    }
+
+    setActiveStepIndex((index) => Math.min(index + 1, EDITOR_STEPS.length - 1));
+  };
+
   const primaryActionLabel =
     listingStatus === "PAUSED" ? "Đăng bán lại" : "Đăng bán sản phẩm";
   const primaryActionAvailable =
@@ -1499,7 +1514,12 @@ const ListingEditorFormPage = ({
     saveStatus === "saved" ||
     (isNew && !draftId && !canCreateDraft);
   const saveIndicatorClass = getSaveIndicatorClass(saveStatus);
-  const saveStatusLabel = getNewSaveStatusLabel(saveStatus, isNew, draftId);
+  const saveStatusLabel = getNewSaveStatusLabel(
+    saveStatus,
+    isNew,
+    draftId,
+    canCreateDraft
+  );
   const editorTypeLabel = isNew
     ? "Tạo sản phẩm"
     : getEditorTypeLabel(form.type);
@@ -1508,17 +1528,16 @@ const ListingEditorFormPage = ({
     : STATUS_LABELS[listingStatus];
   const editorTitle =
     form.title || (isNew ? "Sản phẩm mới" : "Đặt tên sản phẩm");
+  const editorDescription =
+    isNew && !draftId
+      ? "Chọn loại sản phẩm và danh mục, sau đó bấm “Tiếp theo” để lưu bản nháp."
+      : "Hoàn thiện từng bước theo tốc độ của bạn. Bấm “Lưu” khi muốn giữ lại thay đổi.";
   const isActiveStepLocked = isEditorStepLocked(activeStepIndex);
-  const isActiveMediaBeforeDraft =
-    isNew && !draftId && activeStep.id === "media";
   const isEditorStepDisabled =
-    isArchived ||
-    isActionPending ||
-    isActiveStepLocked ||
-    isActiveMediaBeforeDraft;
+    isArchived || isActionPending || isActiveStepLocked;
   const isNextStepDisabled =
     isActionPending ||
-    isEditorStepLocked(activeStepIndex + 1) ||
+    (isNew && !draftId && !canCreateDraft) ||
     activeStepIndex === EDITOR_STEPS.length - 1;
   const handleStoreNavigation = (section: StoreSection) => {
     void handleNavigateFromEditor(section);
@@ -1577,8 +1596,7 @@ const ListingEditorFormPage = ({
                 {editorTitle}
               </h1>
               <p className="text-sm leading-6 text-muted-foreground">
-                Hoàn thiện từng bước theo tốc độ của bạn. Bấm “Lưu” khi muốn giữ
-                lại thay đổi.
+                {editorDescription}
               </p>
             </div>
           </header>
@@ -1740,11 +1758,7 @@ const ListingEditorFormPage = ({
                   </Button>
                   <Button
                     disabled={isNextStepDisabled}
-                    onClick={() =>
-                      setActiveStepIndex((index) =>
-                        Math.min(index + 1, EDITOR_STEPS.length - 1)
-                      )
-                    }
+                    onClick={() => void handleNextStep()}
                   >
                     Tiếp theo
                     <ArrowRight />

@@ -35,9 +35,8 @@ export const areListingServiceInputsValid = (
 export const isListingEditorStepLocked = (
   isNew: boolean,
   hasDraft: boolean,
-  canCreateDraft: boolean,
   stepIndex: number
-): boolean => isNew && !hasDraft && !canCreateDraft && stepIndex > 0;
+): boolean => isNew && !hasDraft && stepIndex > 0;
 
 export const getFirstIncompleteEditorStepIndex = (
   items: ListingEditorStep[]
