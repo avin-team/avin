@@ -6,7 +6,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
-import { Separator } from "@avin/ui/components/separator";
 import { Link, useParams } from "@tanstack/react-router";
 import { ArrowLeft, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { useState } from "react";
@@ -126,7 +125,7 @@ export const SellerApplicationDetailPage = () => {
     try {
       resubmitSellerApplicationForReview(application.id);
       toast.success("Đã trả hồ sơ về hàng đợi xét duyệt", {
-        description: "Hồ sơ đang chờ phán quyết mới từ Admin.",
+        description: "Hồ sơ đang chờ xét duyệt từ Admin.",
       });
     } catch (error) {
       toast.error(
@@ -299,17 +298,12 @@ export const SellerApplicationDetailPage = () => {
               <CardTitle>Quyết định xét duyệt</CardTitle>
               <CardDescription>
                 {canDecide
-                  ? "Chọn phán quyết cho hồ sơ đang chờ duyệt."
+                  ? "Chọn quyết định cho hồ sơ đang chờ duyệt."
                   : "Hồ sơ này ở trạng thái chỉ đọc cho tới khi Seller gửi lại."}
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3">
               {renderActionButtons()}
-              <Separator />
-              <p className="text-xs leading-5 text-muted-foreground">
-                Bản prototype này sử dụng dữ liệu mẫu cục bộ. Xác thực Admin và
-                Nhật ký audit được tạm thời hoãn theo ADR 0003.
-              </p>
             </CardContent>
           </Card>
         </div>

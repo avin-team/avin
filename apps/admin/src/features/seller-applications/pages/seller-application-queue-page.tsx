@@ -199,7 +199,9 @@ export const SellerApplicationQueuePage = () => {
                           size="sm"
                           variant="outline"
                         >
-                          Chi tiết & Phán quyết
+                          {app.status === "PENDING_REVIEW"
+                            ? "Xem & Xét duyệt"
+                            : "Xem chi tiết"}
                         </Button>
                       </TableCell>
                     </TableRow>

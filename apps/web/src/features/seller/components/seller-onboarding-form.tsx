@@ -28,6 +28,9 @@ import { toast } from "sonner";
 
 import { orpc } from "@/utils/orpc";
 
+import { SellerLogoUploader } from "./seller-logo-uploader";
+import type { SellerLogoValue } from "./seller-logo-uploader";
+
 export type SellerApplicationStatus =
   | "PENDING_REVIEW"
   | "APPROVED"
@@ -84,6 +87,8 @@ const SellerOnboardingFormContent = ({
     profile?.storefrontName ?? ""
   );
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatarUrl ?? "");
+  const [avatarName, setAvatarName] = useState("");
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [bio, setBio] = useState(profile?.bio ?? "");
 
   // Phone state
@@ -300,66 +305,74 @@ const SellerOnboardingFormContent = ({
           </div>
         </CardHeader>
         <CardContent>
-          <form
-            id="draft-profile-form"
-            onSubmit={handleSaveDraft}
-            className="space-y-4"
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="storefrontName">
-                  Tên gian hàng <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="storefrontName"
-                  placeholder="VD: GameKey Studio, DevTools VN..."
-                  value={storefrontName}
-                  onChange={(e) => setStorefrontName(e.target.value)}
-                  disabled={isPending}
-                  required
-                />
+          <form id="draft-profile-form" onSubmit={handleSaveDraft}>
+            <div className="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-6 items-start">
+              {/* Left Column: Avatar Uploader */}
+              <div className="flex flex-col items-center text-center space-y-2">
+                <Label>Ảnh đại diện</Label>
+                <div className="w-full max-w-[140px]">
+                  <SellerLogoUploader
+                    disabled={isPending || updateDraftMutation.isPending}
+                    fileName={avatarName}
+                    logoUrl={avatarUrl}
+                    onLogoChange={(value: SellerLogoValue) => {
+                      setAvatarUrl(value.url);
+                      setAvatarName(value.name);
+                    }}
+                    onUploadingChange={setIsUploadingLogo}
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Định dạng JPEG, PNG, WebP (tối đa 5MB)
+                </p>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="phone">
-                  Số điện thoại liên hệ <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  placeholder="VD: 0901234567"
-                  value={phoneInput}
-                  onChange={(e) => setPhoneInput(e.target.value)}
-                  disabled={isPending}
-                  required
-                />
+              {/* Right Column: Storefront Name, Phone, Bio */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="storefrontName">
+                      Tên gian hàng <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="storefrontName"
+                      placeholder="VD: GameKey Studio, DevTools VN..."
+                      value={storefrontName}
+                      onChange={(e) => setStorefrontName(e.target.value)}
+                      disabled={isPending}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">
+                      Số điện thoại liên hệ{" "}
+                      <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="VD: 0901234567"
+                      value={phoneInput}
+                      onChange={(e) => setPhoneInput(e.target.value)}
+                      disabled={isPending}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="bio">Mô tả gian hàng (Bio)</Label>
+                  <Textarea
+                    id="bio"
+                    placeholder="Giới thiệu ngắn về dịch vụ và sản phẩm của bạn..."
+                    rows={3}
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    disabled={isPending}
+                  />
+                </div>
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="avatarUrl">
-                Đường dẫn ảnh đại diện (Avatar URL)
-              </Label>
-              <Input
-                id="avatarUrl"
-                type="url"
-                placeholder="https://example.com/avatar.jpg"
-                value={avatarUrl}
-                onChange={(e) => setAvatarUrl(e.target.value)}
-                disabled={isPending}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="bio">Mô tả gian hàng (Bio)</Label>
-              <Textarea
-                id="bio"
-                placeholder="Giới thiệu ngắn về dịch vụ và sản phẩm của bạn..."
-                rows={3}
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                disabled={isPending}
-              />
             </div>
           </form>
         </CardContent>
@@ -367,7 +380,9 @@ const SellerOnboardingFormContent = ({
           <Button
             type="submit"
             form="draft-profile-form"
-            disabled={updateDraftMutation.isPending || isPending}
+            disabled={
+              updateDraftMutation.isPending || isPending || isUploadingLogo
+            }
           >
             {updateDraftMutation.isPending && (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />

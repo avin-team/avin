@@ -10,7 +10,22 @@
 - Uses Zustand for complex client-side state (mentioned as future need, not for simple state). Confidence: 0.75
 - Prefers minimal, recommendation-only changes — do only what is advised, avoid over-engineering or extra scope. Confidence: 0.75
 - Uses Resend for transactional email delivery. Confidence: 0.70
-- Prefers AI agent to commit and push code directly without asking for confirmation each time. Confidence: 0.85
+- Prefers AI agent to commit and push code directly without asking for confirmation each time. Confidence: 0.60
+- Do NOT commit code unless the user has explicitly said to commit (e.g., "commit", "oki commit the code"). Work silently in the working tree; the user will say when to commit. Confidence: 0.90
+
+- Prefers prototype-first approach: mock UI/frontend first, get approval on the prototype design, then implement real logic. User explicitly says "tôi chỉ cần prototype thôi", "mục tiêu implement chỉ là mock UI frontend trước thôi". Confidence: 0.85
+
+- All user-facing UI labels and text should be in Vietnamese ("chuyển thành tiếng việt hết nhé"). Confidence: 0.90
+
+- Prefers simplified, merged workflows: combine wizard steps, remove unnecessary intermediate pages, eliminate redundant tabs. Repeatedly asks to merge "thông tin từ khách" into basic info, remove dedicated banner/image/payment tabs. Confidence: 0.85
+
+- Uses structured command prefixes for agent workflow: `$grill-me` (spec/code review), `$grill-with-docs` (review with documentation), `$implement` (start implementation), `$handoff` (produce handoff document), `$to-tickets` (create Jira tickets), `$prototype` (design prototype). Confidence: 0.80
+
+- Prefers `packages/ui` over `apps/web` for shared/common UI components. When asked where to put reusable components, prefers the shared UI package. Confidence: 0.80
+
+- Prefers expandable/collapsible sidebar navigation groups (nav-group pattern with parent items that expand to show children) rather than all-flat navigation items. Confidence: 0.80
+
+- Maintains a separate boilerplate/reference project at `/Users/ngocla/dev/projects/boilerplate/mono-dashboard/` — uses it as a source of architectural patterns and component conventions to follow. Confidence: 0.75
 - Wants coding rules/standards synthesized into a document for AI agents to follow before implementation begins. Confidence: 0.80
 
 - Backend API packages follow domain/feature-based folder structure: each domain (e.g., `access/`, `listing/`, `seller-application/`) owns its own `router.ts`, procedures, and `*.test.ts`. The root `router.ts` only composes domain routers. Avoids shallow module patterns like `helpers/`, `schemas/`, `repositories/`, or one-file-per-handler — each domain encapsulates its own logic. Confidence: 0.90
