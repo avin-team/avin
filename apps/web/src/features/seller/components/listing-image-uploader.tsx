@@ -10,14 +10,7 @@ import type { FileDropzoneProps } from "@avin/ui/components/file-dropzone";
 import { FileDropzone } from "@avin/ui/components/file-dropzone";
 import { Progress } from "@avin/ui/components/progress";
 import { useUploadFiles } from "@better-upload/client";
-import {
-  ArrowLeft,
-  ArrowRight,
-  ImagePlus,
-  RefreshCw,
-  Trash2,
-  Undo2,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, RefreshCw, Trash2, Undo2 } from "lucide-react";
 import { useState } from "react";
 
 import { validateListingImage } from "./listing-image-validation";
@@ -48,12 +41,15 @@ const ACCEPTED_IMAGE_TYPES = {
   "image/webp": [".webp"],
 };
 
+const LISTING_IMAGE_HELPER_TEXT =
+  "JPEG, PNG hoặc WebP · tối đa 10 MB mỗi ảnh · tối thiểu 800×600 px";
+
 const getUploadErrorMessage = (): string =>
   "Không thể tải ảnh lên. Vui lòng thử lại.";
 
 const getRejectionErrorMessage = (code: string | undefined): string => {
   if (code === "file-too-large") {
-    return "Ảnh phải có dung lượng từ 5 MB trở xuống.";
+    return "Ảnh phải có dung lượng từ 10 MB trở xuống.";
   }
   if (code === "file-invalid-type") {
     return "Chỉ dùng ảnh JPEG, PNG hoặc WebP.";
@@ -304,6 +300,31 @@ export const ListingImageUploader = ({
     setErrorMessage(getRejectionErrorMessage(rejections[0]?.errors[0]?.code));
   };
 
+  const uploadDropzone = (
+    <FileDropzone
+      accept={ACCEPTED_IMAGE_TYPES}
+      className={currentImages.length > 0 ? "aspect-video min-h-0" : undefined}
+      disabled={disabled}
+      helperText={
+        currentImages.length > 0 ? undefined : LISTING_IMAGE_HELPER_TEXT
+      }
+      inputLabel="Chọn ảnh sản phẩm"
+      isUploading={isUploading}
+      label={currentImages.length > 0 ? "Thêm ảnh" : "Thêm ảnh đại diện"}
+      maxFiles={0}
+      maxSize={LISTING_IMAGE_MAX_BYTES}
+      multiple
+      onFilesRejected={handleFilesRejected}
+      onFilesSelected={handleFilesSelected}
+      progress={upload.averageProgress}
+      browseHelperText="Kéo thả hoặc bấm để chọn nhiều ảnh"
+      progressLabel="Tiến độ tải ảnh"
+      progressSuffix="đã tải"
+      uploadingHelperText="Vui lòng chờ cho đến khi mọi ảnh tải xong."
+      uploadingLabel="Đang tải ảnh…"
+    />
+  );
+
   return (
     <div className="space-y-4">
       {currentImages.length > 0 ? (
@@ -378,7 +399,25 @@ export const ListingImageUploader = ({
               </div>
             </div>
           ))}
+          {currentImages.length < LISTING_IMAGE_MAX_COUNT
+            ? uploadDropzone
+            : null}
         </div>
+      ) : (
+        uploadDropzone
+      )}
+
+      {currentImages.length > 0 ? (
+        <>
+          <p className="text-sm text-muted-foreground">
+            {LISTING_IMAGE_HELPER_TEXT}
+          </p>
+          {currentImages.length >= LISTING_IMAGE_MAX_COUNT ? (
+            <p className="text-sm text-muted-foreground">
+              Tin đăng đã đủ {LISTING_IMAGE_MAX_COUNT} ảnh.
+            </p>
+          ) : null}
+        </>
       ) : null}
 
       {removedImage ? (
@@ -396,42 +435,6 @@ export const ListingImageUploader = ({
           </Button>
         </div>
       ) : null}
-
-      {currentImages.length < LISTING_IMAGE_MAX_COUNT ? (
-        <FileDropzone
-          accept={ACCEPTED_IMAGE_TYPES}
-          disabled={disabled}
-          helperText="JPEG, PNG hoặc WebP · tối đa 5 MB mỗi ảnh · tối thiểu 800×600 px"
-          inputLabel="Chọn ảnh sản phẩm"
-          isUploading={isUploading}
-          label={
-            currentImages.length > 0
-              ? "Thêm ảnh vào thư viện"
-              : "Thêm ảnh đại diện"
-          }
-          maxFiles={0}
-          maxSize={LISTING_IMAGE_MAX_BYTES}
-          multiple
-          onFilesRejected={handleFilesRejected}
-          onFilesSelected={handleFilesSelected}
-          progress={upload.averageProgress}
-          browseHelperText="Kéo thả hoặc bấm để chọn nhiều ảnh"
-          progressLabel="Tiến độ tải ảnh"
-          progressSuffix="đã tải"
-          uploadingHelperText="Vui lòng chờ cho đến khi mọi ảnh tải xong."
-          uploadingLabel="Đang tải ảnh…"
-          renderTrigger={({ open }) => (
-            <Button disabled={isDisabled} onClick={open} type="button">
-              <ImagePlus />
-              Thêm ảnh
-            </Button>
-          )}
-        />
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          Tin đăng đã đủ {LISTING_IMAGE_MAX_COUNT} ảnh.
-        </p>
-      )}
 
       {upload.isPending && upload.progresses.length > 0 ? (
         <div

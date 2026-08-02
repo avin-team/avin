@@ -6,6 +6,9 @@ import {
   createSellerBannerKey,
   createPublicMediaUrl,
   getManagedListingImageKeysToDelete,
+  LISTING_IMAGE_MAX_BYTES,
+  SELLER_BANNER_MAX_BYTES,
+  SELLER_LOGO_MAX_BYTES,
   PUBLIC_MEDIA_BUCKET,
 } from "./storage";
 
@@ -16,6 +19,12 @@ const OLD_OBJECT_ID = "22222222-2222-4222-8222-222222222222";
 const NEW_OBJECT_ID = "33333333-3333-4333-8333-333333333333";
 
 describe("listing image storage helpers", () => {
+  it("allows larger listing images without changing seller branding limits", () => {
+    expect(LISTING_IMAGE_MAX_BYTES).toBe(10 * 1024 * 1024);
+    expect(SELLER_LOGO_MAX_BYTES).toBe(5 * 1024 * 1024);
+    expect(SELLER_BANNER_MAX_BYTES).toBe(5 * 1024 * 1024);
+  });
+
   it("creates a managed key from the listing and MIME type", () => {
     expect(createListingImageKey(LISTING_ID, "image/jpeg", OLD_OBJECT_ID)).toBe(
       `listings/${LISTING_ID}/thumbnail/${OLD_OBJECT_ID}.jpg`

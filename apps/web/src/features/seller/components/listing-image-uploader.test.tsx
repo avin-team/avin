@@ -1,6 +1,5 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ListingImageUploader } from "./listing-image-uploader";
@@ -41,17 +40,19 @@ vi.mock("./listing-image-validation", () => ({
 
 vi.mock("@avin/ui/components/file-dropzone", () => ({
   FileDropzone: ({
+    className,
     inputLabel,
+    label,
     multiple,
     onFilesSelected,
-    renderTrigger,
   }: {
+    className?: string;
     inputLabel: string;
+    label?: string;
     multiple?: boolean;
     onFilesSelected: (files: File[]) => void;
-    renderTrigger?: (props: { open: () => void }) => ReactNode;
   }) => (
-    <div>
+    <div className={className} data-testid="file-dropzone">
       <input
         aria-label={inputLabel}
         multiple={multiple}
@@ -60,7 +61,7 @@ vi.mock("@avin/ui/components/file-dropzone", () => ({
         }}
         type="file"
       />
-      {renderTrigger?.({ open: () => undefined })}
+      <span>{label}</span>
     </div>
   ),
 }));
@@ -74,6 +75,28 @@ describe("ListingImageUploader", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+  });
+
+  it("renders the add-image dropzone as the final grid tile", () => {
+    render(
+      <ListingImageUploader
+        disabled={false}
+        images={["https://example.com/cover.png"]}
+        listingId="listing-1"
+        onDirty={vi.fn()}
+        onImageChange={vi.fn()}
+        thumbnailUrl="https://example.com/cover.png"
+      />
+    );
+
+    expect(screen.getByTestId("file-dropzone")).toHaveClass(
+      "aspect-video",
+      "min-h-0"
+    );
+    expect(screen.getByText("Thêm ảnh")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Thêm ảnh" })
+    ).not.toBeInTheDocument();
   });
 
   it("appends a batch of uploaded images in selection order", async () => {

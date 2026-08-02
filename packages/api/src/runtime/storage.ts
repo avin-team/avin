@@ -9,7 +9,9 @@ export interface ManagedObjectStore {
   supabaseUrl: string;
 }
 
-export const LISTING_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const SELLER_BRANDING_MAX_BYTES = 5 * 1024 * 1024;
+
+export const LISTING_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 export const LISTING_IMAGE_MAX_COUNT = 6;
 export const LISTING_IMAGE_MIN_HEIGHT = 600;
 export const LISTING_IMAGE_MIN_WIDTH = 800;
@@ -20,9 +22,9 @@ export const LISTING_IMAGE_CONTENT_TYPES = [
   "image/webp",
 ] as const;
 
-export const SELLER_LOGO_MAX_BYTES = LISTING_IMAGE_MAX_BYTES;
+export const SELLER_LOGO_MAX_BYTES = SELLER_BRANDING_MAX_BYTES;
 export const SELLER_LOGO_CONTENT_TYPES = LISTING_IMAGE_CONTENT_TYPES;
-export const SELLER_BANNER_MAX_BYTES = LISTING_IMAGE_MAX_BYTES;
+export const SELLER_BANNER_MAX_BYTES = SELLER_BRANDING_MAX_BYTES;
 export const SELLER_BANNER_CONTENT_TYPES = LISTING_IMAGE_CONTENT_TYPES;
 
 type ListingImageContentType = (typeof LISTING_IMAGE_CONTENT_TYPES)[number];

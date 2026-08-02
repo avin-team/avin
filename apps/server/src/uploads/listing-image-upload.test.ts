@@ -1,6 +1,7 @@
 import {
   LISTING_IMAGE_CONTENT_TYPES,
   LISTING_IMAGE_MAX_COUNT,
+  LISTING_IMAGE_MAX_BYTES,
   LISTING_IMAGE_UPLOAD_ROUTE,
 } from "@avin/api/storage";
 import { custom } from "@better-upload/server/clients";
@@ -67,6 +68,7 @@ describe("listing image upload route", () => {
     });
 
     expect(route.maxFiles).toBe(LISTING_IMAGE_MAX_COUNT);
+    expect(route.maxFileSize).toBe(LISTING_IMAGE_MAX_BYTES);
     expect(route.fileTypes).toEqual([...LISTING_IMAGE_CONTENT_TYPES]);
     expect(result?.generateObjectInfo).toBeDefined();
 
