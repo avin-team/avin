@@ -70,18 +70,15 @@ import {
   isListingEditorStepLocked,
   LISTING_EDITOR_STEP_ORDER,
 } from "./listing-editor-logic";
-import type { ListingEditorStepId } from "./listing-editor-logic";
+import type {
+  ListingEditorServiceInput,
+  ListingEditorStepId,
+} from "./listing-editor-logic";
 
 type ListingStatus = "DRAFT" | "HIDDEN" | "PAUSED" | "PUBLISHED" | "ARCHIVED";
 
-type ServiceInputFieldType = "file" | "number" | "text" | "url";
-
-interface ServiceInputField {
-  id: string;
-  key: string;
-  label: string;
+interface ServiceInputField extends ListingEditorServiceInput {
   required: boolean;
-  type: ServiceInputFieldType;
 }
 
 interface ListingEditorForm {
@@ -1231,23 +1228,21 @@ const ListingEditorFormPage = ({
   const [activeStepIndex, setActiveStepIndex] = useState(() =>
     isNew ? 0 : getFirstIncompleteEditorStepIndex(readinessItems)
   );
-  const isNewFormDirty =
-    isNew &&
-    !draftId &&
-    Boolean(
-      form.type ||
-      parentCategoryId ||
-      form.categoryId ||
-      form.title.trim() ||
-      form.description.trim() ||
-      form.priceAmount.trim() ||
-      form.processingTimeHours.trim() ||
-      form.images.length > 0 ||
-      form.thumbnailUrl.trim() ||
-      form.serviceInputFields.length > 0 ||
-      form.warrantyDurationHours.trim() ||
-      form.warrantyTerms.trim()
-    );
+  const hasNewListingContent = Boolean(
+    form.type ||
+    parentCategoryId ||
+    form.categoryId ||
+    form.title.trim() ||
+    form.description.trim() ||
+    form.priceAmount.trim() ||
+    form.processingTimeHours.trim() ||
+    form.images.length > 0 ||
+    form.thumbnailUrl.trim() ||
+    form.serviceInputFields.length > 0 ||
+    form.warrantyDurationHours.trim() ||
+    form.warrantyTerms.trim()
+  );
+  const isNewFormDirty = isNew && !draftId && hasNewListingContent;
   const createDraftMutation = useMutation(
     orpc.listing.sellerWorkspace.createDraft.mutationOptions({
       onError: () => {
@@ -1338,20 +1333,20 @@ const ListingEditorFormPage = ({
   );
 
   const activeStep = EDITOR_STEPS[activeStepIndex];
+  const isEditorStepLocked = (stepIndex: number): boolean =>
+    isListingEditorStepLocked(
+      isNew,
+      Boolean(draftId),
+      canCreateDraft,
+      stepIndex
+    );
   const stepIsComplete = (stepId: ListingEditorStepId) =>
     readinessItems
       .filter((item) => item.step === stepId)
       .every((item) => item.complete);
   const handleSelectStep = (stepId: ListingEditorStepId) => {
     const nextStepIndex = EDITOR_STEPS.findIndex((step) => step.id === stepId);
-    if (
-      isListingEditorStepLocked(
-        isNew,
-        Boolean(draftId),
-        canCreateDraft,
-        nextStepIndex
-      )
-    ) {
+    if (isEditorStepLocked(nextStepIndex)) {
       return;
     }
     setActiveStepIndex(nextStepIndex);
@@ -1513,6 +1508,18 @@ const ListingEditorFormPage = ({
     : STATUS_LABELS[listingStatus];
   const editorTitle =
     form.title || (isNew ? "Sản phẩm mới" : "Đặt tên sản phẩm");
+  const isActiveStepLocked = isEditorStepLocked(activeStepIndex);
+  const isActiveMediaBeforeDraft =
+    isNew && !draftId && activeStep.id === "media";
+  const isEditorStepDisabled =
+    isArchived ||
+    isActionPending ||
+    isActiveStepLocked ||
+    isActiveMediaBeforeDraft;
+  const isNextStepDisabled =
+    isActionPending ||
+    isEditorStepLocked(activeStepIndex + 1) ||
+    activeStepIndex === EDITOR_STEPS.length - 1;
   const handleStoreNavigation = (section: StoreSection) => {
     void handleNavigateFromEditor(section);
   };
@@ -1583,12 +1590,7 @@ const ListingEditorFormPage = ({
             {EDITOR_STEPS.map((step, index) => {
               const isActive = index === activeStepIndex;
               const isComplete = stepIsComplete(step.id);
-              const isLocked = isListingEditorStepLocked(
-                isNew,
-                Boolean(draftId),
-                canCreateDraft,
-                index
-              );
+              const isLocked = isEditorStepLocked(index);
               let stepIndicatorClass = "border-border text-muted-foreground";
               if (isComplete) {
                 stepIndicatorClass =
@@ -1713,17 +1715,7 @@ const ListingEditorFormPage = ({
                 <CardContent className="p-6 sm:p-8">
                   <EditorStepContent
                     categories={categoryOptions}
-                    disabled={
-                      isArchived ||
-                      isActionPending ||
-                      isListingEditorStepLocked(
-                        isNew,
-                        Boolean(draftId),
-                        canCreateDraft,
-                        activeStepIndex
-                      ) ||
-                      (isNew && !draftId && activeStep.id === "media")
-                    }
+                    disabled={isEditorStepDisabled}
                     editorForm={editorForm}
                     form={form}
                     onAddInputField={handleAddInputField}
@@ -1747,16 +1739,7 @@ const ListingEditorFormPage = ({
                     Quay lại
                   </Button>
                   <Button
-                    disabled={
-                      isActionPending ||
-                      isListingEditorStepLocked(
-                        isNew,
-                        Boolean(draftId),
-                        canCreateDraft,
-                        activeStepIndex + 1
-                      ) ||
-                      activeStepIndex === EDITOR_STEPS.length - 1
-                    }
+                    disabled={isNextStepDisabled}
                     onClick={() =>
                       setActiveStepIndex((index) =>
                         Math.min(index + 1, EDITOR_STEPS.length - 1)
