@@ -2,6 +2,7 @@ import { Badge } from "@avin/ui/components/badge";
 import { Button } from "@avin/ui/components/button";
 import { SidebarTrigger } from "@avin/ui/components/sidebar";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import {
   AlertCircle,
   BarChart3,
@@ -241,27 +242,31 @@ const MockProductRow = ({ product }: { product: MockProduct }) => (
   </div>
 );
 
-const ProductPanel = () => (
-  <section className="rounded-2xl border border-border bg-card p-6">
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <p className="text-lg font-semibold">Sản phẩm</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Mỗi sản phẩm là một thứ bạn cung cấp cho khách hàng.
-        </p>
+const ProductPanel = () => {
+  const navigate = useNavigate({ from: "/seller/store" });
+
+  return (
+    <section className="rounded-2xl border border-border bg-card p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-lg font-semibold">Sản phẩm</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Mỗi sản phẩm là một thứ bạn cung cấp cho khách hàng.
+          </p>
+        </div>
+        <Button onClick={() => void navigate({ to: "/seller/listings" })}>
+          <Plus />
+          Thêm sản phẩm
+        </Button>
       </div>
-      <Button>
-        <Plus />
-        Thêm sản phẩm
-      </Button>
-    </div>
-    <div className="mt-4 divide-y divide-border/60">
-      {MOCK_PRODUCTS.map((product) => (
-        <MockProductRow key={product.name} product={product} />
-      ))}
-    </div>
-  </section>
-);
+      <div className="mt-4 divide-y divide-border/60">
+        {MOCK_PRODUCTS.map((product) => (
+          <MockProductRow key={product.name} product={product} />
+        ))}
+      </div>
+    </section>
+  );
+};
 
 const StoreContent = ({ active }: { active: StoreSection }) => {
   if (active === "profile") {
