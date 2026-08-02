@@ -469,66 +469,44 @@ export const getWalletTransactions = async (
         )
       )
     : undefined;
-  const depositCursorCondition = decodedCursor
+  const depositEventCursorCondition = decodedCursor
     ? or(
-        lt(depositRequest.createdAt, decodedCursor.createdAt),
+        lt(sepayPaymentEvent.transactionAt, decodedCursor.createdAt),
         and(
-          eq(depositRequest.createdAt, decodedCursor.createdAt),
-          lt(depositRequest.id, decodedCursor.id)
+          eq(sepayPaymentEvent.transactionAt, decodedCursor.createdAt),
+          lt(sepayPaymentEvent.id, decodedCursor.id)
         )
       )
     : undefined;
 
-  const pendingDepositQuery = (() => {
-    const observedEventStatuses = ["RECEIVED", "UNMATCHED"] as const;
-    const observedEventCondition = () =>
+  const observedDepositStatuses = ["RECEIVED", "UNMATCHED"] as const;
+  const observedDepositQuery = executor
+    .select({
+      amount: sepayPaymentEvent.amount,
+      createdAt: sepayPaymentEvent.transactionAt,
+      currency: sepayPaymentEvent.currency,
+      eventId: sepayPaymentEvent.id,
+      eventPaymentCode: sepayPaymentEvent.paymentCode,
+      eventStatus: sepayPaymentEvent.status,
+      id: depositRequest.id,
+      requestPaymentCode: depositRequest.paymentCode,
+      transferType: sepayPaymentEvent.transferType,
+    })
+    .from(sepayPaymentEvent)
+    .innerJoin(
+      depositRequest,
+      eq(sepayPaymentEvent.depositRequestId, depositRequest.id)
+    )
+    .where(
       and(
-        eq(sepayPaymentEvent.depositRequestId, depositRequest.id),
-        inArray(sepayPaymentEvent.status, observedEventStatuses)
-      );
-    const latestObservedEvent = executor
-      .select({
-        amount: sepayPaymentEvent.amount,
-        id: sepayPaymentEvent.id,
-        status: sepayPaymentEvent.status,
-      })
-      .from(sepayPaymentEvent)
-      .where(observedEventCondition())
-      .orderBy(
-        desc(sepayPaymentEvent.transactionAt),
-        desc(sepayPaymentEvent.id)
+        inArray(sepayPaymentEvent.status, observedDepositStatuses),
+        inArray(depositRequest.status, ["PENDING", "CREDITED"]),
+        eq(depositRequest.userId, userId),
+        depositEventCursorCondition
       )
-      .limit(1)
-      .as("latest_observed_wallet_deposit");
-    const hasObservedEvent = exists(
-      executor
-        .select({ id: sepayPaymentEvent.id })
-        .from(sepayPaymentEvent)
-        .where(observedEventCondition())
-    );
-
-    return executor
-      .select({
-        amount: latestObservedEvent.amount,
-        createdAt: depositRequest.createdAt,
-        eventId: latestObservedEvent.id,
-        eventStatus: latestObservedEvent.status,
-        id: depositRequest.id,
-        paymentCode: depositRequest.paymentCode,
-        requestStatus: depositRequest.status,
-      })
-      .from(depositRequest)
-      .where(
-        and(
-          inArray(depositRequest.status, ["PENDING", "CREDITED"]),
-          eq(depositRequest.userId, userId),
-          depositCursorCondition,
-          hasObservedEvent
-        )
-      )
-      .orderBy(desc(depositRequest.createdAt), desc(depositRequest.id))
-      .limit(DEPOSIT_HISTORY_PAGE_SIZE + 1);
-  })();
+    )
+    .orderBy(desc(sepayPaymentEvent.transactionAt), desc(sepayPaymentEvent.id))
+    .limit(DEPOSIT_HISTORY_PAGE_SIZE + 1);
 
   const hasAvailablePosting = exists(
     executor
@@ -588,7 +566,7 @@ export const getWalletTransactions = async (
         )
         .orderBy(desc(ledgerTransaction.createdAt), desc(ledgerTransaction.id))
         .limit(DEPOSIT_HISTORY_PAGE_SIZE + 1),
-      pendingDepositQuery,
+      observedDepositQuery,
       executor
         .select({
           amount: ledgerTransaction.amount,
@@ -652,15 +630,12 @@ export const getWalletTransactions = async (
   const pendingDepositCandidates: WalletHistoryCandidate[] =
     pendingDepositRows.map((row) => ({
       createdAt: row.createdAt,
-      cursorId: row.id,
+      cursorId: row.eventId,
       item: {
-        amount: row.amount,
-        currency: "VND",
-        id:
-          row.requestStatus === "CREDITED"
-            ? `deposit-event:${row.eventId}`
-            : `deposit:${row.id}`,
-        paymentReference: row.paymentCode,
+        amount: row.transferType === "out" ? -row.amount : row.amount,
+        currency: row.currency,
+        id: `deposit-event:${row.eventId}`,
+        paymentReference: row.eventPaymentCode ?? row.requestPaymentCode,
         resultingAvailableBalance: null,
         status: row.eventStatus === "UNMATCHED" ? "ATTENTION" : "PENDING",
         timestamp: row.createdAt.toISOString(),

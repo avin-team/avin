@@ -6,6 +6,7 @@ import { WalletPage } from "./wallet-page";
 
 interface MockWalletTransaction {
   amount: number;
+  currency: string;
   id: string;
   paymentReference: string;
   resultingAvailableBalance: number | null;
@@ -119,6 +120,7 @@ describe("WalletPage", () => {
       items: [
         {
           amount: 50_000,
+          currency: "VND",
           id: "deposit:request-1",
           paymentReference: "AVABC123456789",
           resultingAvailableBalance: 99_000,
@@ -141,6 +143,7 @@ describe("WalletPage", () => {
       items: [
         {
           amount: 50_000,
+          currency: "VND",
           id: "deposit:request-1",
           paymentReference: "AVABC123456789",
           resultingAvailableBalance: null,
@@ -160,6 +163,7 @@ describe("WalletPage", () => {
       items: [
         {
           amount: 50_000,
+          currency: "VND",
           id: "deposit:request-1",
           paymentReference: "AVABC123456789",
           resultingAvailableBalance: 99_000,

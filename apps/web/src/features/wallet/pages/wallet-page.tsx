@@ -22,6 +22,7 @@ import {
 
 interface WalletTransaction {
   amount: number;
+  currency: string;
   id: string;
   paymentReference: string;
   resultingAvailableBalance: number | null;
@@ -35,6 +36,7 @@ const unavailableBalance = (
 );
 const balanceSkeleton = <Skeleton className="h-9 w-44" />;
 const TRANSACTION_REFRESH_INTERVAL_MS = 3000;
+const transactionNumberFormatter = new Intl.NumberFormat("vi-VN");
 
 const transactionStatusLabels = {
   ATTENTION: "Cần kiểm tra",
@@ -80,6 +82,14 @@ const getTransactionAmountClassName = (
     return "font-semibold text-emerald-500";
   }
   return "font-semibold text-foreground";
+};
+
+const formatTransactionAmount = (transaction: WalletTransaction): string => {
+  const amount = Math.abs(transaction.amount);
+  if (transaction.currency === "VND") {
+    return formatVND(amount);
+  }
+  return `${transactionNumberFormatter.format(amount)} ${transaction.currency}`;
 };
 
 const getTransactionBalanceLabel = (transaction: WalletTransaction): string => {
@@ -250,7 +260,7 @@ export const WalletPage = () => {
             <div className="text-left sm:text-right">
               <p className={getTransactionAmountClassName(transaction)}>
                 {transaction.amount >= 0 ? "+" : "−"}
-                {formatVND(Math.abs(transaction.amount))}
+                {formatTransactionAmount(transaction)}
               </p>
               <p className="text-xs text-muted-foreground">
                 {getTransactionBalanceLabel(transaction)}
