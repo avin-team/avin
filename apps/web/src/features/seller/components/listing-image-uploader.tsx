@@ -8,7 +8,6 @@ import { env } from "@avin/env/web";
 import { Button } from "@avin/ui/components/button";
 import type { FileDropzoneProps } from "@avin/ui/components/file-dropzone";
 import { FileDropzone } from "@avin/ui/components/file-dropzone";
-import { Progress } from "@avin/ui/components/progress";
 import { useUploadFiles } from "@better-upload/client";
 import { ArrowLeft, ArrowRight, RefreshCw, Trash2, Undo2 } from "lucide-react";
 import { useState } from "react";
@@ -433,27 +432,6 @@ export const ListingImageUploader = ({
             <Undo2 />
             Hoàn tác
           </Button>
-        </div>
-      ) : null}
-
-      {upload.isPending && upload.progresses.length > 0 ? (
-        <div
-          aria-live="polite"
-          className="space-y-2 rounded-xl bg-muted/40 p-3"
-        >
-          {upload.progresses.map((progress) => (
-            <div className="space-y-1" key={getFileKey(progress.raw)}>
-              <div className="flex items-center justify-between gap-2 text-xs">
-                <span className="truncate text-foreground">
-                  {progress.name}
-                </span>
-                <span className="text-muted-foreground">
-                  {Math.round(progress.progress * 100)}%
-                </span>
-              </div>
-              <Progress value={progress.progress * 100} />
-            </div>
-          ))}
         </div>
       ) : null}
 

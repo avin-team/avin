@@ -17,12 +17,15 @@ const LISTING_ID = "11111111-1111-4111-8111-111111111111";
 const SELLER_ID = "seller_123";
 const OLD_OBJECT_ID = "22222222-2222-4222-8222-222222222222";
 const NEW_OBJECT_ID = "33333333-3333-4333-8333-333333333333";
+const BYTES_PER_MEGABYTE = 1024 * 1024;
+const EXPECTED_LISTING_IMAGE_MAX_BYTES = 10 * BYTES_PER_MEGABYTE;
+const EXPECTED_SELLER_BRANDING_MAX_BYTES = 5 * BYTES_PER_MEGABYTE;
 
 describe("listing image storage helpers", () => {
   it("allows larger listing images without changing seller branding limits", () => {
-    expect(LISTING_IMAGE_MAX_BYTES).toBe(10 * 1024 * 1024);
-    expect(SELLER_LOGO_MAX_BYTES).toBe(5 * 1024 * 1024);
-    expect(SELLER_BANNER_MAX_BYTES).toBe(5 * 1024 * 1024);
+    expect(LISTING_IMAGE_MAX_BYTES).toBe(EXPECTED_LISTING_IMAGE_MAX_BYTES);
+    expect(SELLER_LOGO_MAX_BYTES).toBe(EXPECTED_SELLER_BRANDING_MAX_BYTES);
+    expect(SELLER_BANNER_MAX_BYTES).toBe(EXPECTED_SELLER_BRANDING_MAX_BYTES);
   });
 
   it("creates a managed key from the listing and MIME type", () => {
