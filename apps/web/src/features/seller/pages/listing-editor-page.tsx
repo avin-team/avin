@@ -54,7 +54,7 @@ import {
   Trash2,
   Wrench,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 
@@ -133,7 +133,6 @@ type SaveStatus = "error" | "saved" | "saving" | "unsaved";
 
 const MAX_LONG_TEXT_LENGTH = 10_000;
 const MAX_TITLE_LENGTH = 200;
-const NEW_DRAFT_CREATION_DELAY_MS = 250;
 
 const EDITOR_STEP_COPY: Record<
   ListingEditorStepId,
@@ -203,7 +202,7 @@ const getSaveStatusLabel = (status: SaveStatus): string => {
   if (status === "error") {
     return "Lưu thất bại";
   }
-  return "Đã lưu vừa xong";
+  return "Đã lưu";
 };
 
 const getNewSaveStatusLabel = (
@@ -232,6 +231,10 @@ const getEditorTypeLabel = (type: ListingEditorForm["type"]): string => {
   }
   return "Sản phẩm";
 };
+
+const isListingType = (
+  type: ListingEditorForm["type"]
+): type is "COURSE" | "SERVICE" => type === "COURSE" || type === "SERVICE";
 
 const parseInteger = (value: string): number | null => {
   const parsed = Number(value);
@@ -1218,6 +1221,10 @@ const ListingEditorFormPage = ({
     await enqueueSave({ id: draftId, ...buildUpdateInput(value) });
   });
   const form = useStore(editorForm.store, (state) => state.values);
+  const hasValidDraftType = isListingType(form.type);
+  const hasDraftCategory = Boolean(form.categoryId);
+  const canCreateDraft =
+    isNew && !draftId && hasValidDraftType && hasDraftCategory;
   const selectedCategory = categoryOptions.find(
     (category) => category.id === form.categoryId
   );
@@ -1245,15 +1252,9 @@ const ListingEditorFormPage = ({
       },
     })
   );
-  const createDraft = useCallback(async () => {
-    if (
-      !isNew ||
-      draftId ||
-      hasCreateAttempt ||
-      (form.type !== "COURSE" && form.type !== "SERVICE") ||
-      !form.categoryId
-    ) {
-      return;
+  const createDraft = useCallback(async (): Promise<boolean> => {
+    if (!canCreateDraft || hasCreateAttempt || !isListingType(form.type)) {
+      return false;
     }
 
     setHasCreateAttempt(true);
@@ -1277,16 +1278,17 @@ const ListingEditorFormPage = ({
         replace: true,
         to: "/seller/listings/$id",
       });
+      return true;
     } catch {
       // The mutation's error handler keeps the form available for retry.
+      return false;
     }
   }, [
     createDraftMutation,
-    draftId,
     editorForm,
     form,
     hasCreateAttempt,
-    isNew,
+    canCreateDraft,
     navigate,
     queryClient,
     selectedCategory,
@@ -1329,51 +1331,6 @@ const ListingEditorFormPage = ({
       },
     })
   );
-
-  useEffect(() => {
-    if (isNew) {
-      if (!draftId && saveStatus !== "error" && form.type && form.categoryId) {
-        const timeoutId = window.setTimeout(() => {
-          void createDraft();
-        }, NEW_DRAFT_CREATION_DELAY_MS);
-        return () => window.clearTimeout(timeoutId);
-      }
-      return;
-    }
-
-    if (isArchived || !draftId) {
-      return;
-    }
-
-    const canPersistPublishedForm = !isPublished || isReadyToPublish;
-    if (!canPersistPublishedForm) {
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setSaveStatus("saving");
-      const persistAutosave = async (): Promise<void> => {
-        try {
-          await enqueueSave({ id: draftId, ...buildUpdateInput(form) });
-        } catch {
-          // The mutation's error handler provides feedback to the seller.
-        }
-      };
-      void persistAutosave();
-    }, 700);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [
-    createDraft,
-    draftId,
-    enqueueSave,
-    form,
-    isArchived,
-    isNew,
-    isPublished,
-    isReadyToPublish,
-    saveStatus,
-  ]);
 
   const activeStep = EDITOR_STEPS[activeStepIndex];
   const stepIsComplete = (stepId: ListingEditorStepId) =>
@@ -1423,6 +1380,18 @@ const ListingEditorFormPage = ({
     resumeMutation.isPending;
 
   const saveNow = async (): Promise<boolean> => {
+    if (isNew && !draftId) {
+      if (!hasValidDraftType) {
+        toast.error("Chọn loại sản phẩm trước khi lưu bản nháp.");
+        return false;
+      }
+      if (!hasDraftCategory) {
+        toast.error("Chọn danh mục con trước khi lưu bản nháp.");
+        return false;
+      }
+      return createDraft();
+    }
+
     if (!draftId) {
       return false;
     }
@@ -1451,35 +1420,36 @@ const ListingEditorFormPage = ({
     }
   };
 
+  const handleManualSave = async (): Promise<void> => {
+    try {
+      await saveNow();
+    } catch {
+      setSaveStatus("error");
+      toast.error("Không thể lưu thay đổi. Vui lòng thử lại.");
+    }
+  };
+
   const handleNavigateFromEditor = async (section: StoreSection) => {
     if (isActionPending) {
       toast.info("Đang lưu thay đổi…");
       return;
     }
 
-    if (isNew && !draftId) {
-      if (isNewFormDirty) {
-        pendingNavigationSectionRef.current = section;
-        setIsDiscardDialogOpen(true);
-        return;
-      }
-      await navigate({
-        search: { section },
-        to: "/seller/store",
-      });
+    const hasUnsavedChanges = saveStatus !== "saved";
+    const isEmptyNewListing = isNew && !draftId && !isNewFormDirty;
+    if (hasUnsavedChanges && !isEmptyNewListing) {
+      pendingNavigationSectionRef.current = section;
+      setIsDiscardDialogOpen(true);
       return;
     }
 
     try {
-      if (saveStatus !== "saved" && !(await saveNow())) {
-        return;
-      }
       await navigate({
         search: { section },
         to: "/seller/store",
       });
     } catch {
-      // The mutation already surfaces the error to the seller.
+      toast.error("Không thể rời màn hình. Vui lòng thử lại.");
     }
   };
 
@@ -1510,6 +1480,17 @@ const ListingEditorFormPage = ({
     listingStatus === "PAUSED" ? "Đăng bán lại" : "Đăng bán sản phẩm";
   const primaryActionAvailable =
     listingStatus === "DRAFT" || listingStatus === "PAUSED";
+  let saveButtonLabel = "Lưu thay đổi";
+  if (isNew && !draftId) {
+    saveButtonLabel = "Lưu bản nháp";
+  } else if (listingStatus === "DRAFT") {
+    saveButtonLabel = "Lưu bản nháp";
+  }
+  const saveButtonDisabled =
+    isActionPending ||
+    isArchived ||
+    saveStatus === "saved" ||
+    (isNew && !draftId && !canCreateDraft);
   const saveIndicatorClass = getSaveIndicatorClass(saveStatus);
   const saveStatusLabel = getNewSaveStatusLabel(saveStatus, isNew, draftId);
   const editorTypeLabel = isNew
@@ -1577,8 +1558,8 @@ const ListingEditorFormPage = ({
                 {editorTitle}
               </h1>
               <p className="text-sm leading-6 text-muted-foreground">
-                Hoàn thiện từng bước theo tốc độ của bạn. Thay đổi sẽ được tự
-                động lưu.
+                Hoàn thiện từng bước theo tốc độ của bạn. Bấm “Lưu” khi muốn giữ
+                lại thay đổi.
               </p>
             </div>
           </header>
@@ -1708,7 +1689,7 @@ const ListingEditorFormPage = ({
                     </div>
                     <div className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
                       <Clock3 className="size-3.5 text-primary" />
-                      Tự động lưu
+                      Lưu thủ công
                     </div>
                   </div>
                 </CardHeader>
@@ -1781,7 +1762,7 @@ const ListingEditorFormPage = ({
                   <div className="flex items-center gap-2 rounded-xl bg-muted/50 p-3">
                     <FileCheck2 className="size-4 shrink-0 text-primary" />
                     {isPublished
-                      ? "Thay đổi của sản phẩm đang bán được tự động lưu."
+                      ? "Thay đổi chỉ được lưu khi bạn bấm Lưu thay đổi."
                       : "Bạn có thể quay lại bất kỳ bước nào sau."}
                   </div>
                 </CardContent>
@@ -1795,6 +1776,14 @@ const ListingEditorFormPage = ({
               {saveStatusLabel}
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button
+                disabled={saveButtonDisabled}
+                onClick={() => void handleManualSave()}
+                variant="outline"
+              >
+                <Save />
+                {saveStatus === "saving" ? "Đang lưu…" : saveButtonLabel}
+              </Button>
               <Button
                 disabled={isActionPending || isArchived}
                 onClick={() => void handleReturnToProducts()}
@@ -1836,10 +1825,9 @@ const ListingEditorFormPage = ({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Bỏ sản phẩm mới?</AlertDialogTitle>
+            <AlertDialogTitle>Rời đi khi chưa lưu?</AlertDialogTitle>
             <AlertDialogDescription>
-              Những thông tin này chưa được lưu và sẽ bị mất nếu bạn rời khỏi
-              màn hình.
+              Những thay đổi chưa được lưu sẽ bị mất nếu bạn rời khỏi màn hình.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
