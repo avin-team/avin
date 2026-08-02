@@ -1,8 +1,10 @@
+import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 
 import {
   getListingIdentifierCandidates,
   isListingPubliclyAvailable,
+  sellerIsNotEnforcedCondition,
 } from "./listing-discovery";
 
 describe("public listing identifier lookup", () => {
@@ -33,5 +35,14 @@ describe("public Listing visibility", () => {
     expect(isListingPubliclyAvailable("PUBLISHED", "HIDDEN", "ACTIVE")).toBe(
       false
     );
+  });
+
+  it("correlates seller enforcement against the listing seller id", () => {
+    const { sql: query } = new PgDialect().sqlToQuery(
+      sellerIsNotEnforcedCondition(new Date("2026-08-02T10:00:00.000Z"))
+    );
+
+    expect(query).toContain('seller_account."id" = "listing"."seller_id"');
+    expect(query).not.toContain('"listing"."id" = "listing"."seller_id"');
   });
 });

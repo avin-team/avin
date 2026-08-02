@@ -27,6 +27,21 @@ export const isListingPubliclyAvailable = (
   categoryStatus === "ACTIVE" &&
   parentCategoryStatus === "ACTIVE";
 
+export const sellerIsNotEnforcedCondition = (now = new Date()) => sql`
+  NOT EXISTS (
+    SELECT 1
+    FROM "user" AS seller_account
+    WHERE seller_account."id" = ${listing.sellerId}
+      AND (
+        seller_account."banned" = true
+        OR (
+          seller_account."ban_expires" IS NOT NULL
+          AND seller_account."ban_expires" > ${now}
+        )
+      )
+  )
+`;
+
 export const listingDiscoveryRouter = {
   categories: publicProcedure.handler(async () => {
     // Only return ACTIVE parents and ACTIVE sub-categories for public buyers
@@ -163,18 +178,7 @@ export const listingDiscoveryRouter = {
     .handler(async ({ input }) => {
       const conditions = [
         eq(listing.status, "PUBLISHED"),
-        sql`NOT EXISTS (
-          SELECT 1
-          FROM ${userTable}
-          WHERE ${userTable.id} = ${listing.sellerId}
-            AND (
-              ${userTable.banned} = true
-              OR (
-                ${userTable.banExpires} IS NOT NULL
-                AND ${userTable.banExpires} > ${new Date()}
-              )
-            )
-        )`,
+        sellerIsNotEnforcedCondition(),
       ];
 
       if (input.type) {
