@@ -154,12 +154,11 @@ export const WalletPage = () => {
     ) ?? false;
   const summaryQuery = useQuery({
     ...walletSummaryQueryOptions(),
-    refetchInterval:
-      hasRefreshableTransaction && !hasLoadedAdditionalPages
-        ? TRANSACTION_REFRESH_INTERVAL_MS
-        : false,
+    refetchInterval: hasRefreshableTransaction
+      ? TRANSACTION_REFRESH_INTERVAL_MS
+      : false,
     refetchIntervalInBackground: false,
-    refetchOnWindowFocus: !hasLoadedAdditionalPages,
+    refetchOnWindowFocus: true,
   });
 
   const transactions = useMemo(
