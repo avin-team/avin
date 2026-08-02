@@ -4,30 +4,52 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@avin/ui/components/sidebar";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Store } from "lucide-react";
 
+import { orpc } from "@/utils/orpc";
+
 export const SellerAppTitle = () => {
   const { setOpenMobile } = useSidebar();
+  const profileQuery = useQuery(orpc.sellerStore.getProfile.queryOptions());
+  const profile = profileQuery.data?.profile;
+
+  const title = profile?.storefrontName || "Kênh bán hàng";
+  const description =
+    profile?.bio ||
+    (profile?.storeSlug ? `/${profile.storeSlug}` : "Không gian bán hàng");
 
   return (
     <SidebarMenu>
       <SidebarMenuItem>
         <SidebarMenuButton
-          className="gap-0 py-0 hover:bg-transparent active:bg-transparent"
+          className="gap-3 px-2 py-1 hover:bg-sidebar-accent/50 active:bg-sidebar-accent"
           render={<div />}
           size="lg"
         >
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <Store className="size-4" />
+          <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary text-primary-foreground">
+            {profile?.avatarUrl ? (
+              <img
+                alt={title}
+                className="size-full object-cover"
+                src={profile.avatarUrl}
+              />
+            ) : (
+              <Store className="size-5" />
+            )}
           </div>
           <Link
-            className="grid flex-1 text-start text-sm leading-tight"
+            className="grid flex-1 text-start leading-tight"
             onClick={() => setOpenMobile(false)}
             to="/seller/store"
           >
-            <span className="truncate font-bold">Kênh bán hàng</span>
-            <span className="truncate text-xs">Không gian bán hàng</span>
+            <span className="truncate text-sm font-bold text-sidebar-foreground">
+              {title}
+            </span>
+            <span className="truncate text-xs text-sidebar-foreground/70">
+              {description}
+            </span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>

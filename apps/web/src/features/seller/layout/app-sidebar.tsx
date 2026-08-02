@@ -9,6 +9,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@avin/ui/components/sidebar";
+import { Link } from "@tanstack/react-router";
 import { Eye, Store } from "lucide-react";
 
 import type { StoreSection } from "../data/store-mock-data";
@@ -33,7 +34,7 @@ export const SellerAppSidebar = ({
     <SidebarHeader>
       <SellerAppTitle />
     </SidebarHeader>
-    <SidebarContent>
+    <SidebarContent className="gap-1">
       {SELLER_NAV_GROUPS.map((props) => (
         <SellerNavGroup
           active={active}
@@ -47,7 +48,12 @@ export const SellerAppSidebar = ({
       <SidebarMenu>
         <SidebarMenuItem>
           <SidebarMenuButton
-            render={<button aria-label="Xem trang gian hàng" type="button" />}
+            render={
+              <Link
+                aria-label="Xem trang gian hàng"
+                to="/seller/store-preview"
+              />
+            }
             tooltip="Xem trang gian hàng"
           >
             <Eye />

@@ -18,7 +18,7 @@ import { Input } from "@avin/ui/components/input";
 import { Textarea } from "@avin/ui/components/textarea";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { ExternalLink, Eye, LoaderCircle, Store } from "lucide-react";
+import { Eye, LoaderCircle, Store } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -237,13 +237,6 @@ export const StorefrontPreviewCard = ({
   slug,
 }: StorefrontPreviewCardProps) => (
   <Card>
-    <CardHeader className="flex-row items-center justify-between gap-0">
-      <CardTitle className="text-base">Xem trước gian hàng</CardTitle>
-      <ExternalLink
-        className="size-4 text-muted-foreground"
-        data-icon="inline-end"
-      />
-    </CardHeader>
     <CardContent>
       <div className="overflow-hidden rounded-xl border border-border">
         <div className="relative flex h-28 items-center justify-center overflow-hidden bg-gradient-to-br from-primary/30 via-primary/10 to-muted text-sm font-bold tracking-wide">

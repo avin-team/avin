@@ -1,6 +1,5 @@
 import {
   BarChart3,
-  Code2,
   Landmark,
   LayoutDashboard,
   Package,
@@ -21,7 +20,6 @@ export const SELLER_NAV_GROUPS: SellerNavGroup[] = [
       {
         icon: UserRound,
         label: "Hồ sơ gian hàng",
-        needsAttention: true,
         value: "profile",
       },
     ],
@@ -39,9 +37,5 @@ export const SELLER_NAV_GROUPS: SellerNavGroup[] = [
   {
     items: [{ icon: Landmark, label: "Tài chính", value: "finance" }],
     title: "Tài chính",
-  },
-  {
-    items: [{ icon: Code2, label: "Nhà phát triển", value: "developer" }],
-    title: "Nhà phát triển",
   },
 ];

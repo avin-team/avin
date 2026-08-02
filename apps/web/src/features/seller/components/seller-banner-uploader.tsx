@@ -8,7 +8,7 @@ import { Button } from "@avin/ui/components/button";
 import { FileDropzone } from "@avin/ui/components/file-dropzone";
 import type { FileDropzoneProps } from "@avin/ui/components/file-dropzone";
 import { useUploadFile } from "@better-upload/client";
-import { ImagePlus, LoaderCircle, RefreshCw, Trash2 } from "lucide-react";
+import { LoaderCircle, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 export interface SellerBannerValue {
@@ -113,7 +113,6 @@ export const SellerBannerUploader = ({
     accept: ACCEPTED_IMAGE_TYPES,
     disabled,
     error: errorMessage,
-    helperText: "PNG, JPG hoặc WebP · tối đa 5MB",
     inputLabel: "Chọn banner gian hàng",
     isUploading: upload.isPending,
     maxFiles: 1,
@@ -187,12 +186,6 @@ export const SellerBannerUploader = ({
           {...dropzoneProps}
           className="aspect-[2.4/1] min-h-0 p-3"
           label="Thêm banner"
-          renderTrigger={({ open }) => (
-            <Button disabled={isDisabled} onClick={open} type="button">
-              <ImagePlus data-icon="inline-start" />
-              Thêm banner
-            </Button>
-          )}
         />
       )}
     </div>

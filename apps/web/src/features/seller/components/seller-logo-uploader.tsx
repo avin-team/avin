@@ -113,7 +113,6 @@ export const SellerLogoUploader = ({
     accept: ACCEPTED_IMAGE_TYPES,
     disabled,
     error: errorMessage,
-    helperText: "PNG, JPG hoặc WebP · tối đa 5MB",
     inputLabel: "Chọn logo gian hàng",
     isUploading: upload.isPending,
     maxFiles: 1,
