@@ -1,0 +1,644 @@
+import { Button } from "@avin/ui/components/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@avin/ui/components/card";
+import { Field, FieldError, FieldLabel } from "@avin/ui/components/field";
+import { Input } from "@avin/ui/components/input";
+import { Skeleton } from "@avin/ui/components/skeleton";
+import { useForm } from "@tanstack/react-form";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Clock3,
+  LockKeyhole,
+  Trash2,
+} from "lucide-react";
+import type { ReactNode } from "react";
+import { useRef, useState } from "react";
+import { toast } from "sonner";
+import { z } from "zod";
+
+import { Shell } from "@/components/shell";
+import {
+  walletSummaryQueryOptions,
+  walletTransactionsQueryOptions,
+} from "@/features/wallet/api/wallet-api";
+import { formatVND } from "@/utils/format";
+import { orpc } from "@/utils/orpc";
+
+type InputRecord = Record<string, unknown>;
+type InputValues = Record<string, InputRecord>;
+
+const EMPTY_INPUT_RECORD: InputRecord = {};
+const EMPTY_INPUT_VALUES: InputValues = {};
+const checkoutInputValuesSchema = z.record(
+  z.string(),
+  z.record(z.string(), z.unknown())
+);
+
+interface CartField {
+  id: string;
+  key: string;
+  label: string;
+  required: boolean;
+  type: "file" | "number" | "text" | "url";
+}
+
+interface CartItem {
+  available: boolean;
+  cartItemId: string;
+  contractFingerprint: string | null;
+  listing: {
+    id: string;
+    priceAmount: number | null;
+    processingTimeHours: number | null;
+    serviceInputFields: CartField[];
+    slug: string;
+    thumbnailUrl: string | null;
+    title: string | null;
+    type: "COURSE" | "SERVICE";
+    warrantyDurationHours: number | null;
+  };
+  selected: boolean;
+  seller: {
+    id: string;
+    image: string | null;
+    name: string;
+  };
+}
+
+const getInputValue = (inputValues: InputRecord, fieldKey: string): unknown =>
+  inputValues[fieldKey] ?? "";
+
+const isInputRecord = (value: unknown): value is InputRecord =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const getInputDisplayValue = (
+  field: CartField,
+  value: unknown
+): string | number => {
+  if (typeof value === "string" || typeof value === "number") {
+    return value;
+  }
+
+  if (
+    field.type === "file" &&
+    typeof value === "object" &&
+    value !== null &&
+    "fileId" in value &&
+    typeof value.fileId === "string"
+  ) {
+    return value.fileId;
+  }
+
+  return "";
+};
+
+const getInputPlaceholder = (field: CartField): string => {
+  if (field.type === "file") {
+    return "Nhập fileId đã tải lên";
+  }
+  if (field.type === "url") {
+    return "https://...";
+  }
+  return field.label;
+};
+
+const getInputChangeValue = (field: CartField, value: string): unknown => {
+  if (field.type === "number") {
+    return value === "" ? undefined : Number(value);
+  }
+  if (field.type === "file") {
+    return value === "" ? undefined : { fileId: value };
+  }
+  return value;
+};
+
+const validateRequiredInputFields = (
+  fields: CartField[],
+  value: unknown
+): string | undefined => {
+  const inputValues = isInputRecord(value) ? value : EMPTY_INPUT_RECORD;
+  for (const field of fields) {
+    if (!field.required) {
+      continue;
+    }
+
+    const inputValue = inputValues[field.key];
+    const hasValue =
+      (typeof inputValue === "string" && inputValue.trim().length > 0) ||
+      (typeof inputValue === "number" && Number.isFinite(inputValue)) ||
+      (typeof inputValue === "object" &&
+        inputValue !== null &&
+        "fileId" in inputValue &&
+        typeof inputValue.fileId === "string" &&
+        inputValue.fileId.trim().length > 0);
+    if (!hasValue) {
+      return `${field.label} là bắt buộc.`;
+    }
+  }
+
+  return undefined;
+};
+
+const CartItemCard = ({
+  children,
+  item,
+  onRemove,
+  onToggle,
+  pending,
+}: {
+  children?: ReactNode;
+  item: CartItem;
+  onRemove: () => void;
+  onToggle: (selected: boolean) => void;
+  pending: boolean;
+}) => (
+  <Card className={item.selected ? "border-primary/40" : "opacity-80"}>
+    <CardContent className="space-y-5 p-5">
+      <div className="flex gap-4">
+        <input
+          aria-label={`Chọn ${item.listing.title ?? "Listing"}`}
+          checked={item.selected}
+          className="mt-1 size-4 accent-primary"
+          disabled={pending}
+          onChange={(event) => onToggle(event.target.checked)}
+          type="checkbox"
+        />
+        <div className="size-20 shrink-0 overflow-hidden rounded-xl bg-muted">
+          {item.listing.thumbnailUrl ? (
+            <img
+              alt={item.listing.title ?? "Listing"}
+              className="size-full object-cover"
+              src={item.listing.thumbnailUrl}
+            />
+          ) : (
+            <div className="flex size-full items-center justify-center text-xs text-muted-foreground">
+              {item.listing.type === "SERVICE" ? "Dịch vụ" : "Khóa học"}
+            </div>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <Link
+                className="font-semibold text-foreground hover:text-primary"
+                params={{ id: item.listing.slug }}
+                to="/listing/$id"
+              >
+                {item.listing.title ?? "Listing chưa đặt tên"}
+              </Link>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Người bán: {item.seller.name}
+              </p>
+            </div>
+            <p className="shrink-0 font-bold text-primary">
+              {formatVND(item.listing.priceAmount ?? 0)}
+            </p>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1">
+              <Clock3 className="size-3.5" />
+              {item.listing.processingTimeHours ?? "—"} giờ xử lý
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <LockKeyhole className="size-3.5" />
+              Escrow bảo vệ
+            </span>
+            {item.available ? (
+              <span className="text-emerald-600 dark:text-emerald-400">
+                Đang có thể mua
+              </span>
+            ) : (
+              <span className="text-destructive">Không còn khả dụng</span>
+            )}
+          </div>
+        </div>
+        <Button
+          aria-label={`Xóa ${item.listing.title ?? "Listing"} khỏi Cart`}
+          disabled={pending}
+          onClick={onRemove}
+          size="icon-sm"
+          type="button"
+          variant="ghost"
+        >
+          <Trash2 />
+        </Button>
+      </div>
+
+      {children}
+    </CardContent>
+  </Card>
+);
+
+const CheckoutSummary = ({
+  children,
+  hasMissingContract,
+  hasUnavailableSelected,
+  selectedCount,
+  totalAmount,
+}: {
+  children: ReactNode;
+  hasMissingContract: boolean;
+  hasUnavailableSelected: boolean;
+  selectedCount: number;
+  totalAmount: number;
+}) => (
+  <Card className="h-fit lg:sticky lg:top-24">
+    <CardHeader>
+      <CardTitle>Tóm tắt Checkout</CardTitle>
+      <CardDescription>{selectedCount} Listing được chọn</CardDescription>
+    </CardHeader>
+    <CardContent className="space-y-5">
+      <div className="flex items-center justify-between border-b border-border pb-4">
+        <span className="text-sm text-muted-foreground">Tạm tính</span>
+        <span className="text-xl font-bold text-primary">
+          {formatVND(totalAmount)}
+        </span>
+      </div>
+      <div className="space-y-2 text-xs text-muted-foreground">
+        <p className="flex items-center gap-2">
+          <CheckCircle2 className="size-4 text-emerald-500" />
+          Mỗi Seller nhận một Order riêng
+        </p>
+        <p className="flex items-center gap-2">
+          <LockKeyhole className="size-4 text-primary" />
+          Tiền chuyển từ Available sang Held atomically
+        </p>
+      </div>
+      {hasUnavailableSelected ? (
+        <p className="rounded-xl bg-destructive/10 p-3 text-xs text-destructive">
+          Bỏ chọn hoặc xóa Listing không còn khả dụng trước khi Checkout.
+        </p>
+      ) : null}
+      {hasMissingContract ? (
+        <p className="rounded-xl bg-destructive/10 p-3 text-xs text-destructive">
+          Cart cần được tải lại để xem lại contract hiện tại.
+        </p>
+      ) : null}
+      {children}
+    </CardContent>
+  </Card>
+);
+
+export const CartPage = () => {
+  const queryClient = useQueryClient();
+  const cartQuery = useQuery(orpc.commerce.cart.get.queryOptions());
+  const [contractChanged, setContractChanged] = useState(false);
+  const checkoutKey = useRef<string | null>(null);
+  const confirmationRequested = useRef(false);
+
+  const getCheckoutKey = (): string => {
+    if (checkoutKey.current === null) {
+      checkoutKey.current = crypto.randomUUID();
+    }
+    return checkoutKey.current;
+  };
+
+  const invalidateCart = async () => {
+    await queryClient.invalidateQueries({
+      queryKey: orpc.commerce.cart.get.queryOptions().queryKey,
+    });
+  };
+
+  const toggleMutation = useMutation({
+    ...orpc.commerce.cart.setSelected.mutationOptions(),
+    onSuccess: invalidateCart,
+    onError: (error) => {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Không thể cập nhật Cart. Vui lòng thử lại."
+      );
+    },
+  });
+  const removeMutation = useMutation({
+    ...orpc.commerce.cart.remove.mutationOptions(),
+    onSuccess: invalidateCart,
+    onError: (error) => {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Không thể xóa Listing khỏi Cart. Vui lòng thử lại."
+      );
+    },
+  });
+  const checkoutMutation = useMutation(
+    orpc.commerce.checkout.create.mutationOptions()
+  );
+
+  const cart = cartQuery.data;
+  const items = cart?.items ?? [];
+  const selectedItems = items.filter((item) => item.selected);
+  const hasUnavailableSelected = selectedItems.some((item) => !item.available);
+  const hasMissingContract = selectedItems.some(
+    (item) => item.contractFingerprint === null
+  );
+  const busy =
+    toggleMutation.isPending ||
+    removeMutation.isPending ||
+    checkoutMutation.isPending;
+
+  const submitCheckout = async (
+    inputValues: InputValues,
+    confirm = false
+  ): Promise<void> => {
+    if (!cart || selectedItems.length === 0) {
+      return;
+    }
+
+    try {
+      await checkoutMutation.mutateAsync({
+        confirmMaterialChanges: confirm,
+        idempotencyKey: getCheckoutKey(),
+        items: selectedItems.map((item) => ({
+          contractFingerprint: item.contractFingerprint ?? "0".repeat(64),
+          inputs: inputValues[item.listing.id] ?? {},
+          listingId: item.listing.id,
+        })),
+      });
+      checkoutKey.current = crypto.randomUUID();
+      setContractChanged(false);
+      await Promise.all([
+        invalidateCart(),
+        queryClient.invalidateQueries({
+          queryKey: walletSummaryQueryOptions().queryKey,
+        }),
+        queryClient.invalidateQueries({
+          queryKey: walletTransactionsQueryOptions().queryKey,
+        }),
+      ]);
+      toast.success("Checkout thành công. Tiền đã được giữ trong Escrow.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (message.includes("thay đổi")) {
+        setContractChanged(true);
+        return;
+      }
+      toast.error(message || "Không thể Checkout. Vui lòng thử lại.");
+    }
+  };
+
+  const checkoutForm = useForm({
+    defaultValues: EMPTY_INPUT_VALUES,
+    onSubmit: async ({ value }) => {
+      await submitCheckout(value, confirmationRequested.current);
+    },
+    validators: {
+      onSubmit: checkoutInputValuesSchema,
+    },
+  });
+
+  if (cartQuery.isPending) {
+    return (
+      <Shell variant="default">
+        <div className="space-y-4 py-8">
+          <Skeleton className="h-10 w-48" />
+          <Skeleton className="h-48 w-full" />
+          <Skeleton className="h-48 w-full" />
+        </div>
+      </Shell>
+    );
+  }
+
+  if (cartQuery.isError) {
+    return (
+      <Shell variant="default">
+        <div className="py-16 text-center">
+          <AlertCircle className="mx-auto size-10 text-destructive" />
+          <h1 className="mt-4 text-xl font-bold">Không thể tải Cart</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Vui lòng thử lại sau.
+          </p>
+          <Button className="mt-5" onClick={() => void cartQuery.refetch()}>
+            Thử lại
+          </Button>
+        </div>
+      </Shell>
+    );
+  }
+
+  return (
+    <Shell variant="default">
+      <div className="space-y-8 py-8">
+        <div>
+          <p className="text-sm font-medium text-primary">Mua sắm</p>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight">
+            Cart của bạn
+          </h1>
+          <p className="mt-2 text-muted-foreground">
+            Chọn Listing, nhập thông tin cần thiết và thanh toán được bảo vệ bởi
+            Escrow.
+          </p>
+        </div>
+
+        {items.length === 0 ? (
+          <Card>
+            <CardContent className="py-16 text-center">
+              <p className="text-lg font-semibold">Cart đang trống</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Thêm Listing từ Catalog để bắt đầu.
+              </p>
+              <Button className="mt-5" render={<Link to="/category" />}>
+                Khám phá dịch vụ
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <form
+            id="checkout-form"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              try {
+                await checkoutForm.handleSubmit();
+              } finally {
+                confirmationRequested.current = false;
+              }
+            }}
+          >
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+              <div className="space-y-4">
+                {items.map((item) => (
+                  <CartItemCard
+                    item={item}
+                    key={item.cartItemId}
+                    onRemove={() => {
+                      removeMutation.mutate({ listingId: item.listing.id });
+                    }}
+                    onToggle={(selected) => {
+                      toggleMutation.mutate({
+                        listingId: item.listing.id,
+                        selected,
+                      });
+                    }}
+                    pending={busy}
+                  >
+                    {item.selected &&
+                    item.available &&
+                    item.listing.serviceInputFields.length > 0 ? (
+                      <checkoutForm.Field
+                        name={item.listing.id}
+                        validators={{
+                          onSubmit: ({ value }) =>
+                            validateRequiredInputFields(
+                              item.listing.serviceInputFields,
+                              value
+                            ),
+                        }}
+                      >
+                        {(listingField) => {
+                          const inputValues = isInputRecord(
+                            listingField.state.value
+                          )
+                            ? listingField.state.value
+                            : EMPTY_INPUT_RECORD;
+                          const isInvalid =
+                            listingField.state.meta.isTouched &&
+                            !listingField.state.meta.isValid;
+
+                          return (
+                            <Field
+                              className="rounded-xl border border-border/70 bg-muted/20 p-4"
+                              data-invalid={isInvalid}
+                            >
+                              <div>
+                                <p className="text-sm font-semibold">
+                                  Thông tin cho Seller
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Các giá trị này sẽ được lưu riêng cho
+                                  OrderItem của Seller.
+                                </p>
+                              </div>
+                              {item.listing.serviceInputFields.map(
+                                (inputField) => {
+                                  const value = getInputValue(
+                                    inputValues,
+                                    inputField.key
+                                  );
+                                  const isNumber = inputField.type === "number";
+                                  return (
+                                    <Field key={inputField.id}>
+                                      <FieldLabel
+                                        htmlFor={`${item.listing.id}-${inputField.key}`}
+                                      >
+                                        {inputField.label}
+                                        {inputField.required ? (
+                                          <span className="text-destructive">
+                                            {" "}
+                                            *
+                                          </span>
+                                        ) : null}
+                                      </FieldLabel>
+                                      <Input
+                                        aria-invalid={isInvalid}
+                                        id={`${item.listing.id}-${inputField.key}`}
+                                        inputMode={
+                                          isNumber ? "numeric" : undefined
+                                        }
+                                        name={`${listingField.name}.${inputField.key}`}
+                                        onBlur={listingField.handleBlur}
+                                        onChange={(event) =>
+                                          listingField.handleChange({
+                                            ...inputValues,
+                                            [inputField.key]:
+                                              getInputChangeValue(
+                                                inputField,
+                                                event.target.value
+                                              ),
+                                          })
+                                        }
+                                        placeholder={getInputPlaceholder(
+                                          inputField
+                                        )}
+                                        type={isNumber ? "number" : "text"}
+                                        value={getInputDisplayValue(
+                                          inputField,
+                                          value
+                                        )}
+                                      />
+                                    </Field>
+                                  );
+                                }
+                              )}
+                              {isInvalid ? (
+                                <FieldError>
+                                  {listingField.state.meta.errors
+                                    .map(String)
+                                    .join(" ")}
+                                </FieldError>
+                              ) : null}
+                            </Field>
+                          );
+                        }}
+                      </checkoutForm.Field>
+                    ) : null}
+                  </CartItemCard>
+                ))}
+              </div>
+
+              <CheckoutSummary
+                hasMissingContract={hasMissingContract}
+                hasUnavailableSelected={hasUnavailableSelected}
+                selectedCount={selectedItems.length}
+                totalAmount={cart?.selectedTotalAmount ?? 0}
+              >
+                <checkoutForm.Subscribe
+                  selector={(state) => ({
+                    canSubmit: state.canSubmit,
+                    isSubmitting: state.isSubmitting,
+                  })}
+                >
+                  {({ canSubmit, isSubmitting }) => (
+                    <>
+                      {contractChanged ? (
+                        <div className="space-y-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
+                          <p className="text-xs text-amber-700 dark:text-amber-300">
+                            Một Listing đã thay đổi giá hoặc điều khoản. Bạn cần
+                            xác nhận contract mới trước khi tiền di chuyển.
+                          </p>
+                          <Button
+                            className="w-full"
+                            disabled={busy || isSubmitting}
+                            onClick={() => {
+                              confirmationRequested.current = true;
+                            }}
+                            type="submit"
+                          >
+                            Xác nhận contract mới
+                          </Button>
+                        </div>
+                      ) : null}
+                      <Button
+                        className="w-full"
+                        disabled={
+                          busy ||
+                          isSubmitting ||
+                          !canSubmit ||
+                          selectedItems.length === 0 ||
+                          hasUnavailableSelected ||
+                          hasMissingContract
+                        }
+                        size="lg"
+                        type="submit"
+                      >
+                        Checkout an toàn
+                      </Button>
+                    </>
+                  )}
+                </checkoutForm.Subscribe>
+              </CheckoutSummary>
+            </div>
+          </form>
+        )}
+      </div>
+    </Shell>
+  );
+};

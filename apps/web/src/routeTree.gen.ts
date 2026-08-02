@@ -20,6 +20,7 @@ import { Route as errors500RouteImport } from './routes/(errors)/500'
 import { Route as errors503RouteImport } from './routes/(errors)/503'
 import { Route as publicIndexRouteImport } from './routes/(public)/index'
 import { Route as AuthenticatedAiRouteImport } from './routes/_authenticated/ai'
+import { Route as AuthenticatedCartRouteImport } from './routes/_authenticated/cart'
 import { Route as AuthenticatedSecurityRouteImport } from './routes/_authenticated/security'
 import { Route as AuthenticatedTwoFactorRouteImport } from './routes/_authenticated/two-factor'
 import { Route as authSellerLoginRouteImport } from './routes/(auth)/seller/login'
@@ -85,6 +86,11 @@ const publicIndexRoute = publicIndexRouteImport.update({
 const AuthenticatedAiRoute = AuthenticatedAiRouteImport.update({
   id: '/ai',
   path: '/ai',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedCartRoute = AuthenticatedCartRouteImport.update({
+  id: '/cart',
+  path: '/cart',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedSecurityRoute = AuthenticatedSecurityRouteImport.update({
@@ -175,6 +181,7 @@ export interface FileRoutesByFullPath {
   '/500': typeof errors500Route
   '/503': typeof errors503Route
   '/ai': typeof AuthenticatedAiRoute
+  '/cart': typeof AuthenticatedCartRoute
   '/security': typeof AuthenticatedSecurityRoute
   '/two-factor': typeof AuthenticatedTwoFactorRoute
   '/seller/login': typeof authSellerLoginRoute
@@ -199,6 +206,7 @@ export interface FileRoutesByTo {
   '/500': typeof errors500Route
   '/503': typeof errors503Route
   '/ai': typeof AuthenticatedAiRoute
+  '/cart': typeof AuthenticatedCartRoute
   '/security': typeof AuthenticatedSecurityRoute
   '/two-factor': typeof AuthenticatedTwoFactorRoute
   '/seller/login': typeof authSellerLoginRoute
@@ -226,6 +234,7 @@ export interface FileRoutesById {
   '/(errors)/500': typeof errors500Route
   '/(errors)/503': typeof errors503Route
   '/_authenticated/ai': typeof AuthenticatedAiRoute
+  '/_authenticated/cart': typeof AuthenticatedCartRoute
   '/_authenticated/security': typeof AuthenticatedSecurityRoute
   '/_authenticated/two-factor': typeof AuthenticatedTwoFactorRoute
   '/(public)/': typeof publicIndexRoute
@@ -253,6 +262,7 @@ export interface FileRouteTypes {
     | '/500'
     | '/503'
     | '/ai'
+    | '/cart'
     | '/security'
     | '/two-factor'
     | '/seller/login'
@@ -277,6 +287,7 @@ export interface FileRouteTypes {
     | '/500'
     | '/503'
     | '/ai'
+    | '/cart'
     | '/security'
     | '/two-factor'
     | '/seller/login'
@@ -303,6 +314,7 @@ export interface FileRouteTypes {
     | '/(errors)/500'
     | '/(errors)/503'
     | '/_authenticated/ai'
+    | '/_authenticated/cart'
     | '/_authenticated/security'
     | '/_authenticated/two-factor'
     | '/(public)/'
@@ -408,6 +420,13 @@ declare module '@tanstack/react-router' {
       path: '/ai'
       fullPath: '/ai'
       preLoaderRoute: typeof AuthenticatedAiRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/cart': {
+      id: '/_authenticated/cart'
+      path: '/cart'
+      fullPath: '/cart'
+      preLoaderRoute: typeof AuthenticatedCartRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/security': {
@@ -561,6 +580,7 @@ const AuthenticatedSellerListingsRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAiRoute: typeof AuthenticatedAiRoute
+  AuthenticatedCartRoute: typeof AuthenticatedCartRoute
   AuthenticatedSecurityRoute: typeof AuthenticatedSecurityRoute
   AuthenticatedTwoFactorRoute: typeof AuthenticatedTwoFactorRoute
   AuthenticatedSellerListingsRoute: typeof AuthenticatedSellerListingsRouteWithChildren
@@ -573,6 +593,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAiRoute: AuthenticatedAiRoute,
+  AuthenticatedCartRoute: AuthenticatedCartRoute,
   AuthenticatedSecurityRoute: AuthenticatedSecurityRoute,
   AuthenticatedTwoFactorRoute: AuthenticatedTwoFactorRoute,
   AuthenticatedSellerListingsRoute:

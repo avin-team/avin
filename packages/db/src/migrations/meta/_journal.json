@@ -85,6 +85,13 @@
       "when": 1785664190660,
       "tag": "0011_calm_psylocke",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1785667278453,
+      "tag": "0012_bitter_boomer",
+      "breakpoints": true
     }
   ]
 }

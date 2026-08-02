@@ -527,6 +527,16 @@ export const creditDepositForEvent = async (
   }
 
   const accounts = await ensureWalletAccounts(executor, request.userId);
+  const [wallet] = await executor
+    .select()
+    .from(userWallet)
+    .where(eq(userWallet.id, accounts.wallet.id))
+    .for("update")
+    .limit(1);
+  if (!wallet) {
+    throw new Error("User wallet was not found");
+  }
+
   const transactionReference = createTransactionReference();
   const transaction = await recordBalancedLedgerTransaction(executor, {
     amount: event.amount,
@@ -552,7 +562,7 @@ export const creditDepositForEvent = async (
       availableBalance: sql`${userWallet.availableBalance} + ${event.amount}`,
       updatedAt: new Date(),
     })
-    .where(eq(userWallet.id, accounts.wallet.id))
+    .where(eq(userWallet.id, wallet.id))
     .returning({ availableBalance: userWallet.availableBalance });
 
   if (!updatedWallet) {

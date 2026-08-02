@@ -1,0 +1,158 @@
+import { describe, expect, it } from "vitest";
+
+import { checkoutInputSchema } from "./checkout-input";
+import {
+  fingerprintCheckoutRequest,
+  parseListingContract,
+  validateOrderCustomInputs,
+} from "./contracts";
+
+const listing = {
+  categoryId: "category-1",
+  description: "A useful service",
+  images: ["https://example.com/listing.png"],
+  priceAmount: 100_000,
+  processingTimeHours: 24,
+  sellerId: "seller-1",
+  serviceInputFields: [
+    {
+      id: "field-1",
+      key: "profile_link",
+      label: "Profile link",
+      required: true,
+      type: "url" as const,
+    },
+    {
+      id: "field-2",
+      key: "quantity",
+      label: "Quantity",
+      required: false,
+      type: "number" as const,
+    },
+  ],
+  slug: "useful-service",
+  thumbnailUrl: "https://example.com/listing.png",
+  title: "Useful service",
+  type: "SERVICE" as const,
+  warrantyDurationHours: 48,
+  warrantyTerms: "Fix defects during the warranty window.",
+};
+
+describe("Listing contract checkout helpers", () => {
+  it("fingerprints equivalent checkout input independent of item ordering", () => {
+    const first = fingerprintCheckoutRequest({
+      confirmMaterialChanges: false,
+      items: [
+        {
+          contractFingerprint: "a".repeat(64),
+          inputs: { name: "A" },
+          listingId: "listing-b",
+        },
+        {
+          contractFingerprint: "b".repeat(64),
+          inputs: { name: "B" },
+          listingId: "listing-a",
+        },
+      ],
+    });
+    const second = fingerprintCheckoutRequest({
+      confirmMaterialChanges: false,
+      items: [
+        {
+          contractFingerprint: "b".repeat(64),
+          inputs: { name: "B" },
+          listingId: "listing-a",
+        },
+        {
+          contractFingerprint: "a".repeat(64),
+          inputs: { name: "A" },
+          listingId: "listing-b",
+        },
+      ],
+    });
+
+    expect(first).toBe(second);
+  });
+
+  it("normalizes a Listing contract for a snapshot and review fingerprint", () => {
+    const parsed = parseListingContract(listing, "10.00");
+
+    expect(parsed.priceAmount).toBe(100_000);
+    expect(parsed.warrantyPolicy.durationHours).toBe(48);
+    expect(parsed.serviceInputFields.map((field) => field.key)).toEqual([
+      "profile_link",
+      "quantity",
+    ]);
+    expect(parsed.fingerprint).toMatch(/^[a-f0-9]{64}$/u);
+  });
+
+  it("rejects missing, undeclared, and incorrectly typed ServiceInputFields", () => {
+    expect(() =>
+      validateOrderCustomInputs(listing.serviceInputFields, {})
+    ).toThrow("Profile link");
+    expect(() =>
+      validateOrderCustomInputs(listing.serviceInputFields, {
+        profile_link: "https://example.com",
+        unknown: "value",
+      })
+    ).toThrow("not declared");
+    expect(() =>
+      validateOrderCustomInputs(listing.serviceInputFields, {
+        profile_link: "not a URL",
+      })
+    ).toThrow("invalid value");
+  });
+
+  it("returns validated inputs in Listing definition order", () => {
+    const inputs = validateOrderCustomInputs(listing.serviceInputFields, {
+      profile_link: "https://example.com",
+      quantity: 2,
+    });
+
+    expect(inputs).toEqual([
+      {
+        fieldKey: "profile_link",
+        fieldType: "url",
+        value: "https://example.com",
+      },
+      { fieldKey: "quantity", fieldType: "number", value: 2 },
+    ]);
+  });
+
+  it("rejects duplicate Listings and applies safe Checkout defaults", () => {
+    const listingId = "00000000-0000-4000-8000-000000000001";
+    const result = checkoutInputSchema.safeParse({
+      idempotencyKey: "checkout-key-123456",
+      items: [
+        {
+          contractFingerprint: "a".repeat(64),
+          listingId,
+        },
+        {
+          contractFingerprint: "b".repeat(64),
+          listingId,
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) {
+      return;
+    }
+    expect(result.error.issues).toContainEqual(
+      expect.objectContaining({ path: ["items", 1, "listingId"] })
+    );
+
+    const valid = checkoutInputSchema.parse({
+      idempotencyKey: "checkout-key-123456",
+      items: [
+        {
+          contractFingerprint: "a".repeat(64),
+          listingId,
+        },
+      ],
+    });
+    expect(valid.confirmMaterialChanges).toBe(false);
+    expect(valid.items[0]?.inputs).toEqual({});
+  });
+});

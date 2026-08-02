@@ -1,5 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
-import { Link, useParams } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import {
   AlertCircle,
   ArrowRight,
@@ -9,9 +9,11 @@ import {
   Clock,
   Home,
   ShieldCheck,
+  ShoppingCart,
   UserCheck,
   Wrench,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Shell } from "@/components/shell";
 import { formatVND } from "@/utils/format";
@@ -19,6 +21,8 @@ import { orpc } from "@/utils/orpc";
 
 export const ListingDetailPage = () => {
   const { id } = useParams({ from: "/(public)/listing/$id" });
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const listingQuery = useQuery(
     orpc.listing.discovery.listingById.queryOptions({
@@ -27,6 +31,22 @@ export const ListingDetailPage = () => {
   );
 
   const listing = listingQuery.data;
+  const addToCartMutation = useMutation({
+    ...orpc.commerce.cart.add.mutationOptions(),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: orpc.commerce.cart.get.queryOptions().queryKey,
+      });
+      await navigate({ to: "/cart" });
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Không thể thêm Listing vào Cart."
+      );
+    },
+  });
   const isService = listing?.type === "SERVICE";
   const parentCategory = listing?.category?.parentCategory;
   const subCategory = listing?.category;
@@ -248,9 +268,22 @@ export const ListingDetailPage = () => {
                   {/* Action CTA */}
                   <button
                     className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3.5 px-6 font-bold text-sm text-primary-foreground shadow-md transition-all hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/20 active:scale-[0.98]"
+                    disabled={addToCartMutation.isPending}
+                    onClick={() => {
+                      if (listing) {
+                        addToCartMutation.mutate({
+                          listingId: listing.id,
+                        });
+                      }
+                    }}
                     type="button"
                   >
-                    <span>Đặt hàng ngay</span>
+                    <ShoppingCart className="h-4 w-4" />
+                    <span>
+                      {addToCartMutation.isPending
+                        ? "Đang thêm..."
+                        : "Thêm vào Cart"}
+                    </span>
                     <ArrowRight className="h-4 w-4" />
                   </button>
 
