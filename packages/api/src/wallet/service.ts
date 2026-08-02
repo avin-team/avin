@@ -7,11 +7,24 @@ import {
   ledgerAccount,
   ledgerPosting,
   ledgerTransaction,
+  sepayPaymentEvent,
   userWallet,
   walletOutboxEvent,
 } from "@avin/db/schema/wallet";
 import { ORPCError } from "@orpc/server";
-import { and, count, desc, eq, gte, lt, or, sql } from "drizzle-orm";
+import {
+  and,
+  count,
+  desc,
+  eq,
+  exists,
+  gte,
+  inArray,
+  lt,
+  not,
+  or,
+  sql,
+} from "drizzle-orm";
 
 import { recordBalancedLedgerTransaction } from "./ledger";
 import type { WalletExecutor } from "./ledger";
@@ -64,8 +77,8 @@ export interface WalletTransactionView {
   currency: string;
   id: string;
   paymentReference: string;
-  resultingAvailableBalance: number;
-  status: "COMPLETED" | "REVERSED";
+  resultingAvailableBalance: number | null;
+  status: "ATTENTION" | "COMPLETED" | "PENDING" | "REVERSED";
   timestamp: string;
   type: string;
 }
@@ -81,6 +94,12 @@ export interface DepositCreditResult {
   transactionId: string;
   transactionReference: string;
   userId: string;
+}
+
+interface WalletHistoryCandidate {
+  createdAt: Date;
+  cursorId: string;
+  item: WalletTransactionView;
 }
 
 const PLATFORM_BANK_CLEARING_ACCOUNT_KEY = "PLATFORM_BANK_CLEARING";
@@ -441,7 +460,7 @@ export const getWalletTransactions = async (
     });
   }
 
-  const cursorCondition = decodedCursor
+  const transactionCursorCondition = decodedCursor
     ? or(
         lt(ledgerTransaction.createdAt, decodedCursor.createdAt),
         and(
@@ -450,57 +469,235 @@ export const getWalletTransactions = async (
         )
       )
     : undefined;
-  const rows = await executor
-    .select({
-      amount: ledgerTransaction.amount,
-      balanceAfter: ledgerPosting.balanceAfter,
-      createdAt: ledgerTransaction.createdAt,
-      creditAmount: ledgerPosting.creditAmount,
-      currency: ledgerTransaction.currency,
-      debitAmount: ledgerPosting.debitAmount,
-      id: ledgerTransaction.id,
-      reference: ledgerTransaction.reference,
-      type: ledgerTransaction.type,
-    })
-    .from(ledgerPosting)
-    .innerJoin(
-      ledgerTransaction,
-      eq(ledgerPosting.transactionId, ledgerTransaction.id)
-    )
-    .innerJoin(
-      ledgerAccount,
-      eq(ledgerPosting.ledgerAccountId, ledgerAccount.id)
-    )
-    .where(
-      and(
-        eq(ledgerAccount.userId, userId),
-        eq(ledgerAccount.accountType, "USER_WALLET_AVAILABLE"),
-        cursorCondition
+  const depositCursorCondition = decodedCursor
+    ? or(
+        lt(depositRequest.createdAt, decodedCursor.createdAt),
+        and(
+          eq(depositRequest.createdAt, decodedCursor.createdAt),
+          lt(depositRequest.id, decodedCursor.id)
+        )
       )
-    )
-    .orderBy(desc(ledgerTransaction.createdAt), desc(ledgerTransaction.id))
-    .limit(DEPOSIT_HISTORY_PAGE_SIZE + 1);
+    : undefined;
 
-  const hasNextPage = rows.length > DEPOSIT_HISTORY_PAGE_SIZE;
-  const pageRows = hasNextPage
-    ? rows.slice(0, DEPOSIT_HISTORY_PAGE_SIZE)
-    : rows;
+  const pendingDepositQuery = (() => {
+    const observedEventStatuses = ["RECEIVED", "UNMATCHED"] as const;
+    const observedEventCondition = () =>
+      and(
+        eq(sepayPaymentEvent.depositRequestId, depositRequest.id),
+        inArray(sepayPaymentEvent.status, observedEventStatuses)
+      );
+    const latestObservedEvent = executor
+      .select({
+        amount: sepayPaymentEvent.amount,
+        id: sepayPaymentEvent.id,
+        status: sepayPaymentEvent.status,
+      })
+      .from(sepayPaymentEvent)
+      .where(observedEventCondition())
+      .orderBy(
+        desc(sepayPaymentEvent.transactionAt),
+        desc(sepayPaymentEvent.id)
+      )
+      .limit(1)
+      .as("latest_observed_wallet_deposit");
+    const hasObservedEvent = exists(
+      executor
+        .select({ id: sepayPaymentEvent.id })
+        .from(sepayPaymentEvent)
+        .where(observedEventCondition())
+    );
+
+    return executor
+      .select({
+        amount: latestObservedEvent.amount,
+        createdAt: depositRequest.createdAt,
+        eventId: latestObservedEvent.id,
+        eventStatus: latestObservedEvent.status,
+        id: depositRequest.id,
+        paymentCode: depositRequest.paymentCode,
+        requestStatus: depositRequest.status,
+      })
+      .from(depositRequest)
+      .where(
+        and(
+          inArray(depositRequest.status, ["PENDING", "CREDITED"]),
+          eq(depositRequest.userId, userId),
+          depositCursorCondition,
+          hasObservedEvent
+        )
+      )
+      .orderBy(desc(depositRequest.createdAt), desc(depositRequest.id))
+      .limit(DEPOSIT_HISTORY_PAGE_SIZE + 1);
+  })();
+
+  const hasAvailablePosting = exists(
+    executor
+      .select({ id: ledgerPosting.id })
+      .from(ledgerPosting)
+      .innerJoin(
+        ledgerAccount,
+        eq(ledgerPosting.ledgerAccountId, ledgerAccount.id)
+      )
+      .where(
+        and(
+          eq(ledgerPosting.transactionId, ledgerTransaction.id),
+          eq(ledgerAccount.userId, userId),
+          eq(ledgerAccount.accountType, "USER_WALLET_AVAILABLE")
+        )
+      )
+  );
+
+  const [transactionRows, pendingDepositRows, heldOnlyRows] = await Promise.all(
+    [
+      executor
+        .select({
+          amount: ledgerTransaction.amount,
+          balanceAfter: ledgerPosting.balanceAfter,
+          createdAt: ledgerTransaction.createdAt,
+          creditAmount: ledgerPosting.creditAmount,
+          currency: ledgerTransaction.currency,
+          debitAmount: ledgerPosting.debitAmount,
+          depositPaymentCode: depositRequest.paymentCode,
+          depositRequestId: depositRequest.id,
+          id: ledgerTransaction.id,
+          reference: ledgerTransaction.reference,
+          type: ledgerTransaction.type,
+        })
+        .from(ledgerPosting)
+        .innerJoin(
+          ledgerTransaction,
+          eq(ledgerPosting.transactionId, ledgerTransaction.id)
+        )
+        .innerJoin(
+          ledgerAccount,
+          eq(ledgerPosting.ledgerAccountId, ledgerAccount.id)
+        )
+        .leftJoin(
+          depositRequest,
+          and(
+            eq(depositRequest.creditedTransactionId, ledgerTransaction.id),
+            eq(depositRequest.userId, userId)
+          )
+        )
+        .where(
+          and(
+            eq(ledgerAccount.userId, userId),
+            eq(ledgerAccount.accountType, "USER_WALLET_AVAILABLE"),
+            transactionCursorCondition
+          )
+        )
+        .orderBy(desc(ledgerTransaction.createdAt), desc(ledgerTransaction.id))
+        .limit(DEPOSIT_HISTORY_PAGE_SIZE + 1),
+      pendingDepositQuery,
+      executor
+        .select({
+          amount: ledgerTransaction.amount,
+          balanceAfter: sql<number | null>`NULL`,
+          createdAt: ledgerTransaction.createdAt,
+          creditAmount: ledgerPosting.creditAmount,
+          currency: ledgerTransaction.currency,
+          debitAmount: ledgerPosting.debitAmount,
+          depositPaymentCode: sql<string | null>`NULL`,
+          depositRequestId: sql<string | null>`NULL`,
+          id: ledgerTransaction.id,
+          reference: ledgerTransaction.reference,
+          type: ledgerTransaction.type,
+        })
+        .from(ledgerAccount)
+        .innerJoin(
+          ledgerPosting,
+          eq(ledgerPosting.ledgerAccountId, ledgerAccount.id)
+        )
+        .innerJoin(
+          ledgerTransaction,
+          eq(ledgerPosting.transactionId, ledgerTransaction.id)
+        )
+        .where(
+          and(
+            eq(ledgerAccount.userId, userId),
+            eq(ledgerAccount.accountType, "USER_WALLET_HELD"),
+            transactionCursorCondition,
+            not(hasAvailablePosting)
+          )
+        )
+        .orderBy(desc(ledgerTransaction.createdAt), desc(ledgerTransaction.id))
+        .limit(DEPOSIT_HISTORY_PAGE_SIZE + 1),
+    ]
+  );
+
+  const transactionCandidates: WalletHistoryCandidate[] = [
+    ...transactionRows,
+    ...heldOnlyRows,
+  ].map((row) => {
+    const isDeposit = row.depositRequestId !== null;
+    const transactionId = isDeposit
+      ? `deposit:${row.depositRequestId}`
+      : `transaction:${row.id}`;
+
+    return {
+      createdAt: row.createdAt,
+      cursorId: row.id,
+      item: {
+        amount: row.creditAmount > 0 ? row.amount : -row.amount,
+        currency: row.currency,
+        id: transactionId,
+        paymentReference: row.depositPaymentCode ?? row.reference,
+        resultingAvailableBalance: row.balanceAfter,
+        status: row.type === "REVERSAL" ? "REVERSED" : "COMPLETED",
+        timestamp: row.createdAt.toISOString(),
+        type: transactionTypeLabels[row.type] ?? row.type,
+      },
+    };
+  });
+  const pendingDepositCandidates: WalletHistoryCandidate[] =
+    pendingDepositRows.map((row) => ({
+      createdAt: row.createdAt,
+      cursorId: row.id,
+      item: {
+        amount: row.amount,
+        currency: "VND",
+        id:
+          row.requestStatus === "CREDITED"
+            ? `deposit-event:${row.eventId}`
+            : `deposit:${row.id}`,
+        paymentReference: row.paymentCode,
+        resultingAvailableBalance: null,
+        status: row.eventStatus === "UNMATCHED" ? "ATTENTION" : "PENDING",
+        timestamp: row.createdAt.toISOString(),
+        type: "Nạp tiền",
+      },
+    }));
+
+  const candidatesById = new Map<string, WalletHistoryCandidate>();
+  for (const candidate of [
+    ...pendingDepositCandidates,
+    ...transactionCandidates,
+  ]) {
+    candidatesById.set(candidate.item.id, candidate);
+  }
+
+  const sortedCandidates = [...candidatesById.values()].toSorted(
+    (left, right) => {
+      const timestampDifference =
+        right.createdAt.getTime() - left.createdAt.getTime();
+      return timestampDifference === 0
+        ? right.cursorId.localeCompare(left.cursorId)
+        : timestampDifference;
+    }
+  );
+  const pageRows = sortedCandidates.slice(0, DEPOSIT_HISTORY_PAGE_SIZE);
+  const hasNextPage =
+    transactionRows.length > DEPOSIT_HISTORY_PAGE_SIZE ||
+    heldOnlyRows.length > DEPOSIT_HISTORY_PAGE_SIZE ||
+    pendingDepositRows.length > DEPOSIT_HISTORY_PAGE_SIZE ||
+    sortedCandidates.length > DEPOSIT_HISTORY_PAGE_SIZE;
   const lastRow = pageRows.at(-1);
 
   return {
-    items: pageRows.map((row) => ({
-      amount: row.creditAmount > 0 ? row.amount : -row.amount,
-      currency: row.currency,
-      id: row.id,
-      paymentReference: row.reference,
-      resultingAvailableBalance: row.balanceAfter,
-      status: row.type === "REVERSAL" ? "REVERSED" : "COMPLETED",
-      timestamp: row.createdAt.toISOString(),
-      type: transactionTypeLabels[row.type] ?? row.type,
-    })),
+    items: pageRows.map((row) => row.item),
     nextCursor:
       hasNextPage && lastRow
-        ? encodeCursor(lastRow.createdAt, lastRow.id)
+        ? encodeCursor(lastRow.createdAt, lastRow.cursorId)
         : null,
   };
 };

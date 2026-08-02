@@ -32,14 +32,17 @@ export const matchSePayDeposit = ({
   receivingAccountNumber: string;
   request: DepositRequestMatch | null;
 }): { reason: string; requestId?: string } => {
+  const mismatch = (reason: string) =>
+    request ? { reason, requestId: request.id } : { reason };
+
   if (event.accountNumber !== receivingAccountNumber) {
-    return { reason: "receiving_account_mismatch" };
+    return mismatch("receiving_account_mismatch");
   }
   if (event.transferType !== "in") {
-    return { reason: "not_an_incoming_transfer" };
+    return mismatch("not_an_incoming_transfer");
   }
   if (event.currency !== "VND") {
-    return { reason: "currency_mismatch" };
+    return mismatch("currency_mismatch");
   }
   if (!event.paymentCode || !isAvinPaymentCode(event.paymentCode)) {
     return { reason: "payment_code_invalid_or_missing" };
@@ -185,6 +188,7 @@ export const processSePayEvent = (
       await transaction
         .update(sepayPaymentEvent)
         .set({
+          depositRequestId: match.requestId ?? null,
           failureReason: match.reason,
           processedAt: now,
           status: "UNMATCHED",
