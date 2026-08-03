@@ -13,8 +13,8 @@ const SignInRouteComponent = () => {
   return <SignIn redirectTo={redirectTo} />;
 };
 
+// oxlint-disable-next-line react-doctor/tanstack-start-route-property-order
 export const Route = createFileRoute("/sign-in")({
-  validateSearch: searchSchema,
   beforeLoad: async () => {
     try {
       const session = await authClient.getSession({
@@ -36,4 +36,5 @@ export const Route = createFileRoute("/sign-in")({
     }
   },
   component: SignInRouteComponent,
+  validateSearch: searchSchema,
 });
