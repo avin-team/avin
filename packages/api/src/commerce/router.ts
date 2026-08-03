@@ -92,14 +92,6 @@ export const commerceRouter = {
   },
 
   orders: {
-    listMine: sellerProcedure.handler(({ context }) =>
-      getSellerOrders(context.db, context.session.user.id)
-    ),
-
-    listMineAsBuyer: buyerProcedure.handler(({ context }) =>
-      getBuyerOrders(context.db, context.session.user.id)
-    ),
-
     item: {
       cancelByBuyer: buyerProcedure
         .input(orderItemCommandInput)
@@ -188,5 +180,13 @@ export const commerceRouter = {
           })
         ),
     },
+
+    listMine: sellerProcedure.handler(({ context }) =>
+      getSellerOrders(context.db, context.session.user.id)
+    ),
+
+    listMineAsBuyer: buyerProcedure.handler(({ context }) =>
+      getBuyerOrders(context.db, context.session.user.id)
+    ),
   },
 };

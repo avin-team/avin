@@ -384,17 +384,6 @@ export const CartPage = () => {
   };
   const removeMutation = useMutation({
     ...orpc.commerce.cart.remove.mutationOptions(),
-    onMutate: async ({ listingId }) => {
-      const cartQueryKey = orpc.commerce.cart.get.queryOptions().queryKey;
-      await queryClient.cancelQueries({ queryKey: cartQueryKey });
-      const previousCart = queryClient.getQueryData<CartView>(cartQueryKey);
-
-      queryClient.setQueryData<CartView>(cartQueryKey, (currentCart) =>
-        removeCartItemOptimistically(currentCart, listingId)
-      );
-
-      return { previousCart };
-    },
     onError: (error, _variables, context) => {
       const cartQueryKey = orpc.commerce.cart.get.queryOptions().queryKey;
       if (context?.previousCart) {
@@ -406,13 +395,24 @@ export const CartPage = () => {
           : "Không thể xóa Listing khỏi Cart. Vui lòng thử lại."
       );
     },
+    onMutate: async ({ listingId }) => {
+      const cartQueryKey = orpc.commerce.cart.get.queryOptions().queryKey;
+      await queryClient.cancelQueries({ queryKey: cartQueryKey });
+      const previousCart = queryClient.getQueryData<CartView>(cartQueryKey);
+
+      queryClient.setQueryData<CartView>(cartQueryKey, (currentCart) =>
+        removeCartItemOptimistically(currentCart, listingId)
+      );
+
+      return { previousCart };
+    },
+    onSettled: invalidateCart,
     onSuccess: (cart) => {
       queryClient.setQueryData(
         orpc.commerce.cart.get.queryOptions().queryKey,
         cart
       );
     },
-    onSettled: invalidateCart,
   });
   const checkoutMutation = useMutation(
     orpc.commerce.checkout.create.mutationOptions()

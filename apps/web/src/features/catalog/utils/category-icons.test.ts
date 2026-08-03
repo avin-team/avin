@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_CATEGORY_ICON, getCategoryIcon } from "./category-icons";
+import { DEFAULT_CATEGORY_ICON, getCategoryIcon } from "./category-icon-map";
 
 describe("getCategoryIcon", () => {
   it("returns specific icon component for known category slugs", () => {

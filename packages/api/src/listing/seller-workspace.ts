@@ -440,18 +440,18 @@ export const sellerWorkspaceRouter = {
       return { id: found.id };
     }),
 
-  getDraft: sellerProcedure
-    .input(z.object({ id: z.string() }))
-    .handler(async ({ context, input }) => {
-      await assertEligibleSeller(context.session.user.id);
-      return assertDraft(input.id, context.session.user.id);
-    }),
-
   get: sellerProcedure
     .input(z.object({ id: z.string() }))
     .handler(async ({ context, input }) => {
       await assertEligibleSeller(context.session.user.id);
       return assertOwnedListing(input.id, context.session.user.id);
+    }),
+
+  getDraft: sellerProcedure
+    .input(z.object({ id: z.string() }))
+    .handler(async ({ context, input }) => {
+      await assertEligibleSeller(context.session.user.id);
+      return assertDraft(input.id, context.session.user.id);
     }),
 
   getMediaAccess: protectedProcedure

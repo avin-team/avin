@@ -202,10 +202,10 @@ export const orderItem = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
+    warrantyExpiresAt: timestamp("warranty_expires_at"),
     warrantyPolicy: jsonb("warranty_policy")
       .$type<WarrantyPolicySnapshot>()
       .notNull(),
-    warrantyExpiresAt: timestamp("warranty_expires_at"),
     warrantyStartedAt: timestamp("warranty_started_at"),
   },
   (table) => [
@@ -470,13 +470,13 @@ export const orderItemRelations = relations(orderItem, ({ many, one }) => ({
   deliverySubmission: one(deliverySubmission),
   dispute: one(dispute),
   escrowHold: one(escrowHold),
+  files: many(orderFile),
+  lifecycleEvents: many(orderItemLifecycleEvent),
   listing: one(listing, {
     fields: [orderItem.listingId],
     references: [listing.id],
   }),
-  lifecycleEvents: many(orderItemLifecycleEvent),
   notifications: many(notification),
-  files: many(orderFile),
   order: one(order, {
     fields: [orderItem.orderId],
     references: [order.id],

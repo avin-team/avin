@@ -140,14 +140,14 @@ export const getSellerOrders = async (
   const orderIds = orders.map(({ id }) => id);
   const itemRows = await executor
     .select({
+      deliveredAt: orderItem.deliveredAt,
+      deliveryReviewDeadlineAt: orderItem.deliveryReviewDeadlineAt,
       escrowAmount: escrowHold.amount,
       escrowHoldId: escrowHold.id,
       escrowHoldStatus: escrowHold.status,
-      deliveredAt: orderItem.deliveredAt,
-      deliveryReviewDeadlineAt: orderItem.deliveryReviewDeadlineAt,
       id: orderItem.id,
-      listingId: orderItem.listingId,
       listing: orderItem.listingSnapshot,
+      listingId: orderItem.listingId,
       orderId: orderItem.orderId,
       priceAmount: orderItem.priceAmount,
       processingDeadlineAt: orderItem.processingDeadlineAt,

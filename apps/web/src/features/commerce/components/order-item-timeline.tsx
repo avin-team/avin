@@ -27,7 +27,7 @@ const ACTOR_LABELS: Record<
   SYSTEM: "Hệ thống",
 };
 
-export const getTimelineEventTitle = (
+const getTimelineEventTitle = (
   event: OrderItemTimelineView["events"][number]
 ): string => {
   switch (event.newStatus) {

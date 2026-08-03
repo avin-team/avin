@@ -96,12 +96,6 @@ export const SellerApplicationDetailPage = () => {
     decideMutation.mutate(
       { decision, id: application.id, reason },
       {
-        onSuccess: () => {
-          toast.success("Cập nhật hồ sơ đăng ký thành công", {
-            description: "Hàng đợi xét duyệt đã được cập nhật.",
-          });
-          setDecision(null);
-        },
         onError: (error) => {
           try {
             decideSellerApplication(application.id, decision, reason);
@@ -116,6 +110,12 @@ export const SellerApplicationDetailPage = () => {
                 : "Không thể cập nhật hồ sơ"
             );
           }
+        },
+        onSuccess: () => {
+          toast.success("Cập nhật hồ sơ đăng ký thành công", {
+            description: "Hàng đợi xét duyệt đã được cập nhật.",
+          });
+          setDecision(null);
         },
       }
     );

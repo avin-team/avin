@@ -34,16 +34,16 @@ export const sellerProfile = pgTable(
   "seller_profile",
   {
     avatarUrl: text("avatar_url"),
-    bannerUrl: text("banner_url"),
     bankAccount: jsonb("bank_account").$type<BankAccount>(),
+    bannerUrl: text("banner_url"),
     bio: text("bio"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     id: uuid("id").defaultRandom().primaryKey(),
     phone: text("phone"),
     phoneVerified: boolean("phone_verified").default(false).notNull(),
     storeSlug: text("store_slug").notNull(),
-    storefrontName: text("storefront_name").notNull(),
     storeSlugLockedAt: timestamp("store_slug_locked_at"),
+    storefrontName: text("storefront_name").notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
       .$onUpdate(() => new Date())

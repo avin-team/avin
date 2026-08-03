@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { StoreOrdersPanel } from "@/features/seller/pages/store-orders-panel";
 
 const mocks = vi.hoisted(() => ({
+  mutateAsync: vi.fn(),
   ordersQuery: {
     data: [] as SellerOrderView[],
     isError: false,
@@ -24,7 +25,6 @@ const mocks = vi.hoisted(() => ({
     isPending: false,
     refetch: vi.fn(),
   },
-  mutateAsync: vi.fn(),
   useMutation: vi.fn(),
   useQuery: vi.fn(),
   useQueryClient: vi.fn(() => ({ invalidateQueries: vi.fn() })),
@@ -183,17 +183,17 @@ const baseItem = {
   customInputs: [
     { fieldKey: "profile_link", fieldType: "url", value: "https://buyer.test" },
   ],
-  escrowHold: { amount: 150_000, id: "escrow-1", status: "HELD" as const },
   deliveredAt: null,
   deliveryReviewDeadlineAt: null,
+  escrowHold: { amount: 150_000, id: "escrow-1", status: "HELD" as const },
   id: "item-1",
-  listingId: "listing-1",
   listing: {
     slug: "social-service",
     thumbnailUrl: null,
     title: "Tăng tương tác mạng xã hội",
     type: "SERVICE" as const,
   },
+  listingId: "listing-1",
   priceAmount: 150_000,
   processingDeadlineAt: "9999-12-31T00:00:00.000Z",
   processingTimeHours: 48,

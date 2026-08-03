@@ -149,9 +149,6 @@ describe("public Store profile route", () => {
       userId: "seller-1",
     };
     const db = {
-      update: vi.fn().mockReturnValue({
-        set: vi.fn().mockReturnValue({ where: vi.fn() }),
-      }),
       query: {
         listing: { findMany: vi.fn().mockResolvedValue([]) },
         sellerApplication: {
@@ -168,6 +165,9 @@ describe("public Store profile route", () => {
           }),
         },
       },
+      update: vi.fn().mockReturnValue({
+        set: vi.fn().mockReturnValue({ where: vi.fn() }),
+      }),
     } as unknown as Context["db"];
 
     await expect(
@@ -227,9 +227,6 @@ describe("public Store profile route", () => {
       id: "listing-2",
     };
     const db = {
-      update: vi.fn().mockReturnValue({
-        set: vi.fn().mockReturnValue({ where: vi.fn() }),
-      }),
       query: {
         listing: {
           findMany: vi.fn().mockResolvedValue([publicListing, hiddenListing]),
@@ -248,6 +245,9 @@ describe("public Store profile route", () => {
           }),
         },
       },
+      update: vi.fn().mockReturnValue({
+        set: vi.fn().mockReturnValue({ where: vi.fn() }),
+      }),
     } as unknown as Context["db"];
 
     await expect(
@@ -290,9 +290,6 @@ describe("public Store profile route", () => {
       userId: "seller-1",
     };
     const db = {
-      update: vi.fn().mockReturnValue({
-        set: vi.fn().mockReturnValue({ where: vi.fn() }),
-      }),
       query: {
         listing: { findMany: vi.fn() },
         sellerApplication: {
@@ -309,6 +306,9 @@ describe("public Store profile route", () => {
           }),
         },
       },
+      update: vi.fn().mockReturnValue({
+        set: vi.fn().mockReturnValue({ where: vi.fn() }),
+      }),
     } as unknown as Context["db"];
 
     await expect(

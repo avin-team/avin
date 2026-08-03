@@ -47,6 +47,21 @@ describe("wallet transaction history", () => {
   it("merges completed ledger events and observed deposits into one buyer timeline", async () => {
     const result = await getWalletTransactions(
       createHistoryExecutor({
+        heldOnlyRows: [
+          {
+            amount: 10_000,
+            balanceAfter: null,
+            createdAt: new Date("2026-08-02T09:59:00.000Z"),
+            creditAmount: 0,
+            currency: "VND",
+            debitAmount: 10_000,
+            depositPaymentCode: null,
+            depositRequestId: null,
+            id: "ledger-release-1",
+            reference: "AVTX-RELEASE",
+            type: "ESCROW_RELEASE",
+          },
+        ],
         ledgerRows: [
           {
             amount: 50_000,
@@ -75,29 +90,14 @@ describe("wallet transaction history", () => {
             type: "PURCHASE_HOLD",
           },
         ],
-        heldOnlyRows: [
-          {
-            amount: 10_000,
-            balanceAfter: null,
-            createdAt: new Date("2026-08-02T09:59:00.000Z"),
-            creditAmount: 0,
-            currency: "VND",
-            debitAmount: 10_000,
-            depositPaymentCode: null,
-            depositRequestId: null,
-            id: "ledger-release-1",
-            reference: "AVTX-RELEASE",
-            type: "ESCROW_RELEASE",
-          },
-        ],
         pendingRows: [
           {
             amount: 24_000,
             createdAt: new Date("2026-08-02T10:00:00.000Z"),
             currency: "VND",
             eventId: "event-mismatch",
-            eventStatus: "UNMATCHED",
             eventPaymentCode: "AVPENDING1234",
+            eventStatus: "UNMATCHED",
             id: "request-pending",
             requestPaymentCode: "AVPENDING1234",
             transferType: "in",
@@ -107,8 +107,8 @@ describe("wallet transaction history", () => {
             createdAt: new Date("2026-08-02T09:58:00.000Z"),
             currency: "VND",
             eventId: "event-received",
-            eventStatus: "RECEIVED",
             eventPaymentCode: "AVRECEIVED123",
+            eventStatus: "RECEIVED",
             id: "request-observed",
             requestPaymentCode: "AVRECEIVED123",
             transferType: "in",
@@ -118,8 +118,8 @@ describe("wallet transaction history", () => {
             createdAt: new Date("2026-08-02T09:57:00.000Z"),
             currency: "VND",
             eventId: "event-duplicate",
-            eventStatus: "UNMATCHED",
             eventPaymentCode: "AVCREDIT123456",
+            eventStatus: "UNMATCHED",
             id: "request-credited-again",
             requestPaymentCode: "AVCREDIT123456",
             transferType: "in",

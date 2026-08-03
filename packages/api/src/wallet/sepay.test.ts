@@ -45,19 +45,19 @@ describe("SePay webhook authentication", () => {
     expect(
       verifySePaySignature({
         body,
+        now: new Date(timestamp * 1000 + 30_000),
         secret: "test-secret",
         signature,
         timestamp,
-        now: new Date(timestamp * 1000 + 30_000),
       })
     ).toBe(true);
     expect(
       verifySePaySignature({
         body: `${body} `,
+        now: new Date(timestamp * 1000 + 30_000),
         secret: "test-secret",
         signature,
         timestamp,
-        now: new Date(timestamp * 1000 + 30_000),
       })
     ).toBe(false);
   });
@@ -73,10 +73,10 @@ describe("SePay webhook authentication", () => {
     expect(
       verifySePaySignature({
         body: "{}",
+        now: new Date((timestamp + 301) * 1000),
         secret: "test-secret",
         signature,
         timestamp,
-        now: new Date((timestamp + 301) * 1000),
       })
     ).toBe(false);
   });

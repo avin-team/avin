@@ -52,6 +52,7 @@
 
 - Zero tolerance for inline lint suppression comments (e.g., `/* oxlint-disable */`, `// oxlint-disable-next-line`). Fix the underlying code issues instead of suppressing them. If a rule genuinely does not apply to the project, disable it at the config level (`oxlint.config.ts`), not inline. Confidence: 0.85
 - Prefers disabling inapplicable lint rules in the config file (`oxlint.config.ts`) rather than scattering inline disable comments throughout source files. Confidence: 0.75
+- Treats commented-out lint rule disables in the config as technical debt to remove, not leave as dead code. Either the rule genuinely doesn't apply (uncomment the disable) or it does apply (remove the disable and fix the code). Confidence: 0.70
 
 - Prefers structured code review reports with explicit word limits (e.g., "under 400 words") and pre-defined finding categories: missing/partial requirements, scope creep, wrong implementation, documented-standard breaches, and smell-baseline judgement calls. Confidence: 0.80
 
@@ -63,3 +64,5 @@
 - SVG icons are React components in `components/icons/`, accepting `SVGProps<SVGSVGElement>` with `...props` spread onto `<svg>`. Uses `fill="currentColor"` for CSS-color inheritance and `viewBox="0 0 32 32"` for consistent sizing. Named exports follow `{Name}Icon` convention (e.g., `FacebookIcon`, `YouTubeIcon`). Confidence: 0.75
 
 - When the user indicates certain files are theirs to work on (e.g., "mấy cái code đang sửa bạn đừng bận tâm"), the agent must leave those files untouched and scope work to the remaining files only. Respect the user's active working set; do not modify files the user has claimed. Confidence: 0.75
+
+- `.tsx` files must only export React components (enforced by `react-doctor/only-export-components`). When a `.tsx` file contains non-component exports (constants, helper functions, type maps), split them into a separate `.ts` file and keep only the component in `.tsx`. Use descriptive names for the utility file (e.g., `category-icon-map.ts`) rather than generic names like `utils.ts`. Confidence: 0.80

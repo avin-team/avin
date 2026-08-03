@@ -120,8 +120,8 @@ export const normalizeSePayApiTransaction = (
     gateway: readString(record, "bank_brand_name", "gateway"),
     paymentCode: readOptionalString(record, "code")?.toUpperCase() ?? null,
     providerEventId: readString(record, "id"),
-    rawPayload: record,
     rawBody: JSON.stringify(record),
+    rawPayload: record,
     source: "API",
     transactionAt: parseTransactionDate(
       readString(record, "transaction_date", "transactionDate")

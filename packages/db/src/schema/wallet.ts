@@ -93,8 +93,8 @@ export const ledgerAccount = pgTable(
   {
     accountKey: text("account_key").notNull(),
     accountType: ledgerAccountType("account_type").notNull(),
-    balanceSide: ledgerBalanceSide("balance_side").notNull(),
     balanceAmount: integer("balance_amount").default(0).notNull(),
+    balanceSide: ledgerBalanceSide("balance_side").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     id: uuid("id").defaultRandom().primaryKey(),
     updatedAt: timestamp("updated_at")
@@ -225,15 +225,15 @@ export const sepayPaymentEvent = pgTable(
     paymentCode: text("payment_code"),
     processedAt: timestamp("processed_at"),
     providerEventId: text("provider_event_id").notNull(),
-    rawPayload: jsonb("raw_payload").$type<Record<string, unknown>>().notNull(),
     rawBody: text("raw_body").notNull(),
+    rawPayload: jsonb("raw_payload").$type<Record<string, unknown>>().notNull(),
+    receivedAt: timestamp("received_at").defaultNow().notNull(),
     reconciledByUserId: text("reconciled_by_user_id").references(
       () => user.id,
       {
         onDelete: "set null",
       }
     ),
-    receivedAt: timestamp("received_at").defaultNow().notNull(),
     source: sepayEventSource("source").notNull(),
     status: sepayEventStatus("status").default("RECEIVED").notNull(),
     transactionAt: timestamp("transaction_at").notNull(),
@@ -282,34 +282,34 @@ export const walletOutboxEvent = pgTable(
 );
 
 export const userWalletRelations = relations(userWallet, ({ one, many }) => ({
+  depositRequests: many(depositRequest),
   user: one(user, {
     fields: [userWallet.userId],
     references: [user.id],
   }),
-  depositRequests: many(depositRequest),
 }));
 
 export const ledgerAccountRelations = relations(
   ledgerAccount,
   ({ one, many }) => ({
+    postings: many(ledgerPosting),
     user: one(user, {
       fields: [ledgerAccount.userId],
       references: [user.id],
     }),
-    postings: many(ledgerPosting),
   })
 );
 
 export const ledgerTransactionRelations = relations(
   ledgerTransaction,
   ({ one, many }) => ({
+    postings: many(ledgerPosting),
     reversalOf: one(ledgerTransaction, {
       fields: [ledgerTransaction.reversalOfId],
       references: [ledgerTransaction.id],
       relationName: "reversal",
     }),
     reversals: many(ledgerTransaction, { relationName: "reversal" }),
-    postings: many(ledgerPosting),
   })
 );
 

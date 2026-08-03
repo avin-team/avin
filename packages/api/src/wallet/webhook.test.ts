@@ -19,11 +19,11 @@ describe("SePay webhook handler", () => {
       currency: "VND",
       gateway: "Vietcombank",
       id: 42,
+      providerExtraField: "preserved",
       referenceCode: "FT123",
       transactionDate: "2026-08-02 10:00:00",
       transferAmount: 50_000,
       transferType: "in",
-      providerExtraField: "preserved",
     });
     const timestamp = Math.floor(Date.now() / 1000);
     const request = new Request("https://avin.test/webhook/sepay", {

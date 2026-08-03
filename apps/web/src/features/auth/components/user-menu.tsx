@@ -98,16 +98,6 @@ export const UserMenu = () => {
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator className="my-1" />
-          <DropdownMenuItem
-            onClick={async () => {
-              await navigate({
-                to: "/orders",
-              });
-            }}
-          >
-            <ShoppingBag className="me-2 size-4" />
-            Đơn hàng
-          </DropdownMenuItem>
           {isSeller ? (
             <DropdownMenuItem
               onClick={async () => {
@@ -118,16 +108,28 @@ export const UserMenu = () => {
               Mở gian hàng
             </DropdownMenuItem>
           ) : (
-            <DropdownMenuItem
-              onClick={async () => {
-                await navigate({
-                  to: "/seller/onboarding",
-                });
-              }}
-            >
-              <Store className="me-2 size-4" />
-              Đăng ký Người bán
-            </DropdownMenuItem>
+            <>
+              <DropdownMenuItem
+                onClick={async () => {
+                  await navigate({
+                    to: "/orders",
+                  });
+                }}
+              >
+                <ShoppingBag className="me-2 size-4" />
+                Đơn hàng
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={async () => {
+                  await navigate({
+                    to: "/seller/onboarding",
+                  });
+                }}
+              >
+                <Store className="me-2 size-4" />
+                Đăng ký Người bán
+              </DropdownMenuItem>
+            </>
           )}
           <DropdownMenuItem
             onClick={async () => {

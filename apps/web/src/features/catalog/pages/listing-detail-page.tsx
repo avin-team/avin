@@ -44,18 +44,6 @@ export const ListingDetailPage = () => {
   const cartQueryKey = orpc.commerce.cart.get.queryOptions().queryKey;
   const addToCartMutation = useMutation({
     ...orpc.commerce.cart.add.mutationOptions(),
-    onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: cartQueryKey });
-      const previousCart = queryClient.getQueryData<CartView>(cartQueryKey);
-
-      if (listing) {
-        queryClient.setQueryData<CartView>(cartQueryKey, (currentCart) =>
-          addCartItemOptimistically(currentCart, listing)
-        );
-      }
-
-      return { previousCart };
-    },
     onError: (error, _variables, context) => {
       if (context?.previousCart) {
         queryClient.setQueryData(cartQueryKey, context.previousCart);
@@ -68,12 +56,24 @@ export const ListingDetailPage = () => {
           : "Không thể thêm Listing vào Cart."
       );
     },
-    onSuccess: async (cart) => {
-      queryClient.setQueryData(cartQueryKey, cart);
-      await navigate({ to: "/cart" });
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: cartQueryKey });
+      const previousCart = queryClient.getQueryData<CartView>(cartQueryKey);
+
+      if (listing) {
+        queryClient.setQueryData<CartView>(cartQueryKey, (currentCart) =>
+          addCartItemOptimistically(currentCart, listing)
+        );
+      }
+
+      return { previousCart };
     },
     onSettled: async () => {
       await queryClient.invalidateQueries({ queryKey: cartQueryKey });
+    },
+    onSuccess: async (cart) => {
+      queryClient.setQueryData(cartQueryKey, cart);
+      await navigate({ to: "/cart" });
     },
   });
   const isService = listing?.type === "SERVICE";
