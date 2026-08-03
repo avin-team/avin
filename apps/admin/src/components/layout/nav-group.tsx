@@ -35,20 +35,17 @@ import type {
   NavGroup as NavGroupProps,
 } from "./types";
 
-const checkIsActive = (href: string, item: NavItem, mainNav = false) => {
-  return (
-    href === item.url ||
-    href.split("?")[0] === item.url ||
-    !!item?.items?.filter((i) => i.url === href).length ||
-    (mainNav &&
-      href.split("/")[1] !== "" &&
-      href.split("/")[1] === item?.url?.split("/")[1])
-  );
-};
+const checkIsActive = (href: string, item: NavItem, mainNav = false) =>
+  href === item.url ||
+  href.split("?")[0] === item.url ||
+  !!item?.items?.filter((i) => i.url === href).length ||
+  (mainNav &&
+    href.split("/")[1] !== "" &&
+    href.split("/")[1] === item?.url?.split("/")[1]);
 
-const NavBadge = ({ children }: { children: ReactNode }) => {
-  return <Badge className="rounded-full px-1 py-0 text-xs">{children}</Badge>;
-};
+const NavBadge = ({ children }: { children: ReactNode }) => (
+  <Badge className="rounded-full px-1 py-0 text-xs">{children}</Badge>
+);
 
 const SidebarMenuLink = ({ item, href }: { item: NavLink; href: string }) => {
   const { setOpenMobile } = useSidebar();
@@ -117,53 +114,51 @@ const SidebarMenuCollapsedDropdown = ({
 }: {
   item: NavCollapsible;
   href: string;
-}) => {
-  return (
-    <SidebarMenuItem>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <SidebarMenuButton
-              tooltip={item.title}
-              isActive={checkIsActive(href, item)}
-            />
-          }
-        >
-          {item.icon && <item.icon />}
-          <span>{item.title}</span>
-          {item.badge && <NavBadge>{item.badge}</NavBadge>}
-          <ChevronRight className="ms-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent side="right" align="start" sideOffset={4}>
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>
-              {item.title} {item.badge ? `(${item.badge})` : ""}
-            </DropdownMenuLabel>
+}) => (
+  <SidebarMenuItem>
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <SidebarMenuButton
+            tooltip={item.title}
+            isActive={checkIsActive(href, item)}
+          />
+        }
+      >
+        {item.icon && <item.icon />}
+        <span>{item.title}</span>
+        {item.badge && <NavBadge>{item.badge}</NavBadge>}
+        <ChevronRight className="ms-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side="right" align="start" sideOffset={4}>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>
+            {item.title} {item.badge ? `(${item.badge})` : ""}
+          </DropdownMenuLabel>
 
-            <DropdownMenuSeparator />
-            {item.items.map((sub) => (
-              <DropdownMenuItem
-                key={`${sub.title}-${sub.url}`}
-                render={
-                  <Link
-                    to={sub.url}
-                    className={`${checkIsActive(href, sub) ? "bg-secondary" : ""}`}
-                  />
-                }
-              >
-                {sub.icon && <sub.icon />}
-                <span className="max-w-52 text-wrap">{sub.title}</span>
-                {sub.badge && (
-                  <span className="ms-auto text-xs">{sub.badge}</span>
-                )}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </SidebarMenuItem>
-  );
-};
+          <DropdownMenuSeparator />
+          {item.items.map((sub) => (
+            <DropdownMenuItem
+              key={`${sub.title}-${sub.url}`}
+              render={
+                <Link
+                  to={sub.url}
+                  className={`${checkIsActive(href, sub) ? "bg-secondary" : ""}`}
+                />
+              }
+            >
+              {sub.icon && <sub.icon />}
+              <span className="max-w-52 text-wrap">{sub.title}</span>
+              {sub.badge && (
+                <span className="ms-auto text-xs">{sub.badge}</span>
+              )}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  </SidebarMenuItem>
+);
 
 export const NavGroup = ({ title, items }: NavGroupProps) => {
   const { state, isMobile } = useSidebar();

@@ -6,9 +6,9 @@ import { ListingMediaGallery } from "./listing-media-gallery";
 
 const TestObserver = function TestObserver() {
   return {
-    disconnect: () => undefined,
-    observe: () => undefined,
-    unobserve: () => undefined,
+    disconnect: () => {},
+    observe: () => {},
+    unobserve: () => {},
   };
 };
 

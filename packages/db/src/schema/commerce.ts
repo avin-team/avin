@@ -15,8 +15,8 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { user } from "./auth";
-import { listing } from "./catalog";
-import type { ServiceInputField } from "./catalog";
+import { listing, servicePackage } from "./catalog";
+import type { ServiceInputField, WarrantyPolicy } from "./catalog";
 import { ledgerTransaction } from "./wallet";
 
 export interface ListingSnapshot {
@@ -29,9 +29,23 @@ export interface ListingSnapshot {
   type: "COURSE" | "SERVICE";
 }
 
-export interface WarrantyPolicySnapshot {
+export interface LegacyWarrantyPolicySnapshot {
   durationHours: number;
   terms: string;
+}
+
+export type WarrantyPolicySnapshot =
+  | WarrantyPolicy
+  | LegacyWarrantyPolicySnapshot;
+
+export interface ServicePackageSnapshot {
+  id: string;
+  name: string;
+  priceAmount: number;
+  processingTimeHours: number;
+  scope: string;
+  serviceInputFields: ServiceInputField[];
+  warrantyPolicy: WarrantyPolicySnapshot;
 }
 
 export const orderItemStatusValues = [
@@ -95,6 +109,10 @@ export const cartItem = pgTable(
       .notNull()
       .references(() => listing.id, { onDelete: "restrict" }),
     selected: boolean("selected").default(true).notNull(),
+    servicePackageId: uuid("service_package_id").references(
+      () => servicePackage.id,
+      { onDelete: "set null" }
+    ),
     updatedAt: timestamp("updated_at")
       .defaultNow()
       .$onUpdate(() => new Date())
@@ -106,6 +124,7 @@ export const cartItem = pgTable(
       table.listingId
     ),
     index("cart_item_cart_selected_idx").on(table.cartId, table.selected),
+    index("cart_item_service_package_id_idx").on(table.servicePackageId),
   ]
 );
 
@@ -197,6 +216,13 @@ export const orderItem = pgTable(
     serviceInputFields: jsonb("service_input_fields")
       .$type<ServiceInputField[]>()
       .notNull(),
+    servicePackageId: uuid("service_package_id").references(
+      () => servicePackage.id,
+      { onDelete: "restrict" }
+    ),
+    servicePackageSnapshot: jsonb(
+      "service_package_snapshot"
+    ).$type<ServicePackageSnapshot | null>(),
     status: orderItemStatus("status").default("AWAITING_SELLER").notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
@@ -211,6 +237,7 @@ export const orderItem = pgTable(
   (table) => [
     index("order_item_order_id_idx").on(table.orderId),
     index("order_item_listing_id_idx").on(table.listingId),
+    index("order_item_service_package_id_idx").on(table.servicePackageId),
     index("order_item_status_idx").on(table.status),
     check("order_item_price_positive_check", sql`${table.priceAmount} > 0`),
     check("order_item_quantity_one_check", sql`${table.quantity} = 1`),
@@ -435,6 +462,10 @@ export const cartItemRelations = relations(cartItem, ({ one }) => ({
     fields: [cartItem.listingId],
     references: [listing.id],
   }),
+  servicePackage: one(servicePackage, {
+    fields: [cartItem.servicePackageId],
+    references: [servicePackage.id],
+  }),
 }));
 
 export const checkoutRelations = relations(checkout, ({ many, one }) => ({
@@ -480,6 +511,10 @@ export const orderItemRelations = relations(orderItem, ({ many, one }) => ({
   order: one(order, {
     fields: [orderItem.orderId],
     references: [order.id],
+  }),
+  servicePackage: one(servicePackage, {
+    fields: [orderItem.servicePackageId],
+    references: [servicePackage.id],
   }),
 }));
 

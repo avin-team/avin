@@ -246,6 +246,7 @@ describe("StoreOrdersPanel", () => {
     mocks.ordersQuery.data = [];
     mocks.ordersQuery.isError = false;
     mocks.ordersQuery.isPending = false;
+    // oxlint-disable-next-line unicorn/no-useless-undefined
     mocks.mutateAsync.mockResolvedValue(undefined);
     mocks.useMutation.mockReturnValue({
       isPending: false,

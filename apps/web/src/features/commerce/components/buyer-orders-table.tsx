@@ -68,51 +68,53 @@ export const BuyerOrdersTable = ({ orders }: BuyerOrdersTableProps) => {
     .reduce((sum, item) => sum + (item.priceAmount ?? 0), 0);
 
   // Filtered List
-  const filteredItems = useMemo(() => {
-    return allItems.filter((item) => {
-      // Status check
-      if (statusFilter !== "ALL" && item.status !== statusFilter) {
-        return false;
-      }
-
-      // Search term check
-      if (searchTerm.trim()) {
-        const query = searchTerm.toLowerCase();
-        const matchesTitle = item.listing.title.toLowerCase().includes(query);
-        const matchesItemId = item.id.toLowerCase().includes(query);
-        const matchesOrderId = item.order.id.toLowerCase().includes(query);
-        const matchesSeller = item.order.seller.name
-          .toLowerCase()
-          .includes(query);
-        if (
-          !matchesTitle &&
-          !matchesItemId &&
-          !matchesOrderId &&
-          !matchesSeller
-        ) {
+  const filteredItems = useMemo(
+    () =>
+      allItems.filter((item) => {
+        // Status check
+        if (statusFilter !== "ALL" && item.status !== statusFilter) {
           return false;
         }
-      }
 
-      // Date check
-      if (startDate) {
-        const itemDate = new Date(item.order.createdAt).getTime();
-        const filterStart = new Date(startDate).getTime();
-        if (itemDate < filterStart) {
-          return false;
+        // Search term check
+        if (searchTerm.trim()) {
+          const query = searchTerm.toLowerCase();
+          const matchesTitle = item.listing.title.toLowerCase().includes(query);
+          const matchesItemId = item.id.toLowerCase().includes(query);
+          const matchesOrderId = item.order.id.toLowerCase().includes(query);
+          const matchesSeller = item.order.seller.name
+            .toLowerCase()
+            .includes(query);
+          if (
+            !matchesTitle &&
+            !matchesItemId &&
+            !matchesOrderId &&
+            !matchesSeller
+          ) {
+            return false;
+          }
         }
-      }
-      if (endDate) {
-        const itemDate = new Date(item.order.createdAt).getTime();
-        const filterEnd = new Date(endDate).getTime();
-        if (itemDate > filterEnd + 86_400_000) {
-          return false;
-        }
-      }
 
-      return true;
-    });
-  }, [allItems, statusFilter, searchTerm, startDate, endDate]);
+        // Date check
+        if (startDate) {
+          const itemDate = new Date(item.order.createdAt).getTime();
+          const filterStart = new Date(startDate).getTime();
+          if (itemDate < filterStart) {
+            return false;
+          }
+        }
+        if (endDate) {
+          const itemDate = new Date(item.order.createdAt).getTime();
+          const filterEnd = new Date(endDate).getTime();
+          if (itemDate > filterEnd + 86_400_000) {
+            return false;
+          }
+        }
+
+        return true;
+      }),
+    [allItems, statusFilter, searchTerm, startDate, endDate]
+  );
 
   const totalPages = Math.max(Math.ceil(filteredItems.length / pageSize), 1);
   const paginatedItems = filteredItems.slice(

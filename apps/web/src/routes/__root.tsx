@@ -8,6 +8,7 @@ import {
   createRootRouteWithContext,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
+import { LazyMotion, domAnimation } from "motion/react";
 
 import { ThemeProvider } from "@/components/theme-provider";
 import { GeneralError } from "@/features/errors/general-error";
@@ -31,8 +32,10 @@ const RootComponent = () => (
       storageKey="vite-ui-theme"
     >
       <TooltipProvider>
-        <Outlet />
-        <Toaster richColors />
+        <LazyMotion features={domAnimation}>
+          <Outlet />
+          <Toaster richColors />
+        </LazyMotion>
       </TooltipProvider>
     </ThemeProvider>
     <TanStackRouterDevtools position="bottom-left" />

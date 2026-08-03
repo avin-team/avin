@@ -35,6 +35,30 @@ export const serviceInputFieldSchema = z.object({
 
 export type ServiceInputField = z.infer<typeof serviceInputFieldSchema>;
 
+export const warrantyPolicySchema = z.discriminatedUnion("kind", [
+  z.object({
+    durationHours: z.number().int().positive(),
+    kind: z.literal("TIMED"),
+    terms: z.string().trim().min(1),
+  }),
+  z.object({
+    kind: z.literal("NO_WARRANTY"),
+  }),
+]);
+
+export type WarrantyPolicy = z.infer<typeof warrantyPolicySchema>;
+
+export const servicePackageDraftSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  priceAmount: z.number().int().positive(),
+  processingTimeHours: z.number().int().positive(),
+  scope: z.string().trim().min(1).max(10_000),
+  serviceInputFields: z.array(serviceInputFieldSchema).default([]),
+  warrantyPolicy: warrantyPolicySchema,
+});
+
+export type ServicePackageDraft = z.infer<typeof servicePackageDraftSchema>;
+
 export const categoryStatus = pgEnum("category_status", [
   "ACTIVE",
   "HIDDEN",
@@ -49,6 +73,11 @@ export const listingStatus = pgEnum("listing_status", [
   "PAUSED",
   "HIDDEN",
   "ARCHIVED",
+]);
+
+export const servicePackageStatus = pgEnum("service_package_status", [
+  "AVAILABLE",
+  "UNAVAILABLE",
 ]);
 
 export const parentCategory = pgTable(
@@ -163,6 +192,44 @@ export const listing = pgTable(
   ]
 );
 
+export const servicePackage = pgTable(
+  "service_package",
+  {
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    firstPublishedAt: timestamp("first_published_at"),
+    id: uuid("id").defaultRandom().primaryKey(),
+    listingId: uuid("listing_id")
+      .notNull()
+      .references(() => listing.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    priceAmount: integer("price_amount").notNull(),
+    processingTimeHours: integer("processing_time_hours").notNull(),
+    scope: text("scope").notNull(),
+    serviceInputFields: jsonb("service_input_fields")
+      .$type<ServiceInputField[]>()
+      .default([])
+      .notNull(),
+    status: servicePackageStatus("status").default("AVAILABLE").notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+    warrantyPolicy: jsonb("warranty_policy").$type<WarrantyPolicy>().notNull(),
+  },
+  (table) => [
+    uniqueIndex("service_package_listing_name_unique_idx").on(
+      table.listingId,
+      table.name
+    ),
+    index("service_package_listing_id_idx").on(table.listingId),
+    index("service_package_listing_status_idx").on(
+      table.listingId,
+      table.status
+    ),
+    index("service_package_price_amount_idx").on(table.priceAmount),
+  ]
+);
+
 export const parentCategoryRelations = relations(
   parentCategory,
   ({ many }) => ({
@@ -178,7 +245,7 @@ export const subCategoryRelations = relations(subCategory, ({ one, many }) => ({
   }),
 }));
 
-export const listingRelations = relations(listing, ({ one }) => ({
+export const listingRelations = relations(listing, ({ many, one }) => ({
   category: one(subCategory, {
     fields: [listing.categoryId],
     references: [subCategory.id],
@@ -190,5 +257,13 @@ export const listingRelations = relations(listing, ({ one }) => ({
   sellerProfile: one(sellerProfile, {
     fields: [listing.sellerId],
     references: [sellerProfile.userId],
+  }),
+  servicePackages: many(servicePackage),
+}));
+
+export const servicePackageRelations = relations(servicePackage, ({ one }) => ({
+  listing: one(listing, {
+    fields: [servicePackage.listingId],
+    references: [listing.id],
   }),
 }));

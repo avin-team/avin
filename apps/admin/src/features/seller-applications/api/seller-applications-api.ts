@@ -33,19 +33,15 @@ export const invalidateSellerApplications = () => {
 export const useAdminSellerApplications = (params?: {
   search?: string;
   status?: SellerApplicationStatus | "ALL";
-}) => {
-  return useQuery(sellerApplicationsQueryOptions(params));
-};
+}) => useQuery(sellerApplicationsQueryOptions(params));
 
-export const useAdminSellerApplication = (id: string) => {
-  return useQuery(sellerApplicationDetailQueryOptions(id));
-};
+export const useAdminSellerApplication = (id: string) =>
+  useQuery(sellerApplicationDetailQueryOptions(id));
 
-export const useAdminDecideSellerApplication = () => {
-  return useMutation({
+export const useAdminDecideSellerApplication = () =>
+  useMutation({
     ...orpc.sellerApplication.adminDecide.mutationOptions(),
     onSuccess: () => {
       invalidateSellerApplications();
     },
   });
-};

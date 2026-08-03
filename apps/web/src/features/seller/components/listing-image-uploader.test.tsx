@@ -35,7 +35,7 @@ vi.mock("@better-upload/client", () => ({
 }));
 
 vi.mock("./listing-image-validation", () => ({
-  validateListingImage: vi.fn().mockResolvedValue(undefined),
+  validateListingImage: vi.fn().mockResolvedValue(),
 }));
 
 vi.mock("@avin/ui/components/file-dropzone", () => ({

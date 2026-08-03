@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import React, { useState } from "react";
 
 import type { MainNavItem } from "@/config/site";
@@ -23,7 +23,7 @@ export const MainNav = ({ items }: MainNavProps) => {
   return (
     <nav className="hidden items-center space-x-1 lg:flex">
       {items.map((item) => (
-        <motion.div
+        <m.div
           className="relative"
           key={item.title}
           onMouseEnter={() => setHoveredItem(item.title)}
@@ -38,7 +38,7 @@ export const MainNav = ({ items }: MainNavProps) => {
             to={item.href as string}
           >
             {hoveredItem === item.title && (
-              <motion.div
+              <m.div
                 animate={{ opacity: 1 }}
                 className="absolute inset-0 rounded-lg bg-muted"
                 exit={{ opacity: 0 }}
@@ -53,7 +53,7 @@ export const MainNav = ({ items }: MainNavProps) => {
             )}
             <span className="relative z-10">{item.title}</span>
           </Link>
-        </motion.div>
+        </m.div>
       ))}
     </nav>
   );

@@ -1,7 +1,8 @@
 import { ACCOUNT_ROLE } from "@avin/auth/permissions";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Menu, X } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence } from "motion/react";
+import * as m from "motion/react-m";
 import { toast } from "sonner";
 
 import type { MainNavItem } from "@/config/site";
@@ -45,13 +46,13 @@ export const MobileNavTrigger = ({
   isOpen: boolean;
   onToggle: () => void;
 }) => (
-  <motion.button
+  <m.button
     className="rounded-lg p-2 text-foreground transition-colors duration-200 hover:bg-muted lg:hidden"
     onClick={onToggle}
     whileTap={{ scale: 0.95 }}
   >
     {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-  </motion.button>
+  </m.button>
 );
 
 export const MobileNav = ({ isOpen, items, onToggle }: MobileNavProps) => {
@@ -62,14 +63,14 @@ export const MobileNav = ({ isOpen, items, onToggle }: MobileNavProps) => {
     <AnimatePresence>
       {isOpen && (
         <>
-          <motion.div
+          <m.div
             animate={{ opacity: 1 }}
             className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm lg:hidden"
             exit={{ opacity: 0 }}
             initial={{ opacity: 0 }}
             onClick={onToggle}
           />
-          <motion.div
+          <m.div
             animate="open"
             className="fixed top-16 right-4 z-50 w-80 overflow-hidden rounded-2xl border border-border bg-background shadow-2xl lg:hidden"
             exit="closed"
@@ -79,7 +80,7 @@ export const MobileNav = ({ isOpen, items, onToggle }: MobileNavProps) => {
             <div className="space-y-6 p-6">
               <div className="space-y-1">
                 {items?.map((item) => (
-                  <motion.div key={item.title} variants={mobileItemVariants}>
+                  <m.div key={item.title} variants={mobileItemVariants}>
                     <Link
                       activeProps={{
                         className: "bg-muted text-foreground font-semibold",
@@ -90,11 +91,11 @@ export const MobileNav = ({ isOpen, items, onToggle }: MobileNavProps) => {
                     >
                       {item.title}
                     </Link>
-                  </motion.div>
+                  </m.div>
                 ))}
               </div>
 
-              <motion.div
+              <m.div
                 className="space-y-3 border-t border-border pt-6"
                 variants={mobileItemVariants}
               >
@@ -182,9 +183,9 @@ export const MobileNav = ({ isOpen, items, onToggle }: MobileNavProps) => {
                     </Link>
                   </>
                 )}
-              </motion.div>
+              </m.div>
             </div>
-          </motion.div>
+          </m.div>
         </>
       )}
     </AnimatePresence>

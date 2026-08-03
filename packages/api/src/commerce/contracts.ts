@@ -1,9 +1,13 @@
 import { createHash } from "node:crypto";
 
 import { serviceInputFieldSchema } from "@avin/db/schema/catalog";
-import type { ServiceInputField } from "@avin/db/schema/catalog";
+import type {
+  ServiceInputField,
+  WarrantyPolicy,
+} from "@avin/db/schema/catalog";
 import type {
   ListingSnapshot,
+  ServicePackageSnapshot,
   WarrantyPolicySnapshot,
 } from "@avin/db/schema/commerce";
 import { ORPCError } from "@orpc/server";
@@ -33,6 +37,18 @@ export interface ParsedListingContract {
   warrantyPolicy: WarrantyPolicySnapshot;
   priceAmount: number;
   fingerprint: string;
+  servicePackageId?: string;
+  servicePackageSnapshot?: ServicePackageSnapshot;
+}
+
+export interface ServicePackageContractSource {
+  id: string;
+  name: string;
+  priceAmount: number;
+  processingTimeHours: number;
+  scope: string;
+  serviceInputFields: unknown;
+  warrantyPolicy: WarrantyPolicy;
 }
 
 const fileInputValueSchema = z.object({
@@ -143,8 +159,9 @@ export const parseListingContract = (
   const serviceInputFields = parseServiceInputFields(source.serviceInputFields);
   const warrantyPolicy = {
     durationHours: source.warrantyDurationHours,
+    kind: "TIMED",
     terms: source.warrantyTerms,
-  } satisfies WarrantyPolicySnapshot;
+  } satisfies Extract<WarrantyPolicySnapshot, { kind: "TIMED" }>;
   const listingSnapshot = {
     categoryId: source.categoryId,
     description: source.description,
@@ -170,6 +187,99 @@ export const parseListingContract = (
     processingTimeHours: source.processingTimeHours,
     serviceInputFields,
     warrantyPolicy,
+  };
+};
+
+export const parseServicePackageContract = (
+  listingSource: Omit<
+    ListingContractSource,
+    | "priceAmount"
+    | "processingTimeHours"
+    | "serviceInputFields"
+    | "warrantyDurationHours"
+    | "warrantyTerms"
+  >,
+  packageSource: ServicePackageContractSource,
+  commissionRatePercent: string
+): ParsedListingContract => {
+  if (
+    !Number.isInteger(packageSource.priceAmount) ||
+    packageSource.priceAmount <= 0
+  ) {
+    throw new ORPCError("CONFLICT", {
+      message: "Service package price is not available for checkout.",
+    });
+  }
+
+  if (
+    !Number.isInteger(packageSource.processingTimeHours) ||
+    packageSource.processingTimeHours <= 0
+  ) {
+    throw new ORPCError("CONFLICT", {
+      message:
+        "Service package Processing Expectation is not available for checkout.",
+    });
+  }
+
+  if (!packageSource.name.trim() || !packageSource.scope.trim()) {
+    throw new ORPCError("CONFLICT", {
+      message: "Service package contract is incomplete.",
+    });
+  }
+
+  if (!listingSource.title?.trim()) {
+    throw new ORPCError("CONFLICT", {
+      message: "Listing title is not available for checkout.",
+    });
+  }
+
+  if (
+    packageSource.warrantyPolicy.kind === "TIMED" &&
+    (!Number.isInteger(packageSource.warrantyPolicy.durationHours) ||
+      packageSource.warrantyPolicy.durationHours <= 0 ||
+      !packageSource.warrantyPolicy.terms.trim())
+  ) {
+    throw new ORPCError("CONFLICT", {
+      message: "Service package WarrantyPolicy is not available for checkout.",
+    });
+  }
+
+  const serviceInputFields = parseServiceInputFields(
+    packageSource.serviceInputFields
+  );
+  const listingSnapshot = {
+    categoryId: listingSource.categoryId,
+    description: listingSource.description,
+    images: listingSource.images ?? [],
+    slug: listingSource.slug,
+    thumbnailUrl: listingSource.thumbnailUrl,
+    title: listingSource.title,
+    type: listingSource.type,
+  } satisfies ListingSnapshot;
+  const servicePackageSnapshot = {
+    id: packageSource.id,
+    name: packageSource.name,
+    priceAmount: packageSource.priceAmount,
+    processingTimeHours: packageSource.processingTimeHours,
+    scope: packageSource.scope,
+    serviceInputFields,
+    warrantyPolicy: packageSource.warrantyPolicy,
+  } satisfies ServicePackageSnapshot;
+
+  return {
+    commissionRatePercent,
+    fingerprint: fingerprint({
+      commissionRatePercent,
+      listingSnapshot,
+      servicePackageSnapshot,
+    }),
+    listingSnapshot,
+    priceAmount: packageSource.priceAmount,
+    processingTimeHours: packageSource.processingTimeHours,
+    serviceInputFields,
+    servicePackageId: packageSource.id,
+    servicePackageSnapshot,
+    warrantyPolicy: packageSource.warrantyPolicy,
   };
 };
 
@@ -230,11 +340,14 @@ export const fingerprintCheckoutRequest = (input: {
     contractFingerprint: string;
     inputs: Record<string, unknown>;
     listingId: string;
+    packageId?: string | null;
   }[];
 }): string =>
   fingerprint({
     confirmMaterialChanges: input.confirmMaterialChanges,
-    items: input.items.toSorted((left, right) =>
-      left.listingId.localeCompare(right.listingId)
+    items: input.items.toSorted(
+      (left, right) =>
+        left.listingId.localeCompare(right.listingId) ||
+        (left.packageId ?? "").localeCompare(right.packageId ?? "")
     ),
   });

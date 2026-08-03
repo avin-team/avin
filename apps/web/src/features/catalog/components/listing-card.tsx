@@ -8,7 +8,7 @@ import {
   User,
   Wrench,
 } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import type { ComponentPropsWithoutRef } from "react";
 
 import { formatVND } from "@/utils/format";
@@ -53,7 +53,7 @@ export const ListingCard = ({
         params={{ id: listing.slug ?? listing.id }}
         to="/listing/$id"
       >
-        <motion.div
+        <m.div
           className={className}
           transition={{ duration: 0.2 }}
           whileHover={{ y: -2 }}
@@ -139,7 +139,7 @@ export const ListingCard = ({
               </div>
             </div>
           </div>
-        </motion.div>
+        </m.div>
       </Link>
     );
   }
@@ -151,7 +151,7 @@ export const ListingCard = ({
       params={{ id: listing.slug ?? listing.id }}
       to="/listing/$id"
     >
-      <motion.div
+      <m.div
         className="h-full"
         transition={{ duration: 0.2 }}
         whileHover={{ y: -4 }}
@@ -204,10 +204,7 @@ export const ListingCard = ({
                     <User className="h-3 w-3" />
                   </div>
                 )}
-                <span
-                  className="truncate text-xs font-semibold text-muted-foreground group-hover:text-foreground transition-colors"
-                  title={sellerName}
-                >
+                <span className="truncate text-xs font-semibold text-muted-foreground group-hover:text-foreground transition-colors">
                   {sellerName}
                 </span>
                 <CheckCircle2 className="h-3 w-3 text-blue-500 shrink-0" />
@@ -239,7 +236,7 @@ export const ListingCard = ({
             </div>
           </div>
         </div>
-      </motion.div>
+      </m.div>
     </Link>
   );
 };

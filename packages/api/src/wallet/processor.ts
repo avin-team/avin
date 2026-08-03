@@ -82,7 +82,7 @@ const findExistingEvent = async (
   }
 
   if (!event.bankReference) {
-    return undefined;
+    return;
   }
 
   const [byBankReference] = await executor

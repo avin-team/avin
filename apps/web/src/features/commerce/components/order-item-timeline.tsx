@@ -100,7 +100,7 @@ const EvidenceFile = ({
           {file.fileName}
         </a>
       ) : (
-        <span className="min-w-0 truncate" title={file.storageKey}>
+        <span className="min-w-0 truncate">
           {file.fileName} · {file.storageKey}
         </span>
       )}

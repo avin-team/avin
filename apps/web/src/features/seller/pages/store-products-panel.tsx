@@ -64,75 +64,73 @@ const ProductRow = ({
   listing: SellerProductListItem;
   onDelete: () => void;
   onOpen: () => void;
-}) => {
-  return (
-    <li className="relative flex flex-wrap items-center gap-4 rounded-2xl border-b border-border/60 px-2 py-4 transition-colors hover:bg-muted/30 last:border-b-0">
-      <Link
-        aria-label={`Mở ${listing.title || "sản phẩm chưa đặt tên"}`}
-        className="absolute inset-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        params={{ id: listing.id }}
-        to="/seller/listings/$id"
-      />
-      <div className="pointer-events-none flex size-11 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-        <Package className="size-4" />
-      </div>
-      <div className="pointer-events-none min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="truncate text-sm font-semibold">
-            {listing.title || "Sản phẩm chưa đặt tên"}
-          </p>
-          <Badge
-            className={getSellerListingStatusClass(listing.status)}
-            variant="outline"
-          >
-            {getSellerListingStatusLabel(listing.status)}
-          </Badge>
-        </div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {getSellerListingTypeLabel(listing.type)} ·{" "}
-          {formatSellerListingPrice(listing.priceAmount)}
+}) => (
+  <li className="relative flex flex-wrap items-center gap-4 rounded-2xl border-b border-border/60 px-2 py-4 transition-colors hover:bg-muted/30 last:border-b-0">
+    <Link
+      aria-label={`Mở ${listing.title || "sản phẩm chưa đặt tên"}`}
+      className="absolute inset-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      params={{ id: listing.id }}
+      to="/seller/listings/$id"
+    />
+    <div className="pointer-events-none flex size-11 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+      <Package className="size-4" />
+    </div>
+    <div className="pointer-events-none min-w-0 flex-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="truncate text-sm font-semibold">
+          {listing.title || "Sản phẩm chưa đặt tên"}
         </p>
+        <Badge
+          className={getSellerListingStatusClass(listing.status)}
+          variant="outline"
+        >
+          {getSellerListingStatusLabel(listing.status)}
+        </Badge>
       </div>
-      <div className="relative z-10 flex items-center gap-2">
-        <Button onClick={onOpen} size="sm" variant="outline">
-          <FileEdit />
-          {getSellerListingActionLabel(listing.status)}
+      <p className="mt-1 text-xs text-muted-foreground">
+        {getSellerListingTypeLabel(listing.type)} ·{" "}
+        {formatSellerListingPrice(listing.priceAmount)}
+      </p>
+    </div>
+    <div className="relative z-10 flex items-center gap-2">
+      <Button onClick={onOpen} size="sm" variant="outline">
+        <FileEdit />
+        {getSellerListingActionLabel(listing.status)}
+      </Button>
+      {listing.status === "PUBLISHED" && listing.slug ? (
+        <Button
+          render={<Link params={{ id: listing.slug }} to="/listing/$id" />}
+          size="sm"
+          variant="ghost"
+        >
+          <ExternalLink />
+          Xem
         </Button>
-        {listing.status === "PUBLISHED" && listing.slug ? (
-          <Button
-            render={<Link params={{ id: listing.slug }} to="/listing/$id" />}
-            size="sm"
-            variant="ghost"
+      ) : null}
+      {listing.status === "DRAFT" ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                aria-label="Thao tác với bản nháp"
+                size="icon-sm"
+                variant="ghost"
+              />
+            }
           >
-            <ExternalLink />
-            Xem
-          </Button>
-        ) : null}
-        {listing.status === "DRAFT" ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  aria-label="Thao tác với bản nháp"
-                  size="icon-sm"
-                  variant="ghost"
-                />
-              }
-            >
-              <MoreHorizontal />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={onDelete} variant="destructive">
-                <Trash2 />
-                Xóa bản nháp
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : null}
-      </div>
-    </li>
-  );
-};
+            <MoreHorizontal />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={onDelete} variant="destructive">
+              <Trash2 />
+              Xóa bản nháp
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
+    </div>
+  </li>
+);
 
 export const StoreProductsPanel = () => {
   const navigate = useNavigate({ from: "/seller/store" });

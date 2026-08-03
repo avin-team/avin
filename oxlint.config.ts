@@ -39,16 +39,10 @@ export default defineConfig({
   jsPlugins: ["@workspace/eslint-plugin"],
   rules: {
     "@workspace/select-requires-items": "error",
-    "eslint/arrow-body-style": "off",
-    "github/a11y-no-title-attribute": "off",
     "github/filenames-match-regex": "off",
     "jsx-a11y/label-has-associated-control": "off",
     "react-doctor/nextjs-no-img-element": "off",
     "react-doctor/no-giant-component": "off",
-    "react-doctor/prefer-use-effect-event": "off",
     "react-doctor/react-compiler-no-manual-memoization": "off",
-    "react-doctor/use-lazy-motion": "off",
-    "unicorn/no-abusive-eslint-disable": "off",
-    "unicorn/no-useless-undefined": "off",
   },
 });

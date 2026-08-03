@@ -50,7 +50,7 @@
 
 - When adding related ticket references to a Jira comment, prefers editing the existing comment (via `commentId`) rather than posting a new separate comment, keeping the comment thread clean. Confidence: 0.65
 
-- Zero tolerance for inline lint suppression comments (e.g., `/* oxlint-disable */`, `// oxlint-disable-next-line`). Fix the underlying code issues instead of suppressing them. If a rule genuinely does not apply to the project, disable it at the config level (`oxlint.config.ts`), not inline. Confidence: 0.85
+- Zero tolerance for inline lint suppression comments (e.g., `/* oxlint-disable */`, `// oxlint-disable-next-line`). Fix the underlying code issues instead of suppressing them. If a rule genuinely does not apply to the project, disable it at the config level (`oxlint.config.ts`), not inline. Exception: when a lint rule genuinely conflicts with oxfmt (formatter reverts the lint-compliant ordering, making both unsatisfiable), inline disable is the pragmatic fallback. Confidence: 0.75
 - Prefers disabling inapplicable lint rules in the config file (`oxlint.config.ts`) rather than scattering inline disable comments throughout source files. Confidence: 0.75
 - Treats commented-out lint rule disables in the config as technical debt to remove, not leave as dead code. Either the rule genuinely doesn't apply (uncomment the disable) or it does apply (remove the disable and fix the code). Confidence: 0.70
 
@@ -66,3 +66,8 @@
 - When the user indicates certain files are theirs to work on (e.g., "mấy cái code đang sửa bạn đừng bận tâm"), the agent must leave those files untouched and scope work to the remaining files only. Respect the user's active working set; do not modify files the user has claimed. Confidence: 0.75
 
 - `.tsx` files must only export React components (enforced by `react-doctor/only-export-components`). When a `.tsx` file contains non-component exports (constants, helper functions, type maps), split them into a separate `.ts` file and keep only the component in `.tsx`. Use descriptive names for the utility file (e.g., `category-icon-map.ts`) rather than generic names like `utils.ts`. Confidence: 0.80
+- Prefers conventional commit format (`fix:`, `feat:`, `chore:`, etc.) with structured multi-line bodies describing what changed and why. Confidence: 0.70
+- Uses `Co-authored-by: CommandCodeBot <noreply@commandcode.ai>` trailer in commit messages. Confidence: 0.65
+- When oxfmt formatting conflicts with an ultracite lint rule (i.e., oxfmt reverts the lint-compliant ordering), prefers identifying the conflict explicitly, documenting it in the commit message and to the user, then committing with `--no-verify` rather than leaving changes uncommitted or fighting the formatter indefinitely. Confidence: 0.60
+
+- Uses `motion/react`'s `LazyMotion` + `domAnimation` pattern for tree-shakeable animations: wrap the root layout in `<LazyMotion features={domAnimation}>`, then use the `m` alias with `m.div`, `m.header`, `m.button`, etc. Imports `m` via `import * as m from "motion/react-m"` (namespace import from the `motion/react-m` subpath), while `AnimatePresence` comes from `import { AnimatePresence } from "motion/react"`. Confidence: 0.90

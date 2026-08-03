@@ -47,7 +47,7 @@ vi.mock("@avin/ui/components/file-dropzone", () => ({
         }}
         type="file"
       />
-      {renderTrigger?.({ open: () => undefined })}
+      {renderTrigger?.({ open: () => {} })}
     </div>
   ),
 }));

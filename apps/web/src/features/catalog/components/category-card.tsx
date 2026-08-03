@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Layers } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import type { ComponentPropsWithoutRef } from "react";
 
 import { CategoryIcon } from "../utils/category-icons";
@@ -23,7 +23,7 @@ export const CategoryCard = ({ category, className }: CategoryCardProps) => {
   const subs = category.subCategories ?? [];
 
   return (
-    <motion.div
+    <m.div
       className={className}
       transition={{ duration: 0.2 }}
       whileHover={{ y: -4 }}
@@ -80,6 +80,6 @@ export const CategoryCard = ({ category, className }: CategoryCardProps) => {
           <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
         </div>
       </Link>
-    </motion.div>
+    </m.div>
   );
 };

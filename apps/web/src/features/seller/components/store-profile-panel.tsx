@@ -322,45 +322,41 @@ export const StorefrontPreviewCard = ({
   </Card>
 );
 
-const CompletionCard = ({ draft }: { draft: StoreProfileDraft }) => {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Trạng thái hồ sơ</CardTitle>
-        <CardDescription>
-          Hoàn thiện các trường bắt buộc để public hồ sơ.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3 text-sm">
-        {[
-          {
-            done: Boolean(draft.storefrontName.trim()),
-            label: "Tên gian hàng",
-          },
-          {
-            done: Boolean(draft.storeSlug.trim()),
-            label: "Đường dẫn gian hàng",
-          },
-          { done: Boolean(draft.bio?.trim()), label: "Mô tả gian hàng" },
-          { done: Boolean(draft.avatarUrl), label: "Ảnh đại diện" },
-        ].map((item) => (
-          <div className="flex items-center gap-2" key={item.label}>
-            <span
-              className={`flex size-5 items-center justify-center rounded-full ${item.done ? "bg-primary text-primary-foreground" : "border border-border text-transparent"}`}
-            >
-              <span aria-hidden="true">✓</span>
-            </span>
-            <span
-              className={item.done ? "text-muted-foreground" : "font-medium"}
-            >
-              {item.label}
-            </span>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
-};
+const CompletionCard = ({ draft }: { draft: StoreProfileDraft }) => (
+  <Card>
+    <CardHeader>
+      <CardTitle className="text-base">Trạng thái hồ sơ</CardTitle>
+      <CardDescription>
+        Hoàn thiện các trường bắt buộc để public hồ sơ.
+      </CardDescription>
+    </CardHeader>
+    <CardContent className="flex flex-col gap-3 text-sm">
+      {[
+        {
+          done: Boolean(draft.storefrontName.trim()),
+          label: "Tên gian hàng",
+        },
+        {
+          done: Boolean(draft.storeSlug.trim()),
+          label: "Đường dẫn gian hàng",
+        },
+        { done: Boolean(draft.bio?.trim()), label: "Mô tả gian hàng" },
+        { done: Boolean(draft.avatarUrl), label: "Ảnh đại diện" },
+      ].map((item) => (
+        <div className="flex items-center gap-2" key={item.label}>
+          <span
+            className={`flex size-5 items-center justify-center rounded-full ${item.done ? "bg-primary text-primary-foreground" : "border border-border text-transparent"}`}
+          >
+            <span aria-hidden="true">✓</span>
+          </span>
+          <span className={item.done ? "text-muted-foreground" : "font-medium"}>
+            {item.label}
+          </span>
+        </div>
+      ))}
+    </CardContent>
+  </Card>
+);
 
 interface StoreProfileEditorProps {
   onPreview: () => void;

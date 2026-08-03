@@ -190,7 +190,7 @@ export const CategoryDetailView = ({
               {selectedSubSlug && (
                 <button
                   className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary transition-colors"
-                  onClick={() => onSubSelect(undefined)}
+                  onClick={() => onSubSelect()}
                   type="button"
                 >
                   <RotateCcw className="h-3 w-3" />
@@ -206,7 +206,7 @@ export const CategoryDetailView = ({
                     ? "text-muted-foreground hover:bg-muted hover:text-foreground"
                     : "bg-primary text-primary-foreground font-semibold shadow-xs"
                 }`}
-                onClick={() => onSubSelect(undefined)}
+                onClick={() => onSubSelect()}
                 type="button"
               >
                 <span>Tất cả dịch vụ</span>
@@ -291,7 +291,7 @@ export const CategoryDetailView = ({
                         : "text-muted-foreground hover:text-foreground"
                     }`}
                     onClick={() => setViewMode("grid")}
-                    title="Lưới 3 cột"
+                    aria-label="Lưới 3 cột"
                     type="button"
                   >
                     <Grid3X3 className="h-4 w-4" />
@@ -303,7 +303,7 @@ export const CategoryDetailView = ({
                         : "text-muted-foreground hover:text-foreground"
                     }`}
                     onClick={() => setViewMode("list")}
-                    title="Danh sách 1 cột"
+                    aria-label="Danh sách 1 cột"
                     type="button"
                   >
                     <List className="h-4 w-4" />
