@@ -16,6 +16,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 
+import { startFulfillmentMaintenanceSchedule } from "./jobs/fulfillment-maintenance";
 import { startSePayReconciliationSchedule } from "./jobs/sepay-reconciliation";
 import {
   handleListingImageUpload,
@@ -135,3 +136,4 @@ app.get("/", (c) => c.text("OK"));
 export default app;
 
 startSePayReconciliationSchedule();
+startFulfillmentMaintenanceSchedule();

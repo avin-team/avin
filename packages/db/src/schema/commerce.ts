@@ -34,15 +34,31 @@ export interface WarrantyPolicySnapshot {
   terms: string;
 }
 
-export const orderItemStatus = pgEnum("order_item_status", [
+export const orderItemStatusValues = [
   "AWAITING_SELLER",
   "IN_PROGRESS",
   "DELIVERED",
   "IN_WARRANTY",
-  "COMPLETED",
+  "CLOSED",
   "DISPUTED",
   "CANCELLED",
+  "REFUNDED",
+] as const;
+
+export const orderItemStatus = pgEnum(
+  "order_item_status",
+  orderItemStatusValues
+);
+export type OrderItemStatus = (typeof orderItemStatusValues)[number];
+
+export const orderItemActorType = pgEnum("order_item_actor_type", [
+  "BUYER",
+  "SELLER",
+  "ADMIN",
+  "SYSTEM",
 ]);
+
+export const disputeStatus = pgEnum("dispute_status", ["OPEN"]);
 
 export const escrowHoldStatus = pgEnum("escrow_hold_status", [
   "HELD",
@@ -155,11 +171,15 @@ export const order = pgTable(
 export const orderItem = pgTable(
   "order_item",
   {
+    cancelledAt: timestamp("cancelled_at"),
     commissionRatePercent: numeric("commission_rate_percent", {
       precision: 5,
       scale: 2,
     }).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
+    deliveredAt: timestamp("delivered_at"),
+    deliveryReviewDeadlineAt: timestamp("delivery_review_deadline_at"),
+    disputedAt: timestamp("disputed_at"),
     id: uuid("id").defaultRandom().primaryKey(),
     listingId: uuid("listing_id")
       .notNull()
@@ -178,9 +198,15 @@ export const orderItem = pgTable(
       .$type<ServiceInputField[]>()
       .notNull(),
     status: orderItemStatus("status").default("AWAITING_SELLER").notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
     warrantyPolicy: jsonb("warranty_policy")
       .$type<WarrantyPolicySnapshot>()
       .notNull(),
+    warrantyExpiresAt: timestamp("warranty_expires_at"),
+    warrantyStartedAt: timestamp("warranty_started_at"),
   },
   (table) => [
     index("order_item_order_id_idx").on(table.orderId),
@@ -191,6 +217,156 @@ export const orderItem = pgTable(
     check(
       "order_item_processing_time_positive_check",
       sql`${table.processingTimeHours} > 0`
+    ),
+  ]
+);
+
+export const deliverySubmission = pgTable(
+  "delivery_submission",
+  {
+    commandKey: text("command_key").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    deliveredAt: timestamp("delivered_at").notNull(),
+    deliveryNote: text("delivery_note").notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    orderItemId: uuid("order_item_id")
+      .notNull()
+      .references(() => orderItem.id, { onDelete: "restrict" }),
+    sellerId: text("seller_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+  },
+  (table) => [
+    uniqueIndex("delivery_submission_order_item_unique_idx").on(
+      table.orderItemId
+    ),
+    uniqueIndex("delivery_submission_item_command_unique_idx").on(
+      table.orderItemId,
+      table.commandKey
+    ),
+    index("delivery_submission_seller_idx").on(table.sellerId),
+  ]
+);
+
+export const orderFile = pgTable(
+  "order_file",
+  {
+    byteSize: integer("byte_size"),
+    contentType: text("content_type").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    deliverySubmissionId: uuid("delivery_submission_id").references(
+      () => deliverySubmission.id,
+      { onDelete: "restrict" }
+    ),
+    fileName: text("file_name").notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => order.id, { onDelete: "restrict" }),
+    orderItemId: uuid("order_item_id").references(() => orderItem.id, {
+      onDelete: "restrict",
+    }),
+    storageKey: text("storage_key").notNull(),
+    uploadedByUserId: text("uploaded_by_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+  },
+  (table) => [
+    index("order_file_order_idx").on(table.orderId),
+    index("order_file_order_item_idx").on(table.orderItemId),
+    index("order_file_delivery_submission_idx").on(table.deliverySubmissionId),
+    uniqueIndex("order_file_storage_key_unique_idx").on(table.storageKey),
+  ]
+);
+
+export const orderItemLifecycleEvent = pgTable(
+  "order_item_lifecycle_event",
+  {
+    actorType: orderItemActorType("actor_type").notNull(),
+    actorUserId: text("actor_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    artifactId: uuid("artifact_id"),
+    artifactType: text("artifact_type"),
+    commandKey: text("command_key").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    effectiveAt: timestamp("effective_at").notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    newStatus: orderItemStatus("new_status").notNull(),
+    oldStatus: orderItemStatus("old_status"),
+    orderItemId: uuid("order_item_id")
+      .notNull()
+      .references(() => orderItem.id, { onDelete: "restrict" }),
+    reason: text("reason"),
+  },
+  (table) => [
+    uniqueIndex("order_item_lifecycle_event_item_command_unique_idx").on(
+      table.orderItemId,
+      table.commandKey
+    ),
+    index("order_item_lifecycle_event_item_effective_idx").on(
+      table.orderItemId,
+      table.effectiveAt
+    ),
+  ]
+);
+
+export const dispute = pgTable(
+  "dispute",
+  {
+    buyerId: text("buyer_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    commandKey: text("command_key").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    openedAt: timestamp("opened_at").notNull(),
+    orderItemId: uuid("order_item_id")
+      .notNull()
+      .references(() => orderItem.id, { onDelete: "restrict" }),
+    reason: text("reason").notNull(),
+    status: disputeStatus("status").default("OPEN").notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("dispute_order_item_unique_idx").on(table.orderItemId),
+    uniqueIndex("dispute_item_command_unique_idx").on(
+      table.orderItemId,
+      table.commandKey
+    ),
+    index("dispute_status_opened_idx").on(table.status, table.openedAt),
+  ]
+);
+
+export const notification = pgTable(
+  "notification",
+  {
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    lifecycleEventId: uuid("lifecycle_event_id")
+      .notNull()
+      .references(() => orderItemLifecycleEvent.id, { onDelete: "restrict" }),
+    orderItemId: uuid("order_item_id")
+      .notNull()
+      .references(() => orderItem.id, { onDelete: "restrict" }),
+    readAt: timestamp("read_at"),
+    recipientUserId: text("recipient_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+  },
+  (table) => [
+    uniqueIndex("notification_event_recipient_unique_idx").on(
+      table.lifecycleEventId,
+      table.recipientUserId
+    ),
+    index("notification_recipient_created_idx").on(
+      table.recipientUserId,
+      table.createdAt
     ),
   ]
 );
@@ -291,14 +467,93 @@ export const orderRelations = relations(order, ({ many, one }) => ({
 
 export const orderItemRelations = relations(orderItem, ({ many, one }) => ({
   customInputs: many(orderCustomInput),
+  deliverySubmission: one(deliverySubmission),
+  dispute: one(dispute),
   escrowHold: one(escrowHold),
   listing: one(listing, {
     fields: [orderItem.listingId],
     references: [listing.id],
   }),
+  lifecycleEvents: many(orderItemLifecycleEvent),
+  notifications: many(notification),
+  files: many(orderFile),
   order: one(order, {
     fields: [orderItem.orderId],
     references: [order.id],
+  }),
+}));
+
+export const deliverySubmissionRelations = relations(
+  deliverySubmission,
+  ({ many, one }) => ({
+    files: many(orderFile),
+    orderItem: one(orderItem, {
+      fields: [deliverySubmission.orderItemId],
+      references: [orderItem.id],
+    }),
+    seller: one(user, {
+      fields: [deliverySubmission.sellerId],
+      references: [user.id],
+    }),
+  })
+);
+
+export const orderFileRelations = relations(orderFile, ({ one }) => ({
+  deliverySubmission: one(deliverySubmission, {
+    fields: [orderFile.deliverySubmissionId],
+    references: [deliverySubmission.id],
+  }),
+  order: one(order, {
+    fields: [orderFile.orderId],
+    references: [order.id],
+  }),
+  orderItem: one(orderItem, {
+    fields: [orderFile.orderItemId],
+    references: [orderItem.id],
+  }),
+  uploadedBy: one(user, {
+    fields: [orderFile.uploadedByUserId],
+    references: [user.id],
+  }),
+}));
+
+export const orderItemLifecycleEventRelations = relations(
+  orderItemLifecycleEvent,
+  ({ one }) => ({
+    actor: one(user, {
+      fields: [orderItemLifecycleEvent.actorUserId],
+      references: [user.id],
+    }),
+    orderItem: one(orderItem, {
+      fields: [orderItemLifecycleEvent.orderItemId],
+      references: [orderItem.id],
+    }),
+  })
+);
+
+export const disputeRelations = relations(dispute, ({ one }) => ({
+  buyer: one(user, {
+    fields: [dispute.buyerId],
+    references: [user.id],
+  }),
+  orderItem: one(orderItem, {
+    fields: [dispute.orderItemId],
+    references: [orderItem.id],
+  }),
+}));
+
+export const notificationRelations = relations(notification, ({ one }) => ({
+  lifecycleEvent: one(orderItemLifecycleEvent, {
+    fields: [notification.lifecycleEventId],
+    references: [orderItemLifecycleEvent.id],
+  }),
+  orderItem: one(orderItem, {
+    fields: [notification.orderItemId],
+    references: [orderItem.id],
+  }),
+  recipient: one(user, {
+    fields: [notification.recipientUserId],
+    references: [user.id],
   }),
 }));
 

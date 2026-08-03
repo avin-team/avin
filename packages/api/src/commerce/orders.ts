@@ -4,6 +4,7 @@ import {
   orderCustomInput,
   orderItem,
 } from "@avin/db/schema/commerce";
+import type { OrderItemStatus } from "@avin/db/schema/commerce";
 import { asc, eq, inArray } from "drizzle-orm";
 
 import type { CommerceExecutor } from "./cart";
@@ -30,14 +31,7 @@ export interface SellerOrderView {
     priceAmount: number;
     processingDeadlineAt: string;
     processingTimeHours: number;
-    status:
-      | "AWAITING_SELLER"
-      | "CANCELLED"
-      | "COMPLETED"
-      | "DELIVERED"
-      | "DISPUTED"
-      | "IN_PROGRESS"
-      | "IN_WARRANTY";
+    status: OrderItemStatus;
   }[];
   sellerId: string;
   totalAmount: number;

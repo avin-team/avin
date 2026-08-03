@@ -2,6 +2,7 @@
   "name": "@avin/api",
   "type": "module",
   "exports": {
+    "./commerce/fulfillment": "./src/commerce/fulfillment.ts",
     "./context": "./src/runtime/context.ts",
     "./listing/seller-workspace": "./src/listing/seller-workspace.ts",
     "./router": "./src/router.ts",

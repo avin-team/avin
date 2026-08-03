@@ -11,7 +11,9 @@ import {
   order,
   orderCustomInput,
   orderItem,
+  orderItemLifecycleEvent,
 } from "@avin/db/schema/commerce";
+import type { OrderItemStatus } from "@avin/db/schema/commerce";
 import { userWallet } from "@avin/db/schema/wallet";
 import { ORPCError } from "@orpc/server";
 import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
@@ -42,14 +44,7 @@ export interface CheckoutResult {
       id: string;
       listingId: string;
       priceAmount: number;
-      status:
-        | "AWAITING_SELLER"
-        | "CANCELLED"
-        | "COMPLETED"
-        | "DELIVERED"
-        | "DISPUTED"
-        | "IN_PROGRESS"
-        | "IN_WARRANTY";
+      status: OrderItemStatus;
     }[];
     sellerId: string;
     totalAmount: number;
@@ -384,6 +379,19 @@ const createOrdersAndEscrowHolds = async (
       if (!createdItem) {
         throw new Error("OrderItem was not created");
       }
+
+      await transaction.insert(orderItemLifecycleEvent).values({
+        actorType: "BUYER",
+        actorUserId: buyerId,
+        artifactId: checkoutId,
+        artifactType: "CHECKOUT",
+        commandKey: `checkout:${checkoutId}`,
+        createdAt: now,
+        effectiveAt: now,
+        newStatus: "AWAITING_SELLER",
+        orderItemId: createdItem.id,
+        reason: "Checkout created OrderItem",
+      });
 
       if (customInputs.length > 0) {
         await transaction.insert(orderCustomInput).values(

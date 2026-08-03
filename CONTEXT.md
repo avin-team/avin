@@ -92,11 +92,29 @@ A commercial agreement between exactly **one `User` (Buyer)** and **one `Seller`
 - Multi-seller carts automatically split into **per-seller `Order`s** at checkout (1 Order = 1 Seller).
 - An `Order` is a container and its displayed progress is derived from its `OrderItem`s; it has no independent fulfillment state machine. Each OrderItem proceeds independently, so a failure, dispute, or refund for one item does not cancel or settle the other items.
 - Each `Order` has a real-time chat channel and contains the `EscrowHold`s and `Dispute`s for its items.
-- Each Seller can access only their own Order and OrderItems, including only the Buyer inputs needed for those items; Sellers cannot see other Sellers' Orders or the Buyer's combined Cart.
+- Each Seller can access only their own Order and OrderItems, including only the Buyer inputs needed for those items; an OrderItem's Seller is derived from its Order, with no separate per-item assignment in P0. Sellers cannot see other Sellers' Orders or the Buyer's combined Cart.
 
 ### OrderItem
 
-A line item within an `Order`, capturing the snapshotted `Listing`, quantity, unit price, commission rate, WarrantyPolicy, Processing Expectation, and buyer-provided inputs at the time of purchase. In P0, each OrderItem represents one purchased Listing with quantity one. Each `OrderItem` owns its fulfillment lifecycle, `EscrowHold` allocation, warranty period, and dispute outcome; Seller fulfillment reaches `DELIVERED`, then Buyer confirmation or the deterministic 48-hour buyer-review timeout moves it into `IN_WARRANTY`. If Seller has not delivered by the Processing Expectation deadline, the Buyer may open a late-delivery Dispute. The Buyer may cancel only while the item is `AWAITING_SELLER`, receiving a full refund and closing its EscrowHold; once work begins, problems use the Dispute path. The Seller may cancel before delivery only with a recorded reason, which fully refunds that item and closes its EscrowHold without affecting other items.
+A line item within an `Order`, capturing the snapshotted `Listing`, quantity, unit price, commission rate, WarrantyPolicy, Processing Expectation, and buyer-provided inputs at the time of purchase. In P0, each OrderItem represents one purchased Listing with quantity one. Each `OrderItem` owns its fulfillment lifecycle, `EscrowHold` allocation, warranty period, and dispute outcome; the owning Seller explicitly starts fulfillment to move it from `AWAITING_SELLER` to `IN_PROGRESS`, while viewing the Order or sending a Message does not start work. Fulfillment must then move from `IN_PROGRESS` to `DELIVERED` through exactly one immutable `DeliverySubmission`; there is no direct `AWAITING_SELLER` to `DELIVERED` transition. The submission may contain multiple `OrderFile`s; only an explicit Buyer confirmation moves it into `IN_WARRANTY` before the deterministic 48-hour buyer-review timeout, while viewing, downloading, or messaging does not confirm delivery. The review clock starts at the server-recorded `deliveredAt` time of that submission; if the item remains `DELIVERED` at the deadline, an automated transition moves it into `IN_WARRANTY`. A Buyer confirmation racing with that timeout is resolved atomically: the first committed transition establishes the Warranty start, and the other request returns the current state without creating a duplicate event. The WarrantyPolicy period starts at confirmation or timeout. The Buyer alone may create one `Dispute` per item: after the Processing Expectation deadline from `AWAITING_SELLER` or `IN_PROGRESS`, during the 48-hour review in `DELIVERED`, or at any point in `IN_WARRANTY`; no Dispute may begin from `CLOSED`, `CANCELLED`, or `REFUNDED`. Opening an eligible Dispute atomically moves the item to `DISPUTED`, stops review and warranty timers, blocks automatic EscrowHold resolution, and leaves Seller with response/evidence actions only. Warranty expiry or a Dispute resolved in Seller's favor moves the item to `CLOSED`; a Dispute resolved as a full Buyer refund moves it to `REFUNDED`; pre-delivery cancellation moves it to `CANCELLED`. Admin has no arbitrary state override; Admin changes occur only through a defined policy action or Dispute resolution with a reason and audit record. `CLOSED` is the canonical post-warranty state name; `COMPLETED` is not a domain state name. If Seller has not delivered by the Processing Expectation deadline, the Buyer may open a late-delivery Dispute; the deadline does not automatically change the item state or refund the Buyer, and Seller may still act until the Dispute opens. The Buyer may cancel only while the item is `AWAITING_SELLER`, receiving a full refund and closing its EscrowHold; once work begins, problems use the Dispute path. The Seller may cancel in either pre-delivery state, `AWAITING_SELLER` or `IN_PROGRESS`, only with a recorded reason; this fully refunds that item and closes its EscrowHold without affecting other items. After `DELIVERED`, Seller cancellation is no longer available. Concurrent Buyer cancellation and Seller start are resolved by the first committed transition; the losing action is rejected.
+
+While an `OrderItem` remains `AWAITING_SELLER` after its Processing Expectation deadline, Buyer may choose either direct cancellation for a full refund or a late-delivery `Dispute`.
+
+Buyer cancellation before Seller starts fulfillment requires no mandatory reason; its lifecycle event still records the Buyer and effective time.
+
+Competing fulfillment, cancellation, and Dispute commands are serialized by the first committed valid transition; if Delivery commits first, Buyer may still open an eligible Dispute from `DELIVERED`, but if Dispute commits first, Delivery is rejected.
+
+Retrying the same successful fulfillment command returns its committed outcome without creating another lifecycle event, Notification, refund, or escrow movement; a different command invalid for the current state is rejected.
+
+Rejected authorization or state requests may create a separate security audit record with actor, action, item, time, and reason, but never create a lifecycle event, Buyer timeline entry, Notification, or state change.
+
+### DeliverySubmission
+
+An immutable Seller submission attached to an `OrderItem` that records the result delivered to the Buyer and enables the transition from `IN_PROGRESS` to `DELIVERED`. It always includes a delivery note and may include private `OrderFile`s; it records the submitting Seller and submission time and cannot be edited or deleted. Only the Order's Buyer, owning Seller, and an authorized Admin may view it. Persisting the submission, changing the item state, and recording the lifecycle event are one atomic business operation. _Avoid_: delivery evidence represented only by a status flag.
+
+### OrderItemLifecycleEvent
+
+An immutable record of a successful `OrderItem` lifecycle transition, including the actor, effective time, prior and new state, and any relevant reason or artifact. The first event is recorded when Checkout creates the item in `AWAITING_SELLER`; Cart actions are not item lifecycle events. Automated transitions use `SYSTEM` as the actor and the business deadline as their effective time; a rejected request is not a lifecycle event. A Seller cancellation reason is included in the event and is visible to the Buyer. It is the source for the Buyer-visible item timeline and is visible only to the Order's Buyer, owning Seller, and authorized Admin.
 
 ### UserWallet
 
@@ -128,7 +146,7 @@ At Checkout, each active `EscrowHold` contributes to Pending Escrow Balance, whi
 
 ### EscrowHold
 
-A financial hold entity tied 1-to-1 with an `OrderItem`. Holds the item's full buyer payment in escrow during fulfillment and warranty before independently releasing funds to `SellerWallet` after that item's Warranty expiry (minus platform commission) or refunding `UserWallet`; platform commission is recognized only at release and is rounded down to an integer VND amount. An open `Dispute` blocks release until Admin resolution. It is created atomically with moving the matching amount from `UserWallet` Available Balance to Held Balance. A release records one atomic Transaction for the OrderItem containing both the Seller proceeds and platform commission postings. `RELEASED`, `REFUNDED`, and `CANCELLED` are terminal outcomes; an EscrowHold is never reopened.
+A financial hold entity tied 1-to-1 with an `OrderItem`. Holds the item's full buyer payment in escrow during fulfillment and warranty before independently releasing funds to `SellerWallet` after that item's Warranty expiry (minus platform commission) or refunding `UserWallet`; platform commission is recognized only at release and is rounded down to an integer VND amount. At the fixed Warranty expiry, an item still in `IN_WARRANTY` with no Dispute is atomically moved to `CLOSED` and its EscrowHold is released; an open or concurrently committed `Dispute` blocks release until Admin resolution. It is created atomically with moving the matching amount from `UserWallet` Available Balance to Held Balance. A pre-delivery OrderItem cancellation sets the item to `CANCELLED`, the funded EscrowHold to `REFUNDED`, and records a `REFUND` Transaction; `CANCELLED` is reserved for a hold voided before funds are held. A release records one atomic Transaction for the OrderItem containing both the Seller proceeds and platform commission postings. `RELEASED`, `REFUNDED`, and `CANCELLED` are terminal outcomes; an EscrowHold is never reopened.
 
 ### LedgerAccount
 
@@ -148,7 +166,7 @@ An entity initiated by a `User` when an `OrderItem` cannot be resolved directly 
 
 ### Review
 
-A rating (1–5 stars) and feedback comment submitted by a `User` for a completed `OrderItem`.
+A rating (1–5 stars) and feedback comment submitted once by a `User` for an `OrderItem` in `CLOSED`; `REFUNDED` and `CANCELLED` items are not reviewable.
 
 ### Message
 
@@ -164,7 +182,7 @@ A private, immutable file submitted as evidence for a `Dispute`. Access is limit
 
 ### Notification
 
-An in-app or system alert sent to a `User` or `Seller` triggered by lifecycle events.
+An in-app or system alert sent to a `User`, `Seller`, or authorized `Admin` when a relevant lifecycle event succeeds. Each OrderItem lifecycle transition emits at most one deduplicated Notification to the appropriate parties; email delivery is outside AVIN-19.
 
 ---
 
@@ -180,7 +198,7 @@ A positive whole-number estimate, in hours, of the time a Seller expects to need
 
 ### WarrantyPolicy
 
-An immutable snapshot embedded on a `Listing` and copied to each `OrderItem` at purchase time (`durationHours: number`, `terms: string`). Defines the warranty protection period during which the item's funds remain in escrow; the period begins when Buyer confirmation or the deterministic buyer-review timeout moves the delivered item into `IN_WARRANTY`.
+An immutable snapshot embedded on a `Listing` and copied to each `OrderItem` at purchase time (`durationHours: number`, `terms: string`). Defines the warranty protection period during which the item's funds remain in escrow; the period begins when Buyer confirmation or the deterministic buyer-review timeout moves the delivered item into `IN_WARRANTY`. For the timeout path, the effective start is the fixed `deliveredAt + 48 hours` deadline even if the scheduler processes the transition later.
 
 ### ServiceInputField
 
@@ -201,7 +219,7 @@ A key-value snapshot of the buyer's submitted form responses attached to an `Ord
 1. **`UserAggregate`**: `User` + `UserWallet`
 2. **`SellerAggregate`**: `Seller` + `SellerWallet` + Bank Details
 3. **`ListingAggregate`**: `Listing` + `Category` + `ServiceInputField` definitions + `WarrantyPolicy`
-4. **`OrderAggregate`**: `Order` + `OrderItem`s + `OrderCustomInput` + per-item `EscrowHold`s + `OrderChat` (Messages)
+4. **`OrderAggregate`**: `Order` + `OrderItem`s + `OrderCustomInput` + per-item `EscrowHold`s + `DeliverySubmission`s + `OrderChat` (Messages)
 5. **`DisputeAggregate`**: `Dispute` + `DisputeEvidence`
 
 ---
@@ -214,3 +232,4 @@ A key-value snapshot of the buyer's submitted form responses attached to an `Ord
 - **`Order` $\rightarrow$ `User`**: Many-to-1.
 - **`OrderItem` $\rightarrow$ `EscrowHold`**: 1-to-1.
 - **`OrderItem` $\rightarrow$ `Dispute`**: 1-to-0..1.
+- **`OrderItem` $\rightarrow$ `OrderItemLifecycleEvent`**: 1-to-many.
