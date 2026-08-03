@@ -56,6 +56,19 @@ import { formatVND } from "@/utils/format";
 import { getErrorMessage } from "@/utils/get-error-message";
 import { orpc } from "@/utils/orpc";
 
+const getEscrowHoldStatusLabel = (status: string): string => {
+  if (status === "HELD") {
+    return "Đang giữ tiền";
+  }
+  if (status === "RELEASED") {
+    return "Đã giải ngân";
+  }
+  if (status === "REFUNDED") {
+    return "Đã hoàn tiền";
+  }
+  return "Đã hủy";
+};
+
 const getEvidenceFiles = (value: string) =>
   value
     .split("\n")
@@ -355,8 +368,8 @@ export const SellerOrderItemCard = ({
             <CardTitle className="truncate text-base">
               {item.listing.title}
             </CardTitle>
-            <CardDescription className="mt-1">
-              OrderItem {item.id.slice(0, 8)} · {formatVND(item.priceAmount)}
+            <CardDescription className="mt-1 font-semibold text-foreground">
+              {formatVND(item.priceAmount)}
             </CardDescription>
           </div>
           <Badge variant={getOrderItemStatusVariant(status)}>
@@ -375,22 +388,25 @@ export const SellerOrderItemCard = ({
             </p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">WarrantyPolicy</p>
+            <p className="text-xs text-muted-foreground">Thời gian bảo hành</p>
             <p className="mt-1 font-medium">
               {item.warrantyPolicy.durationHours} giờ
             </p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Escrow</p>
+            <p className="text-xs text-muted-foreground">
+              Tiền tạm giữ (Escrow)
+            </p>
             <p className="mt-1 font-medium">
-              {formatVND(item.escrowHold.amount)} · {item.escrowHold.status}
+              {formatVND(item.escrowHold.amount)} ·{" "}
+              {getEscrowHoldStatusLabel(item.escrowHold.status)}
             </p>
           </div>
         </div>
 
         {item.customInputs.length > 0 ? (
           <div className="rounded-2xl border border-border/60 bg-muted/20 p-4">
-            <h4 className="font-semibold">Thông tin Buyer cung cấp</h4>
+            <h4 className="font-semibold">Thông tin Khách hàng cung cấp</h4>
             <dl className="mt-3 grid gap-3 sm:grid-cols-2">
               {item.customInputs.map((input) => (
                 <div key={input.fieldKey}>
@@ -425,7 +441,7 @@ export const SellerOrderItemCard = ({
               variant="destructive"
             >
               <XCircle aria-hidden="true" />
-              Hủy OrderItem
+              Hủy đơn hàng
             </Button>
           ) : null}
         </div>
@@ -445,15 +461,26 @@ export const SellerOrderItemCard = ({
         }}
         open={cancelOpen}
       >
-        <AlertDialogContent size="sm">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Hủy OrderItem?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Hành động này hoàn tiền Escrow của riêng item này cho Buyer. Các
-              item khác trong Order không bị ảnh hưởng.
-            </AlertDialogDescription>
+        <AlertDialogContent className="p-6 sm:max-w-lg">
+          <AlertDialogHeader className="place-items-start text-left">
+            <div className="flex items-center gap-3">
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
+                <WarningCircle aria-hidden="true" className="size-6" />
+              </div>
+              <div>
+                <AlertDialogTitle className="text-base font-bold text-foreground">
+                  Xác nhận hủy đơn hàng
+                </AlertDialogTitle>
+                <AlertDialogDescription className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  Số tiền tạm giữ (Escrow) của sản phẩm này sẽ được hoàn trả cho
+                  khách hàng. Các sản phẩm khác trong đơn (nếu có) không bị ảnh
+                  hưởng.
+                </AlertDialogDescription>
+              </div>
+            </div>
           </AlertDialogHeader>
           <form
+            className="mt-2 space-y-4"
             id={`cancel-form-${item.id}`}
             onSubmit={async (event) => {
               event.preventDefault();
@@ -469,10 +496,11 @@ export const SellerOrderItemCard = ({
                 return (
                   <Field data-invalid={isInvalid}>
                     <FieldLabel htmlFor={`cancel-reason-${item.id}`}>
-                      Lý do hủy
+                      Lý do hủy đơn
                     </FieldLabel>
                     <Textarea
                       aria-invalid={isInvalid}
+                      className="mt-1.5 min-h-[100px] text-sm"
                       id={`cancel-reason-${item.id}`}
                       maxLength={5000}
                       name={field.name}
@@ -480,7 +508,7 @@ export const SellerOrderItemCard = ({
                       onChange={(event) =>
                         field.handleChange(event.target.value)
                       }
-                      placeholder="Nhập lý do để Buyer hiểu điều gì đã xảy ra..."
+                      placeholder="Nhập lý do chi tiết để khách hàng hiểu rõ lý do bạn hủy đơn..."
                       value={field.state.value}
                     />
                     {isInvalid ? (
@@ -490,7 +518,7 @@ export const SellerOrderItemCard = ({
                 );
               }}
             </cancelForm.Field>
-            <AlertDialogFooter>
+            <AlertDialogFooter className="mt-6 gap-2 sm:justify-end">
               <AlertDialogCancel disabled={cancelMutation.isPending}>
                 Quay lại
               </AlertDialogCancel>
@@ -511,7 +539,7 @@ export const SellerOrderItemCard = ({
                   >
                     {isSubmitting || cancelMutation.isPending
                       ? "Đang hủy…"
-                      : "Xác nhận hủy"}
+                      : "Xác nhận hủy đơn"}
                   </AlertDialogAction>
                 )}
               </cancelForm.Subscribe>

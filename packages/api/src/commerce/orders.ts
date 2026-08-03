@@ -117,7 +117,10 @@ export const getSellerOrders = async (
 ): Promise<SellerOrderView[]> => {
   const orders = await executor
     .select({
+      buyerEmail: user.email,
       buyerId: order.buyerId,
+      buyerImage: user.image,
+      buyerName: user.name,
       checkoutId: order.checkoutId,
       createdAt: order.createdAt,
       currency: order.currency,
@@ -126,6 +129,7 @@ export const getSellerOrders = async (
       totalAmount: order.totalAmount,
     })
     .from(order)
+    .innerJoin(user, eq(user.id, order.buyerId))
     .where(eq(order.sellerId, sellerId))
     .orderBy(asc(order.createdAt), asc(order.id));
 
@@ -199,6 +203,12 @@ export const getSellerOrders = async (
   }
 
   return orders.map((item) => ({
+    buyer: {
+      email: item.buyerEmail,
+      id: item.buyerId,
+      image: item.buyerImage,
+      name: item.buyerName,
+    },
     buyerId: item.buyerId,
     checkoutId: item.checkoutId,
     createdAt: item.createdAt.toISOString(),

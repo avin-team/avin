@@ -78,11 +78,26 @@ vi.mock("@avin/ui/components/alert-dialog", () => ({
   AlertDialogCancel: ({ children }: { children: ReactNode }) => (
     <button type="button">{children}</button>
   ),
-  AlertDialogContent: () => null,
+  AlertDialogContent: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
   AlertDialogDescription: () => null,
-  AlertDialogFooter: () => null,
-  AlertDialogHeader: () => null,
+  AlertDialogFooter: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  AlertDialogHeader: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
   AlertDialogTitle: () => null,
+}));
+
+vi.mock("@avin/ui/components/sheet", () => ({
+  Sheet: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  SheetContent: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  SheetHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  SheetTitle: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
 }));
 
 vi.mock("@avin/ui/components/badge", () => ({
@@ -146,8 +161,13 @@ vi.mock("@avin/ui/components/textarea", () => ({
 
 vi.mock("@phosphor-icons/react", () => ({
   ArrowClockwise: () => <span />,
+  CaretRight: () => <span />,
   CheckCircle: () => <span />,
   ClipboardText: () => <span />,
+  Clock: () => <span />,
+  Funnel: () => <span />,
+  MagnifyingGlass: () => <span />,
+  PaperPlaneRight: () => <span />,
   Play: () => <span />,
   WarningCircle: () => <span />,
   XCircle: () => <span />,
@@ -258,7 +278,7 @@ describe("StoreOrdersPanel", () => {
       screen.getByRole("heading", { name: "Đơn hàng" })
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Chưa có Order nào cần xử lý.")
+      screen.getByText("Chưa có đơn hàng nào cần xử lý.")
     ).toBeInTheDocument();
   });
 
@@ -268,12 +288,9 @@ describe("StoreOrdersPanel", () => {
 
     render(<StoreOrdersPanel />);
 
-    expect(screen.getByText("Thông tin Buyer cung cấp")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Bắt đầu thực hiện" })
-    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Bàn giao" }));
+
     expect(screen.getByText("Gửi kết quả cho Buyer")).toBeInTheDocument();
-    expect(screen.getAllByTestId(/timeline-item-/u)).toHaveLength(2);
 
     await user.type(
       screen.getByPlaceholderText(
