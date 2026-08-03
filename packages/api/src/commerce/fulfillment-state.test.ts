@@ -73,6 +73,41 @@ describe("OrderItem fulfillment state", () => {
     });
   });
 
+  it("closes directly after review when the purchased package has no warranty", () => {
+    const reviewDeadlineAt = new Date("2026-08-03T00:00:00.000Z");
+    const result = decideOrderItemTransition({
+      command: { type: "CONFIRM_DELIVERY" },
+      currentStatus: "DELIVERED",
+      deliveryReviewDeadlineAt: reviewDeadlineAt,
+      now,
+      warrantyPolicy: { kind: "NO_WARRANTY" },
+    });
+
+    expect(result).toMatchObject({
+      newStatus: "CLOSED",
+      oldStatus: "DELIVERED",
+    });
+    expect(result.warrantyExpiresAt).toBeUndefined();
+  });
+
+  it("closes directly after the review timeout when the purchased package has no warranty", () => {
+    const reviewDeadlineAt = new Date("2026-08-03T00:00:00.000Z");
+    const result = decideOrderItemTransition({
+      command: { type: "EXPIRE_DELIVERY_REVIEW" },
+      currentStatus: "DELIVERED",
+      deliveryReviewDeadlineAt: reviewDeadlineAt,
+      now: new Date("2026-08-03T00:00:01.000Z"),
+      warrantyPolicy: { kind: "NO_WARRANTY" },
+    });
+
+    expect(result).toMatchObject({
+      effectiveAt: reviewDeadlineAt,
+      newStatus: "CLOSED",
+      oldStatus: "DELIVERED",
+    });
+    expect(result.warrantyExpiresAt).toBeUndefined();
+  });
+
   it("closes the item when the Warranty period expires", () => {
     const warrantyExpiresAt = new Date("2026-08-03T00:00:00.000Z");
     const result = decideOrderItemTransition({

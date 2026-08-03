@@ -1,5 +1,28 @@
 import type { OrderItemStatus } from "@avin/api/commerce/orders";
 
+export interface OrderWarrantyPolicy {
+  durationHours?: number;
+  kind?: "NO_WARRANTY" | "TIMED";
+  terms?: string;
+}
+
+export const getWarrantyPolicyLabel = (policy: OrderWarrantyPolicy): string => {
+  if (policy.kind === "NO_WARRANTY") {
+    return "Không có bảo hành";
+  }
+  return policy.durationHours ? `${policy.durationHours} giờ` : "Chưa xác định";
+};
+
+export const isNoWarrantyPolicy = (policy: OrderWarrantyPolicy): boolean =>
+  policy.kind === "NO_WARRANTY";
+
+export const getWarrantyPolicyTerms = (policy: OrderWarrantyPolicy): string => {
+  if (isNoWarrantyPolicy(policy)) {
+    return "";
+  }
+  return policy.terms ?? "";
+};
+
 export const ORDER_ITEM_STATUS_LABELS: Record<OrderItemStatus, string> = {
   AWAITING_SELLER: "Chờ Seller tiếp nhận",
   CANCELLED: "Đã hủy",

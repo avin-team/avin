@@ -36,7 +36,9 @@ export const parseServicePackageDraft = (
 ): ServicePackageDraft => {
   const parsed = servicePackageDraftSchema.safeParse(input);
   if (!parsed.success) {
-    packageError("Service package details are invalid");
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Service package details are invalid",
+    });
   }
 
   assertUniqueInputFieldKeys(parsed.data.serviceInputFields);
@@ -99,6 +101,23 @@ export const assertServicePackagesPublishable = (
   }
 };
 
+export const assertServicePackageNameUnique = (
+  packages: readonly Pick<ServicePackageRow, "id" | "name">[],
+  name: string,
+  excludedId?: string
+): void => {
+  const normalizedName = name.toLocaleLowerCase();
+  if (
+    packages.some(
+      (packageItem) =>
+        packageItem.id !== excludedId &&
+        packageItem.name.toLocaleLowerCase() === normalizedName
+    )
+  ) {
+    packageError("Service package names must be unique");
+  }
+};
+
 export const sortAvailableServicePackages = <
   T extends Pick<ServicePackageRow, "priceAmount" | "name" | "id" | "status">,
 >(
@@ -152,12 +171,7 @@ export const toLegacyServicePackageDraft = (listing: {
   warrantyDurationHours: number | null;
   warrantyTerms: string | null;
 }): ServicePackageDraft | null => {
-  if (
-    listing.priceAmount === null ||
-    listing.processingTimeHours === null ||
-    listing.warrantyDurationHours === null ||
-    !listing.warrantyTerms?.trim()
-  ) {
+  if (listing.priceAmount === null || listing.processingTimeHours === null) {
     return null;
   }
 
@@ -168,6 +182,16 @@ export const toLegacyServicePackageDraft = (listing: {
     return null;
   }
 
+  const legacyWarrantyPolicy =
+    listing.warrantyDurationHours !== null &&
+    listing.warrantyDurationHours > 0 &&
+    listing.warrantyTerms?.trim()
+      ? {
+          durationHours: listing.warrantyDurationHours,
+          kind: "TIMED" as const,
+          terms: listing.warrantyTerms.trim(),
+        }
+      : { kind: "NO_WARRANTY" as const };
   const parsed = servicePackageDraftSchema.safeParse({
     name: "Standard",
     priceAmount: listing.priceAmount,
@@ -177,11 +201,7 @@ export const toLegacyServicePackageDraft = (listing: {
       listing.title?.trim() ||
       "Standard service",
     serviceInputFields: fields.data,
-    warrantyPolicy: {
-      durationHours: listing.warrantyDurationHours,
-      kind: "TIMED",
-      terms: listing.warrantyTerms.trim(),
-    },
+    warrantyPolicy: legacyWarrantyPolicy,
   });
   return parsed.success ? parsed.data : null;
 };

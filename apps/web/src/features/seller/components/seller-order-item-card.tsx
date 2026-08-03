@@ -47,6 +47,7 @@ import {
   formatOrderDeadline,
   getOrderItemStatusLabel,
   getOrderItemStatusVariant,
+  getWarrantyPolicyLabel,
 } from "@/features/commerce/order-status";
 import {
   sellerCancellationSchema,
@@ -390,7 +391,7 @@ export const SellerOrderItemCard = ({
           <div>
             <p className="text-xs text-muted-foreground">Thời gian bảo hành</p>
             <p className="mt-1 font-medium">
-              {item.warrantyPolicy.durationHours} giờ
+              {getWarrantyPolicyLabel(item.warrantyPolicy)}
             </p>
           </div>
           <div>

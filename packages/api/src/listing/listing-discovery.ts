@@ -1,10 +1,16 @@
 import { db } from "@avin/db";
 import { user as userTable } from "@avin/db/schema/auth";
-import { listing, parentCategory, subCategory } from "@avin/db/schema/catalog";
+import {
+  listing,
+  parentCategory,
+  servicePackage,
+  subCategory,
+} from "@avin/db/schema/catalog";
 import { ORPCError } from "@orpc/server";
 import {
   and,
   count,
+  exists,
   eq,
   getTableName,
   ilike,
@@ -17,6 +23,10 @@ import { z } from "zod";
 
 import { publicProcedure } from "../access/procedures";
 import { isSellerEnforced } from "../seller-store/profile";
+import {
+  getServicePackageSummaryPrice,
+  sortAvailableServicePackages,
+} from "./service-packages";
 
 export const getListingIdentifierCandidates = (
   identifier: string
@@ -122,6 +132,7 @@ export const listingDiscoveryRouter = {
         slug: z.string(),
       })
     )
+    // oxlint-disable-next-line complexity
     .handler(async ({ context, input }) => {
       const identifier = getListingIdentifierCandidates(input.slug);
       const found = await db.query.listing.findFirst({
@@ -149,6 +160,7 @@ export const listingDiscoveryRouter = {
               storefrontName: true,
             },
           },
+          servicePackages: true,
         },
       });
 
@@ -173,11 +185,18 @@ export const listingDiscoveryRouter = {
         found.category.status,
         found.category.parentCategory.status
       );
+      const hasAvailableServicePackage =
+        found.type !== "SERVICE" ||
+        found.servicePackages.some(
+          (packageItem) => packageItem.status === "AVAILABLE"
+        );
 
       if (
         !isAdmin &&
         !isOwner &&
-        (!isPubliclyAvailable || isSellerEnforced(sellerAccount))
+        (!isPubliclyAvailable ||
+          !hasAvailableServicePackage ||
+          isSellerEnforced(sellerAccount))
       ) {
         throw new ORPCError("NOT_FOUND", {
           message: "Listing not found or unavailable",
@@ -187,17 +206,24 @@ export const listingDiscoveryRouter = {
       const {
         sellerProfile: foundProfile,
         seller: foundSeller,
+        servicePackages: foundPackages,
         ...foundRest
       } = found;
+      const availablePackages = sortAvailableServicePackages(foundPackages);
 
       return {
         ...foundRest,
+        priceAmount:
+          found.type === "SERVICE"
+            ? getServicePackageSummaryPrice(availablePackages)
+            : found.priceAmount,
         seller: {
           id: foundProfile?.id ?? foundSeller.id,
           image: foundProfile?.avatarUrl ?? foundSeller.image,
           name: foundProfile?.storefrontName ?? foundSeller.name,
           storeSlug: foundProfile?.storeSlug ?? null,
         },
+        servicePackages: availablePackages,
       };
     }),
 
@@ -217,6 +243,20 @@ export const listingDiscoveryRouter = {
       const conditions = [
         eq(listing.status, "PUBLISHED"),
         sellerIsNotEnforcedCondition(),
+        or(
+          eq(listing.type, "COURSE"),
+          exists(
+            db
+              .select({ id: servicePackage.id })
+              .from(servicePackage)
+              .where(
+                and(
+                  eq(servicePackage.listingId, listing.id),
+                  eq(servicePackage.status, "AVAILABLE")
+                )
+              )
+          )
+        ),
       ];
 
       if (input.type) {
@@ -291,11 +331,20 @@ export const listingDiscoveryRouter = {
       const offset = (input.page - 1) * input.limit;
 
       const getOrderBy = () => {
+        const summaryPrice = sql`COALESCE(
+          (
+            SELECT MIN(${servicePackage.priceAmount})
+            FROM ${servicePackage}
+            WHERE ${servicePackage.listingId} = ${listing.id}
+              AND ${servicePackage.status} = 'AVAILABLE'
+          ),
+          ${listing.priceAmount}
+        )`;
         if (input.sortBy === "price_asc") {
-          return [sql`${listing.priceAmount} ASC`];
+          return [sql`${summaryPrice} ASC`];
         }
         if (input.sortBy === "price_desc") {
-          return [sql`${listing.priceAmount} DESC`];
+          return [sql`${summaryPrice} DESC`];
         }
         return [sql`${listing.createdAt} DESC`];
       };
@@ -323,6 +372,13 @@ export const listingDiscoveryRouter = {
               storefrontName: true,
             },
           },
+          servicePackages: {
+            orderBy: (table, { asc }) => [
+              asc(table.priceAmount),
+              asc(table.name),
+            ],
+            where: eq(servicePackage.status, "AVAILABLE"),
+          },
         },
       });
 
@@ -332,13 +388,17 @@ export const listingDiscoveryRouter = {
 
           return {
             ...rest,
-            priceAmount: item.priceAmount ?? 0,
+            priceAmount:
+              item.type === "SERVICE"
+                ? (getServicePackageSummaryPrice(item.servicePackages) ?? 0)
+                : (item.priceAmount ?? 0),
             seller: {
               id: prof?.id ?? sel.id,
               image: prof?.avatarUrl ?? sel.image,
               name: prof?.storefrontName ?? sel.name,
               storeSlug: prof?.storeSlug ?? null,
             },
+            servicePackages: item.servicePackages,
             title: item.title ?? "Untitled listing",
           };
         }),

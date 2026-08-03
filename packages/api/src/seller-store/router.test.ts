@@ -213,6 +213,9 @@ describe("public Store profile route", () => {
       id: "listing-1",
       priceAmount: 150_000,
       serviceInputFields: [{ id: "secret" }],
+      servicePackages: [
+        { name: "Basic", priceAmount: 120_000, status: "AVAILABLE" },
+      ],
       slug: "account-setup-1234",
       thumbnailUrl: "https://example.com/listing.png",
       title: "Premium account setup",
@@ -267,7 +270,7 @@ describe("public Store profile route", () => {
         {
           createdAt: publicListing.createdAt,
           id: publicListing.id,
-          priceAmount: publicListing.priceAmount,
+          priceAmount: 120_000,
           slug: publicListing.slug,
           thumbnailUrl: publicListing.thumbnailUrl,
           title: publicListing.title,

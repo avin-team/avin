@@ -8,6 +8,7 @@ import {
 import type {
   ListingSnapshot,
   OrderItemStatus,
+  ServicePackageSnapshot,
   WarrantyPolicySnapshot,
 } from "@avin/db/schema/commerce";
 import { asc, eq, inArray } from "drizzle-orm";
@@ -30,6 +31,7 @@ export interface OrderItemSummary {
   priceAmount: number;
   processingDeadlineAt: string;
   processingTimeHours: number;
+  servicePackage?: ServicePackageSnapshot | null;
   status: OrderItemStatus;
   warrantyExpiresAt: string | null;
   warrantyPolicy: WarrantyPolicySnapshot;
@@ -48,6 +50,7 @@ interface OrderItemRow {
   priceAmount: number;
   processingDeadlineAt: Date;
   processingTimeHours: number;
+  servicePackage: ServicePackageSnapshot | null;
   status: OrderItemStatus;
   warrantyExpiresAt: Date | null;
   warrantyPolicy: WarrantyPolicySnapshot;
@@ -73,6 +76,7 @@ const mapOrderItemSummary = (item: OrderItemRow): OrderItemSummary => ({
   priceAmount: item.priceAmount,
   processingDeadlineAt: item.processingDeadlineAt.toISOString(),
   processingTimeHours: item.processingTimeHours,
+  servicePackage: item.servicePackage,
   status: item.status,
   warrantyExpiresAt: item.warrantyExpiresAt?.toISOString() ?? null,
   warrantyPolicy: item.warrantyPolicy,
@@ -152,6 +156,7 @@ export const getSellerOrders = async (
       priceAmount: orderItem.priceAmount,
       processingDeadlineAt: orderItem.processingDeadlineAt,
       processingTimeHours: orderItem.processingTimeHours,
+      servicePackage: orderItem.servicePackageSnapshot,
       status: orderItem.status,
       warrantyExpiresAt: orderItem.warrantyExpiresAt,
       warrantyPolicy: orderItem.warrantyPolicy,
@@ -260,6 +265,7 @@ export const getBuyerOrders = async (
       priceAmount: orderItem.priceAmount,
       processingDeadlineAt: orderItem.processingDeadlineAt,
       processingTimeHours: orderItem.processingTimeHours,
+      servicePackage: orderItem.servicePackageSnapshot,
       status: orderItem.status,
       warrantyExpiresAt: orderItem.warrantyExpiresAt,
       warrantyPolicy: orderItem.warrantyPolicy,

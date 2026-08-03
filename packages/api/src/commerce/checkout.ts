@@ -2,7 +2,13 @@
 
 import type { db } from "@avin/db";
 import { user as userTable } from "@avin/db/schema/auth";
-import { listing, parentCategory, subCategory } from "@avin/db/schema/catalog";
+import {
+  listing,
+  parentCategory,
+  servicePackage,
+  subCategory,
+} from "@avin/db/schema/catalog";
+import type { WarrantyPolicy } from "@avin/db/schema/catalog";
 import {
   cart,
   cartItem,
@@ -26,6 +32,7 @@ import type { CheckoutInput } from "./checkout-input";
 import {
   fingerprintCheckoutRequest,
   parseListingContract,
+  parseServicePackageContract,
   validateOrderCustomInputs,
 } from "./contracts";
 
@@ -44,6 +51,7 @@ export interface CheckoutResult {
       id: string;
       listingId: string;
       priceAmount: number;
+      servicePackageId: string | null;
       status: OrderItemStatus;
     }[];
     sellerId: string;
@@ -70,6 +78,16 @@ interface SelectedListingRow {
   listingType: "COURSE" | "SERVICE";
   parentCategoryStatus: "ACTIVE" | "ARCHIVED" | "HIDDEN";
   processingTimeHours: number | null;
+  selectedPackageId: string | null;
+  servicePackageId: string | null;
+  servicePackageListingId: string | null;
+  servicePackageName: string | null;
+  servicePackagePriceAmount: number | null;
+  servicePackageProcessingTimeHours: number | null;
+  servicePackageScope: string | null;
+  servicePackageInputFields: unknown;
+  servicePackageStatus: "AVAILABLE" | "UNAVAILABLE" | null;
+  servicePackageWarrantyPolicy: WarrantyPolicy | null;
   sellerBanned: boolean;
   sellerBanExpires: Date | null;
   sellerId: string;
@@ -92,11 +110,11 @@ interface PreparedCheckoutItem {
 const createPurchaseTransactionReference = (): string =>
   `AVTX-PURCHASE-${crypto.randomUUID().replaceAll("-", "").toUpperCase()}`;
 
-const getSelectedListingRows = (
+const getSelectedListingRows = async (
   executor: CommerceExecutor,
   userId: string
-): Promise<SelectedListingRow[]> =>
-  executor
+): Promise<SelectedListingRow[]> => {
+  const rows = await executor
     .select({
       cartId: cart.id,
       cartItemId: cartItem.id,
@@ -114,10 +132,20 @@ const getSelectedListingRows = (
       listingType: listing.type,
       parentCategoryStatus: parentCategory.status,
       processingTimeHours: listing.processingTimeHours,
+      selectedPackageId: cartItem.servicePackageId,
       sellerBanExpires: userTable.banExpires,
       sellerBanned: userTable.banned,
       sellerId: listing.sellerId,
       serviceInputFields: listing.serviceInputFields,
+      servicePackageId: servicePackage.id,
+      servicePackageInputFields: servicePackage.serviceInputFields,
+      servicePackageListingId: servicePackage.listingId,
+      servicePackageName: servicePackage.name,
+      servicePackagePriceAmount: servicePackage.priceAmount,
+      servicePackageProcessingTimeHours: servicePackage.processingTimeHours,
+      servicePackageScope: servicePackage.scope,
+      servicePackageStatus: servicePackage.status,
+      servicePackageWarrantyPolicy: servicePackage.warrantyPolicy,
       warrantyDurationHours: listing.warrantyDurationHours,
       warrantyTerms: listing.warrantyTerms,
     })
@@ -127,9 +155,71 @@ const getSelectedListingRows = (
     .innerJoin(subCategory, eq(listing.categoryId, subCategory.id))
     .innerJoin(parentCategory, eq(subCategory.parentId, parentCategory.id))
     .innerJoin(userTable, eq(listing.sellerId, userTable.id))
+    .leftJoin(servicePackage, eq(cartItem.servicePackageId, servicePackage.id))
     .where(and(eq(cart.userId, userId), eq(cartItem.selected, true)))
     .orderBy(asc(cartItem.createdAt), asc(cartItem.id))
     .for("update");
+
+  const serviceListingIds: string[] = [];
+  for (const row of rows) {
+    if (row.listingType === "SERVICE") {
+      serviceListingIds.push(row.listingId);
+    }
+  }
+  if (serviceListingIds.length === 0) {
+    return rows;
+  }
+
+  const packageRows = await executor
+    .select()
+    .from(servicePackage)
+    .where(inArray(servicePackage.listingId, serviceListingIds))
+    .for("update");
+  const packagesById = new Map(
+    packageRows.map((packageRow) => [packageRow.id, packageRow])
+  );
+  const packagesByListing = new Map<string, typeof packageRows>();
+  for (const packageRow of packageRows) {
+    const listingPackages = packagesByListing.get(packageRow.listingId) ?? [];
+    listingPackages.push(packageRow);
+    packagesByListing.set(packageRow.listingId, listingPackages);
+  }
+
+  for (const row of rows) {
+    if (row.listingType !== "SERVICE") {
+      continue;
+    }
+
+    let selectedPackage = row.selectedPackageId
+      ? packagesById.get(row.selectedPackageId)
+      : undefined;
+    if (!row.selectedPackageId) {
+      const availablePackages = (
+        packagesByListing.get(row.listingId) ?? []
+      ).filter((packageRow) => packageRow.status === "AVAILABLE");
+      const [onlyAvailablePackage] = availablePackages;
+      if (availablePackages.length === 1 && onlyAvailablePackage) {
+        selectedPackage = onlyAvailablePackage;
+        row.selectedPackageId = onlyAvailablePackage.id;
+      }
+    }
+
+    if (!selectedPackage) {
+      continue;
+    }
+    row.servicePackageId = selectedPackage.id;
+    row.servicePackageInputFields = selectedPackage.serviceInputFields;
+    row.servicePackageListingId = selectedPackage.listingId;
+    row.servicePackageName = selectedPackage.name;
+    row.servicePackagePriceAmount = selectedPackage.priceAmount;
+    row.servicePackageProcessingTimeHours = selectedPackage.processingTimeHours;
+    row.servicePackageScope = selectedPackage.scope;
+    row.servicePackageStatus = selectedPackage.status;
+    row.servicePackageWarrantyPolicy = selectedPackage.warrantyPolicy;
+  }
+
+  return rows;
+};
 
 const getCheckoutByIdempotencyKey = async (
   executor: CommerceExecutor,
@@ -187,6 +277,7 @@ export const getCheckoutResult = async (
           listingId: orderItem.listingId,
           orderId: orderItem.orderId,
           priceAmount: orderItem.priceAmount,
+          servicePackageId: orderItem.servicePackageId,
           status: orderItem.status,
         })
         .from(orderItem)
@@ -207,6 +298,7 @@ export const getCheckoutResult = async (
       id: item.id,
       listingId: item.listingId,
       priceAmount: item.priceAmount,
+      servicePackageId: item.servicePackageId,
       status: item.status,
     });
     itemsByOrder.set(item.orderId, orderItems);
@@ -244,6 +336,7 @@ const assertSelectedItemsMatchRequest = (
   return requestedItems;
 };
 
+// oxlint-disable-next-line complexity
 const prepareCheckoutItems = (
   rows: SelectedListingRow[],
   requestedItems: Map<string, CheckoutItemInput>,
@@ -273,24 +366,80 @@ const prepareCheckoutItems = (
       });
     }
 
-    const contract = parseListingContract(
-      {
-        categoryId: row.categoryId,
-        description: row.description,
-        images: row.images,
-        priceAmount: row.listingPriceAmount,
-        processingTimeHours: row.processingTimeHours,
-        sellerId: row.sellerId,
-        serviceInputFields: row.serviceInputFields,
-        slug: row.listingSlug,
-        thumbnailUrl: row.listingThumbnailUrl,
-        title: row.listingTitle,
-        type: row.listingType,
-        warrantyDurationHours: row.warrantyDurationHours,
-        warrantyTerms: row.warrantyTerms,
-      },
-      row.commissionRatePercent
-    );
+    let contract: ReturnType<typeof parseListingContract>;
+    if (row.listingType === "SERVICE") {
+      if (
+        requestedItem.packageId &&
+        requestedItem.packageId !== row.selectedPackageId
+      ) {
+        throw new ORPCError("CONFLICT", {
+          message:
+            "Selected Service package changed. Update the Cart and try again.",
+        });
+      }
+      if (
+        !row.selectedPackageId ||
+        row.servicePackageId !== row.selectedPackageId ||
+        row.servicePackageListingId !== row.listingId ||
+        !row.servicePackageName ||
+        !row.servicePackageScope ||
+        row.servicePackagePriceAmount === null ||
+        row.servicePackageProcessingTimeHours === null ||
+        row.servicePackageStatus !== "AVAILABLE" ||
+        !row.servicePackageWarrantyPolicy
+      ) {
+        throw new ORPCError("CONFLICT", {
+          message:
+            "A Service package must be selected before this Listing can be purchased.",
+        });
+      }
+      contract = parseServicePackageContract(
+        {
+          categoryId: row.categoryId,
+          description: row.description,
+          images: row.images,
+          sellerId: row.sellerId,
+          slug: row.listingSlug,
+          thumbnailUrl: row.listingThumbnailUrl,
+          title: row.listingTitle,
+          type: row.listingType,
+        },
+        {
+          id: row.servicePackageId,
+          name: row.servicePackageName,
+          priceAmount: row.servicePackagePriceAmount,
+          processingTimeHours: row.servicePackageProcessingTimeHours,
+          scope: row.servicePackageScope,
+          serviceInputFields: row.servicePackageInputFields,
+          warrantyPolicy: row.servicePackageWarrantyPolicy,
+        },
+        row.commissionRatePercent
+      );
+    } else {
+      if (requestedItem.packageId) {
+        throw new ORPCError("BAD_REQUEST", {
+          message: "Course listings do not have Service packages.",
+        });
+      }
+      contract = parseListingContract(
+        {
+          categoryId: row.categoryId,
+          description: row.description,
+          images: row.images,
+          priceAmount: row.listingPriceAmount,
+          processingTimeHours: row.processingTimeHours,
+          sellerId: row.sellerId,
+          serviceInputFields: row.serviceInputFields,
+          slug: row.listingSlug,
+          thumbnailUrl: row.listingThumbnailUrl,
+          title: row.listingTitle,
+          type: row.listingType,
+          warrantyDurationHours: row.warrantyDurationHours,
+          warrantyTerms: row.warrantyTerms,
+        },
+        row.commissionRatePercent
+      );
+    }
 
     if (
       contract.fingerprint !== requestedItem.contractFingerprint &&
@@ -372,6 +521,8 @@ const createOrdersAndEscrowHolds = async (
           ),
           processingTimeHours,
           serviceInputFields,
+          servicePackageId: contract.servicePackageId ?? null,
+          servicePackageSnapshot: contract.servicePackageSnapshot ?? null,
           warrantyPolicy,
         })
         .returning({ id: orderItem.id });

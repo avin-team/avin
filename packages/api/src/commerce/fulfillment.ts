@@ -13,7 +13,11 @@ import {
   orderItem,
   orderItemLifecycleEvent,
 } from "@avin/db/schema/commerce";
-import type { OrderItemStatus } from "@avin/db/schema/commerce";
+import type {
+  OrderItemStatus,
+  ServicePackageSnapshot,
+  WarrantyPolicySnapshot,
+} from "@avin/db/schema/commerce";
 import { userWallet } from "@avin/db/schema/wallet";
 import { ORPCError } from "@orpc/server";
 import {
@@ -33,6 +37,7 @@ import { z } from "zod";
 import { recordBalancedLedgerTransaction } from "../wallet/ledger";
 import { ensureWalletAccounts } from "../wallet/service";
 import type { CommerceExecutor } from "./cart";
+import { calculateEscrowReleaseAmounts } from "./commission";
 import { decideOrderItemTransition } from "./fulfillment-state";
 import type {
   OrderItemTransitionCommand,
@@ -117,6 +122,7 @@ type FulfillmentExecutor = CommerceExecutor;
 
 interface OrderItemContext {
   buyerId: string;
+  commissionRatePercent: string;
   deliveredAt: Date | null;
   deliveryReviewDeadlineAt: Date | null;
   escrowAmount: number;
@@ -125,12 +131,13 @@ interface OrderItemContext {
   id: string;
   orderId: string;
   processingDeadlineAt: Date;
+  servicePackage: ServicePackageSnapshot | null;
   sellerBanExpires: Date | null;
   sellerBanned: boolean;
   sellerId: string;
   status: OrderItemStatus;
   warrantyExpiresAt: Date | null;
-  warrantyPolicy: { durationHours: number; terms: string };
+  warrantyPolicy: WarrantyPolicySnapshot;
   warrantyStartedAt: Date | null;
 }
 
@@ -157,10 +164,11 @@ export interface OrderItemTimelineView {
     deliveredAt: string | null;
     deliveryReviewDeadlineAt: string | null;
     orderId: string;
+    servicePackage?: ServicePackageSnapshot | null;
     processingDeadlineAt: string;
     status: OrderItemStatus;
     warrantyExpiresAt: string | null;
-    warrantyPolicy: { durationHours: number; terms: string };
+    warrantyPolicy: WarrantyPolicySnapshot;
     warrantyStartedAt: string | null;
   };
   deliverySubmission: {
@@ -214,6 +222,7 @@ const getItemContext = async (
   const query = executor
     .select({
       buyerId: order.buyerId,
+      commissionRatePercent: orderItem.commissionRatePercent,
       deliveredAt: orderItem.deliveredAt,
       deliveryReviewDeadlineAt: orderItem.deliveryReviewDeadlineAt,
       escrowAmount: escrowHold.amount,
@@ -225,6 +234,7 @@ const getItemContext = async (
       sellerBanExpires: user.banExpires,
       sellerBanned: user.banned,
       sellerId: order.sellerId,
+      servicePackage: orderItem.servicePackageSnapshot,
       status: orderItem.status,
       warrantyExpiresAt: orderItem.warrantyExpiresAt,
       warrantyPolicy: orderItem.warrantyPolicy,
@@ -574,6 +584,136 @@ const refundEscrow = async (
   return refundTransaction.id;
 };
 
+const releaseEscrow = async (
+  executor: FulfillmentExecutor,
+  item: OrderItemContext,
+  now: Date
+): Promise<string> => {
+  if (item.escrowHoldStatus !== "HELD") {
+    throwConflict("EscrowHold không còn ở trạng thái HELD.");
+  }
+
+  const buyerAccounts = await ensureWalletAccounts(executor, item.buyerId);
+  const sellerAccounts = await ensureWalletAccounts(executor, item.sellerId);
+  const [buyerWallet] = await executor
+    .select()
+    .from(userWallet)
+    .where(eq(userWallet.id, buyerAccounts.wallet.id))
+    .for("update")
+    .limit(1);
+  // Keep wallet locks in buyer-then-seller order to avoid cross-account lock inversions.
+  // eslint-disable-next-line react-doctor/server-sequential-independent-await
+  const [sellerWallet] = await executor
+    .select()
+    .from(userWallet)
+    .where(eq(userWallet.id, sellerAccounts.wallet.id))
+    .for("update")
+    .limit(1);
+  if (!buyerWallet || buyerWallet.heldBalance < item.escrowAmount) {
+    throw new ORPCError("CONFLICT", {
+      message: "Held Balance của Buyer không đủ để giải ngân.",
+    });
+  }
+  if (!sellerWallet) {
+    throw new ORPCError("CONFLICT", {
+      message: "Wallet của Seller không khả dụng để giải ngân.",
+    });
+  }
+
+  const commissionRatePercent = Number(item.commissionRatePercent);
+  if (
+    !Number.isFinite(commissionRatePercent) ||
+    commissionRatePercent < 0 ||
+    commissionRatePercent > 100
+  ) {
+    throw new ORPCError("CONFLICT", {
+      message: "Commission rate của OrderItem không hợp lệ.",
+    });
+  }
+  const { commissionAmount, sellerProceeds } = calculateEscrowReleaseAmounts(
+    item.escrowAmount,
+    commissionRatePercent
+  );
+
+  const releaseTransaction = await recordBalancedLedgerTransaction(executor, {
+    amount: item.escrowAmount,
+    description: `RELEASE ORDER_ITEM ${item.id}`,
+    postings: [
+      {
+        accountId: buyerAccounts.heldAccount.id,
+        debitAmount: item.escrowAmount,
+      },
+      ...(sellerProceeds > 0
+        ? [
+            {
+              accountId: sellerAccounts.availableAccount.id,
+              creditAmount: sellerProceeds,
+            },
+          ]
+        : []),
+      ...(commissionAmount > 0
+        ? [
+            {
+              accountId: sellerAccounts.platformCommissionAccount.id,
+              creditAmount: commissionAmount,
+            },
+          ]
+        : []),
+    ],
+    reference: `AVTX-RELEASE-${item.id}-${crypto
+      .randomUUID()
+      .replaceAll("-", "")
+      .slice(0, TRANSACTION_REFERENCE_SUFFIX_LENGTH)
+      .toUpperCase()}`,
+    type: "ESCROW_RELEASE",
+  });
+
+  // Ledger posting must complete before wallet materialization.
+  // eslint-disable-next-line react-doctor/server-sequential-independent-await
+  const [updatedBuyerWallet] = await executor
+    .update(userWallet)
+    .set({
+      heldBalance: buyerWallet.heldBalance - item.escrowAmount,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(userWallet.id, buyerAccounts.wallet.id),
+        gte(userWallet.heldBalance, item.escrowAmount)
+      )
+    )
+    .returning({ heldBalance: userWallet.heldBalance });
+  if (!updatedBuyerWallet) {
+    throwConflict("Held Balance của Buyer vừa thay đổi. Vui lòng thử lại.");
+  }
+
+  // eslint-disable-next-line react-doctor/server-sequential-independent-await
+  const [updatedSellerWallet] = await executor
+    .update(userWallet)
+    .set({
+      availableBalance: sellerWallet.availableBalance + sellerProceeds,
+      updatedAt: now,
+    })
+    .where(eq(userWallet.id, sellerAccounts.wallet.id))
+    .returning({ availableBalance: userWallet.availableBalance });
+  if (!updatedSellerWallet) {
+    throwConflict("Wallet của Seller vừa thay đổi. Vui lòng thử lại.");
+  }
+
+  const [updatedHold] = await executor
+    .update(escrowHold)
+    .set({ status: "RELEASED", updatedAt: now })
+    .where(
+      and(eq(escrowHold.id, item.escrowHoldId), eq(escrowHold.status, "HELD"))
+    )
+    .returning({ id: escrowHold.id });
+  if (!updatedHold) {
+    throwConflict("EscrowHold vừa được xử lý bởi một request khác.");
+  }
+
+  return releaseTransaction.id;
+};
+
 const applyItemUpdate = async (
   executor: FulfillmentExecutor,
   item: OrderItemContext,
@@ -741,6 +881,11 @@ const createTransitionArtifact = async ({
     return { artifactId, artifactType: "REFUND_TRANSACTION" };
   }
 
+  if (transition.newStatus === "CLOSED") {
+    const artifactId = await releaseEscrow(executor, item, now);
+    return { artifactId, artifactType: "ESCROW_RELEASE" };
+  }
+
   return { artifactId: null, artifactType: null };
 };
 
@@ -861,8 +1006,8 @@ const executeTransition = ({
         deliveryReviewDeadlineAt: item.deliveryReviewDeadlineAt ?? undefined,
         now,
         processingDeadlineAt: item.processingDeadlineAt,
-        warrantyDurationHours: item.warrantyPolicy.durationHours,
         warrantyExpiresAt: item.warrantyExpiresAt ?? undefined,
+        warrantyPolicy: item.warrantyPolicy,
       });
     } catch (error) {
       if (error instanceof Error) {
@@ -1248,6 +1393,7 @@ export const getOrderItemTimeline = async ({
       deliveryReviewDeadlineAt: asIso(item.deliveryReviewDeadlineAt),
       orderId: item.orderId,
       processingDeadlineAt: item.processingDeadlineAt.toISOString(),
+      servicePackage: item.servicePackage,
       status: item.status,
       warrantyExpiresAt: asIso(item.warrantyExpiresAt),
       warrantyPolicy: item.warrantyPolicy,

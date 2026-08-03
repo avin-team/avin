@@ -14,6 +14,9 @@ import {
   formatOrderDeadline,
   getOrderItemStatusLabel,
   getOrderItemStatusVariant,
+  getWarrantyPolicyLabel,
+  getWarrantyPolicyTerms,
+  isNoWarrantyPolicy,
 } from "@/features/commerce/order-status";
 import { getSafeEvidenceHref } from "@/utils/get-safe-evidence-href";
 
@@ -34,20 +37,17 @@ const getTimelineEventTitle = (
     case "AWAITING_SELLER": {
       return "Khởi tạo đơn hàng";
     }
-    case "PROCESSING":
     case "IN_PROGRESS": {
       return "Bắt đầu xử lý đơn";
     }
     case "DELIVERED": {
       return "Người bán đã bàn giao";
     }
-    case "WARRANTY_ACTIVE":
     case "IN_WARRANTY": {
       return event.actorType === "BUYER"
         ? "Xác nhận nhận hàng"
         : "Bắt đầu bảo hành";
     }
-    case "COMPLETED":
     case "CLOSED": {
       return "Hoàn thành đơn hàng";
     }
@@ -150,13 +150,14 @@ export const OrderItemTimeline = ({
       <CardHeader>
         <CardTitle className="text-base">Chính sách bảo hành</CardTitle>
         <CardDescription>
-          {timeline.current.warrantyPolicy.durationHours} giờ kể từ khi kích
-          hoạt bảo hành.
+          {isNoWarrantyPolicy(timeline.current.warrantyPolicy)
+            ? "Không có bảo hành. Buyer vẫn có 48 giờ review sau bàn giao."
+            : `${getWarrantyPolicyLabel(timeline.current.warrantyPolicy)} kể từ khi kích hoạt bảo hành.`}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-2 text-sm">
         <p className="whitespace-pre-wrap text-muted-foreground">
-          {timeline.current.warrantyPolicy.terms}
+          {getWarrantyPolicyTerms(timeline.current.warrantyPolicy)}
         </p>
         {timeline.current.warrantyStartedAt ? (
           <p className="text-xs text-muted-foreground">
@@ -165,6 +166,24 @@ export const OrderItemTimeline = ({
         ) : null}
       </CardContent>
     </Card>
+
+    {timeline.current.servicePackage ? (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Gói đã mua</CardTitle>
+          <CardDescription>
+            {timeline.current.servicePackage.name} ·{" "}
+            {timeline.current.servicePackage.priceAmount.toLocaleString(
+              "vi-VN"
+            )}{" "}
+            VND
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground">
+          {timeline.current.servicePackage.scope}
+        </CardContent>
+      </Card>
+    ) : null}
 
     {timeline.deliverySubmission ? (
       <Card>

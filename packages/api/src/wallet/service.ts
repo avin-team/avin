@@ -103,6 +103,7 @@ interface WalletHistoryCandidate {
 }
 
 const PLATFORM_BANK_CLEARING_ACCOUNT_KEY = "PLATFORM_BANK_CLEARING";
+export const PLATFORM_COMMISSION_ACCOUNT_KEY = "PLATFORM_COMMISSION";
 
 const accountKeyForUser = (type: "AVAILABLE" | "HELD", userId: string) =>
   `USER_WALLET_${type}:${userId}`;
@@ -130,6 +131,7 @@ export const ensureWalletAccounts = async (
   availableAccount: typeof ledgerAccount.$inferSelect;
   heldAccount: typeof ledgerAccount.$inferSelect;
   platformAccount: typeof ledgerAccount.$inferSelect;
+  platformCommissionAccount: typeof ledgerAccount.$inferSelect;
   wallet: typeof userWallet.$inferSelect;
 }> => {
   await executor
@@ -166,6 +168,12 @@ export const ensureWalletAccounts = async (
       balanceSide: "DEBIT" as const,
       userId: null,
     },
+    {
+      accountKey: PLATFORM_COMMISSION_ACCOUNT_KEY,
+      accountType: "PLATFORM_COMMISSION" as const,
+      balanceSide: "CREDIT" as const,
+      userId: null,
+    },
   ];
 
   await Promise.all(
@@ -184,7 +192,8 @@ export const ensureWalletAccounts = async (
       or(
         eq(ledgerAccount.accountKey, accountKeyForUser("AVAILABLE", userId)),
         eq(ledgerAccount.accountKey, accountKeyForUser("HELD", userId)),
-        eq(ledgerAccount.accountKey, PLATFORM_BANK_CLEARING_ACCOUNT_KEY)
+        eq(ledgerAccount.accountKey, PLATFORM_BANK_CLEARING_ACCOUNT_KEY),
+        eq(ledgerAccount.accountKey, PLATFORM_COMMISSION_ACCOUNT_KEY)
       )
     );
   const availableAccount = accounts.find(
@@ -196,12 +205,26 @@ export const ensureWalletAccounts = async (
   const platformAccount = accounts.find(
     (account) => account.accountKey === PLATFORM_BANK_CLEARING_ACCOUNT_KEY
   );
+  const platformCommissionAccount = accounts.find(
+    (account) => account.accountKey === PLATFORM_COMMISSION_ACCOUNT_KEY
+  );
 
-  if (!availableAccount || !heldAccount || !platformAccount) {
+  if (
+    !availableAccount ||
+    !heldAccount ||
+    !platformAccount ||
+    !platformCommissionAccount
+  ) {
     throw new Error("Wallet ledger accounts were not created");
   }
 
-  return { availableAccount, heldAccount, platformAccount, wallet };
+  return {
+    availableAccount,
+    heldAccount,
+    platformAccount,
+    platformCommissionAccount,
+    wallet,
+  };
 };
 
 const countRequestsSince = async (

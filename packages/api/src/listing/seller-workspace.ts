@@ -3,11 +3,13 @@ import { user as userTable } from "@avin/db/schema/auth";
 import {
   listing,
   serviceInputFieldSchema,
+  servicePackage,
+  servicePackageDraftSchema,
   subCategory,
 } from "@avin/db/schema/catalog";
 import { sellerApplication, sellerProfile } from "@avin/db/schema/seller";
 import { ORPCError } from "@orpc/server";
-import { and, eq, or } from "drizzle-orm";
+import { and, asc, eq, isNull, or } from "drizzle-orm";
 import { z } from "zod";
 
 import { protectedProcedure, sellerProcedure } from "../access/procedures";
@@ -19,6 +21,12 @@ import {
 } from "../runtime/storage";
 import { isSellerEnforced } from "../seller-store/profile";
 import { assertStoreProfileComplete } from "../seller-store/public-visibility";
+import {
+  assertServicePackagesPublishable,
+  assertServicePackageNameUnique,
+  parseServicePackageDraft,
+  toLegacyServicePackageDraft,
+} from "./service-packages";
 
 export const CURRENT_SELLER_AGREEMENT_VERSION = "v1.0";
 
@@ -38,11 +46,16 @@ const draftFieldsSchema = z.object({
   priceAmount: z.number().int().nullable().optional(),
   processingTimeHours: z.number().int().nullable().optional(),
   serviceInputFields: z.array(serviceInputFieldSchema).optional(),
+  servicePackages: z.array(servicePackageDraftSchema).optional(),
   thumbnailUrl: z.string().nullable().optional(),
   title: z.string().max(200).nullable().optional(),
   type: listingTypeSchema.optional(),
   warrantyDurationHours: z.number().int().min(0).nullable().optional(),
   warrantyTerms: z.string().max(10_000).nullable().optional(),
+});
+
+const servicePackageInputSchema = servicePackageDraftSchema.extend({
+  listingId: z.uuid(),
 });
 
 const makeSlug = (title: string | null | undefined): string => {
@@ -290,6 +303,100 @@ export const assertPublishable = (
   }
 };
 
+export const assertServiceListingBasics = (draft: {
+  description: string | null;
+  images?: string[] | null;
+  slug: string;
+  thumbnailUrl: string | null;
+  title: string | null;
+}): void => {
+  if (!draft.title?.trim()) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Listing title is required",
+    });
+  }
+  if (!draft.description?.trim()) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Listing description is required",
+    });
+  }
+  if (!draft.slug?.trim()) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Listing slug is required",
+    });
+  }
+  if ((draft.images?.length ?? 0) > LISTING_IMAGE_MAX_COUNT) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: `A listing can have at most ${LISTING_IMAGE_MAX_COUNT} images`,
+    });
+  }
+  if (!getPrimaryListingImage(draft.images, draft.thumbnailUrl)) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Listing must have a designated primary image",
+    });
+  }
+};
+
+const getServicePackages = (listingId: string) =>
+  db.query.servicePackage.findMany({
+    orderBy: (table) => [asc(table.priceAmount), asc(table.name)],
+    where: eq(servicePackage.listingId, listingId),
+  });
+
+const ensureServicePackages = async (
+  listingItem: {
+    description: string | null;
+    id: string;
+    priceAmount: number | null;
+    processingTimeHours: number | null;
+    serviceInputFields: unknown;
+    title: string | null;
+    warrantyDurationHours: number | null;
+    warrantyTerms: string | null;
+  },
+  category: { warrantyBounds: { maxHours: number; minHours: number } }
+) => {
+  const existing = await getServicePackages(listingItem.id);
+  if (existing.length > 0) {
+    return existing;
+  }
+
+  const legacyDraft = toLegacyServicePackageDraft(listingItem);
+  if (!legacyDraft) {
+    throw new ORPCError("BAD_REQUEST", {
+      message:
+        "A Service listing must define at least one package before publishing",
+    });
+  }
+  const packageDraft = parseServicePackageDraft(legacyDraft, category);
+  const [created] = await db
+    .insert(servicePackage)
+    .values({
+      listingId: listingItem.id,
+      ...packageDraft,
+    })
+    .returning();
+  if (!created) {
+    throw new Error("Initial Service package was not created");
+  }
+  return [created];
+};
+
+const markPackagesPublished = async (
+  listingId: string,
+  publishedAt: Date
+): Promise<void> => {
+  await db
+    .update(servicePackage)
+    .set({ firstPublishedAt: publishedAt, updatedAt: publishedAt })
+    .where(
+      and(
+        eq(servicePackage.listingId, listingId),
+        isNull(servicePackage.firstPublishedAt)
+      )
+    );
+};
+
 export const canAccessListingMedia = (
   user: { id: string; role?: string | null } | null | undefined,
   listingItem: {
@@ -319,6 +426,22 @@ export const canAccessListingMedia = (
     listingItem.category?.status === "ACTIVE" &&
     listingItem.category?.parentCategory?.status === "ACTIVE"
   );
+};
+
+const assertOwnedServicePackage = async (id: string, userId: string) => {
+  const found = await db.query.servicePackage.findFirst({
+    where: eq(servicePackage.id, id),
+    with: { listing: true },
+  });
+  if (!found || found.listing.sellerId !== userId) {
+    throw new ORPCError("NOT_FOUND", { message: "Service package not found" });
+  }
+  if (found.listing.status === "ARCHIVED") {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Archived listings cannot be changed",
+    });
+  }
+  return found;
 };
 
 export const canUploadListingImage = (
@@ -357,7 +480,7 @@ export const sellerWorkspaceRouter = {
     )
     .handler(async ({ context, input }) => {
       await assertEligibleSeller(context.session.user.id);
-      await assertActiveSubCategory(input.categoryId);
+      const category = await assertActiveSubCategory(input.categoryId);
 
       const [created] = await db
         .insert(listing)
@@ -381,6 +504,28 @@ export const sellerWorkspaceRouter = {
           warrantyTerms: input.warrantyTerms,
         })
         .returning();
+
+      if (created && input.type === "SERVICE" && input.servicePackages) {
+        const packages = input.servicePackages.map((packageInput) =>
+          parseServicePackageDraft(packageInput, category)
+        );
+        const names = new Set<string>();
+        for (const packageInput of packages) {
+          const normalizedName = packageInput.name.toLocaleLowerCase();
+          if (names.has(normalizedName)) {
+            throw new ORPCError("BAD_REQUEST", {
+              message: "Service package names must be unique",
+            });
+          }
+          names.add(normalizedName);
+        }
+        await db.insert(servicePackage).values(
+          packages.map((packageInput) => ({
+            listingId: created.id,
+            ...packageInput,
+          }))
+        );
+      }
 
       return created;
     }),
@@ -534,22 +679,32 @@ export const sellerWorkspaceRouter = {
       assertStoreProfileComplete(profile);
       const draft = await assertDraft(input.id, context.session.user.id);
       const category = await assertActiveSubCategory(draft.categoryId);
-      assertPublishable(draft, category);
+      if (draft.type === "SERVICE") {
+        assertServiceListingBasics(draft);
+        const packages = await ensureServicePackages(draft, category);
+        assertServicePackagesPublishable(packages, category);
+      } else {
+        assertPublishable(draft, category);
+      }
 
       const primaryImage = getPrimaryListingImage(
         draft.images,
         draft.thumbnailUrl
       );
+      const publishedAt = new Date();
 
       const [updated] = await db
         .update(listing)
         .set({
           status: "PUBLISHED",
           thumbnailUrl: primaryImage,
-          updatedAt: new Date(),
+          updatedAt: publishedAt,
         })
         .where(eq(listing.id, draft.id))
         .returning();
+      if (draft.type === "SERVICE") {
+        await markPackagesPublished(draft.id, publishedAt);
+      }
       return updated;
     }),
 
@@ -568,23 +723,197 @@ export const sellerWorkspaceRouter = {
         });
       }
       const category = await assertActiveSubCategory(found.categoryId);
-      assertPublishable(found, category);
+      if (found.type === "SERVICE") {
+        assertServiceListingBasics(found);
+        const packages = await ensureServicePackages(found, category);
+        assertServicePackagesPublishable(packages, category);
+      } else {
+        assertPublishable(found, category);
+      }
 
       const primaryImage = getPrimaryListingImage(
         found.images,
         found.thumbnailUrl
       );
+      const publishedAt = new Date();
       const [updated] = await db
         .update(listing)
         .set({
           status: "PUBLISHED",
           thumbnailUrl: primaryImage,
-          updatedAt: new Date(),
+          updatedAt: publishedAt,
         })
         .where(eq(listing.id, found.id))
         .returning();
+      if (found.type === "SERVICE") {
+        await markPackagesPublished(found.id, publishedAt);
+      }
       return updated;
     }),
+
+  servicePackages: {
+    create: sellerProcedure
+      .input(servicePackageInputSchema)
+      .handler(async ({ context, input }) => {
+        await assertEligibleSeller(context.session.user.id);
+        const listingItem = await assertOwnedListing(
+          input.listingId,
+          context.session.user.id
+        );
+        if (listingItem.type !== "SERVICE") {
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Only Service listings can have packages",
+          });
+        }
+        if (listingItem.status === "ARCHIVED") {
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Archived listings cannot be changed",
+          });
+        }
+        const category = await assertActiveSubCategory(listingItem.categoryId);
+        const packageDraft = parseServicePackageDraft(input, category);
+        const existing = await getServicePackages(listingItem.id);
+        assertServicePackageNameUnique(existing, packageDraft.name);
+        const [created] = await db
+          .insert(servicePackage)
+          .values({
+            firstPublishedAt:
+              listingItem.status === "PUBLISHED" ? new Date() : null,
+            listingId: listingItem.id,
+            ...packageDraft,
+          })
+          .returning();
+        if (!created) {
+          throw new Error("Service package was not created");
+        }
+        return created;
+      }),
+
+    delete: sellerProcedure
+      .input(z.object({ id: z.uuid() }))
+      .handler(async ({ context, input }) => {
+        await assertEligibleSeller(context.session.user.id);
+        const found = await assertOwnedServicePackage(
+          input.id,
+          context.session.user.id
+        );
+        if (found.firstPublishedAt) {
+          throw new ORPCError("BAD_REQUEST", {
+            message:
+              "A published Service package cannot be deleted; make it unavailable instead",
+          });
+        }
+        await db.delete(servicePackage).where(eq(servicePackage.id, found.id));
+        return { id: found.id };
+      }),
+
+    list: sellerProcedure
+      .input(z.object({ listingId: z.uuid() }))
+      .handler(async ({ context, input }) => {
+        await assertEligibleSeller(context.session.user.id);
+        const listingItem = await assertOwnedListing(
+          input.listingId,
+          context.session.user.id
+        );
+        if (listingItem.type !== "SERVICE") {
+          return [];
+        }
+        return getServicePackages(listingItem.id);
+      }),
+
+    setAvailability: sellerProcedure
+      .input(z.object({ available: z.boolean(), id: z.uuid() }))
+      .handler(async ({ context, input }) => {
+        await assertEligibleSeller(context.session.user.id);
+        const found = await assertOwnedServicePackage(
+          input.id,
+          context.session.user.id
+        );
+        return db.transaction(async (tx) => {
+          const [lockedPackage] = await tx
+            .select({
+              id: servicePackage.id,
+              listingId: servicePackage.listingId,
+              listingStatus: listing.status,
+              status: servicePackage.status,
+            })
+            .from(servicePackage)
+            .innerJoin(listing, eq(servicePackage.listingId, listing.id))
+            .where(eq(servicePackage.id, found.id))
+            .for("update")
+            .limit(1);
+
+          if (!lockedPackage) {
+            throw new ORPCError("NOT_FOUND", {
+              message: "Service package not found",
+            });
+          }
+          if (lockedPackage.listingStatus === "ARCHIVED") {
+            throw new ORPCError("BAD_REQUEST", {
+              message: "Archived listings cannot be changed",
+            });
+          }
+
+          if (
+            !input.available &&
+            lockedPackage.status === "AVAILABLE" &&
+            lockedPackage.listingStatus === "PUBLISHED"
+          ) {
+            const packageRows = await tx
+              .select({ status: servicePackage.status })
+              .from(servicePackage)
+              .where(eq(servicePackage.listingId, lockedPackage.listingId))
+              .for("update");
+            const availablePackageCount = packageRows.filter(
+              (packageItem) => packageItem.status === "AVAILABLE"
+            ).length;
+            if (availablePackageCount <= 1) {
+              throw new ORPCError("BAD_REQUEST", {
+                message:
+                  "A published Service listing must retain at least one available package",
+              });
+            }
+          }
+
+          const [updated] = await tx
+            .update(servicePackage)
+            .set({
+              status: input.available ? "AVAILABLE" : "UNAVAILABLE",
+              updatedAt: new Date(),
+            })
+            .where(eq(servicePackage.id, lockedPackage.id))
+            .returning();
+          return updated;
+        });
+      }),
+
+    update: sellerProcedure
+      .input(servicePackageDraftSchema.extend({ id: z.uuid() }))
+      .handler(async ({ context, input }) => {
+        await assertEligibleSeller(context.session.user.id);
+        const found = await assertOwnedServicePackage(
+          input.id,
+          context.session.user.id
+        );
+        if (found.listing.type !== "SERVICE") {
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Only Service listings can have packages",
+          });
+        }
+        const category = await assertActiveSubCategory(
+          found.listing.categoryId
+        );
+        const packageDraft = parseServicePackageDraft(input, category);
+        const existing = await getServicePackages(found.listingId);
+        assertServicePackageNameUnique(existing, packageDraft.name, found.id);
+        const [updated] = await db
+          .update(servicePackage)
+          .set({ ...packageDraft, updatedAt: new Date() })
+          .where(eq(servicePackage.id, found.id))
+          .returning();
+        return updated;
+      }),
+  },
 
   updateDraft: sellerProcedure
     .input(draftFieldsSchema.extend({ id: z.string() }))
@@ -616,34 +945,37 @@ export const sellerWorkspaceRouter = {
       if (found.status === "PUBLISHED") {
         const targetCategoryId = input.categoryId ?? found.categoryId;
         const category = await assertActiveSubCategory(targetCategoryId);
-        assertPublishable(
-          {
-            ...found,
-            description: Object.hasOwn(input, "description")
-              ? (input.description ?? null)
-              : found.description,
-            images: nextImages,
-            priceAmount: Object.hasOwn(input, "priceAmount")
-              ? (input.priceAmount ?? null)
-              : found.priceAmount,
-            processingTimeHours: Object.hasOwn(input, "processingTimeHours")
-              ? (input.processingTimeHours ?? null)
-              : found.processingTimeHours,
-            serviceInputFields:
-              input.serviceInputFields ?? found.serviceInputFields,
-            thumbnailUrl: nextThumbnailUrl,
-            title: Object.hasOwn(input, "title")
-              ? (input.title ?? null)
-              : found.title,
-            warrantyDurationHours: Object.hasOwn(input, "warrantyDurationHours")
-              ? (input.warrantyDurationHours ?? null)
-              : found.warrantyDurationHours,
-            warrantyTerms: Object.hasOwn(input, "warrantyTerms")
-              ? (input.warrantyTerms ?? null)
-              : found.warrantyTerms,
-          },
-          category
-        );
+        const publishableDraft = {
+          ...found,
+          description: Object.hasOwn(input, "description")
+            ? (input.description ?? null)
+            : found.description,
+          images: nextImages,
+          priceAmount: Object.hasOwn(input, "priceAmount")
+            ? (input.priceAmount ?? null)
+            : found.priceAmount,
+          processingTimeHours: Object.hasOwn(input, "processingTimeHours")
+            ? (input.processingTimeHours ?? null)
+            : found.processingTimeHours,
+          serviceInputFields:
+            input.serviceInputFields ?? found.serviceInputFields,
+          thumbnailUrl: nextThumbnailUrl,
+          title: Object.hasOwn(input, "title")
+            ? (input.title ?? null)
+            : found.title,
+          type: input.type ?? found.type,
+          warrantyDurationHours: Object.hasOwn(input, "warrantyDurationHours")
+            ? (input.warrantyDurationHours ?? null)
+            : found.warrantyDurationHours,
+          warrantyTerms: Object.hasOwn(input, "warrantyTerms")
+            ? (input.warrantyTerms ?? null)
+            : found.warrantyTerms,
+        };
+        if (publishableDraft.type === "SERVICE") {
+          assertServiceListingBasics(publishableDraft);
+        } else {
+          assertPublishable(publishableDraft, category);
+        }
       }
 
       const [updated] = await db

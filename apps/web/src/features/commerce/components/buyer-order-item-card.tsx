@@ -48,6 +48,8 @@ import {
   formatOrderDeadline,
   getOrderItemStatusLabel,
   getOrderItemStatusVariant,
+  getWarrantyPolicyLabel,
+  isNoWarrantyPolicy,
 } from "@/features/commerce/order-status";
 import { buyerDisputeSchema } from "@/features/commerce/schemas/order-action-schemas";
 import { formatVND } from "@/utils/format";
@@ -91,7 +93,11 @@ export const BuyerOrderItemCard = ({
       },
       onSuccess: async () => {
         await invalidateItem();
-        toast.success("Đã xác nhận bàn giao. Warranty đã bắt đầu.");
+        toast.success(
+          isNoWarrantyPolicy(item.warrantyPolicy)
+            ? "Đã xác nhận bàn giao. Escrow đã được giải ngân."
+            : "Đã xác nhận bàn giao. Warranty đã bắt đầu."
+        );
       },
     })
   );
@@ -245,7 +251,7 @@ export const BuyerOrderItemCard = ({
           <div>
             <p className="text-xs text-muted-foreground">Warranty</p>
             <p className="mt-1 font-medium">
-              {item.warrantyPolicy.durationHours} giờ · Escrow{" "}
+              {getWarrantyPolicyLabel(item.warrantyPolicy)} · Escrow{" "}
               {formatVND(item.escrowHold.amount)}
             </p>
           </div>

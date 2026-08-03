@@ -4,6 +4,7 @@ const checkoutItemInputSchema = z.object({
   contractFingerprint: z.string().regex(/^[a-f0-9]{64}$/u),
   inputs: z.record(z.string(), z.unknown()).default({}),
   listingId: z.uuid(),
+  packageId: z.uuid().nullable().optional(),
 });
 
 export const checkoutInputSchema = z

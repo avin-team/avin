@@ -58,7 +58,9 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 
+import { servicePackagesQueryOptions } from "@/features/seller/api/service-packages";
 import { ListingImageUploader } from "@/features/seller/components/listing-image-uploader";
+import { ServicePackageManager } from "@/features/seller/components/service-package-manager";
 import { SellerLayout } from "@/features/seller/layout/seller-layout";
 import { listingEditorFormSchema } from "@/features/seller/schemas/listing-editor-schema";
 import { orpc } from "@/utils/orpc";
@@ -279,7 +281,8 @@ const getCategoryOptions = (
 
 const getReadinessItems = (
   form: ListingEditorForm,
-  category: EditorCategory | undefined
+  category: EditorCategory | undefined,
+  servicePackageCount = 0
 ): ReadinessItem[] => {
   const price = parseInteger(form.priceAmount);
   const processingTime = parseInteger(form.processingTimeHours);
@@ -291,6 +294,7 @@ const getReadinessItems = (
     warrantyDuration >= category.warrantyBounds.minHours &&
     warrantyDuration <= category.warrantyBounds.maxHours
   );
+  const hasServicePackages = form.type === "SERVICE" && servicePackageCount > 0;
 
   return [
     {
@@ -322,13 +326,14 @@ const getReadinessItems = (
       step: "basics",
     },
     {
-      complete: price !== null && price > 0,
+      complete: hasServicePackages || (price !== null && price > 0),
       id: "price",
       label: "Giá bán hợp lệ",
       step: "basics",
     },
     {
-      complete: processingTime !== null && processingTime > 0,
+      complete:
+        hasServicePackages || (processingTime !== null && processingTime > 0),
       id: "processing-time",
       label: "Thời gian hoàn thành",
       step: "basics",
@@ -340,15 +345,16 @@ const getReadinessItems = (
       step: "media",
     },
     {
-      complete: warrantyInBounds,
+      complete: hasServicePackages || warrantyInBounds,
       id: "warranty-duration",
       label: "Thời hạn bảo hành trong giới hạn",
       step: "warranty",
     },
     {
       complete:
-        Boolean(form.warrantyTerms.trim()) &&
-        form.warrantyTerms.trim().length <= MAX_LONG_TEXT_LENGTH,
+        hasServicePackages ||
+        (Boolean(form.warrantyTerms.trim()) &&
+          form.warrantyTerms.trim().length <= MAX_LONG_TEXT_LENGTH),
       id: "warranty-terms",
       label: "Điều khoản bảo hành",
       step: "warranty",
@@ -1078,6 +1084,11 @@ const ListingEditorFormPage = ({
     await enqueueSave({ id: draftId, ...buildUpdateInput(value) });
   });
   const form = useStore(editorForm.store, (state) => state.values);
+  const servicePackagesQuery = useQuery({
+    ...servicePackagesQueryOptions(draftId ?? "new"),
+    enabled: Boolean(draftId && form.type === "SERVICE"),
+  });
+  const servicePackageCount = servicePackagesQuery.data?.length ?? 0;
   const hasValidDraftType = isListingType(form.type);
   const hasDraftCategory = Boolean(form.categoryId);
   const canCreateDraft =
@@ -1085,7 +1096,11 @@ const ListingEditorFormPage = ({
   const selectedCategory = categoryOptions.find(
     (category) => category.id === form.categoryId
   );
-  const readinessItems = getReadinessItems(form, selectedCategory);
+  const readinessItems = getReadinessItems(
+    form,
+    selectedCategory,
+    servicePackageCount
+  );
   const isReadyToPublish = readinessItems.every((item) => item.complete);
   const [activeStepIndex, setActiveStepIndex] = useState(() =>
     isNew ? 0 : getFirstIncompleteEditorStepIndex(readinessItems)
@@ -1609,6 +1624,16 @@ const ListingEditorFormPage = ({
                     listingId={draftId ?? "new"}
                     stepId={activeStep.id}
                   />
+                  {form.type === "SERVICE" ? (
+                    <div className="mt-6">
+                      <ServicePackageManager
+                        categoryBounds={selectedCategory?.warrantyBounds}
+                        disabled={isEditorStepDisabled}
+                        inputFields={form.serviceInputFields}
+                        listingId={draftId ?? "new"}
+                      />
+                    </div>
+                  ) : null}
                 </CardContent>
                 <CardFooter className="justify-between border-t border-border/60">
                   <Button

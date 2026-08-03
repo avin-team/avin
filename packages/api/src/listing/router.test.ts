@@ -40,6 +40,7 @@ describe("listing router interface", () => {
       "pause",
       "publish",
       "resume",
+      "servicePackages",
       "updateDraft",
     ]);
     expect(Object.keys(listingRouter.adminModeration).toSorted()).toEqual([

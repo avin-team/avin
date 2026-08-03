@@ -1,8 +1,8 @@
 import { auditLog } from "@avin/db/schema/auth";
-import { listing } from "@avin/db/schema/catalog";
+import { listing, servicePackage } from "@avin/db/schema/catalog";
 import { sellerProfile } from "@avin/db/schema/seller";
 import { ORPCError } from "@orpc/server";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { adminProcedure } from "../access/procedures";
@@ -12,7 +12,12 @@ import {
   assertActiveSubCategory,
   assertEligibleSeller,
   assertPublishable,
+  assertServiceListingBasics,
 } from "./seller-workspace";
+import {
+  assertServicePackagesPublishable,
+  toLegacyServicePackageDraft,
+} from "./service-packages";
 
 export const listingStatusSchema = z.enum([
   "DRAFT",
@@ -128,6 +133,7 @@ const moderateListing = async ({
   }
 
   const nextStatus = getModerationTransition(found.status, action);
+  const updatedAt = new Date();
 
   if (action === "RESTORE") {
     await assertEligibleSeller(found.sellerId);
@@ -136,12 +142,48 @@ const moderateListing = async ({
     });
     assertStoreProfileComplete(profile);
     const category = await assertActiveSubCategory(found.categoryId);
-    assertPublishable(found, category);
+    if (found.type === "SERVICE") {
+      assertServiceListingBasics(found);
+      const packages = await context.db.query.servicePackage.findMany({
+        where: eq(servicePackage.listingId, found.id),
+      });
+      if (packages.length === 0) {
+        const legacyPackage = toLegacyServicePackageDraft(found);
+        if (!legacyPackage) {
+          throw new ORPCError("BAD_REQUEST", {
+            message:
+              "A Service listing must define at least one package before restore",
+          });
+        }
+        await context.db.insert(servicePackage).values({
+          firstPublishedAt: updatedAt,
+          listingId: found.id,
+          ...legacyPackage,
+        });
+        packages.push(
+          ...(await context.db.query.servicePackage.findMany({
+            where: eq(servicePackage.listingId, found.id),
+          }))
+        );
+      }
+      assertServicePackagesPublishable(packages, category);
+      await context.db
+        .update(servicePackage)
+        .set({ firstPublishedAt: updatedAt, updatedAt })
+        .where(
+          and(
+            eq(servicePackage.listingId, found.id),
+            isNull(servicePackage.firstPublishedAt)
+          )
+        );
+    } else {
+      assertPublishable(found, category);
+    }
   }
 
   const [updated] = await context.db
     .update(listing)
-    .set({ status: nextStatus, updatedAt: new Date() })
+    .set({ status: nextStatus, updatedAt })
     .where(eq(listing.id, found.id))
     .returning();
 

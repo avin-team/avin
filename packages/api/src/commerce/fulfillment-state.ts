@@ -1,4 +1,7 @@
-import type { OrderItemStatus } from "@avin/db/schema/commerce";
+import type {
+  OrderItemStatus,
+  WarrantyPolicySnapshot,
+} from "@avin/db/schema/commerce";
 
 const MILLISECONDS_PER_MINUTE = 60_000;
 const MILLISECONDS_PER_HOUR = 60 * MILLISECONDS_PER_MINUTE;
@@ -25,6 +28,7 @@ export interface OrderItemTransitionInput {
   deliveryReviewDeadlineAt?: Date;
   now: Date;
   processingDeadlineAt?: Date;
+  warrantyPolicy?: WarrantyPolicySnapshot;
   warrantyDurationHours?: number;
   warrantyExpiresAt?: Date;
 }
@@ -74,6 +78,30 @@ const assertPositiveWarrantyDuration = (hours: number | undefined): number => {
   }
 
   return hours;
+};
+
+const hasNoWarranty = (policy: WarrantyPolicySnapshot | undefined): boolean => {
+  if (!policy || !("kind" in policy)) {
+    return false;
+  }
+  return policy.kind === "NO_WARRANTY";
+};
+
+const getWarrantyDuration = (
+  input: OrderItemTransitionInput
+): number | null => {
+  if (input.warrantyPolicy) {
+    if (hasNoWarranty(input.warrantyPolicy)) {
+      return null;
+    }
+    if ("kind" in input.warrantyPolicy) {
+      return input.warrantyPolicy.kind === "TIMED"
+        ? input.warrantyPolicy.durationHours
+        : null;
+    }
+    return input.warrantyPolicy.durationHours;
+  }
+  return assertPositiveWarrantyDuration(input.warrantyDurationHours);
 };
 
 const assertReason = (reason: string, message: string): string => {
@@ -141,13 +169,14 @@ const confirmDelivery = (
     );
   }
 
+  const warrantyDuration = getWarrantyDuration(input);
+  if (warrantyDuration === null) {
+    return { ...baseTransition(input), newStatus: "CLOSED" };
+  }
   return {
     ...baseTransition(input),
     newStatus: "IN_WARRANTY",
-    warrantyExpiresAt: addHours(
-      input.now,
-      assertPositiveWarrantyDuration(input.warrantyDurationHours)
-    ),
+    warrantyExpiresAt: addHours(input.now, warrantyDuration),
     warrantyStartedAt: input.now,
   };
 };
@@ -169,13 +198,21 @@ const expireDeliveryReview = (
     );
   }
 
+  const warrantyDuration = getWarrantyDuration(input);
+  if (warrantyDuration === null) {
+    return {
+      ...baseTransition(input),
+      effectiveAt: input.deliveryReviewDeadlineAt,
+      newStatus: "CLOSED",
+    };
+  }
   return {
     ...baseTransition(input),
     effectiveAt: input.deliveryReviewDeadlineAt,
     newStatus: "IN_WARRANTY",
     warrantyExpiresAt: addHours(
       input.deliveryReviewDeadlineAt,
-      assertPositiveWarrantyDuration(input.warrantyDurationHours)
+      warrantyDuration
     ),
     warrantyStartedAt: input.deliveryReviewDeadlineAt,
   };

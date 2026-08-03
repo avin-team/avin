@@ -13,10 +13,12 @@ import {
   UserCheck,
   Wrench,
 } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { Shell } from "@/components/shell";
 import { ListingMediaGallery } from "@/features/catalog/components/listing-media-gallery";
+import { ServicePackageSelector } from "@/features/catalog/components/service-package-selector";
 import { addCartItemOptimistically } from "@/features/commerce/cart-cache";
 import type { CartView } from "@/features/commerce/cart-cache";
 import { formatVND } from "@/utils/format";
@@ -27,6 +29,9 @@ export const ListingDetailPage = () => {
   const { id } = useParams({ from: "/(public)/listing/$id" });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(
+    null
+  );
 
   const listingQuery = useQuery(
     orpc.listing.discovery.listingById.queryOptions({
@@ -35,6 +40,20 @@ export const ListingDetailPage = () => {
   );
 
   const listing = listingQuery.data;
+  const isService = listing?.type === "SERVICE";
+  const servicePackages = listing?.servicePackages ?? [];
+  const selectedPackage =
+    servicePackages.find(
+      (packageItem) => packageItem.id === selectedPackageId
+    ) ?? (servicePackages.length === 1 ? servicePackages[0] : undefined);
+  const selectedWarranty = selectedPackage?.warrantyPolicy;
+  const selectedTimedWarranty =
+    selectedWarranty?.kind === "TIMED" ? selectedWarranty : null;
+  const selectedNoWarranty = selectedWarranty?.kind === "NO_WARRANTY";
+  const selectedPrice =
+    selectedPackage?.priceAmount ?? listing?.priceAmount ?? 0;
+  const selectedProcessingTime =
+    selectedPackage?.processingTimeHours ?? listing?.processingTimeHours;
   let listingImages: string[] = [];
   if (listing?.images?.length) {
     listingImages = listing.images;
@@ -62,7 +81,7 @@ export const ListingDetailPage = () => {
 
       if (listing) {
         queryClient.setQueryData<CartView>(cartQueryKey, (currentCart) =>
-          addCartItemOptimistically(currentCart, listing)
+          addCartItemOptimistically(currentCart, listing, selectedPackage?.id)
         );
       }
 
@@ -76,7 +95,12 @@ export const ListingDetailPage = () => {
       await navigate({ to: "/cart" });
     },
   });
-  const isService = listing?.type === "SERVICE";
+  let addToCartLabel = "Thêm vào Cart";
+  if (addToCartMutation.isPending) {
+    addToCartLabel = "Đang thêm...";
+  } else if (isService && !selectedPackage) {
+    addToCartLabel = "Chọn gói để tiếp tục";
+  }
   const parentCategory = listing?.category?.parentCategory;
   const subCategory = listing?.category;
 
@@ -230,7 +254,27 @@ export const ListingDetailPage = () => {
                   </div>
 
                   {/* Warranty & Terms Section */}
-                  {listing.warrantyDurationHours ? (
+                  {isService ? (
+                    <ServicePackageSelector
+                      onChange={setSelectedPackageId}
+                      packages={servicePackages}
+                      selectedPackageId={selectedPackage?.id ?? null}
+                    />
+                  ) : null}
+
+                  {isService && selectedNoWarranty ? (
+                    <div className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5 space-y-2">
+                      <div className="flex items-center gap-2 text-amber-600 font-bold text-sm">
+                        <ShieldCheck className="h-5 w-5" />
+                        <span>Không có bảo hành</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Vẫn có 48 giờ để xem xét sau khi Seller giao hàng.
+                      </p>
+                    </div>
+                  ) : null}
+
+                  {!isService && listing.warrantyDurationHours ? (
                     <div className="mt-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5 space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 text-emerald-500 font-bold text-sm">
@@ -248,6 +292,22 @@ export const ListingDetailPage = () => {
                       ) : null}
                     </div>
                   ) : null}
+                  {isService && selectedTimedWarranty ? (
+                    <div className="mt-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-emerald-500 font-bold text-sm">
+                          <ShieldCheck className="h-5 w-5" />
+                          <span>Bảo hành bảo vệ người mua</span>
+                        </div>
+                        <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-500">
+                          Bảo hành {selectedTimedWarranty.durationHours} giờ
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {selectedTimedWarranty.terms}
+                      </p>
+                    </div>
+                  ) : null}
                 </div>
               </div>
 
@@ -261,7 +321,7 @@ export const ListingDetailPage = () => {
                     </span>
                     <div className="mt-1 flex items-baseline gap-2">
                       <span className="text-3xl font-black tracking-tight text-primary">
-                        {formatVND(listing.priceAmount ?? 0)}
+                        {formatVND(selectedPrice)}
                       </span>
                     </div>
                   </div>
@@ -269,22 +329,22 @@ export const ListingDetailPage = () => {
                   {/* Action CTA */}
                   <button
                     className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3.5 px-6 font-bold text-sm text-primary-foreground shadow-md transition-all hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/20 active:scale-[0.98]"
-                    disabled={addToCartMutation.isPending}
+                    disabled={
+                      addToCartMutation.isPending ||
+                      (isService && !selectedPackage)
+                    }
                     onClick={() => {
                       if (listing) {
                         addToCartMutation.mutate({
                           listingId: listing.id,
+                          packageId: selectedPackage?.id,
                         });
                       }
                     }}
                     type="button"
                   >
                     <ShoppingCart className="h-4 w-4" />
-                    <span>
-                      {addToCartMutation.isPending
-                        ? "Đang thêm..."
-                        : "Thêm vào Cart"}
-                    </span>
+                    <span>{addToCartLabel}</span>
                     <ArrowRight className="h-4 w-4" />
                   </button>
 
@@ -320,7 +380,11 @@ export const ListingDetailPage = () => {
                       </div>
                       <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4 text-primary shrink-0" />
-                        <span>Giao hàng nhanh / Tự động</span>
+                        <span>
+                          {selectedProcessingTime
+                            ? `${selectedProcessingTime} giờ xử lý`
+                            : "Giao hàng nhanh / Tự động"}
+                        </span>
                       </div>
                     </div>
                   </div>

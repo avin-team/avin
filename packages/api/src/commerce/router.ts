@@ -10,6 +10,7 @@ import {
   addToCart,
   getCart,
   removeFromCart,
+  setCartItemPackage,
   setCartItemSelected,
 } from "./cart";
 import { checkoutInputSchema, createCheckout } from "./checkout";
@@ -30,6 +31,7 @@ import type { FulfillmentActorRole } from "./fulfillment";
 import { getBuyerOrders, getSellerOrders } from "./orders";
 
 const listingIdInput = z.object({ listingId: z.uuid() });
+const packageSelectionInput = listingIdInput.extend({ packageId: z.uuid() });
 const orderItemIdInput = z.object({ itemId: z.uuid() });
 
 const orderItemCommandInput = orderItemIdInput.extend(
@@ -56,9 +58,14 @@ const getFulfillmentActorRole = (
 export const commerceRouter = {
   cart: {
     add: buyerProcedure
-      .input(listingIdInput)
+      .input(listingIdInput.extend({ packageId: z.uuid().optional() }))
       .handler(({ context, input }) =>
-        addToCart(context.db, context.session.user.id, input.listingId)
+        addToCart(
+          context.db,
+          context.session.user.id,
+          input.listingId,
+          input.packageId
+        )
       ),
 
     get: buyerProcedure.handler(({ context }) =>
@@ -69,6 +76,17 @@ export const commerceRouter = {
       .input(listingIdInput)
       .handler(({ context, input }) =>
         removeFromCart(context.db, context.session.user.id, input.listingId)
+      ),
+
+    selectPackage: buyerProcedure
+      .input(packageSelectionInput)
+      .handler(({ context, input }) =>
+        setCartItemPackage(
+          context.db,
+          context.session.user.id,
+          input.listingId,
+          input.packageId
+        )
       ),
 
     setSelected: buyerProcedure

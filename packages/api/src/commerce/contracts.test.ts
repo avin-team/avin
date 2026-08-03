@@ -4,6 +4,7 @@ import { checkoutInputSchema } from "./checkout-input";
 import {
   fingerprintCheckoutRequest,
   parseListingContract,
+  parseServicePackageContract,
   validateOrderCustomInputs,
 } from "./contracts";
 
@@ -101,6 +102,30 @@ describe("Listing contract checkout helpers", () => {
         profile_link: "not a URL",
       })
     ).toThrow("invalid value");
+  });
+
+  it("fingerprints the selected Service package into the checkout contract", () => {
+    const parsed = parseServicePackageContract(
+      listing,
+      {
+        id: "package-1",
+        name: "Premium",
+        priceAmount: 250_000,
+        processingTimeHours: 72,
+        scope: "A larger delivered result",
+        serviceInputFields: listing.serviceInputFields,
+        warrantyPolicy: {
+          durationHours: 72,
+          kind: "TIMED",
+          terms: "Fix defects during the warranty window.",
+        },
+      },
+      "10.00"
+    );
+
+    expect(parsed.priceAmount).toBe(250_000);
+    expect(parsed.servicePackageSnapshot?.name).toBe("Premium");
+    expect(parsed.fingerprint).toMatch(/^[a-f0-9]{64}$/u);
   });
 
   it("returns validated inputs in Listing definition order", () => {

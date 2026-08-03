@@ -103,6 +103,18 @@ export const sellerStoreRouter = {
               },
             },
           },
+          servicePackages: {
+            columns: {
+              name: true,
+              priceAmount: true,
+              status: true,
+            },
+            orderBy: (table, { asc }) => [
+              asc(table.priceAmount),
+              asc(table.name),
+            ],
+            where: (table, { eq: equals }) => equals(table.status, "AVAILABLE"),
+          },
         },
       });
 
@@ -119,11 +131,19 @@ export const sellerStoreRouter = {
             return [];
           }
 
+          let { priceAmount } = item;
+          if (item.type === "SERVICE" && item.servicePackages) {
+            priceAmount = item.servicePackages[0]?.priceAmount ?? null;
+          }
+          if (priceAmount === null) {
+            return [];
+          }
+
           return [
             {
               createdAt: item.createdAt,
               id: item.id,
-              priceAmount: item.priceAmount,
+              priceAmount,
               slug: item.slug,
               thumbnailUrl: item.thumbnailUrl,
               title: item.title,

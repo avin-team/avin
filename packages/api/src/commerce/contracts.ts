@@ -34,7 +34,10 @@ export interface ParsedListingContract {
   listingSnapshot: ListingSnapshot;
   processingTimeHours: number;
   serviceInputFields: ServiceInputField[];
-  warrantyPolicy: WarrantyPolicySnapshot;
+  warrantyPolicy: WarrantyPolicySnapshot & {
+    durationHours?: number;
+    terms?: string;
+  };
   priceAmount: number;
   fingerprint: string;
   servicePackageId?: string;

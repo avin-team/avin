@@ -63,6 +63,14 @@ interface CartItem {
     id: string;
     priceAmount: number | null;
     processingTimeHours: number | null;
+    servicePackages?: {
+      id: string;
+      name: string;
+      priceAmount: number;
+      processingTimeHours: number;
+      scope: string;
+      status: "AVAILABLE" | "UNAVAILABLE";
+    }[];
     serviceInputFields: CartField[];
     slug: string;
     thumbnailUrl: string | null;
@@ -70,6 +78,7 @@ interface CartItem {
     type: "COURSE" | "SERVICE";
     warrantyDurationHours: number | null;
   };
+  selectedPackageId?: string | null;
   selected: boolean;
   seller: {
     id: string;
@@ -156,6 +165,7 @@ export const CartItemCard = ({
   children,
   item,
   onRemove,
+  onSelectPackage,
   onToggle,
   actionPending,
   selectionPending,
@@ -164,6 +174,7 @@ export const CartItemCard = ({
   children?: ReactNode;
   item: CartItem;
   onRemove: () => void;
+  onSelectPackage?: (packageId: string) => void;
   onToggle: (selected: boolean) => void;
   selectionPending: boolean;
 }) => (
@@ -238,6 +249,44 @@ export const CartItemCard = ({
           <Trash2 />
         </Button>
       </div>
+
+      {item.listing.type === "SERVICE" &&
+      (item.listing.servicePackages?.length ?? 0) > 0 ? (
+        <div className="space-y-2 rounded-xl border border-primary/20 bg-primary/5 p-4">
+          <label
+            className="text-sm font-semibold text-foreground"
+            htmlFor={`cart-package-${item.listing.id}`}
+          >
+            Gói dịch vụ
+          </label>
+          <select
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            disabled={actionPending || selectionPending}
+            id={`cart-package-${item.listing.id}`}
+            onChange={(event) => onSelectPackage?.(event.target.value)}
+            value={item.selectedPackageId ?? ""}
+          >
+            <option value="">Chọn một gói</option>
+            {item.listing.servicePackages?.map((packageItem) => (
+              <option
+                disabled={packageItem.status !== "AVAILABLE"}
+                key={packageItem.id}
+                value={packageItem.id}
+              >
+                {packageItem.name} · {formatVND(packageItem.priceAmount)}
+                {packageItem.status === "UNAVAILABLE"
+                  ? " (không khả dụng)"
+                  : ""}
+              </option>
+            ))}
+          </select>
+          {item.selectedPackageId ? null : (
+            <p className="text-xs text-destructive">
+              Chọn gói trước khi Checkout.
+            </p>
+          )}
+        </div>
+      ) : null}
 
       {children}
     </CardContent>
@@ -322,6 +371,22 @@ export const CartPage = () => {
   const toggleMutation = useMutation(
     orpc.commerce.cart.setSelected.mutationOptions()
   );
+  const packageMutation = useMutation({
+    ...orpc.commerce.cart.selectPackage.mutationOptions(),
+    onError: (error) => {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Không thể cập nhật gói dịch vụ."
+      );
+    },
+    onSuccess: (updatedCart) => {
+      queryClient.setQueryData(
+        orpc.commerce.cart.get.queryOptions().queryKey,
+        updatedCart
+      );
+    },
+  });
   const queueSelectionUpdate = (variables: {
     listingId: string;
     selected: boolean;
@@ -384,11 +449,8 @@ export const CartPage = () => {
   };
   const removeMutation = useMutation({
     ...orpc.commerce.cart.remove.mutationOptions(),
-    onError: (error, _variables, context) => {
-      const cartQueryKey = orpc.commerce.cart.get.queryOptions().queryKey;
-      if (context?.previousCart) {
-        queryClient.setQueryData(cartQueryKey, context.previousCart);
-      }
+    onError: (error) => {
+      void invalidateCart();
       toast.error(
         error instanceof Error
           ? error.message
@@ -425,7 +487,10 @@ export const CartPage = () => {
   const hasMissingContract = selectedItems.some(
     (item) => item.contractFingerprint === null
   );
-  const actionPending = removeMutation.isPending || checkoutMutation.isPending;
+  const actionPending =
+    removeMutation.isPending ||
+    checkoutMutation.isPending ||
+    packageMutation.isPending;
   const busy = actionPending || selectionPending;
 
   const submitCheckout = async (
@@ -444,6 +509,7 @@ export const CartPage = () => {
           contractFingerprint: item.contractFingerprint ?? "0".repeat(64),
           inputs: inputValues[item.listing.id] ?? {},
           listingId: item.listing.id,
+          packageId: item.selectedPackageId,
         })),
       });
       checkoutKey.current = crypto.randomUUID();
@@ -554,6 +620,12 @@ export const CartPage = () => {
                     key={item.cartItemId}
                     onRemove={() => {
                       removeMutation.mutate({ listingId: item.listing.id });
+                    }}
+                    onSelectPackage={(packageId) => {
+                      packageMutation.mutate({
+                        listingId: item.listing.id,
+                        packageId,
+                      });
                     }}
                     onToggle={(selected) => {
                       queueSelectionUpdate({

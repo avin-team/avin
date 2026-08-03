@@ -25,16 +25,24 @@ export type ListingForCart = Pick<
 > & {
   category: { id: string };
   seller: { id: string; image: string | null; name: string };
+  servicePackages?: ListingDetail["servicePackages"];
 };
 
+// oxlint-disable-next-line complexity
 export const addCartItemOptimistically = (
   cart: CartView | undefined,
-  listing: ListingForCart
+  listing: ListingForCart,
+  selectedPackageId?: string | null
 ): CartView | undefined => {
   if (cart?.items.some((item) => item.listing.id === listing.id)) {
     return cart;
   }
 
+  const servicePackages = listing.servicePackages ?? [];
+  const selectedPackage = servicePackages.find(
+    (packageItem) => packageItem.id === selectedPackageId
+  );
+  const packageWarranty = selectedPackage?.warrantyPolicy;
   const optimisticItem: CartView["items"][number] = {
     available: true,
     cartItemId: `optimistic-${listing.id}`,
@@ -44,17 +52,27 @@ export const addCartItemOptimistically = (
       description: listing.description,
       id: listing.id,
       images: listing.images ?? [],
-      priceAmount: listing.priceAmount,
-      processingTimeHours: listing.processingTimeHours,
-      serviceInputFields: listing.serviceInputFields ?? [],
+      priceAmount: selectedPackage?.priceAmount ?? listing.priceAmount,
+      processingTimeHours:
+        selectedPackage?.processingTimeHours ?? listing.processingTimeHours,
+      serviceInputFields:
+        selectedPackage?.serviceInputFields ?? listing.serviceInputFields ?? [],
+      servicePackages,
       slug: listing.slug,
       thumbnailUrl: listing.thumbnailUrl,
       title: listing.title,
       type: listing.type,
-      warrantyDurationHours: listing.warrantyDurationHours,
-      warrantyTerms: listing.warrantyTerms,
+      warrantyDurationHours:
+        packageWarranty?.kind === "TIMED"
+          ? packageWarranty.durationHours
+          : listing.warrantyDurationHours,
+      warrantyTerms:
+        packageWarranty?.kind === "TIMED"
+          ? packageWarranty.terms
+          : listing.warrantyTerms,
     },
     selected: true,
+    selectedPackageId: selectedPackage?.id ?? selectedPackageId ?? null,
     seller: {
       id: listing.seller.id,
       image: listing.seller.image,
@@ -67,7 +85,8 @@ export const addCartItemOptimistically = (
       id: "optimistic-cart",
       items: [optimisticItem],
       selectedCount: 1,
-      selectedTotalAmount: listing.priceAmount ?? 0,
+      selectedTotalAmount:
+        selectedPackage?.priceAmount ?? listing.priceAmount ?? 0,
     };
   }
 
@@ -75,7 +94,9 @@ export const addCartItemOptimistically = (
     ...cart,
     items: [...cart.items, optimisticItem],
     selectedCount: cart.selectedCount + 1,
-    selectedTotalAmount: cart.selectedTotalAmount + (listing.priceAmount ?? 0),
+    selectedTotalAmount:
+      cart.selectedTotalAmount +
+      (selectedPackage?.priceAmount ?? listing.priceAmount ?? 0),
   };
 };
 
