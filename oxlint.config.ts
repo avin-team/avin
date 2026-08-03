@@ -47,7 +47,6 @@ export default defineConfig({
     "react-doctor/only-export-components": "off",
     "react-doctor/no-giant-component": "off",
     "eslint/arrow-body-style": "off",
-    "eslint/complexity": "off",
     "react-doctor/react-compiler-no-manual-memoization": "off",
     "react-doctor/prefer-use-effect-event": "off",
     "eslint/sort-keys": "off",

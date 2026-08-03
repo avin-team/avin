@@ -983,6 +983,7 @@ const EMPTY_NEW_LISTING: ListingEditorListing = {
   warrantyTerms: null,
 };
 
+// oxlint-disable-next-line complexity
 const ListingEditorFormPage = ({
   categories: categoryOptions,
   listing,

@@ -71,12 +71,90 @@ interface SellerApplicationData {
   status: SellerApplicationStatus | string;
 }
 
+const ApplicationStatusBanner = ({
+  application,
+}: {
+  application: SellerApplicationData;
+}) => {
+  const isPending = application.status === "PENDING_REVIEW";
+  const isApproved = application.status === "APPROVED";
+
+  return (
+    <Card className="border-l-4 border-l-primary">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg flex items-center gap-2">
+            Trạng thái hồ sơ
+            <Badge variant={getBadgeVariant(application.status)}>
+              {application.status === "PENDING_REVIEW" &&
+                "Đang chờ duyệt (PENDING_REVIEW)"}
+              {application.status === "APPROVED" && "Đã duyệt (APPROVED)"}
+              {application.status === "CHANGES_REQUESTED" &&
+                "Yêu cầu chỉnh sửa (CHANGES_REQUESTED)"}
+              {application.status === "REJECTED" && "Từ chối (REJECTED)"}
+            </Badge>
+          </CardTitle>
+          {application.revisionCount > 0 && (
+            <span className="text-xs text-muted-foreground">
+              Số lần chỉnh sửa: {application.revisionCount}
+            </span>
+          )}
+        </div>
+        <CardDescription>
+          Ngày nộp: {new Date(application.createdAt).toLocaleString("vi-VN")}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {isPending && (
+          <Alert className="bg-amber-500/10 text-amber-600 border-amber-500/20 dark:bg-amber-500/20 dark:text-amber-400">
+            <Clock className="w-4 h-4" />
+            <AlertTitle>
+              Hồ sơ của bạn đang được Ban Quản Trị xem xét
+            </AlertTitle>
+            <AlertDescription>
+              Hệ thống sẽ cập nhật trạng thái trong thời gian sớm nhất. Bạn có
+              thể cập nhật thông tin gian hàng nháp trong khi chờ duyệt.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {application.status === "CHANGES_REQUESTED" && (
+          <Alert variant="destructive">
+            <AlertCircle className="w-4 h-4" />
+            <AlertTitle>Yêu cầu điều chỉnh thông tin</AlertTitle>
+            <AlertDescription className="mt-1">
+              <strong>Lý do từ Admin:</strong>{" "}
+              {application.reviewReason ||
+                "Vui lòng kiểm tra lại thông tin gian hàng và ngân hàng."}
+              <p className="mt-2 text-xs">
+                Vui lòng cập nhật lại thông tin bên dưới và bấm Nộp lại hồ sơ.
+              </p>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {isApproved && (
+          <Alert className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:bg-emerald-500/20 dark:text-emerald-400">
+            <CheckCircle2 className="w-4 h-4" />
+            <AlertTitle>Hồ sơ người bán đã được duyệt thành công!</AlertTitle>
+            <AlertDescription>
+              Tài khoản của bạn đã kích hoạt tính năng Seller. Bạn hiện có thể
+              đăng tải sản phẩm/dịch vụ mới.
+            </AlertDescription>
+          </Alert>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
 interface SellerOnboardingFormContentProps {
   application?: SellerApplicationData | null;
   profile?: SellerProfileData | null;
   refetchProfile: () => void;
 }
 
+// oxlint-disable-next-line complexity
 const SellerOnboardingFormContent = ({
   application,
   profile,
@@ -183,7 +261,6 @@ const SellerOnboardingFormContent = ({
   };
 
   const isPending = application?.status === "PENDING_REVIEW";
-  const isApproved = application?.status === "APPROVED";
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 py-6">
@@ -206,77 +283,7 @@ const SellerOnboardingFormContent = ({
       </div>
 
       {/* Application Status Banner */}
-      {application && (
-        <Card className="border-l-4 border-l-primary">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg flex items-center gap-2">
-                Trạng thái hồ sơ
-                <Badge variant={getBadgeVariant(application.status)}>
-                  {application.status === "PENDING_REVIEW" &&
-                    "Đang chờ duyệt (PENDING_REVIEW)"}
-                  {application.status === "APPROVED" && "Đã duyệt (APPROVED)"}
-                  {application.status === "CHANGES_REQUESTED" &&
-                    "Yêu cầu chỉnh sửa (CHANGES_REQUESTED)"}
-                  {application.status === "REJECTED" && "Từ chối (REJECTED)"}
-                </Badge>
-              </CardTitle>
-              {application.revisionCount > 0 && (
-                <span className="text-xs text-muted-foreground">
-                  Số lần chỉnh sửa: {application.revisionCount}
-                </span>
-              )}
-            </div>
-            <CardDescription>
-              Ngày nộp:{" "}
-              {new Date(application.createdAt).toLocaleString("vi-VN")}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {isPending && (
-              <Alert className="bg-amber-500/10 text-amber-600 border-amber-500/20 dark:bg-amber-500/20 dark:text-amber-400">
-                <Clock className="w-4 h-4" />
-                <AlertTitle>
-                  Hồ sơ của bạn đang được Ban Quản Trị xem xét
-                </AlertTitle>
-                <AlertDescription>
-                  Hệ thống sẽ cập nhật trạng thái trong thời gian sớm nhất. Bạn
-                  có thể cập nhật thông tin gian hàng nháp trong khi chờ duyệt.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {application.status === "CHANGES_REQUESTED" && (
-              <Alert variant="destructive">
-                <AlertCircle className="w-4 h-4" />
-                <AlertTitle>Yêu cầu điều chỉnh thông tin</AlertTitle>
-                <AlertDescription className="mt-1">
-                  <strong>Lý do từ Admin:</strong>{" "}
-                  {application.reviewReason ||
-                    "Vui lòng kiểm tra lại thông tin gian hàng và ngân hàng."}
-                  <p className="mt-2 text-xs">
-                    Vui lòng cập nhật lại thông tin bên dưới và bấm Nộp lại hồ
-                    sơ.
-                  </p>
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {isApproved && (
-              <Alert className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:bg-emerald-500/20 dark:text-emerald-400">
-                <CheckCircle2 className="w-4 h-4" />
-                <AlertTitle>
-                  Hồ sơ người bán đã được duyệt thành công!
-                </AlertTitle>
-                <AlertDescription>
-                  Tài khoản của bạn đã kích hoạt tính năng Seller. Bạn hiện có
-                  thể đăng tải sản phẩm/dịch vụ mới.
-                </AlertDescription>
-              </Alert>
-            )}
-          </CardContent>
-        </Card>
-      )}
+      {application && <ApplicationStatusBanner application={application} />}
 
       {/* Step 1: Draft Storefront Profile */}
       <Card>

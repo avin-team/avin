@@ -52,4 +52,14 @@
 
 - Zero tolerance for inline lint suppression comments (e.g., `/* oxlint-disable */`, `// oxlint-disable-next-line`). Fix the underlying code issues instead of suppressing them. If a rule genuinely does not apply to the project, disable it at the config level (`oxlint.config.ts`), not inline. Confidence: 0.85
 - Prefers disabling inapplicable lint rules in the config file (`oxlint.config.ts`) rather than scattering inline disable comments throughout source files. Confidence: 0.75
+
+- Prefers structured code review reports with explicit word limits (e.g., "under 400 words") and pre-defined finding categories: missing/partial requirements, scope creep, wrong implementation, documented-standard breaches, and smell-baseline judgement calls. Confidence: 0.80
+
+- Prefers reviewing staged changes against a fixed-point git commit as a baseline (`git diff --cached <hash>`), treating `<hash>..HEAD` as the change range, with no commits expected between the fixed point and the staged worktree. Confidence: 0.80
+
+- Expects both buyer-facing and seller-facing UI to be implemented together for marketplace/two-sided features — repeatedly flags when only one side is present ("i think it also missing the seller ui too"). Confidence: 0.75
+
+- Prefers spec-traceable review findings: every reported requirement gap or implementation issue should quote the relevant spec line or acceptance criterion. Confidence: 0.75
 - SVG icons are React components in `components/icons/`, accepting `SVGProps<SVGSVGElement>` with `...props` spread onto `<svg>`. Uses `fill="currentColor"` for CSS-color inheritance and `viewBox="0 0 32 32"` for consistent sizing. Named exports follow `{Name}Icon` convention (e.g., `FacebookIcon`, `YouTubeIcon`). Confidence: 0.75
+
+- When the user indicates certain files are theirs to work on (e.g., "mấy cái code đang sửa bạn đừng bận tâm"), the agent must leave those files untouched and scope work to the remaining files only. Respect the user's active working set; do not modify files the user has claimed. Confidence: 0.75

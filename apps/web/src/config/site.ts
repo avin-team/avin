@@ -17,10 +17,7 @@ export interface SiteConfig {
 
 export const siteConfig: SiteConfig = {
   description: "Nền tảng mua bán dịch vụ số & sản phẩm hàng đầu.",
-  mainNav: [
-    { href: "/category", title: "Dịch vụ" },
-    { href: "/orders", title: "Đơn hàng" },
-  ],
+  mainNav: [{ href: "/category", title: "Dịch vụ" }],
   name: "Avin",
   socialLinks: [
     { href: "#", label: "Facebook" },

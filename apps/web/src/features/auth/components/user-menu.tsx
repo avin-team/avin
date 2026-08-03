@@ -16,7 +16,7 @@ import {
 } from "@avin/ui/components/dropdown-menu";
 import { Skeleton } from "@avin/ui/components/skeleton";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { LogOut, ShieldCheck, Store } from "lucide-react";
+import { LogOut, ShieldCheck, ShoppingBag, Store } from "lucide-react";
 import { toast } from "sonner";
 
 import { authClient } from "@/features/auth/api/auth-client";
@@ -98,6 +98,16 @@ export const UserMenu = () => {
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator className="my-1" />
+          <DropdownMenuItem
+            onClick={async () => {
+              await navigate({
+                to: "/orders",
+              });
+            }}
+          >
+            <ShoppingBag className="me-2 size-4" />
+            Đơn hàng
+          </DropdownMenuItem>
           {isSeller ? (
             <DropdownMenuItem
               onClick={async () => {

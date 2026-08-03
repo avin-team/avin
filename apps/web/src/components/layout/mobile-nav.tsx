@@ -106,9 +106,16 @@ export const MobileNav = ({ isOpen, items, onToggle }: MobileNavProps) => {
                     <div className="px-4 text-muted-foreground text-xs">
                       {session.user.email}
                     </div>
+                    <Link
+                      className="mt-2 block w-full rounded-lg px-4 py-2 font-medium text-foreground text-sm transition-colors duration-200 hover:bg-muted"
+                      onClick={onToggle}
+                      to="/orders"
+                    >
+                      Đơn hàng
+                    </Link>
                     {session.user.role === ACCOUNT_ROLE.BUYER ? (
                       <Link
-                        className="mt-2 block w-full rounded-lg px-4 py-2 font-medium text-foreground text-sm transition-colors duration-200 hover:bg-muted"
+                        className="block w-full rounded-lg px-4 py-2 font-medium text-foreground text-sm transition-colors duration-200 hover:bg-muted"
                         onClick={onToggle}
                         to="/wallet"
                       >

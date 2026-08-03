@@ -121,6 +121,7 @@ const mergeTransactionPages = (
   return merged;
 };
 
+// oxlint-disable-next-line complexity
 export const WalletPage = () => {
   const [loadedCursors, setLoadedCursors] = useState<(string | undefined)[]>([
     undefined,

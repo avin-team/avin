@@ -7,12 +7,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
-import { Separator } from "@avin/ui/components/separator";
 import { FileText, ShieldCheck, Timer } from "@phosphor-icons/react";
 
 import {
-  formatOrderDeadline,
   formatOrderDate,
+  formatOrderDeadline,
   getOrderItemStatusLabel,
   getOrderItemStatusVariant,
 } from "@/features/commerce/order-status";
@@ -23,9 +22,61 @@ const ACTOR_LABELS: Record<
   string
 > = {
   ADMIN: "Admin",
-  BUYER: "Buyer",
-  SELLER: "Seller",
+  BUYER: "Người mua",
+  SELLER: "Người bán",
   SYSTEM: "Hệ thống",
+};
+
+export const getTimelineEventTitle = (
+  event: OrderItemTimelineView["events"][number]
+): string => {
+  switch (event.newStatus) {
+    case "AWAITING_SELLER": {
+      return "Khởi tạo đơn hàng";
+    }
+    case "PROCESSING":
+    case "IN_PROGRESS": {
+      return "Bắt đầu xử lý đơn";
+    }
+    case "DELIVERED": {
+      return "Người bán đã bàn giao";
+    }
+    case "WARRANTY_ACTIVE":
+    case "IN_WARRANTY": {
+      return event.actorType === "BUYER"
+        ? "Xác nhận nhận hàng"
+        : "Bắt đầu bảo hành";
+    }
+    case "COMPLETED":
+    case "CLOSED": {
+      return "Hoàn thành đơn hàng";
+    }
+    case "CANCELLED": {
+      if (event.actorType === "SELLER") {
+        return "Người bán hủy đơn";
+      }
+      if (event.actorType === "BUYER") {
+        return "Người mua hủy đơn";
+      }
+      return "Đã hủy đơn hàng";
+    }
+    case "REFUNDED": {
+      return "Đã hoàn tiền";
+    }
+    case "DISPUTED": {
+      return "Mở tranh chấp (Dispute)";
+    }
+    default: {
+      return getOrderItemStatusLabel(event.newStatus);
+    }
+  }
+};
+
+const formatEventReason = (reason: string): string => {
+  if (reason === "Checkout created OrderItem") {
+    return "Đơn hàng được khởi tạo thành công qua Checkout.";
+  }
+  return reason;
 };
 
 const EvidenceFile = ({
@@ -97,10 +148,10 @@ export const OrderItemTimeline = ({
 
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">WarrantyPolicy</CardTitle>
+        <CardTitle className="text-base">Chính sách bảo hành</CardTitle>
         <CardDescription>
-          {timeline.current.warrantyPolicy.durationHours} giờ kể từ khi vào
-          Warranty.
+          {timeline.current.warrantyPolicy.durationHours} giờ kể từ khi kích
+          hoạt bảo hành.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-2 text-sm">
@@ -145,38 +196,38 @@ export const OrderItemTimeline = ({
 
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Timeline</CardTitle>
+        <CardTitle className="text-base">Nhật ký tiến độ (Timeline)</CardTitle>
       </CardHeader>
       <CardContent>
         <ol className="flex flex-col gap-4">
           {timeline.events.map((event, index) => (
             <li className="flex gap-3" key={event.id}>
               <div className="flex flex-col items-center">
-                <span className="flex size-7 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
                   {index + 1}
                 </span>
                 {index < timeline.events.length - 1 ? (
-                  <Separator
-                    className="my-2 min-h-5 flex-1"
-                    orientation="vertical"
-                  />
+                  <div className="my-1.5 min-h-[20px] w-[2px] flex-1 bg-border/60" />
                 ) : null}
               </div>
               <div className="min-w-0 flex-1 pb-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-medium">
-                    {getOrderItemStatusLabel(event.newStatus)}
+                  <p className="font-semibold text-foreground">
+                    {getTimelineEventTitle(event)}
                   </p>
-                  <Badge variant="outline">
-                    {ACTOR_LABELS[event.actorType]}
+                  <Badge variant={getOrderItemStatusVariant(event.newStatus)}>
+                    {getOrderItemStatusLabel(event.newStatus)}
                   </Badge>
+                  <span className="text-xs text-muted-foreground">
+                    • {ACTOR_LABELS[event.actorType]}
+                  </span>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {formatOrderDate(event.effectiveAt)}
                 </p>
                 {event.reason ? (
-                  <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">
-                    {event.reason}
+                  <p className="mt-1.5 whitespace-pre-wrap rounded-lg border border-border/40 bg-muted/30 p-2.5 text-xs text-muted-foreground">
+                    Ghi chú: {formatEventReason(event.reason)}
                   </p>
                 ) : null}
               </div>

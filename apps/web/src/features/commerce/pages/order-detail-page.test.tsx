@@ -8,7 +8,7 @@ import type {
 } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { OrdersPage } from "@/features/commerce/pages/orders-page";
+import { OrderDetailPage } from "@/features/commerce/pages/order-detail-page";
 
 const mocks = vi.hoisted(() => ({
   ordersQuery: {
@@ -36,7 +36,8 @@ vi.mock("@tanstack/react-router", () => ({
     <a {...props}>{children}</a>
   ),
   useNavigate: () => vi.fn(),
-  useSearch: () => ({ variant: "A" }),
+  useParams: () => ({ id: "item-delivered" }),
+  useSearch: () => ({}),
 }));
 
 vi.mock("@tanstack/react-query", () => ({
@@ -104,17 +105,6 @@ vi.mock("@avin/ui/components/alert-dialog", () => ({
   AlertDialogTitle: () => null,
 }));
 
-vi.mock("@avin/ui/components/dialog", () => ({
-  Dialog: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  DialogContent: ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
-  ),
-  DialogHeader: ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
-  ),
-  DialogTitle: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
-}));
-
 vi.mock("@avin/ui/components/badge", () => ({
   Badge: ({ children }: { children: ReactNode }) => <span>{children}</span>,
 }));
@@ -176,21 +166,11 @@ vi.mock("@avin/ui/components/textarea", () => ({
 
 vi.mock("@phosphor-icons/react", () => ({
   ArrowClockwise: () => <span />,
+  ArrowLeft: () => <span />,
   Calendar: () => <span />,
-  CaretDown: () => <span />,
-  CaretLeft: () => <span />,
-  CaretRight: () => <span />,
-  CaretUp: () => <span />,
   CheckCircle: () => <span />,
-  Clock: () => <span />,
-  FileText: () => <span />,
-  Handshake: () => <span />,
-  MagnifyingGlass: () => <span />,
   Receipt: () => <span />,
-  ShieldCheck: () => <span />,
   Storefront: () => <span />,
-  Truck: () => <span />,
-  Wallet: () => <span />,
   WarningCircle: () => <span />,
   XCircle: () => <span />,
 }));
@@ -209,20 +189,6 @@ const order: BuyerOrderView = {
   currency: "VND",
   id: "order-1",
   items: [
-    {
-      deliveredAt: null,
-      deliveryReviewDeadlineAt: null,
-      escrowHold: { amount: 100_000, id: "escrow-1", status: "HELD" },
-      id: "item-awaiting",
-      listing,
-      listingId: "listing-1",
-      priceAmount: 100_000,
-      processingDeadlineAt: "9999-12-31T00:00:00.000Z",
-      processingTimeHours: 48,
-      status: "AWAITING_SELLER",
-      warrantyExpiresAt: null,
-      warrantyPolicy: { durationHours: 72, terms: "Sửa lỗi trong 72 giờ." },
-    },
     {
       deliveredAt: "2026-08-03T01:00:00.000Z",
       deliveryReviewDeadlineAt: "9999-12-31T00:00:00.000Z",
@@ -243,7 +209,7 @@ const order: BuyerOrderView = {
   ],
   seller: { id: "seller-1", image: null, name: "Studio Avin" },
   sellerId: "seller-1",
-  totalAmount: 300_000,
+  totalAmount: 200_000,
 };
 
 const makeTimeline = (
@@ -261,25 +227,13 @@ const makeTimeline = (
   },
   deliverySubmission: null,
   dispute: null,
-  events: [
-    {
-      actorType: "SYSTEM",
-      actorUserId: null,
-      artifactId: null,
-      artifactType: null,
-      effectiveAt: order.createdAt,
-      id: `event-${item.id}`,
-      newStatus: item.status,
-      oldStatus: null,
-      reason: null,
-    },
-  ],
+  events: [],
   orderItemId: item.id,
 });
 
-describe("OrdersPage", () => {
+describe("OrderDetailPage", () => {
   beforeEach(() => {
-    mocks.ordersQuery.data = [];
+    mocks.ordersQuery.data = [order];
     mocks.ordersQuery.isError = false;
     mocks.ordersQuery.isPending = false;
     mocks.useQuery.mockImplementation((options: { queryKey: string[] }) =>
@@ -287,12 +241,7 @@ describe("OrdersPage", () => {
         ? mocks.ordersQuery
         : {
             ...mocks.timelineQuery,
-            data:
-              order.items
-                .map((item) =>
-                  options.queryKey[1] === item.id ? makeTimeline(item) : null
-                )
-                .find(Boolean) ?? null,
+            data: makeTimeline(order.items[0]),
           }
     );
   });
@@ -302,23 +251,18 @@ describe("OrdersPage", () => {
     vi.clearAllMocks();
   });
 
-  it("renders an explicit empty state when the Buyer has no orders", () => {
-    render(<OrdersPage />);
+  it("renders full details of an OrderItem including seller, status, timeline and actions", () => {
+    render(<OrderDetailPage />);
 
-    expect(
-      screen.getByRole("heading", { name: "Đơn hàng của tôi" })
-    ).toBeInTheDocument();
-    expect(screen.getByText("Chưa có đơn hàng")).toBeInTheDocument();
-  });
-
-  it("renders mixed OrderItem states in the table overview with links to detail pages", () => {
-    mocks.ordersQuery.data = [order];
-
-    render(<OrdersPage />);
-
-    expect(screen.getAllByText(/Studio Avin/u)[0]).toBeInTheDocument();
-    expect(screen.getAllByText("Chờ Seller tiếp nhận")[0]).toBeInTheDocument();
+    expect(screen.getByText(/Studio Avin/u)).toBeInTheDocument();
+    expect(screen.getByText("Tối ưu quảng cáo")).toBeInTheDocument();
     expect(screen.getAllByText("Đã bàn giao")[0]).toBeInTheDocument();
-    expect(screen.getAllByText("Xem chi tiết")).toHaveLength(2);
+    expect(
+      screen.getByRole("button", { name: "Xác nhận đã nhận" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Mở Dispute" })
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("timeline-item-delivered")).toBeInTheDocument();
   });
 });

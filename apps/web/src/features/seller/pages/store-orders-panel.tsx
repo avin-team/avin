@@ -58,6 +58,37 @@ type FilterTab =
   | "COMPLETED"
   | "OTHER";
 
+const matchesTabFilterHelper = (
+  status: OrderItemFlat["status"],
+  tab: FilterTab
+): boolean => {
+  if (tab === "ALL") {
+    return true;
+  }
+  if (tab === "AWAITING_SELLER") {
+    return status === "AWAITING_SELLER";
+  }
+  if (tab === "IN_PROGRESS") {
+    return status === "IN_PROGRESS";
+  }
+  if (tab === "DELIVERED") {
+    return status === "DELIVERED";
+  }
+  if (tab === "COMPLETED") {
+    return status === "CLOSED" || status === "IN_WARRANTY";
+  }
+  if (tab === "OTHER") {
+    return (
+      status !== "AWAITING_SELLER" &&
+      status !== "IN_PROGRESS" &&
+      status !== "DELIVERED" &&
+      status !== "CLOSED" &&
+      status !== "IN_WARRANTY"
+    );
+  }
+  return true;
+};
+
 const formatInputValue = (value: unknown): string => {
   if (typeof value === "string" || typeof value === "number") {
     return String(value);
@@ -164,32 +195,7 @@ export const StoreOrdersPanel = () => {
           return false;
         }
 
-        if (activeTab === "ALL") {
-          return true;
-        }
-        if (activeTab === "AWAITING_SELLER") {
-          return item.status === "AWAITING_SELLER";
-        }
-        if (activeTab === "IN_PROGRESS") {
-          return item.status === "IN_PROGRESS";
-        }
-        if (activeTab === "DELIVERED") {
-          return item.status === "DELIVERED";
-        }
-        if (activeTab === "COMPLETED") {
-          return item.status === "CLOSED" || item.status === "IN_WARRANTY";
-        }
-        if (activeTab === "OTHER") {
-          return (
-            item.status !== "AWAITING_SELLER" &&
-            item.status !== "IN_PROGRESS" &&
-            item.status !== "DELIVERED" &&
-            item.status !== "CLOSED" &&
-            item.status !== "IN_WARRANTY"
-          );
-        }
-
-        return true;
+        return matchesTabFilterHelper(item.status, activeTab);
       }),
     [allItems, searchTerm, activeTab]
   );

@@ -1,7 +1,7 @@
 import type { OrderItemStatus } from "@avin/api/commerce/orders";
 
 export const ORDER_ITEM_STATUS_LABELS: Record<OrderItemStatus, string> = {
-  AWAITING_SELLER: "Chờ tiếp nhận",
+  AWAITING_SELLER: "Chờ Seller tiếp nhận",
   CANCELLED: "Đã hủy",
   CLOSED: "Đã hoàn tất",
   DELIVERED: "Đã bàn giao",

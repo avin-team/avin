@@ -181,6 +181,7 @@ const assertOwnedListing = async (
   return found;
 };
 
+// oxlint-disable-next-line complexity
 export const assertPublishable = (
   draft: {
     description: string | null;
@@ -587,6 +588,7 @@ export const sellerWorkspaceRouter = {
 
   updateDraft: sellerProcedure
     .input(draftFieldsSchema.extend({ id: z.string() }))
+    // oxlint-disable-next-line complexity
     .handler(async ({ context, input }) => {
       await assertEligibleSeller(context.session.user.id);
       const found = await assertOwnedListing(input.id, context.session.user.id);

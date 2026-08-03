@@ -21,7 +21,6 @@ import { Route as errors503RouteImport } from './routes/(errors)/503'
 import { Route as publicIndexRouteImport } from './routes/(public)/index'
 import { Route as AuthenticatedAiRouteImport } from './routes/_authenticated/ai'
 import { Route as AuthenticatedCartRouteImport } from './routes/_authenticated/cart'
-import { Route as AuthenticatedOrdersRouteImport } from './routes/_authenticated/orders'
 import { Route as AuthenticatedSecurityRouteImport } from './routes/_authenticated/security'
 import { Route as AuthenticatedTwoFactorRouteImport } from './routes/_authenticated/two-factor'
 import { Route as authSellerLoginRouteImport } from './routes/(auth)/seller/login'
@@ -29,6 +28,8 @@ import { Route as publicCategoryIndexRouteImport } from './routes/(public)/categ
 import { Route as publicCategoryParentSlugRouteImport } from './routes/(public)/category/$parentSlug'
 import { Route as publicListingIdRouteImport } from './routes/(public)/listing/$id'
 import { Route as publicStoreSlugRouteImport } from './routes/(public)/store/$slug'
+import { Route as AuthenticatedOrdersIndexRouteImport } from './routes/_authenticated/orders/index'
+import { Route as AuthenticatedOrdersIdRouteImport } from './routes/_authenticated/orders/$id'
 import { Route as AuthenticatedSellerListingsRouteImport } from './routes/_authenticated/seller/listings'
 import { Route as AuthenticatedSellerOnboardingRouteImport } from './routes/_authenticated/seller/onboarding'
 import { Route as AuthenticatedSellerStoreRouteImport } from './routes/_authenticated/seller/store'
@@ -94,11 +95,6 @@ const AuthenticatedCartRoute = AuthenticatedCartRouteImport.update({
   path: '/cart',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedOrdersRoute = AuthenticatedOrdersRouteImport.update({
-  id: '/orders',
-  path: '/orders',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedSecurityRoute = AuthenticatedSecurityRouteImport.update({
   id: '/security',
   path: '/security',
@@ -134,6 +130,17 @@ const publicStoreSlugRoute = publicStoreSlugRouteImport.update({
   id: '/store/$slug',
   path: '/store/$slug',
   getParentRoute: () => publicRouteRoute,
+} as any)
+const AuthenticatedOrdersIndexRoute =
+  AuthenticatedOrdersIndexRouteImport.update({
+    id: '/orders/',
+    path: '/orders/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedOrdersIdRoute = AuthenticatedOrdersIdRouteImport.update({
+  id: '/orders/$id',
+  path: '/orders/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedSellerListingsRoute =
   AuthenticatedSellerListingsRouteImport.update({
@@ -188,19 +195,20 @@ export interface FileRoutesByFullPath {
   '/503': typeof errors503Route
   '/ai': typeof AuthenticatedAiRoute
   '/cart': typeof AuthenticatedCartRoute
-  '/orders': typeof AuthenticatedOrdersRoute
   '/security': typeof AuthenticatedSecurityRoute
   '/two-factor': typeof AuthenticatedTwoFactorRoute
   '/seller/login': typeof authSellerLoginRoute
   '/category/$parentSlug': typeof publicCategoryParentSlugRoute
   '/listing/$id': typeof publicListingIdRoute
   '/store/$slug': typeof publicStoreSlugRoute
+  '/orders/$id': typeof AuthenticatedOrdersIdRoute
   '/seller/listings': typeof AuthenticatedSellerListingsRouteWithChildren
   '/seller/onboarding': typeof AuthenticatedSellerOnboardingRoute
   '/seller/store': typeof AuthenticatedSellerStoreRoute
   '/seller/store-preview': typeof AuthenticatedSellerStorePreviewRoute
   '/wallet/deposit': typeof AuthenticatedWalletDepositRoute
   '/category/': typeof publicCategoryIndexRoute
+  '/orders/': typeof AuthenticatedOrdersIndexRoute
   '/wallet/': typeof AuthenticatedWalletIndexRoute
   '/seller/listings/$id': typeof AuthenticatedSellerListingsIdRoute
 }
@@ -214,19 +222,20 @@ export interface FileRoutesByTo {
   '/503': typeof errors503Route
   '/ai': typeof AuthenticatedAiRoute
   '/cart': typeof AuthenticatedCartRoute
-  '/orders': typeof AuthenticatedOrdersRoute
   '/security': typeof AuthenticatedSecurityRoute
   '/two-factor': typeof AuthenticatedTwoFactorRoute
   '/seller/login': typeof authSellerLoginRoute
   '/category/$parentSlug': typeof publicCategoryParentSlugRoute
   '/listing/$id': typeof publicListingIdRoute
   '/store/$slug': typeof publicStoreSlugRoute
+  '/orders/$id': typeof AuthenticatedOrdersIdRoute
   '/seller/listings': typeof AuthenticatedSellerListingsRouteWithChildren
   '/seller/onboarding': typeof AuthenticatedSellerOnboardingRoute
   '/seller/store': typeof AuthenticatedSellerStoreRoute
   '/seller/store-preview': typeof AuthenticatedSellerStorePreviewRoute
   '/wallet/deposit': typeof AuthenticatedWalletDepositRoute
   '/category': typeof publicCategoryIndexRoute
+  '/orders': typeof AuthenticatedOrdersIndexRoute
   '/wallet': typeof AuthenticatedWalletIndexRoute
   '/seller/listings/$id': typeof AuthenticatedSellerListingsIdRoute
 }
@@ -243,7 +252,6 @@ export interface FileRoutesById {
   '/(errors)/503': typeof errors503Route
   '/_authenticated/ai': typeof AuthenticatedAiRoute
   '/_authenticated/cart': typeof AuthenticatedCartRoute
-  '/_authenticated/orders': typeof AuthenticatedOrdersRoute
   '/_authenticated/security': typeof AuthenticatedSecurityRoute
   '/_authenticated/two-factor': typeof AuthenticatedTwoFactorRoute
   '/(public)/': typeof publicIndexRoute
@@ -251,12 +259,14 @@ export interface FileRoutesById {
   '/(public)/category/$parentSlug': typeof publicCategoryParentSlugRoute
   '/(public)/listing/$id': typeof publicListingIdRoute
   '/(public)/store/$slug': typeof publicStoreSlugRoute
+  '/_authenticated/orders/$id': typeof AuthenticatedOrdersIdRoute
   '/_authenticated/seller/listings': typeof AuthenticatedSellerListingsRouteWithChildren
   '/_authenticated/seller/onboarding': typeof AuthenticatedSellerOnboardingRoute
   '/_authenticated/seller/store': typeof AuthenticatedSellerStoreRoute
   '/_authenticated/seller/store-preview': typeof AuthenticatedSellerStorePreviewRoute
   '/_authenticated/wallet/deposit': typeof AuthenticatedWalletDepositRoute
   '/(public)/category/': typeof publicCategoryIndexRoute
+  '/_authenticated/orders/': typeof AuthenticatedOrdersIndexRoute
   '/_authenticated/wallet/': typeof AuthenticatedWalletIndexRoute
   '/_authenticated/seller/listings/$id': typeof AuthenticatedSellerListingsIdRoute
 }
@@ -272,19 +282,20 @@ export interface FileRouteTypes {
     | '/503'
     | '/ai'
     | '/cart'
-    | '/orders'
     | '/security'
     | '/two-factor'
     | '/seller/login'
     | '/category/$parentSlug'
     | '/listing/$id'
     | '/store/$slug'
+    | '/orders/$id'
     | '/seller/listings'
     | '/seller/onboarding'
     | '/seller/store'
     | '/seller/store-preview'
     | '/wallet/deposit'
     | '/category/'
+    | '/orders/'
     | '/wallet/'
     | '/seller/listings/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -298,19 +309,20 @@ export interface FileRouteTypes {
     | '/503'
     | '/ai'
     | '/cart'
-    | '/orders'
     | '/security'
     | '/two-factor'
     | '/seller/login'
     | '/category/$parentSlug'
     | '/listing/$id'
     | '/store/$slug'
+    | '/orders/$id'
     | '/seller/listings'
     | '/seller/onboarding'
     | '/seller/store'
     | '/seller/store-preview'
     | '/wallet/deposit'
     | '/category'
+    | '/orders'
     | '/wallet'
     | '/seller/listings/$id'
   id:
@@ -326,7 +338,6 @@ export interface FileRouteTypes {
     | '/(errors)/503'
     | '/_authenticated/ai'
     | '/_authenticated/cart'
-    | '/_authenticated/orders'
     | '/_authenticated/security'
     | '/_authenticated/two-factor'
     | '/(public)/'
@@ -334,12 +345,14 @@ export interface FileRouteTypes {
     | '/(public)/category/$parentSlug'
     | '/(public)/listing/$id'
     | '/(public)/store/$slug'
+    | '/_authenticated/orders/$id'
     | '/_authenticated/seller/listings'
     | '/_authenticated/seller/onboarding'
     | '/_authenticated/seller/store'
     | '/_authenticated/seller/store-preview'
     | '/_authenticated/wallet/deposit'
     | '/(public)/category/'
+    | '/_authenticated/orders/'
     | '/_authenticated/wallet/'
     | '/_authenticated/seller/listings/$id'
   fileRoutesById: FileRoutesById
@@ -441,13 +454,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCartRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/orders': {
-      id: '/_authenticated/orders'
-      path: '/orders'
-      fullPath: '/orders'
-      preLoaderRoute: typeof AuthenticatedOrdersRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/security': {
       id: '/_authenticated/security'
       path: '/security'
@@ -496,6 +502,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/store/$slug'
       preLoaderRoute: typeof publicStoreSlugRouteImport
       parentRoute: typeof publicRouteRoute
+    }
+    '/_authenticated/orders/': {
+      id: '/_authenticated/orders/'
+      path: '/orders'
+      fullPath: '/orders/'
+      preLoaderRoute: typeof AuthenticatedOrdersIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/orders/$id': {
+      id: '/_authenticated/orders/$id'
+      path: '/orders/$id'
+      fullPath: '/orders/$id'
+      preLoaderRoute: typeof AuthenticatedOrdersIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/seller/listings': {
       id: '/_authenticated/seller/listings'
@@ -600,29 +620,31 @@ const AuthenticatedSellerListingsRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAiRoute: typeof AuthenticatedAiRoute
   AuthenticatedCartRoute: typeof AuthenticatedCartRoute
-  AuthenticatedOrdersRoute: typeof AuthenticatedOrdersRoute
   AuthenticatedSecurityRoute: typeof AuthenticatedSecurityRoute
   AuthenticatedTwoFactorRoute: typeof AuthenticatedTwoFactorRoute
+  AuthenticatedOrdersIdRoute: typeof AuthenticatedOrdersIdRoute
   AuthenticatedSellerListingsRoute: typeof AuthenticatedSellerListingsRouteWithChildren
   AuthenticatedSellerOnboardingRoute: typeof AuthenticatedSellerOnboardingRoute
   AuthenticatedSellerStoreRoute: typeof AuthenticatedSellerStoreRoute
   AuthenticatedSellerStorePreviewRoute: typeof AuthenticatedSellerStorePreviewRoute
   AuthenticatedWalletDepositRoute: typeof AuthenticatedWalletDepositRoute
+  AuthenticatedOrdersIndexRoute: typeof AuthenticatedOrdersIndexRoute
   AuthenticatedWalletIndexRoute: typeof AuthenticatedWalletIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAiRoute: AuthenticatedAiRoute,
   AuthenticatedCartRoute: AuthenticatedCartRoute,
-  AuthenticatedOrdersRoute: AuthenticatedOrdersRoute,
   AuthenticatedSecurityRoute: AuthenticatedSecurityRoute,
   AuthenticatedTwoFactorRoute: AuthenticatedTwoFactorRoute,
+  AuthenticatedOrdersIdRoute: AuthenticatedOrdersIdRoute,
   AuthenticatedSellerListingsRoute:
     AuthenticatedSellerListingsRouteWithChildren,
   AuthenticatedSellerOnboardingRoute: AuthenticatedSellerOnboardingRoute,
   AuthenticatedSellerStoreRoute: AuthenticatedSellerStoreRoute,
   AuthenticatedSellerStorePreviewRoute: AuthenticatedSellerStorePreviewRoute,
   AuthenticatedWalletDepositRoute: AuthenticatedWalletDepositRoute,
+  AuthenticatedOrdersIndexRoute: AuthenticatedOrdersIndexRoute,
   AuthenticatedWalletIndexRoute: AuthenticatedWalletIndexRoute,
 }
 

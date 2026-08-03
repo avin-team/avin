@@ -1,14 +1,6 @@
-import type { BuyerOrderView } from "@avin/api/commerce/orders";
 import { Alert, AlertDescription, AlertTitle } from "@avin/ui/components/alert";
-import { Badge } from "@avin/ui/components/badge";
 import { Button } from "@avin/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@avin/ui/components/card";
+import { Card, CardContent } from "@avin/ui/components/card";
 import { Skeleton } from "@avin/ui/components/skeleton";
 import {
   ArrowClockwise,
@@ -18,37 +10,8 @@ import {
 import { useQuery } from "@tanstack/react-query";
 
 import { Shell } from "@/components/shell";
-import { BuyerOrderItemCard } from "@/features/commerce/components/buyer-order-item-card";
-import { formatOrderDate } from "@/features/commerce/order-status";
-import { formatVND } from "@/utils/format";
+import { BuyerOrdersTable } from "@/features/commerce/components/buyer-orders-table";
 import { orpc } from "@/utils/orpc";
-
-const BuyerOrderCard = ({ order }: { order: BuyerOrderView }) => (
-  <Card>
-    <CardHeader>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <CardTitle className="text-base">
-            Order {order.id.slice(0, 8)}
-          </CardTitle>
-          <CardDescription className="mt-1">
-            {order.seller.name} · tạo lúc {formatOrderDate(order.createdAt)}
-          </CardDescription>
-        </div>
-        <Badge variant="secondary">{order.items.length} item</Badge>
-      </div>
-    </CardHeader>
-    <CardContent className="flex flex-col gap-4">
-      {order.items.map((item) => (
-        <BuyerOrderItemCard item={item} key={item.id} />
-      ))}
-      <div className="flex items-center justify-between border-t border-border/60 pt-4 text-sm">
-        <span className="text-muted-foreground">Tổng Order</span>
-        <span className="font-semibold">{formatVND(order.totalAmount)}</span>
-      </div>
-    </CardContent>
-  </Card>
-);
 
 export const OrdersPage = () => {
   const ordersQuery = useQuery(
@@ -94,6 +57,7 @@ export const OrdersPage = () => {
   }
 
   const orders = ordersQuery.data ?? [];
+
   return (
     <Shell variant="default">
       <div className="flex flex-col gap-8 py-8">
@@ -120,11 +84,7 @@ export const OrdersPage = () => {
             </CardContent>
           </Card>
         ) : (
-          <div className="flex flex-col gap-5">
-            {orders.map((order) => (
-              <BuyerOrderCard key={order.id} order={order} />
-            ))}
-          </div>
+          <BuyerOrdersTable orders={orders} />
         )}
       </div>
     </Shell>

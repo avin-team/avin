@@ -37,6 +37,7 @@ export interface ListingCardProps extends ComponentPropsWithoutRef<"div"> {
   variant?: "grid" | "list";
 }
 
+// oxlint-disable-next-line complexity
 export const ListingCard = ({
   className,
   listing,

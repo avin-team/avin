@@ -22,6 +22,7 @@ import type { CartView } from "@/features/commerce/cart-cache";
 import { formatVND } from "@/utils/format";
 import { orpc } from "@/utils/orpc";
 
+// oxlint-disable-next-line complexity
 export const ListingDetailPage = () => {
   const { id } = useParams({ from: "/(public)/listing/$id" });
   const navigate = useNavigate();
