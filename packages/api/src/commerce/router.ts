@@ -27,7 +27,7 @@ import {
   submitDelivery,
 } from "./fulfillment";
 import type { FulfillmentActorRole } from "./fulfillment";
-import { getSellerOrders } from "./orders";
+import { getBuyerOrders, getSellerOrders } from "./orders";
 
 const listingIdInput = z.object({ listingId: z.uuid() });
 const orderItemIdInput = z.object({ itemId: z.uuid() });
@@ -94,6 +94,10 @@ export const commerceRouter = {
   orders: {
     listMine: sellerProcedure.handler(({ context }) =>
       getSellerOrders(context.db, context.session.user.id)
+    ),
+
+    listMineAsBuyer: buyerProcedure.handler(({ context }) =>
+      getBuyerOrders(context.db, context.session.user.id)
     ),
 
     item: {

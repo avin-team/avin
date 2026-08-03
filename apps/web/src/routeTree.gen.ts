@@ -21,6 +21,7 @@ import { Route as errors503RouteImport } from './routes/(errors)/503'
 import { Route as publicIndexRouteImport } from './routes/(public)/index'
 import { Route as AuthenticatedAiRouteImport } from './routes/_authenticated/ai'
 import { Route as AuthenticatedCartRouteImport } from './routes/_authenticated/cart'
+import { Route as AuthenticatedOrdersRouteImport } from './routes/_authenticated/orders'
 import { Route as AuthenticatedSecurityRouteImport } from './routes/_authenticated/security'
 import { Route as AuthenticatedTwoFactorRouteImport } from './routes/_authenticated/two-factor'
 import { Route as authSellerLoginRouteImport } from './routes/(auth)/seller/login'
@@ -91,6 +92,11 @@ const AuthenticatedAiRoute = AuthenticatedAiRouteImport.update({
 const AuthenticatedCartRoute = AuthenticatedCartRouteImport.update({
   id: '/cart',
   path: '/cart',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedOrdersRoute = AuthenticatedOrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedSecurityRoute = AuthenticatedSecurityRouteImport.update({
@@ -182,6 +188,7 @@ export interface FileRoutesByFullPath {
   '/503': typeof errors503Route
   '/ai': typeof AuthenticatedAiRoute
   '/cart': typeof AuthenticatedCartRoute
+  '/orders': typeof AuthenticatedOrdersRoute
   '/security': typeof AuthenticatedSecurityRoute
   '/two-factor': typeof AuthenticatedTwoFactorRoute
   '/seller/login': typeof authSellerLoginRoute
@@ -207,6 +214,7 @@ export interface FileRoutesByTo {
   '/503': typeof errors503Route
   '/ai': typeof AuthenticatedAiRoute
   '/cart': typeof AuthenticatedCartRoute
+  '/orders': typeof AuthenticatedOrdersRoute
   '/security': typeof AuthenticatedSecurityRoute
   '/two-factor': typeof AuthenticatedTwoFactorRoute
   '/seller/login': typeof authSellerLoginRoute
@@ -235,6 +243,7 @@ export interface FileRoutesById {
   '/(errors)/503': typeof errors503Route
   '/_authenticated/ai': typeof AuthenticatedAiRoute
   '/_authenticated/cart': typeof AuthenticatedCartRoute
+  '/_authenticated/orders': typeof AuthenticatedOrdersRoute
   '/_authenticated/security': typeof AuthenticatedSecurityRoute
   '/_authenticated/two-factor': typeof AuthenticatedTwoFactorRoute
   '/(public)/': typeof publicIndexRoute
@@ -263,6 +272,7 @@ export interface FileRouteTypes {
     | '/503'
     | '/ai'
     | '/cart'
+    | '/orders'
     | '/security'
     | '/two-factor'
     | '/seller/login'
@@ -288,6 +298,7 @@ export interface FileRouteTypes {
     | '/503'
     | '/ai'
     | '/cart'
+    | '/orders'
     | '/security'
     | '/two-factor'
     | '/seller/login'
@@ -315,6 +326,7 @@ export interface FileRouteTypes {
     | '/(errors)/503'
     | '/_authenticated/ai'
     | '/_authenticated/cart'
+    | '/_authenticated/orders'
     | '/_authenticated/security'
     | '/_authenticated/two-factor'
     | '/(public)/'
@@ -427,6 +439,13 @@ declare module '@tanstack/react-router' {
       path: '/cart'
       fullPath: '/cart'
       preLoaderRoute: typeof AuthenticatedCartRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/orders': {
+      id: '/_authenticated/orders'
+      path: '/orders'
+      fullPath: '/orders'
+      preLoaderRoute: typeof AuthenticatedOrdersRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/security': {
@@ -581,6 +600,7 @@ const AuthenticatedSellerListingsRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAiRoute: typeof AuthenticatedAiRoute
   AuthenticatedCartRoute: typeof AuthenticatedCartRoute
+  AuthenticatedOrdersRoute: typeof AuthenticatedOrdersRoute
   AuthenticatedSecurityRoute: typeof AuthenticatedSecurityRoute
   AuthenticatedTwoFactorRoute: typeof AuthenticatedTwoFactorRoute
   AuthenticatedSellerListingsRoute: typeof AuthenticatedSellerListingsRouteWithChildren
@@ -594,6 +614,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAiRoute: AuthenticatedAiRoute,
   AuthenticatedCartRoute: AuthenticatedCartRoute,
+  AuthenticatedOrdersRoute: AuthenticatedOrdersRoute,
   AuthenticatedSecurityRoute: AuthenticatedSecurityRoute,
   AuthenticatedTwoFactorRoute: AuthenticatedTwoFactorRoute,
   AuthenticatedSellerListingsRoute:

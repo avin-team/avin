@@ -59,12 +59,33 @@ const TRANSACTION_REFERENCE_SUFFIX_LENGTH = 12;
 
 const commandKeySchema = z.string().trim().min(1).max(COMMAND_KEY_MAX_LENGTH);
 
-const orderFileInputSchema = z.object({
-  byteSize: z.number().int().nonnegative().nullable().optional(),
-  contentType: z.string().trim().min(1).max(CONTENT_TYPE_MAX_LENGTH),
-  fileName: z.string().trim().min(1).max(FILE_NAME_MAX_LENGTH),
-  storageKey: z.string().trim().min(1).max(STORAGE_KEY_MAX_LENGTH),
-});
+const orderFileInputSchema = z
+  .object({
+    byteSize: z.number().int().nonnegative().nullable().optional(),
+    contentType: z.string().trim().min(1).max(CONTENT_TYPE_MAX_LENGTH),
+    fileName: z.string().trim().min(1).max(FILE_NAME_MAX_LENGTH),
+    storageKey: z.string().trim().min(1).max(STORAGE_KEY_MAX_LENGTH),
+  })
+  .superRefine((file, context) => {
+    if (file.contentType !== "text/uri-list") {
+      return;
+    }
+
+    try {
+      const url = new URL(file.storageKey);
+      if (url.protocol === "http:" || url.protocol === "https:") {
+        return;
+      }
+    } catch {
+      // Fall through to the validation issue below.
+    }
+
+    context.addIssue({
+      code: "custom",
+      message: "URI-list evidence must use an HTTP or HTTPS URL",
+      path: ["storageKey"],
+    });
+  });
 
 export const fulfillmentCommandInputSchema = z.object({
   commandKey: commandKeySchema,
@@ -82,7 +103,10 @@ export const disputeInputSchema = fulfillmentCommandInputSchema.extend({
 export const deliverySubmissionInputSchema =
   fulfillmentCommandInputSchema.extend({
     deliveryNote: z.string().trim().min(1).max(DELIVERY_NOTE_MAX_LENGTH),
-    files: z.array(orderFileInputSchema).max(DELIVERY_FILE_LIMIT).default([]),
+    files: z
+      .array(orderFileInputSchema)
+      .min(1, "Delivery requires at least one evidence file")
+      .max(DELIVERY_FILE_LIMIT),
   });
 
 export type DeliverySubmissionInput = z.infer<
@@ -107,6 +131,7 @@ interface OrderItemContext {
   status: OrderItemStatus;
   warrantyExpiresAt: Date | null;
   warrantyPolicy: { durationHours: number; terms: string };
+  warrantyStartedAt: Date | null;
 }
 
 interface ExistingLifecycleEvent {
@@ -132,8 +157,11 @@ export interface OrderItemTimelineView {
     deliveredAt: string | null;
     deliveryReviewDeadlineAt: string | null;
     orderId: string;
+    processingDeadlineAt: string;
     status: OrderItemStatus;
     warrantyExpiresAt: string | null;
+    warrantyPolicy: { durationHours: number; terms: string };
+    warrantyStartedAt: string | null;
   };
   deliverySubmission: {
     deliveredAt: string;
@@ -200,6 +228,7 @@ const getItemContext = async (
       status: orderItem.status,
       warrantyExpiresAt: orderItem.warrantyExpiresAt,
       warrantyPolicy: orderItem.warrantyPolicy,
+      warrantyStartedAt: orderItem.warrantyStartedAt,
     })
     .from(orderItem)
     .innerJoin(order, eq(order.id, orderItem.orderId))
@@ -1218,8 +1247,11 @@ export const getOrderItemTimeline = async ({
       deliveredAt: asIso(item.deliveredAt),
       deliveryReviewDeadlineAt: asIso(item.deliveryReviewDeadlineAt),
       orderId: item.orderId,
+      processingDeadlineAt: item.processingDeadlineAt.toISOString(),
       status: item.status,
       warrantyExpiresAt: asIso(item.warrantyExpiresAt),
+      warrantyPolicy: item.warrantyPolicy,
+      warrantyStartedAt: asIso(item.warrantyStartedAt),
     },
     deliverySubmission: submission
       ? {

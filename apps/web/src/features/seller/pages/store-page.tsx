@@ -11,13 +11,13 @@ import {
   Landmark,
   Package,
   ShieldCheck,
-  ShoppingBag,
   Store,
   TicketPercent,
   UserRound,
 } from "lucide-react";
 import { useState } from "react";
 
+import { StoreOrdersPanel } from "@/features/seller/pages/store-orders-panel";
 import { orpc } from "@/utils/orpc";
 
 import { StoreProfilePanel } from "../components/store-profile-panel";
@@ -275,14 +275,7 @@ const StoreContent = ({
   }
 
   if (active === "orders") {
-    return (
-      <StoreSectionPlaceholder
-        active={active}
-        description="Khi có khách mua, bạn sẽ theo dõi việc giao hàng và trao đổi ngay trong khu vực này."
-        icon={ShoppingBag}
-        title="Đơn hàng"
-      />
-    );
+    return <StoreOrdersPanel />;
   }
 
   const section = PLACEHOLDER_SECTIONS[active];
