@@ -4,7 +4,22 @@ export const LISTING_EDITOR_STEP_ORDER = [
   "warranty",
 ] as const;
 
-export type ListingEditorStepId = (typeof LISTING_EDITOR_STEP_ORDER)[number];
+export const SERVICE_LISTING_EDITOR_STEP_ORDER = [
+  "basics",
+  "packages",
+  "media",
+] as const;
+
+export type ListingEditorStepId =
+  | (typeof LISTING_EDITOR_STEP_ORDER)[number]
+  | (typeof SERVICE_LISTING_EDITOR_STEP_ORDER)[number];
+
+export const getListingEditorStepOrder = (
+  type: "" | "COURSE" | "SERVICE"
+): readonly ListingEditorStepId[] =>
+  type === "SERVICE"
+    ? SERVICE_LISTING_EDITOR_STEP_ORDER
+    : LISTING_EDITOR_STEP_ORDER;
 
 export interface ListingEditorStep {
   complete: boolean;
@@ -20,8 +35,9 @@ export interface ListingEditorServiceInput {
 
 export const getServiceInputFieldsForDraft = <T>(
   serviceInputFields: T[],
-  _categoryDefaults: T[] = []
-): T[] => serviceInputFields;
+  categoryDefaults: T[] = []
+): T[] =>
+  serviceInputFields.length > 0 ? serviceInputFields : categoryDefaults;
 
 export const isListingEditorStepLocked = (
   isNew: boolean,
@@ -30,12 +46,13 @@ export const isListingEditorStepLocked = (
 ): boolean => isNew && !hasDraft && stepIndex > 0;
 
 export const getFirstIncompleteEditorStepIndex = (
-  items: ListingEditorStep[]
+  items: ListingEditorStep[],
+  stepOrder: readonly ListingEditorStepId[] = LISTING_EDITOR_STEP_ORDER
 ): number => {
   const firstIncompleteItem = items.find((item) => !item.complete);
   if (!firstIncompleteItem) {
-    return LISTING_EDITOR_STEP_ORDER.length - 1;
+    return stepOrder.length - 1;
   }
 
-  return LISTING_EDITOR_STEP_ORDER.indexOf(firstIncompleteItem.step);
+  return stepOrder.indexOf(firstIncompleteItem.step);
 };

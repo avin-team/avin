@@ -68,9 +68,9 @@ import { orpc } from "@/utils/orpc";
 import type { StoreSection } from "../data/store-types";
 import {
   getFirstIncompleteEditorStepIndex,
+  getListingEditorStepOrder,
   getServiceInputFieldsForDraft,
   isListingEditorStepLocked,
-  LISTING_EDITOR_STEP_ORDER,
 } from "./listing-editor-logic";
 import type {
   ListingEditorServiceInput,
@@ -119,6 +119,7 @@ interface EditorCategory {
   name: string;
   parentId: string;
   parentName: string;
+  serviceInputFields: ServiceInputField[];
   warrantyBounds: { maxHours: number; minHours: number };
 }
 
@@ -139,20 +140,25 @@ const EDITOR_STEP_COPY: Record<
   { description: string; label: string }
 > = {
   basics: {
-    description: "Tên, loại, danh mục, giá và thời gian hoàn thành",
+    description: "Tên, loại, danh mục và thông tin giới thiệu",
     label: "Thông tin cơ bản",
   },
   media: {
     description: "Ảnh đại diện và thư viện ảnh",
     label: "Hình ảnh",
   },
+  packages: {
+    description: "Các gói giá, phạm vi và thời gian xử lý",
+    label: "Gói giá",
+  },
   warranty: { description: "Thời hạn và điều khoản", label: "Bảo hành" },
 };
 
-const EDITOR_STEPS = LISTING_EDITOR_STEP_ORDER.map((id) => ({
-  ...EDITOR_STEP_COPY[id],
-  id,
-}));
+const getEditorSteps = (type: ListingEditorForm["type"]) =>
+  getListingEditorStepOrder(type).map((id) => ({
+    ...EDITOR_STEP_COPY[id],
+    id,
+  }));
 
 const STATUS_LABELS: Record<ListingStatus, string> = {
   ARCHIVED: "Đã lưu trữ",
@@ -233,14 +239,18 @@ const buildUpdateInput = (form: ListingEditorForm) => ({
   categoryId: form.categoryId || undefined,
   description: form.description.trim() || null,
   images: form.images,
-  priceAmount: parseInteger(form.priceAmount),
-  processingTimeHours: parseInteger(form.processingTimeHours),
   serviceInputFields: form.serviceInputFields,
   thumbnailUrl: form.images[0]?.trim() || form.thumbnailUrl.trim() || null,
   title: form.title.trim() || null,
   type: form.type || undefined,
-  warrantyDurationHours: parseInteger(form.warrantyDurationHours),
-  warrantyTerms: form.warrantyTerms.trim() || null,
+  ...(form.type === "COURSE"
+    ? {
+        priceAmount: parseInteger(form.priceAmount),
+        processingTimeHours: parseInteger(form.processingTimeHours),
+        warrantyDurationHours: parseInteger(form.warrantyDurationHours),
+        warrantyTerms: form.warrantyTerms.trim() || null,
+      }
+    : {}),
 });
 
 const buildCreateDraftInput = (
@@ -265,6 +275,7 @@ const getCategoryOptions = (
       id: string;
       name: string;
       parentId: string;
+      defaultServiceInputs: ServiceInputField[];
       warrantyBounds: { maxHours: number; minHours: number };
     }[];
   }[]
@@ -275,6 +286,7 @@ const getCategoryOptions = (
       name: category.name,
       parentId: category.parentId,
       parentName: parent.name,
+      serviceInputFields: category.defaultServiceInputs,
       warrantyBounds: category.warrantyBounds,
     }))
   );
@@ -295,8 +307,14 @@ const getReadinessItems = (
     warrantyDuration <= category.warrantyBounds.maxHours
   );
   const hasServicePackages = form.type === "SERVICE" && servicePackageCount > 0;
+  const primaryImageItem: ReadinessItem = {
+    complete: Boolean(primaryImage),
+    id: "primary-image",
+    label: "Ảnh đại diện",
+    step: "media",
+  };
 
-  return [
+  const basicsItems: ReadinessItem[] = [
     {
       complete: Boolean(form.categoryId && category),
       id: "category",
@@ -325,36 +343,46 @@ const getReadinessItems = (
       label: "Mô tả",
       step: "basics",
     },
+  ];
+
+  if (form.type === "SERVICE") {
+    return [
+      ...basicsItems,
+      {
+        complete: hasServicePackages,
+        id: "service-packages",
+        label: "Ít nhất một gói giá",
+        step: "packages",
+      },
+      primaryImageItem,
+    ];
+  }
+
+  return [
+    ...basicsItems,
     {
-      complete: hasServicePackages || (price !== null && price > 0),
+      complete: price !== null && price > 0,
       id: "price",
       label: "Giá bán hợp lệ",
       step: "basics",
     },
     {
-      complete:
-        hasServicePackages || (processingTime !== null && processingTime > 0),
+      complete: processingTime !== null && processingTime > 0,
       id: "processing-time",
       label: "Thời gian hoàn thành",
       step: "basics",
     },
+    primaryImageItem,
     {
-      complete: Boolean(primaryImage),
-      id: "primary-image",
-      label: "Ảnh đại diện",
-      step: "media",
-    },
-    {
-      complete: hasServicePackages || warrantyInBounds,
+      complete: warrantyInBounds,
       id: "warranty-duration",
       label: "Thời hạn bảo hành trong giới hạn",
       step: "warranty",
     },
     {
       complete:
-        hasServicePackages ||
-        (Boolean(form.warrantyTerms.trim()) &&
-          form.warrantyTerms.trim().length <= MAX_LONG_TEXT_LENGTH),
+        Boolean(form.warrantyTerms.trim()) &&
+        form.warrantyTerms.trim().length <= MAX_LONG_TEXT_LENGTH,
       id: "warranty-terms",
       label: "Điều khoản bảo hành",
       step: "warranty",
@@ -375,6 +403,7 @@ const EditorStepContent = ({
   disabled,
   editorForm,
   form,
+  onCategoryChange,
   onDirty,
   onImagesUploaded,
   onImageUploadingChange,
@@ -388,6 +417,7 @@ const EditorStepContent = ({
   disabled: boolean;
   editorForm: ListingEditorFormApi;
   form: ListingEditorForm;
+  onCategoryChange: (categoryId: string) => void;
   onDirty: () => void;
   onImagesUploaded: (imageUrls: string[]) => void;
   onImageUploadingChange: (isUploading: boolean) => void;
@@ -606,17 +636,16 @@ const EditorStepContent = ({
             <div className="grid gap-2">
               <Label htmlFor="listing-editor-sub-category">Danh mục con</Label>
               <editorForm.Field name="categoryId">
-                {(field) => (
+                {() => (
                   <Select
                     disabled={disabled || !parentCategoryId}
                     items={subCategories}
                     onValueChange={(value) => {
                       if (value) {
-                        onDirty();
-                        field.handleChange(value);
+                        onCategoryChange(value);
                       }
                     }}
-                    value={field.state.value}
+                    value={form.categoryId}
                   >
                     <SelectTrigger
                       className="w-full"
@@ -671,72 +700,103 @@ const EditorStepContent = ({
               }}
             </editorForm.Field>
           </div>
-          <div className="grid gap-5 border-t border-border/60 pt-5 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <Label htmlFor="listing-editor-price">Giá bán (VND)</Label>
-              <editorForm.Field name="priceAmount">
-                {(field) => (
-                  <NumberInput
-                    aria-invalid={
-                      field.state.meta.isTouched && !field.state.meta.isValid
-                    }
-                    disabled={disabled}
-                    id="listing-editor-price"
-                    inputProps={{ onBlur: field.handleBlur }}
-                    name={field.name}
-                    min={1}
-                    onValueChange={(value) => {
-                      onDirty();
-                      field.handleChange(value === null ? "" : String(value));
-                    }}
-                    placeholder="1500000"
-                    step={1}
-                    value={parseInteger(field.state.value)}
-                  />
-                )}
-              </editorForm.Field>
-              <FieldHint>
-                Nhập số nguyên dương theo đơn vị Việt Nam đồng.
-              </FieldHint>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="listing-editor-processing">
-                Thời gian hoàn thành (giờ)
-              </Label>
-              <editorForm.Field name="processingTimeHours">
-                {(field) => (
-                  <NumberInput
-                    aria-invalid={
-                      field.state.meta.isTouched && !field.state.meta.isValid
-                    }
-                    disabled={disabled}
-                    id="listing-editor-processing"
-                    inputProps={{ onBlur: field.handleBlur }}
-                    name={field.name}
-                    min={1}
-                    onValueChange={(value) => {
-                      onDirty();
-                      field.handleChange(value === null ? "" : String(value));
-                    }}
-                    placeholder="48"
-                    step={1}
-                    value={parseInteger(field.state.value)}
-                  />
-                )}
-              </editorForm.Field>
-              <FieldHint>Khi nào khách hàng có thể nhận kết quả?</FieldHint>
-            </div>
-            <div className="rounded-2xl bg-muted/45 p-4 text-sm leading-6 text-muted-foreground sm:col-span-2">
+          {form.type === "SERVICE" ? (
+            <div className="rounded-2xl border border-primary/20 bg-primary/[0.03] p-4 text-sm leading-6 text-muted-foreground">
               <div className="flex items-center gap-2 font-semibold text-foreground">
                 <PackageCheck className="size-4 text-primary" />
-                Kiểm tra thông tin cho khách
+                Giá và thời gian xử lý theo từng gói
               </div>
               <p className="mt-1">
-                Giá bán và thời gian hoàn thành sẽ hiển thị cùng nhau trên gian
-                hàng.
+                Sang bước{" "}
+                <span className="font-medium text-foreground">
+                  Gói giá
+                </span> để
+                thêm các lựa chọn mà khách hàng có thể mua.
               </p>
             </div>
+          ) : (
+            <div className="grid gap-5 border-t border-border/60 pt-5 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label htmlFor="listing-editor-price">Giá bán (VND)</Label>
+                <editorForm.Field name="priceAmount">
+                  {(field) => (
+                    <NumberInput
+                      aria-invalid={
+                        field.state.meta.isTouched && !field.state.meta.isValid
+                      }
+                      disabled={disabled}
+                      id="listing-editor-price"
+                      inputProps={{ onBlur: field.handleBlur }}
+                      name={field.name}
+                      min={1}
+                      onValueChange={(value) => {
+                        onDirty();
+                        field.handleChange(value === null ? "" : String(value));
+                      }}
+                      placeholder="1500000"
+                      step={1}
+                      value={parseInteger(field.state.value)}
+                    />
+                  )}
+                </editorForm.Field>
+                <FieldHint>
+                  Nhập số nguyên dương theo đơn vị Việt Nam đồng.
+                </FieldHint>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="listing-editor-processing">
+                  Thời gian hoàn thành (giờ)
+                </Label>
+                <editorForm.Field name="processingTimeHours">
+                  {(field) => (
+                    <NumberInput
+                      aria-invalid={
+                        field.state.meta.isTouched && !field.state.meta.isValid
+                      }
+                      disabled={disabled}
+                      id="listing-editor-processing"
+                      inputProps={{ onBlur: field.handleBlur }}
+                      name={field.name}
+                      min={1}
+                      onValueChange={(value) => {
+                        onDirty();
+                        field.handleChange(value === null ? "" : String(value));
+                      }}
+                      placeholder="48"
+                      step={1}
+                      value={parseInteger(field.state.value)}
+                    />
+                  )}
+                </editorForm.Field>
+                <FieldHint>Khi nào khách hàng có thể nhận kết quả?</FieldHint>
+              </div>
+              <div className="rounded-2xl bg-muted/45 p-4 text-sm leading-6 text-muted-foreground sm:col-span-2">
+                <div className="flex items-center gap-2 font-semibold text-foreground">
+                  <PackageCheck className="size-4 text-primary" />
+                  Kiểm tra thông tin cho khách
+                </div>
+                <p className="mt-1">
+                  Giá bán và thời gian hoàn thành sẽ hiển thị cùng nhau trên
+                  gian hàng.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+    case "packages": {
+      return (
+        <div className="rounded-2xl border border-primary/20 bg-primary/[0.03] p-4 text-sm leading-6 text-muted-foreground">
+          <div className="flex items-center gap-2 font-semibold text-foreground">
+            <PackageCheck className="size-4 text-primary" />
+            Bán theo nhiều gói giá
           </div>
+          <p className="mt-1">
+            Mỗi gói có thể có giá, phạm vi bàn giao, thời gian xử lý và chính
+            sách bảo hành riêng. Khách hàng sẽ chọn một gói trước khi thanh
+            toán.
+          </p>
         </div>
       );
     }
@@ -764,6 +824,21 @@ const EditorStepContent = ({
       );
     }
     case "warranty": {
+      if (form.type === "SERVICE") {
+        return (
+          <div className="rounded-2xl border border-primary/20 bg-primary/[0.03] p-4 text-sm leading-6 text-muted-foreground">
+            <div className="flex items-center gap-2 font-semibold text-foreground">
+              <PackageCheck className="size-4 text-primary" />
+              Bảo hành được cấu hình theo từng gói
+            </div>
+            <p className="mt-1">
+              Mỗi gói giá có thể dùng chính sách bảo hành theo thời hạn hoặc
+              không bảo hành. Hãy quay lại bước Gói giá để chỉnh sửa.
+            </p>
+          </div>
+        );
+      }
+
       return (
         <div className="space-y-5">
           <div className="grid gap-2 sm:max-w-xs">
@@ -1008,16 +1083,25 @@ const ListingEditorFormPage = ({
     categoryId: listing.categoryId,
     description: listing.description ?? "",
     images: listing.images ?? [],
-    priceAmount: listing.priceAmount?.toString() ?? "",
-    processingTimeHours: listing.processingTimeHours?.toString() ?? "",
+    priceAmount:
+      listing.type === "COURSE" ? (listing.priceAmount?.toString() ?? "") : "",
+    processingTimeHours:
+      listing.type === "COURSE"
+        ? (listing.processingTimeHours?.toString() ?? "")
+        : "",
     serviceInputFields: getServiceInputFieldsForDraft(
-      listing.serviceInputFields
+      listing.serviceInputFields,
+      initialCategory?.serviceInputFields ?? []
     ),
     thumbnailUrl: listing.thumbnailUrl ?? "",
     title: listing.title ?? "",
     type: listing.type,
-    warrantyDurationHours: listing.warrantyDurationHours?.toString() ?? "",
-    warrantyTerms: listing.warrantyTerms ?? "",
+    warrantyDurationHours:
+      listing.type === "COURSE"
+        ? (listing.warrantyDurationHours?.toString() ?? "")
+        : "",
+    warrantyTerms:
+      listing.type === "COURSE" ? (listing.warrantyTerms ?? "") : "",
   };
   const [parentCategoryId, setParentCategoryId] = useState(
     initialCategory?.parentId ?? ""
@@ -1084,11 +1168,16 @@ const ListingEditorFormPage = ({
     await enqueueSave({ id: draftId, ...buildUpdateInput(value) });
   });
   const form = useStore(editorForm.store, (state) => state.values);
+  const editorStepOrder = getListingEditorStepOrder(form.type);
+  const editorSteps = getEditorSteps(form.type);
   const servicePackagesQuery = useQuery({
     ...servicePackagesQueryOptions(draftId ?? "new"),
     enabled: Boolean(draftId && form.type === "SERVICE"),
   });
-  const servicePackageCount = servicePackagesQuery.data?.length ?? 0;
+  const servicePackageCount =
+    servicePackagesQuery.data?.filter(
+      (packageItem) => packageItem.status === "AVAILABLE"
+    ).length ?? 0;
   const hasValidDraftType = isListingType(form.type);
   const hasDraftCategory = Boolean(form.categoryId);
   const canCreateDraft =
@@ -1103,8 +1192,11 @@ const ListingEditorFormPage = ({
   );
   const isReadyToPublish = readinessItems.every((item) => item.complete);
   const [activeStepIndex, setActiveStepIndex] = useState(() =>
-    isNew ? 0 : getFirstIncompleteEditorStepIndex(readinessItems)
+    isNew
+      ? 0
+      : getFirstIncompleteEditorStepIndex(readinessItems, editorStepOrder)
   );
+  const currentStepIndex = Math.min(activeStepIndex, editorSteps.length - 1);
   const hasNewListingContent = Boolean(
     form.type ||
     parentCategoryId ||
@@ -1201,7 +1293,7 @@ const ListingEditorFormPage = ({
     })
   );
 
-  const activeStep = EDITOR_STEPS[activeStepIndex];
+  const activeStep = editorSteps[currentStepIndex] ?? editorSteps[0];
   const isEditorStepLocked = (stepIndex: number): boolean =>
     isListingEditorStepLocked(isNew, Boolean(draftId), stepIndex);
   const stepIsComplete = (stepId: ListingEditorStepId) =>
@@ -1209,7 +1301,7 @@ const ListingEditorFormPage = ({
       .filter((item) => item.step === stepId)
       .every((item) => item.complete);
   const handleSelectStep = (stepId: ListingEditorStepId) => {
-    const nextStepIndex = EDITOR_STEPS.findIndex((step) => step.id === stepId);
+    const nextStepIndex = editorSteps.findIndex((step) => step.id === stepId);
     if (isEditorStepLocked(nextStepIndex)) {
       return;
     }
@@ -1221,6 +1313,23 @@ const ListingEditorFormPage = ({
     markUnsaved();
     setParentCategoryId(nextParentCategoryId);
     editorForm.setFieldValue("categoryId", "");
+  };
+
+  const handleCategoryChange = (nextCategoryId: string) => {
+    markUnsaved();
+    editorForm.setFieldValue("categoryId", nextCategoryId);
+    if (isNew && !draftId && form.type === "SERVICE") {
+      const nextCategory = categoryOptions.find(
+        (category) => category.id === nextCategoryId
+      );
+      editorForm.setFieldValue(
+        "serviceInputFields",
+        getServiceInputFieldsForDraft(
+          form.serviceInputFields,
+          nextCategory?.serviceInputFields ?? []
+        )
+      );
+    }
   };
 
   const isActionPending =
@@ -1355,20 +1464,20 @@ const ListingEditorFormPage = ({
   };
 
   const handleNextStep = async (): Promise<void> => {
-    if (isActionPending || activeStepIndex === EDITOR_STEPS.length - 1) {
+    if (isActionPending || currentStepIndex === editorSteps.length - 1) {
       return;
     }
 
-    if (isNew && !draftId && activeStepIndex === 0) {
+    if (isNew && !draftId && currentStepIndex === 0) {
       await saveNow();
       return;
     }
 
-    if (isEditorStepLocked(activeStepIndex + 1)) {
+    if (isEditorStepLocked(currentStepIndex + 1)) {
       return;
     }
 
-    setActiveStepIndex((index) => Math.min(index + 1, EDITOR_STEPS.length - 1));
+    setActiveStepIndex((index) => Math.min(index + 1, editorSteps.length - 1));
   };
 
   const primaryActionLabel =
@@ -1405,13 +1514,13 @@ const ListingEditorFormPage = ({
     isNew && !draftId
       ? "Chọn loại sản phẩm và danh mục, sau đó bấm “Tiếp theo” để lưu bản nháp."
       : "Hoàn thiện từng bước theo tốc độ của bạn. Bấm “Lưu” khi muốn giữ lại thay đổi.";
-  const isActiveStepLocked = isEditorStepLocked(activeStepIndex);
+  const isActiveStepLocked = isEditorStepLocked(currentStepIndex);
   const isEditorStepDisabled =
     isArchived || isActionPending || isActiveStepLocked;
   const isNextStepDisabled =
     isActionPending ||
     (isNew && !draftId && !canCreateDraft) ||
-    activeStepIndex === EDITOR_STEPS.length - 1;
+    currentStepIndex === editorSteps.length - 1;
   const handleStoreNavigation = (section: StoreSection) => {
     void handleNavigateFromEditor(section);
   };
@@ -1478,8 +1587,8 @@ const ListingEditorFormPage = ({
             aria-label="Các bước hoàn thiện sản phẩm"
             className="grid gap-2 md:grid-cols-3"
           >
-            {EDITOR_STEPS.map((step, index) => {
-              const isActive = index === activeStepIndex;
+            {editorSteps.map((step, index) => {
+              const isActive = index === currentStepIndex;
               const isComplete = stepIsComplete(step.id);
               const isLocked = isEditorStepLocked(index);
               let stepIndicatorClass = "border-border text-muted-foreground";
@@ -1588,7 +1697,7 @@ const ListingEditorFormPage = ({
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
-                        Bước {activeStepIndex + 1}/{EDITOR_STEPS.length}
+                        Bước {currentStepIndex + 1}/{editorSteps.length}
                       </p>
                       <CardTitle className="mt-2 text-2xl">
                         {activeStep.label}
@@ -1609,6 +1718,7 @@ const ListingEditorFormPage = ({
                     disabled={isEditorStepDisabled}
                     editorForm={editorForm}
                     form={form}
+                    onCategoryChange={handleCategoryChange}
                     onDirty={markUnsaved}
                     onImagesUploaded={(imageUrls) =>
                       (pendingImageUploadsRef.current = [
@@ -1624,7 +1734,7 @@ const ListingEditorFormPage = ({
                     listingId={draftId ?? "new"}
                     stepId={activeStep.id}
                   />
-                  {form.type === "SERVICE" ? (
+                  {form.type === "SERVICE" && activeStep.id === "packages" ? (
                     <div className="mt-6">
                       <ServicePackageManager
                         categoryBounds={selectedCategory?.warrantyBounds}
@@ -1637,7 +1747,7 @@ const ListingEditorFormPage = ({
                 </CardContent>
                 <CardFooter className="justify-between border-t border-border/60">
                   <Button
-                    disabled={isActionPending || activeStepIndex === 0}
+                    disabled={isActionPending || currentStepIndex === 0}
                     onClick={() =>
                       setActiveStepIndex((index) => Math.max(index - 1, 0))
                     }
@@ -1646,7 +1756,7 @@ const ListingEditorFormPage = ({
                     <ArrowLeft />
                     Quay lại
                   </Button>
-                  {activeStepIndex === EDITOR_STEPS.length - 1 &&
+                  {currentStepIndex === editorSteps.length - 1 &&
                   primaryActionAvailable ? (
                     <Button
                       disabled={
