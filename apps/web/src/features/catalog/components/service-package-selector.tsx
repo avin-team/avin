@@ -1,3 +1,8 @@
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@avin/ui/components/native-select";
+
 import { formatVND } from "@/utils/format";
 
 interface ServicePackageOption {
@@ -34,19 +39,21 @@ export const ServicePackageSelector = ({
       <label className="block text-sm font-medium" htmlFor="service-package">
         Gói bạn muốn mua
       </label>
-      <select
-        className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm"
+      <NativeSelect
+        className="w-full"
         id="service-package"
         onChange={(event) => onChange(event.target.value || null)}
         value={selectedPackage?.id ?? ""}
       >
-        {packages.length > 1 ? <option value="">Chọn một gói</option> : null}
+        {packages.length > 1 ? (
+          <NativeSelectOption value="">Chọn một gói</NativeSelectOption>
+        ) : null}
         {packages.map((packageItem) => (
-          <option key={packageItem.id} value={packageItem.id}>
+          <NativeSelectOption key={packageItem.id} value={packageItem.id}>
             {packageItem.name} · {formatVND(packageItem.priceAmount)}
-          </option>
+          </NativeSelectOption>
         ))}
-      </select>
+      </NativeSelect>
       {selectedPackage ? (
         <div className="space-y-1 text-xs text-muted-foreground">
           <p>{selectedPackage.description}</p>

@@ -9,6 +9,10 @@ import {
 } from "@avin/ui/components/card";
 import { Input } from "@avin/ui/components/input";
 import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@avin/ui/components/native-select";
+import {
   Popover,
   PopoverContent,
   PopoverHeader,
@@ -323,9 +327,8 @@ export const ServicePackageManager = ({
         <div className="flex items-center gap-1.5">
           <packageForm.Field name="warrantyMode">
             {(field) => (
-              <select
+              <NativeSelect
                 aria-label="Chính sách bảo hành"
-                className="h-8 rounded-md border border-input bg-background px-2 text-xs"
                 disabled={disabled || isPending}
                 name={field.name}
                 onBlur={field.handleBlur}
@@ -335,11 +338,14 @@ export const ServicePackageManager = ({
                     field.handleChange(val);
                   }
                 }}
+                size="sm"
                 value={field.state.value}
               >
-                <option value="TIMED">Bảo hành</option>
-                <option value="NO_WARRANTY">Không BH</option>
-              </select>
+                <NativeSelectOption value="TIMED">Bảo hành</NativeSelectOption>
+                <NativeSelectOption value="NO_WARRANTY">
+                  Không BH
+                </NativeSelectOption>
+              </NativeSelect>
             )}
           </packageForm.Field>
           <packageForm.Subscribe
@@ -475,9 +481,8 @@ export const ServicePackageManager = ({
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <select
+                      <NativeSelect
                         aria-label={`Trạng thái gói ${packageItem.name}`}
-                        className="h-8 rounded-md border border-input bg-background px-2 text-xs"
                         disabled={disabled || isPending}
                         onChange={(e) =>
                           availabilityMutation.mutate({
@@ -485,11 +490,16 @@ export const ServicePackageManager = ({
                             id: packageItem.id,
                           })
                         }
+                        size="sm"
                         value={packageItem.status}
                       >
-                        <option value="AVAILABLE">Đang bán</option>
-                        <option value="UNAVAILABLE">Tạm tắt</option>
-                      </select>
+                        <NativeSelectOption value="AVAILABLE">
+                          Đang bán
+                        </NativeSelectOption>
+                        <NativeSelectOption value="UNAVAILABLE">
+                          Tạm tắt
+                        </NativeSelectOption>
+                      </NativeSelect>
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-1">
