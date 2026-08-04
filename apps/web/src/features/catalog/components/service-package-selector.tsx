@@ -1,7 +1,10 @@
 import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@avin/ui/components/native-select";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@avin/ui/components/select";
 
 import { formatVND } from "@/utils/format";
 
@@ -30,6 +33,11 @@ export const ServicePackageSelector = ({
     (packageItem) => packageItem.id === selectedPackageId
   );
 
+  const packageItems = packages.map((packageItem) => ({
+    label: `${packageItem.name} · ${formatVND(packageItem.priceAmount)}`,
+    value: packageItem.id,
+  }));
+
   return (
     <div className="mt-6 space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-5">
       <h2 className="text-sm font-bold text-foreground">Chọn gói dịch vụ</h2>
@@ -39,21 +47,22 @@ export const ServicePackageSelector = ({
       <label className="block text-sm font-medium" htmlFor="service-package">
         Gói bạn muốn mua
       </label>
-      <NativeSelect
-        className="w-full"
-        id="service-package"
-        onChange={(event) => onChange(event.target.value || null)}
+      <Select
+        items={packageItems}
+        onValueChange={(value) => onChange(value || null)}
         value={selectedPackage?.id ?? ""}
       >
-        {packages.length > 1 ? (
-          <NativeSelectOption value="">Chọn một gói</NativeSelectOption>
-        ) : null}
-        {packages.map((packageItem) => (
-          <NativeSelectOption key={packageItem.id} value={packageItem.id}>
-            {packageItem.name} · {formatVND(packageItem.priceAmount)}
-          </NativeSelectOption>
-        ))}
-      </NativeSelect>
+        <SelectTrigger className="w-full" id="service-package">
+          <SelectValue placeholder="Chọn một gói" />
+        </SelectTrigger>
+        <SelectContent>
+          {packageItems.map((item) => (
+            <SelectItem key={item.value} value={item.value}>
+              {item.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       {selectedPackage ? (
         <div className="space-y-1 text-xs text-muted-foreground">
           <p>{selectedPackage.description}</p>

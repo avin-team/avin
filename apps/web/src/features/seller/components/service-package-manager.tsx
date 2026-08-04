@@ -8,10 +8,7 @@ import {
   CardTitle,
 } from "@avin/ui/components/card";
 import { Input } from "@avin/ui/components/input";
-import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@avin/ui/components/native-select";
+import { NumberInput } from "@avin/ui/components/number-input";
 import {
   Popover,
   PopoverContent,
@@ -19,6 +16,13 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from "@avin/ui/components/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@avin/ui/components/select";
 import {
   Table,
   TableBody,
@@ -45,9 +49,19 @@ const EMPTY_SERVICE_PACKAGE_FORM: ServicePackageFormState = {
   name: "",
   priceAmount: "",
   processingTimeHours: "",
-  warrantyDurationHours: "",
+  warrantyDurationHours: "24",
   warrantyMode: "TIMED",
 };
+
+const WARRANTY_MODE_ITEMS = [
+  { label: "Bảo hành", value: "TIMED" },
+  { label: "Không BH", value: "NO_WARRANTY" },
+] as const;
+
+const STATUS_ITEMS = [
+  { label: "Đang bán", value: "AVAILABLE" },
+  { label: "Tạm tắt", value: "UNAVAILABLE" },
+] as const;
 
 const getErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback;
@@ -287,17 +301,20 @@ export const ServicePackageManager = ({
       <TableCell className="align-top">
         <packageForm.Field name="priceAmount">
           {(field) => (
-            <Input
+            <NumberInput
               aria-label="Giá VND"
-              className="h-8 w-28 text-xs font-semibold"
+              className="w-28"
               disabled={disabled || isPending}
+              inputClassName="h-8 text-xs font-semibold"
+              inputProps={{ onBlur: field.handleBlur }}
               min={1}
               name={field.name}
-              onBlur={field.handleBlur}
-              onChange={(e) => field.handleChange(e.target.value)}
+              onValueChange={(val) =>
+                field.handleChange(val === null ? "" : String(val))
+              }
               placeholder="100000"
-              type="number"
-              value={field.state.value}
+              step={1}
+              value={field.state.value ? Number(field.state.value) : null}
             />
           )}
         </packageForm.Field>
@@ -306,17 +323,20 @@ export const ServicePackageManager = ({
         <div className="flex items-center gap-1">
           <packageForm.Field name="processingTimeHours">
             {(field) => (
-              <Input
+              <NumberInput
                 aria-label="Thời gian xử lý (giờ)"
-                className="h-8 w-20 text-xs"
+                className="w-20"
                 disabled={disabled || isPending}
+                inputClassName="h-8 text-xs"
+                inputProps={{ onBlur: field.handleBlur }}
                 min={1}
                 name={field.name}
-                onBlur={field.handleBlur}
-                onChange={(e) => field.handleChange(e.target.value)}
+                onValueChange={(val) =>
+                  field.handleChange(val === null ? "" : String(val))
+                }
                 placeholder="24"
-                type="number"
-                value={field.state.value}
+                step={1}
+                value={field.state.value ? Number(field.state.value) : null}
               />
             )}
           </packageForm.Field>
@@ -327,25 +347,27 @@ export const ServicePackageManager = ({
         <div className="flex items-center gap-1.5">
           <packageForm.Field name="warrantyMode">
             {(field) => (
-              <NativeSelect
-                aria-label="Chính sách bảo hành"
+              <Select
                 disabled={disabled || isPending}
-                name={field.name}
-                onBlur={field.handleBlur}
-                onChange={(e) => {
-                  const val = e.target.value;
+                items={WARRANTY_MODE_ITEMS}
+                onValueChange={(val) => {
                   if (val === "TIMED" || val === "NO_WARRANTY") {
                     field.handleChange(val);
                   }
                 }}
-                size="sm"
                 value={field.state.value}
               >
-                <NativeSelectOption value="TIMED">Bảo hành</NativeSelectOption>
-                <NativeSelectOption value="NO_WARRANTY">
-                  Không BH
-                </NativeSelectOption>
-              </NativeSelect>
+                <SelectTrigger className="h-8 text-xs" size="sm">
+                  <SelectValue placeholder="Bảo hành" />
+                </SelectTrigger>
+                <SelectContent>
+                  {WARRANTY_MODE_ITEMS.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
           </packageForm.Field>
           <packageForm.Subscribe
@@ -355,19 +377,23 @@ export const ServicePackageManager = ({
               warrantyMode === "TIMED" ? (
                 <packageForm.Field name="warrantyDurationHours">
                   {(field) => (
-                    <Input
+                    <NumberInput
                       aria-label="Thời hạn bảo hành (giờ)"
-                      className="h-8 w-16 text-xs"
+                      className="w-16"
                       disabled={disabled || isPending}
+                      inputClassName="h-8 text-xs"
+                      inputProps={{ onBlur: field.handleBlur }}
                       max={categoryBounds?.maxHours}
                       min={categoryBounds?.minHours}
                       name={field.name}
-                      onBlur={field.handleBlur}
-                      onChange={(e) => field.handleChange(e.target.value)}
+                      onValueChange={(val) =>
+                        field.handleChange(val === null ? "" : String(val))
+                      }
                       placeholder="24"
-                      title={`Giới hạn: ${categoryBounds?.minHours ?? 0}–${categoryBounds?.maxHours ?? 0} giờ`}
-                      type="number"
-                      value={field.state.value}
+                      step={1}
+                      value={
+                        field.state.value ? Number(field.state.value) : null
+                      }
                     />
                   )}
                 </packageForm.Field>
@@ -481,25 +507,28 @@ export const ServicePackageManager = ({
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <NativeSelect
-                        aria-label={`Trạng thái gói ${packageItem.name}`}
+                      <Select
                         disabled={disabled || isPending}
-                        onChange={(e) =>
+                        items={STATUS_ITEMS}
+                        onValueChange={(val) =>
                           availabilityMutation.mutate({
-                            available: e.target.value === "AVAILABLE",
+                            available: val === "AVAILABLE",
                             id: packageItem.id,
                           })
                         }
-                        size="sm"
                         value={packageItem.status}
                       >
-                        <NativeSelectOption value="AVAILABLE">
-                          Đang bán
-                        </NativeSelectOption>
-                        <NativeSelectOption value="UNAVAILABLE">
-                          Tạm tắt
-                        </NativeSelectOption>
-                      </NativeSelect>
+                        <SelectTrigger className="h-8 text-xs" size="sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {STATUS_ITEMS.map((item) => (
+                            <SelectItem key={item.value} value={item.value}>
+                              {item.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-1">
