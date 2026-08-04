@@ -403,9 +403,39 @@ export const ServicePackageManager = ({
         </div>
       </TableCell>
       <TableCell className="align-top">
-        <Badge variant="outline" className="h-8 px-2 text-xs">
-          Đang bán
-        </Badge>
+        {editingPackageId ? (
+          <Select
+            disabled={disabled || isPending}
+            items={STATUS_ITEMS}
+            onValueChange={(val) => {
+              if (editingPackageId) {
+                availabilityMutation.mutate({
+                  available: val === "AVAILABLE",
+                  id: editingPackageId,
+                });
+              }
+            }}
+            value={
+              packagesQuery.data?.find((p) => p.id === editingPackageId)
+                ?.status ?? "AVAILABLE"
+            }
+          >
+            <SelectTrigger className="h-8 text-xs" size="sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {STATUS_ITEMS.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <Badge variant="outline" className="h-8 px-2 text-xs font-normal">
+            Đang bán
+          </Badge>
+        )}
       </TableCell>
       <TableCell className="align-top">
         <div className="flex items-center justify-end gap-1">
@@ -507,28 +537,18 @@ export const ServicePackageManager = ({
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Select
-                        disabled={disabled || isPending}
-                        items={STATUS_ITEMS}
-                        onValueChange={(val) =>
-                          availabilityMutation.mutate({
-                            available: val === "AVAILABLE",
-                            id: packageItem.id,
-                          })
+                      <Badge
+                        className="h-7 px-2 text-xs font-normal"
+                        variant={
+                          packageItem.status === "AVAILABLE"
+                            ? "outline"
+                            : "secondary"
                         }
-                        value={packageItem.status}
                       >
-                        <SelectTrigger className="h-8 text-xs" size="sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {STATUS_ITEMS.map((item) => (
-                            <SelectItem key={item.value} value={item.value}>
-                              {item.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        {packageItem.status === "AVAILABLE"
+                          ? "Đang bán"
+                          : "Tạm tắt"}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-1">
