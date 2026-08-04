@@ -21,12 +21,11 @@ import { selectAvailableServicePackage } from "../listing/service-packages";
 import { parseListingContract, parseServicePackageContract } from "./contracts";
 
 export interface CartPackageView {
+  description: string;
   id: string;
   name: string;
   priceAmount: number;
   processingTimeHours: number;
-  scope: string;
-  serviceInputFields: ServiceInputField[];
   status: "AVAILABLE" | "UNAVAILABLE";
   warrantyPolicy: WarrantyPolicy;
 }
@@ -118,14 +117,19 @@ const getSelectedServicePackage = <
 
 const getTimedWarranty = (
   policy: WarrantyPolicySnapshot | undefined
-): { durationHours: number; terms: string } | null => {
+): { durationHours: number; terms?: string } | null => {
   if (!policy) {
     return null;
   }
   if ("kind" in policy) {
-    return policy.kind === "TIMED"
-      ? { durationHours: policy.durationHours, terms: policy.terms }
-      : null;
+    if (policy.kind !== "TIMED") {
+      return null;
+    }
+    return {
+      durationHours: policy.durationHours,
+      terms:
+        "terms" in policy ? (policy as { terms?: string }).terms : undefined,
+    };
   }
   return { durationHours: policy.durationHours, terms: policy.terms };
 };
@@ -241,7 +245,10 @@ export const getCart = async (
         available = false;
       } else {
         contract = parseServicePackageContract(
-          listingSource,
+          {
+            ...listingSource,
+            serviceInputFields: row.serviceInputFields,
+          },
           selectedPackage,
           row.commissionRatePercent
         );
@@ -292,12 +299,11 @@ export const getCart = async (
           row.processingTimeHours,
         serviceInputFields: contract?.serviceInputFields ?? [],
         servicePackages: listingPackages.map((packageRow) => ({
+          description: packageRow.description,
           id: packageRow.id,
           name: packageRow.name,
           priceAmount: packageRow.priceAmount,
           processingTimeHours: packageRow.processingTimeHours,
-          scope: packageRow.scope,
-          serviceInputFields: packageRow.serviceInputFields,
           status: packageRow.status,
           warrantyPolicy: packageRow.warrantyPolicy,
         })),

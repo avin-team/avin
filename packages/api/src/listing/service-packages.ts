@@ -1,9 +1,5 @@
-import {
-  serviceInputFieldSchema,
-  servicePackageDraftSchema,
-} from "@avin/db/schema/catalog";
+import { servicePackageDraftSchema } from "@avin/db/schema/catalog";
 import type {
-  ServiceInputField,
   ServicePackageDraft,
   WarrantyPolicy,
   servicePackage,
@@ -20,16 +16,6 @@ const packageError = (message: string): never => {
   throw new ORPCError("BAD_REQUEST", { message });
 };
 
-const assertUniqueInputFieldKeys = (fields: ServiceInputField[]): void => {
-  const keys = new Set<string>();
-  for (const field of fields) {
-    if (!field.key.trim() || keys.has(field.key)) {
-      packageError("Service package input field keys must be unique");
-    }
-    keys.add(field.key);
-  }
-};
-
 export const parseServicePackageDraft = (
   input: unknown,
   category: ServicePackageCategory
@@ -41,7 +27,6 @@ export const parseServicePackageDraft = (
     });
   }
 
-  assertUniqueInputFieldKeys(parsed.data.serviceInputFields);
   if (parsed.data.warrantyPolicy.kind === "TIMED") {
     const { durationHours } = parsed.data.warrantyPolicy;
     const { maxHours, minHours } = category.warrantyBounds;
@@ -58,11 +43,10 @@ export const parseServicePackageDraft = (
 export const assertServicePackagesPublishable = (
   packages: readonly Pick<
     ServicePackageRow,
+    | "description"
     | "name"
     | "priceAmount"
     | "processingTimeHours"
-    | "scope"
-    | "serviceInputFields"
     | "status"
     | "warrantyPolicy"
   >[],
@@ -77,11 +61,10 @@ export const assertServicePackagesPublishable = (
   for (const packageItem of packages) {
     const parsed = parseServicePackageDraft(
       {
+        description: packageItem.description,
         name: packageItem.name,
         priceAmount: packageItem.priceAmount,
         processingTimeHours: packageItem.processingTimeHours,
-        scope: packageItem.scope,
-        serviceInputFields: packageItem.serviceInputFields,
         warrantyPolicy: packageItem.warrantyPolicy,
       },
       category
@@ -166,41 +149,28 @@ export const toLegacyServicePackageDraft = (listing: {
   description: string | null;
   priceAmount: number | null;
   processingTimeHours: number | null;
-  serviceInputFields: unknown;
   title: string | null;
   warrantyDurationHours: number | null;
-  warrantyTerms: string | null;
 }): ServicePackageDraft | null => {
   if (listing.priceAmount === null || listing.processingTimeHours === null) {
     return null;
   }
 
-  const fields = serviceInputFieldSchema
-    .array()
-    .safeParse(listing.serviceInputFields);
-  if (!fields.success) {
-    return null;
-  }
-
   const legacyWarrantyPolicy =
-    listing.warrantyDurationHours !== null &&
-    listing.warrantyDurationHours > 0 &&
-    listing.warrantyTerms?.trim()
+    listing.warrantyDurationHours !== null && listing.warrantyDurationHours > 0
       ? {
           durationHours: listing.warrantyDurationHours,
           kind: "TIMED" as const,
-          terms: listing.warrantyTerms.trim(),
         }
       : { kind: "NO_WARRANTY" as const };
   const parsed = servicePackageDraftSchema.safeParse({
-    name: "Standard",
-    priceAmount: listing.priceAmount,
-    processingTimeHours: listing.processingTimeHours,
-    scope:
+    description:
       listing.description?.trim() ||
       listing.title?.trim() ||
       "Standard service",
-    serviceInputFields: fields.data,
+    name: "Standard",
+    priceAmount: listing.priceAmount,
+    processingTimeHours: listing.processingTimeHours,
     warrantyPolicy: legacyWarrantyPolicy,
   });
   return parsed.success ? parsed.data : null;

@@ -7,14 +7,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@avin/ui/components/field";
 import { Input } from "@avin/ui/components/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@avin/ui/components/popover";
 import {
   Table,
   TableBody,
@@ -26,36 +26,24 @@ import {
 import { Textarea } from "@avin/ui/components/textarea";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { PackagePlus, Pencil, Power, Trash2, X } from "lucide-react";
+import { Check, FileText, PackagePlus, Pencil, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { servicePackagesQueryOptions } from "@/features/seller/api/service-packages";
 import { servicePackageFormSchema } from "@/features/seller/schemas/service-package-schema";
-import type {
-  ServicePackageFormInputField,
-  ServicePackageFormState,
-} from "@/features/seller/schemas/service-package-schema";
+import type { ServicePackageFormState } from "@/features/seller/schemas/service-package-schema";
 import { formatVND } from "@/utils/format";
 import { orpc } from "@/utils/orpc";
 
 const EMPTY_SERVICE_PACKAGE_FORM: ServicePackageFormState = {
+  description: "",
   name: "",
   priceAmount: "",
   processingTimeHours: "",
-  scope: "",
-  serviceInputFields: [],
   warrantyDurationHours: "",
   warrantyMode: "TIMED",
-  warrantyTerms: "",
 };
-
-const getEmptyServicePackageForm = (
-  inputFields: ServicePackageFormInputField[]
-): ServicePackageFormState => ({
-  ...EMPTY_SERVICE_PACKAGE_FORM,
-  serviceInputFields: inputFields,
-});
 
 const getErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback;
@@ -64,27 +52,29 @@ const getErrorMessage = (error: unknown, fallback: string): string =>
 export const ServicePackageManager = ({
   categoryBounds,
   disabled,
-  inputFields,
   listingId,
 }: {
   categoryBounds: { maxHours: number; minHours: number } | undefined;
   disabled: boolean;
-  inputFields: ServicePackageFormInputField[];
+  inputFields?: unknown;
   listingId: string;
 }) => {
   const queryClient = useQueryClient();
   const [editingPackageId, setEditingPackageId] = useState<string | null>(null);
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
   const isPersistedListing = listingId !== "new";
+
   const packagesQuery = useQuery({
     ...servicePackagesQueryOptions(listingId),
     enabled: isPersistedListing,
   });
+
   const invalidatePackages = async (): Promise<void> => {
     await queryClient.invalidateQueries({
       queryKey: servicePackagesQueryOptions(listingId).queryKey,
     });
   };
+
   const createMutation = useMutation({
     ...orpc.listing.sellerWorkspace.servicePackages.create.mutationOptions(),
     onError: (error) => {
@@ -95,6 +85,7 @@ export const ServicePackageManager = ({
       toast.success("Đã thêm gói dịch vụ.");
     },
   });
+
   const updateMutation = useMutation({
     ...orpc.listing.sellerWorkspace.servicePackages.update.mutationOptions(),
     onError: (error) => {
@@ -105,6 +96,7 @@ export const ServicePackageManager = ({
       toast.success("Đã cập nhật gói dịch vụ.");
     },
   });
+
   const availabilityMutation = useMutation({
     ...orpc.listing.sellerWorkspace.servicePackages.setAvailability.mutationOptions(),
     onError: (error) => {
@@ -112,6 +104,7 @@ export const ServicePackageManager = ({
     },
     onSuccess: invalidatePackages,
   });
+
   const deleteMutation = useMutation({
     ...orpc.listing.sellerWorkspace.servicePackages.delete.mutationOptions(),
     onError: (error) => {
@@ -121,7 +114,10 @@ export const ServicePackageManager = ({
   });
 
   const packageForm = useForm({
-    defaultValues: getEmptyServicePackageForm(inputFields),
+    defaultValues: {
+      ...EMPTY_SERVICE_PACKAGE_FORM,
+      warrantyDurationHours: String(categoryBounds?.minHours ?? 24),
+    },
     onSubmit: async ({ value }) => {
       if (!isPersistedListing) {
         toast.info("Lưu bản nháp trước rồi thêm gói dịch vụ.");
@@ -142,17 +138,15 @@ export const ServicePackageManager = ({
       }
 
       const packageInput = {
+        description: value.description.trim(),
         name: value.name.trim(),
         priceAmount: Number(value.priceAmount),
         processingTimeHours: Number(value.processingTimeHours),
-        scope: value.scope.trim(),
-        serviceInputFields: value.serviceInputFields,
         warrantyPolicy:
           value.warrantyMode === "TIMED"
             ? {
                 durationHours: duration,
                 kind: "TIMED" as const,
-                terms: value.warrantyTerms.trim(),
               }
             : { kind: "NO_WARRANTY" as const },
       };
@@ -165,19 +159,25 @@ export const ServicePackageManager = ({
             })
           : createMutation.mutateAsync({ listingId, ...packageInput }));
         setEditingPackageId(null);
-        packageForm.reset(getEmptyServicePackageForm(inputFields));
-        setIsFormOpen(false);
+        setIsAdding(false);
+        packageForm.reset({
+          ...EMPTY_SERVICE_PACKAGE_FORM,
+          warrantyDurationHours: String(categoryBounds?.minHours ?? 24),
+        });
       } catch {
-        // The mutation error handler already shows the failure to the Seller.
+        // Mutation error handler shows toast
       }
     },
     validators: { onSubmit: servicePackageFormSchema },
   });
 
-  const resetPackageForm = (): void => {
+  const resetForm = (): void => {
     setEditingPackageId(null);
-    setIsFormOpen(false);
-    packageForm.reset(getEmptyServicePackageForm(inputFields));
+    setIsAdding(false);
+    packageForm.reset({
+      ...EMPTY_SERVICE_PACKAGE_FORM,
+      warrantyDurationHours: String(categoryBounds?.minHours ?? 24),
+    });
   };
 
   const isPending =
@@ -185,43 +185,225 @@ export const ServicePackageManager = ({
     availabilityMutation.isPending ||
     deleteMutation.isPending ||
     updateMutation.isPending;
+
   const startEditing = (
     packageItem: NonNullable<typeof packagesQuery.data>[number]
   ): void => {
+    setIsAdding(false);
     setEditingPackageId(packageItem.id);
-    setIsFormOpen(true);
     packageForm.reset(
       packageItem.warrantyPolicy.kind === "TIMED"
         ? {
+            description: packageItem.description,
             name: packageItem.name,
             priceAmount: String(packageItem.priceAmount),
             processingTimeHours: String(packageItem.processingTimeHours),
-            scope: packageItem.scope,
-            serviceInputFields: packageItem.serviceInputFields,
             warrantyDurationHours: String(
               packageItem.warrantyPolicy.durationHours
             ),
             warrantyMode: "TIMED",
-            warrantyTerms: packageItem.warrantyPolicy.terms,
           }
         : {
+            description: packageItem.description,
             name: packageItem.name,
             priceAmount: String(packageItem.priceAmount),
             processingTimeHours: String(packageItem.processingTimeHours),
-            scope: packageItem.scope,
-            serviceInputFields: packageItem.serviceInputFields,
-            warrantyDurationHours: "",
+            warrantyDurationHours: String(categoryBounds?.minHours ?? 24),
             warrantyMode: "NO_WARRANTY",
-            warrantyTerms: "",
           }
     );
   };
 
-  const startCreating = (): void => {
+  const startAdding = (): void => {
     setEditingPackageId(null);
-    setIsFormOpen(true);
-    packageForm.reset(getEmptyServicePackageForm(inputFields));
+    setIsAdding(true);
+    packageForm.reset({
+      ...EMPTY_SERVICE_PACKAGE_FORM,
+      warrantyDurationHours: String(categoryBounds?.minHours ?? 24),
+    });
   };
+
+  const renderInlineEditCells = () => (
+    <>
+      <TableCell className="min-w-56 align-top">
+        <div className="flex items-center gap-1.5">
+          <packageForm.Field name="name">
+            {(field) => (
+              <Input
+                aria-label="Tên gói"
+                className="h-8 text-xs font-medium"
+                disabled={disabled || isPending}
+                name={field.name}
+                onBlur={field.handleBlur}
+                onChange={(e) => field.handleChange(e.target.value)}
+                placeholder="Tên gói (Cơ bản…)"
+                value={field.state.value}
+              />
+            )}
+          </packageForm.Field>
+          <packageForm.Field name="description">
+            {(field) => (
+              <Popover>
+                <PopoverTrigger
+                  render={
+                    <Button
+                      className="h-8 shrink-0 px-2 text-xs"
+                      disabled={disabled || isPending}
+                      type="button"
+                      variant="outline"
+                    />
+                  }
+                >
+                  <FileText aria-hidden="true" className="mr-1 size-3.5" />
+                  {field.state.value.trim() ? "Mô tả ✓" : "Mô tả"}
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-3">
+                  <PopoverHeader className="mb-2">
+                    <PopoverTitle className="text-xs font-semibold">
+                      Mô tả gói dịch vụ
+                    </PopoverTitle>
+                  </PopoverHeader>
+                  <Textarea
+                    aria-label="Mô tả gói dịch vụ"
+                    className="text-xs"
+                    disabled={disabled || isPending}
+                    name={field.name}
+                    onBlur={field.handleBlur}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    placeholder="Khách hàng nhận được gì trong gói này?"
+                    rows={4}
+                    value={field.state.value}
+                  />
+                </PopoverContent>
+              </Popover>
+            )}
+          </packageForm.Field>
+        </div>
+      </TableCell>
+      <TableCell className="align-top">
+        <packageForm.Field name="priceAmount">
+          {(field) => (
+            <Input
+              aria-label="Giá VND"
+              className="h-8 w-28 text-xs font-semibold"
+              disabled={disabled || isPending}
+              min={1}
+              name={field.name}
+              onBlur={field.handleBlur}
+              onChange={(e) => field.handleChange(e.target.value)}
+              placeholder="100000"
+              type="number"
+              value={field.state.value}
+            />
+          )}
+        </packageForm.Field>
+      </TableCell>
+      <TableCell className="align-top">
+        <div className="flex items-center gap-1">
+          <packageForm.Field name="processingTimeHours">
+            {(field) => (
+              <Input
+                aria-label="Thời gian xử lý (giờ)"
+                className="h-8 w-20 text-xs"
+                disabled={disabled || isPending}
+                min={1}
+                name={field.name}
+                onBlur={field.handleBlur}
+                onChange={(e) => field.handleChange(e.target.value)}
+                placeholder="24"
+                type="number"
+                value={field.state.value}
+              />
+            )}
+          </packageForm.Field>
+          <span className="text-xs text-muted-foreground">giờ</span>
+        </div>
+      </TableCell>
+      <TableCell className="align-top">
+        <div className="flex items-center gap-1.5">
+          <packageForm.Field name="warrantyMode">
+            {(field) => (
+              <select
+                aria-label="Chính sách bảo hành"
+                className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                disabled={disabled || isPending}
+                name={field.name}
+                onBlur={field.handleBlur}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "TIMED" || val === "NO_WARRANTY") {
+                    field.handleChange(val);
+                  }
+                }}
+                value={field.state.value}
+              >
+                <option value="TIMED">Bảo hành</option>
+                <option value="NO_WARRANTY">Không BH</option>
+              </select>
+            )}
+          </packageForm.Field>
+          <packageForm.Subscribe
+            selector={(state) => state.values.warrantyMode}
+          >
+            {(warrantyMode) =>
+              warrantyMode === "TIMED" ? (
+                <packageForm.Field name="warrantyDurationHours">
+                  {(field) => (
+                    <Input
+                      aria-label="Thời hạn bảo hành (giờ)"
+                      className="h-8 w-16 text-xs"
+                      disabled={disabled || isPending}
+                      max={categoryBounds?.maxHours}
+                      min={categoryBounds?.minHours}
+                      name={field.name}
+                      onBlur={field.handleBlur}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      placeholder="24"
+                      title={`Giới hạn: ${categoryBounds?.minHours ?? 0}–${categoryBounds?.maxHours ?? 0} giờ`}
+                      type="number"
+                      value={field.state.value}
+                    />
+                  )}
+                </packageForm.Field>
+              ) : null
+            }
+          </packageForm.Subscribe>
+        </div>
+      </TableCell>
+      <TableCell className="align-top">
+        <Badge variant="outline" className="h-8 px-2 text-xs">
+          Đang bán
+        </Badge>
+      </TableCell>
+      <TableCell className="align-top">
+        <div className="flex items-center justify-end gap-1">
+          <Button
+            aria-label="Lưu gói"
+            disabled={disabled || isPending}
+            onClick={() => packageForm.handleSubmit()}
+            size="icon-sm"
+            type="button"
+            variant="ghost"
+          >
+            <Check
+              aria-hidden="true"
+              className="size-4 text-emerald-600 dark:text-emerald-400"
+            />
+          </Button>
+          <Button
+            aria-label="Hủy"
+            disabled={isPending}
+            onClick={resetForm}
+            size="icon-sm"
+            type="button"
+            variant="ghost"
+          >
+            <X aria-hidden="true" className="size-4 text-destructive" />
+          </Button>
+        </div>
+      </TableCell>
+    </>
+  );
 
   return (
     <Card className="border-primary/20 bg-primary/[0.02]">
@@ -232,45 +414,47 @@ export const ServicePackageManager = ({
             Gói giá dịch vụ
           </CardTitle>
           <CardDescription className="mt-1 max-w-2xl">
-            Mỗi dòng là một lựa chọn mà khách hàng có thể mua. Gói đã từng bán
-            chỉ có thể chuyển sang không khả dụng.
+            Mỗi dòng là một lựa chọn mà khách hàng có thể mua. Chỉnh sửa thông
+            tin trực tiếp trên từng dòng.
           </CardDescription>
         </div>
-        <Button
-          disabled={disabled || !isPersistedListing || isPending}
-          onClick={startCreating}
-          type="button"
-          variant="outline"
-        >
-          <PackagePlus aria-hidden="true" />
-          Thêm gói giá
-        </Button>
       </CardHeader>
-      <CardContent className="space-y-5">
+      <CardContent className="space-y-4">
         {packagesQuery.isError ? (
           <p className="text-sm text-destructive">
             Không thể tải danh sách gói dịch vụ. Vui lòng thử lại.
           </p>
         ) : null}
-        {packagesQuery.data?.length ? (
-          <div className="overflow-hidden rounded-xl border border-border/70 bg-card">
-            <Table>
-              <TableHeader className="bg-muted/35">
-                <TableRow>
-                  <TableHead>Tên gói</TableHead>
-                  <TableHead>Giá (VND)</TableHead>
-                  <TableHead>Thời gian xử lý</TableHead>
-                  <TableHead>Trạng thái</TableHead>
-                  <TableHead className="text-right">Thao tác</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {packagesQuery.data.map((packageItem) => (
+
+        <div className="overflow-hidden rounded-xl border border-border/70 bg-card">
+          <Table>
+            <TableHeader className="bg-muted/35">
+              <TableRow>
+                <TableHead className="min-w-48">Tên gói</TableHead>
+                <TableHead>Giá (VND)</TableHead>
+                <TableHead>Thời gian xử lý</TableHead>
+                <TableHead>Bảo hành</TableHead>
+                <TableHead>Trạng thái</TableHead>
+                <TableHead className="text-right">Thao tác</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {packagesQuery.data?.map((packageItem) => {
+                const isEditingThisRow = editingPackageId === packageItem.id;
+                if (isEditingThisRow) {
+                  return (
+                    <TableRow key={packageItem.id} className="bg-muted/20">
+                      {renderInlineEditCells()}
+                    </TableRow>
+                  );
+                }
+
+                return (
                   <TableRow key={packageItem.id}>
                     <TableCell className="min-w-48 whitespace-normal">
                       <div className="font-semibold">{packageItem.name}</div>
-                      <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                        {packageItem.scope}
+                      <div className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
+                        {packageItem.description}
                       </div>
                     </TableCell>
                     <TableCell className="font-semibold text-primary">
@@ -280,51 +464,49 @@ export const ServicePackageManager = ({
                     <TableCell>
                       <Badge
                         variant={
-                          packageItem.status === "AVAILABLE"
+                          packageItem.warrantyPolicy.kind === "TIMED"
                             ? "default"
                             : "secondary"
                         }
                       >
-                        {packageItem.status === "AVAILABLE"
-                          ? "Đang bán"
-                          : "Tạm tắt"}
+                        {packageItem.warrantyPolicy.kind === "TIMED"
+                          ? `BH ${packageItem.warrantyPolicy.durationHours}h`
+                          : "Không BH"}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <select
+                        aria-label={`Trạng thái gói ${packageItem.name}`}
+                        className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                        disabled={disabled || isPending}
+                        onChange={(e) =>
+                          availabilityMutation.mutate({
+                            available: e.target.value === "AVAILABLE",
+                            id: packageItem.id,
+                          })
+                        }
+                        value={packageItem.status}
+                      >
+                        <option value="AVAILABLE">Đang bán</option>
+                        <option value="UNAVAILABLE">Tạm tắt</option>
+                      </select>
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-1">
                         <Button
                           aria-label={`Sửa ${packageItem.name}`}
-                          disabled={disabled || isPending}
+                          disabled={disabled || isPending || isAdding}
                           onClick={() => startEditing(packageItem)}
                           size="icon-sm"
                           type="button"
                           variant="ghost"
                         >
-                          <Pencil aria-hidden="true" />
-                        </Button>
-                        <Button
-                          aria-label={
-                            packageItem.status === "AVAILABLE"
-                              ? `Tắt ${packageItem.name}`
-                              : `Bật ${packageItem.name}`
-                          }
-                          disabled={disabled || isPending}
-                          onClick={() =>
-                            availabilityMutation.mutate({
-                              available: packageItem.status !== "AVAILABLE",
-                              id: packageItem.id,
-                            })
-                          }
-                          size="icon-sm"
-                          type="button"
-                          variant="ghost"
-                        >
-                          <Power aria-hidden="true" />
+                          <Pencil aria-hidden="true" className="size-4" />
                         </Button>
                         {packageItem.firstPublishedAt === null && (
                           <Button
                             aria-label={`Xóa ${packageItem.name}`}
-                            disabled={disabled || isPending}
+                            disabled={disabled || isPending || isAdding}
                             onClick={() =>
                               deleteMutation.mutate({ id: packageItem.id })
                             }
@@ -332,412 +514,53 @@ export const ServicePackageManager = ({
                             type="button"
                             variant="ghost"
                           >
-                            <Trash2 aria-hidden="true" />
+                            <Trash2
+                              aria-hidden="true"
+                              className="size-4 text-destructive"
+                            />
                           </Button>
                         )}
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        ) : (
-          <div className="rounded-xl border border-dashed border-border/80 bg-card/50 p-8 text-center">
-            <p className="font-medium">Chưa có gói giá nào</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Thêm ít nhất một gói để dịch vụ có thể đăng bán.
-            </p>
-          </div>
+                );
+              })}
+
+              {isAdding && (
+                <TableRow className="bg-muted/20">
+                  {renderInlineEditCells()}
+                </TableRow>
+              )}
+
+              {!packagesQuery.data?.length && !isAdding && (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-24 text-center">
+                    <p className="font-medium text-sm">Chưa có gói giá nào</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Thêm ít nhất một gói để dịch vụ có thể đăng bán.
+                    </p>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        {!isAdding && !editingPackageId && (
+          <Button
+            disabled={disabled || !isPersistedListing || isPending}
+            onClick={startAdding}
+            type="button"
+            variant="outline"
+          >
+            <PackagePlus aria-hidden="true" className="mr-1.5 size-4" />
+            Thêm gói giá
+          </Button>
         )}
 
-        {isFormOpen ? (
-          <form
-            className="space-y-4 rounded-xl border border-primary/25 bg-card p-4"
-            onSubmit={async (event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              await packageForm.handleSubmit();
-            }}
-          >
-            <div className="flex items-start justify-between gap-3 border-b border-border/60 pb-3">
-              <div>
-                <p className="font-semibold">
-                  {editingPackageId ? "Chỉnh sửa gói giá" : "Thêm gói giá mới"}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Cấu hình hợp đồng riêng cho lựa chọn này.
-                </p>
-              </div>
-              <Button
-                aria-label="Đóng biểu mẫu gói giá"
-                disabled={isPending}
-                onClick={resetPackageForm}
-                size="icon-sm"
-                type="button"
-                variant="ghost"
-              >
-                <X aria-hidden="true" />
-              </Button>
-            </div>
-            <FieldGroup className="gap-4 sm:grid-cols-2">
-              <packageForm.Field name="name">
-                {(field) => {
-                  const isInvalid =
-                    field.state.meta.isTouched && !field.state.meta.isValid;
-                  return (
-                    <Field data-invalid={isInvalid}>
-                      <FieldLabel htmlFor="service-package-name">
-                        Tên gói
-                      </FieldLabel>
-                      <Input
-                        aria-invalid={isInvalid}
-                        disabled={disabled || !isPersistedListing || isPending}
-                        id="service-package-name"
-                        name={field.name}
-                        onBlur={field.handleBlur}
-                        onChange={(event) =>
-                          field.handleChange(event.target.value)
-                        }
-                        placeholder="Cơ bản, Tiêu chuẩn, Cao cấp…"
-                        value={field.state.value}
-                      />
-                      {isInvalid ? (
-                        <FieldError errors={field.state.meta.errors} />
-                      ) : null}
-                    </Field>
-                  );
-                }}
-              </packageForm.Field>
-              <packageForm.Field name="priceAmount">
-                {(field) => {
-                  const isInvalid =
-                    field.state.meta.isTouched && !field.state.meta.isValid;
-                  return (
-                    <Field data-invalid={isInvalid}>
-                      <FieldLabel htmlFor="service-package-price">
-                        Giá (VND)
-                      </FieldLabel>
-                      <Input
-                        aria-invalid={isInvalid}
-                        disabled={disabled || !isPersistedListing || isPending}
-                        id="service-package-price"
-                        min={1}
-                        name={field.name}
-                        onBlur={field.handleBlur}
-                        onChange={(event) =>
-                          field.handleChange(event.target.value)
-                        }
-                        type="number"
-                        value={field.state.value}
-                      />
-                      {isInvalid ? (
-                        <FieldError errors={field.state.meta.errors} />
-                      ) : null}
-                    </Field>
-                  );
-                }}
-              </packageForm.Field>
-              <packageForm.Field name="processingTimeHours">
-                {(field) => {
-                  const isInvalid =
-                    field.state.meta.isTouched && !field.state.meta.isValid;
-                  return (
-                    <Field data-invalid={isInvalid}>
-                      <FieldLabel htmlFor="service-package-processing">
-                        Thời gian xử lý (giờ)
-                      </FieldLabel>
-                      <Input
-                        aria-invalid={isInvalid}
-                        disabled={disabled || !isPersistedListing || isPending}
-                        id="service-package-processing"
-                        min={1}
-                        name={field.name}
-                        onBlur={field.handleBlur}
-                        onChange={(event) =>
-                          field.handleChange(event.target.value)
-                        }
-                        type="number"
-                        value={field.state.value}
-                      />
-                      {isInvalid ? (
-                        <FieldError errors={field.state.meta.errors} />
-                      ) : null}
-                    </Field>
-                  );
-                }}
-              </packageForm.Field>
-              <packageForm.Field name="warrantyMode">
-                {(field) => {
-                  const isInvalid =
-                    field.state.meta.isTouched && !field.state.meta.isValid;
-                  return (
-                    <Field data-invalid={isInvalid}>
-                      <FieldLabel htmlFor="service-package-warranty-mode">
-                        Chính sách bảo hành
-                      </FieldLabel>
-                      <select
-                        aria-invalid={isInvalid}
-                        className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                        disabled={disabled || !isPersistedListing || isPending}
-                        id="service-package-warranty-mode"
-                        name={field.name}
-                        onBlur={field.handleBlur}
-                        onChange={(event) => {
-                          const nextMode = event.target.value;
-                          if (
-                            nextMode === "TIMED" ||
-                            nextMode === "NO_WARRANTY"
-                          ) {
-                            field.handleChange(nextMode);
-                          }
-                        }}
-                        value={field.state.value}
-                      >
-                        <option value="TIMED">Bảo hành theo thời hạn</option>
-                        <option value="NO_WARRANTY">Không có bảo hành</option>
-                      </select>
-                      {isInvalid ? (
-                        <FieldError errors={field.state.meta.errors} />
-                      ) : null}
-                    </Field>
-                  );
-                }}
-              </packageForm.Field>
-              <packageForm.Field name="scope">
-                {(field) => {
-                  const isInvalid =
-                    field.state.meta.isTouched && !field.state.meta.isValid;
-                  return (
-                    <Field className="sm:col-span-2" data-invalid={isInvalid}>
-                      <FieldLabel htmlFor="service-package-scope">
-                        Phạm vi bàn giao
-                      </FieldLabel>
-                      <Textarea
-                        aria-invalid={isInvalid}
-                        disabled={disabled || !isPersistedListing || isPending}
-                        id="service-package-scope"
-                        name={field.name}
-                        onBlur={field.handleBlur}
-                        onChange={(event) =>
-                          field.handleChange(event.target.value)
-                        }
-                        placeholder="Khách hàng nhận được gì trong gói này?"
-                        rows={3}
-                        value={field.state.value}
-                      />
-                      {isInvalid ? (
-                        <FieldError errors={field.state.meta.errors} />
-                      ) : null}
-                    </Field>
-                  );
-                }}
-              </packageForm.Field>
-            </FieldGroup>
-
-            <packageForm.Field name="serviceInputFields">
-              {(field) => {
-                const selectedFieldIds = new Set(
-                  field.state.value.map((inputField) => inputField.id)
-                );
-                const isInvalid =
-                  field.state.meta.isTouched && !field.state.meta.isValid;
-                return (
-                  <Field
-                    className="rounded-xl border border-border/60 p-4 sm:col-span-2"
-                    data-invalid={isInvalid}
-                  >
-                    <FieldLabel>Thông tin Buyer cần cung cấp</FieldLabel>
-                    <FieldDescription>
-                      Chọn các trường riêng cho gói này. Có thể dùng tập trường
-                      khác nhau giữa các gói.
-                    </FieldDescription>
-                    {inputFields.length > 0 ? (
-                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                        {inputFields.map((inputField) => (
-                          <label
-                            aria-label={inputField.label}
-                            className="flex items-start gap-2 rounded-lg border border-border/50 p-3 text-sm"
-                            key={inputField.id}
-                          >
-                            <input
-                              aria-invalid={isInvalid}
-                              checked={selectedFieldIds.has(inputField.id)}
-                              disabled={
-                                disabled || !isPersistedListing || isPending
-                              }
-                              name={`${field.name}-${inputField.id}`}
-                              onBlur={field.handleBlur}
-                              onChange={(event) => {
-                                const nextFields = event.target.checked
-                                  ? [...field.state.value, inputField]
-                                  : field.state.value.filter(
-                                      (selectedField) =>
-                                        selectedField.id !== inputField.id
-                                    );
-                                field.handleChange(nextFields);
-                              }}
-                              type="checkbox"
-                            />
-                            <span>
-                              <span className="block font-medium">
-                                {inputField.label}
-                                {inputField.required ? " · bắt buộc" : ""}
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                {inputField.key} · {inputField.type}
-                              </span>
-                            </span>
-                          </label>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="mt-3 text-xs text-muted-foreground">
-                        Listing này chưa có trường thông tin Buyer.
-                      </p>
-                    )}
-                    {isInvalid ? (
-                      <FieldError errors={field.state.meta.errors} />
-                    ) : null}
-                  </Field>
-                );
-              }}
-            </packageForm.Field>
-
-            <packageForm.Subscribe
-              selector={(state) => state.values.warrantyMode}
-            >
-              {(warrantyMode) =>
-                warrantyMode === "TIMED" ? (
-                  <FieldGroup className="gap-4 sm:grid-cols-2">
-                    <packageForm.Field name="warrantyDurationHours">
-                      {(field) => {
-                        const isInvalid =
-                          field.state.meta.isTouched &&
-                          !field.state.meta.isValid;
-                        return (
-                          <Field data-invalid={isInvalid}>
-                            <FieldLabel htmlFor="service-package-warranty-duration">
-                              Thời hạn (giờ)
-                            </FieldLabel>
-                            <Input
-                              aria-invalid={isInvalid}
-                              disabled={
-                                disabled || !isPersistedListing || isPending
-                              }
-                              id="service-package-warranty-duration"
-                              max={categoryBounds?.maxHours}
-                              min={categoryBounds?.minHours}
-                              name={field.name}
-                              onBlur={field.handleBlur}
-                              onChange={(event) =>
-                                field.handleChange(event.target.value)
-                              }
-                              type="number"
-                              value={field.state.value}
-                            />
-                            <FieldDescription>
-                              Phạm vi danh mục:{" "}
-                              {categoryBounds?.minHours ?? "—"}–
-                              {categoryBounds?.maxHours ?? "—"} giờ.
-                            </FieldDescription>
-                            {isInvalid ? (
-                              <FieldError errors={field.state.meta.errors} />
-                            ) : null}
-                          </Field>
-                        );
-                      }}
-                    </packageForm.Field>
-                    <packageForm.Field name="warrantyTerms">
-                      {(field) => {
-                        const isInvalid =
-                          field.state.meta.isTouched &&
-                          !field.state.meta.isValid;
-                        return (
-                          <Field data-invalid={isInvalid}>
-                            <FieldLabel htmlFor="service-package-warranty-terms">
-                              Điều khoản
-                            </FieldLabel>
-                            <Textarea
-                              aria-invalid={isInvalid}
-                              disabled={
-                                disabled || !isPersistedListing || isPending
-                              }
-                              id="service-package-warranty-terms"
-                              name={field.name}
-                              onBlur={field.handleBlur}
-                              onChange={(event) =>
-                                field.handleChange(event.target.value)
-                              }
-                              rows={3}
-                              value={field.state.value}
-                            />
-                            {isInvalid ? (
-                              <FieldError errors={field.state.meta.errors} />
-                            ) : null}
-                          </Field>
-                        );
-                      }}
-                    </packageForm.Field>
-                  </FieldGroup>
-                ) : null
-              }
-            </packageForm.Subscribe>
-
-            <div className="flex flex-wrap gap-2">
-              <packageForm.Subscribe
-                selector={(state) => ({
-                  canSubmit: state.canSubmit,
-                  isSubmitting: state.isSubmitting,
-                })}
-              >
-                {({ canSubmit, isSubmitting }) => {
-                  let submitLabel = "Thêm gói";
-                  if (isSubmitting) {
-                    submitLabel = "Đang lưu…";
-                  } else if (editingPackageId) {
-                    submitLabel = "Cập nhật gói";
-                  }
-
-                  return (
-                    <Button
-                      disabled={
-                        disabled ||
-                        !isPersistedListing ||
-                        isPending ||
-                        isSubmitting ||
-                        !canSubmit
-                      }
-                      type="submit"
-                    >
-                      {editingPackageId ? (
-                        <Pencil aria-hidden="true" />
-                      ) : (
-                        <PackagePlus aria-hidden="true" />
-                      )}
-                      {submitLabel}
-                    </Button>
-                  );
-                }}
-              </packageForm.Subscribe>
-              {editingPackageId ? (
-                <Button
-                  disabled={isPending}
-                  onClick={resetPackageForm}
-                  type="button"
-                  variant="ghost"
-                >
-                  <X aria-hidden="true" />
-                  Hủy sửa
-                </Button>
-              ) : null}
-            </div>
-          </form>
-        ) : null}
         {!isPersistedListing && (
           <p className="text-xs text-muted-foreground">
-            Lưu bản nháp trước để mở quản lý gói. Các ServiceInputFields hiện
-            tại sẽ được gắn vào gói mới.
+            Lưu bản nháp trước để mở quản lý gói dịch vụ.
           </p>
         )}
       </CardContent>

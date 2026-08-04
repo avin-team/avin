@@ -12,17 +12,15 @@ import {
 const category = { warrantyBounds: { maxHours: 168, minHours: 24 } };
 
 const packageRow = (overrides: Record<string, unknown> = {}) => ({
+  description: "One delivered result",
   id: "package-1",
   name: "Standard",
   priceAmount: 100_000,
   processingTimeHours: 48,
-  scope: "One delivered result",
-  serviceInputFields: [],
   status: "AVAILABLE" as const,
   warrantyPolicy: {
     durationHours: 48,
     kind: "TIMED" as const,
-    terms: "Fix defects",
   },
   ...overrides,
 });
@@ -32,10 +30,10 @@ describe("Service package rules", () => {
     expect(
       parseServicePackageDraft(
         {
+          description: "One result",
           name: "Basic",
           priceAmount: 50_000,
           processingTimeHours: 24,
-          scope: "One result",
           warrantyPolicy: { kind: "NO_WARRANTY" },
         },
         category
@@ -82,12 +80,11 @@ describe("Service package rules", () => {
         description: "One result",
         priceAmount: 75_000,
         processingTimeHours: 24,
-        serviceInputFields: [],
         title: "Legacy service",
         warrantyDurationHours: null,
-        warrantyTerms: null,
       })
     ).toMatchObject({
+      description: "One result",
       priceAmount: 75_000,
       warrantyPolicy: { kind: "NO_WARRANTY" },
     });

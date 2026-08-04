@@ -68,7 +68,7 @@ interface CartItem {
       name: string;
       priceAmount: number;
       processingTimeHours: number;
-      scope: string;
+      description: string;
       status: "AVAILABLE" | "UNAVAILABLE";
     }[];
     serviceInputFields: CartField[];

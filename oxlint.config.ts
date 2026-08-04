@@ -40,7 +40,6 @@ export default defineConfig({
   rules: {
     "@workspace/select-requires-items": "error",
     "github/filenames-match-regex": "off",
-    "jsx-a11y/label-has-associated-control": "off",
     "react-doctor/nextjs-no-img-element": "off",
     "react-doctor/no-giant-component": "off",
     "react-doctor/react-compiler-no-manual-memoization": "off",

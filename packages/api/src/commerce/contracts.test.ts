@@ -108,16 +108,14 @@ describe("Listing contract checkout helpers", () => {
     const parsed = parseServicePackageContract(
       listing,
       {
+        description: "A larger delivered result",
         id: "package-1",
         name: "Premium",
         priceAmount: 250_000,
         processingTimeHours: 72,
-        scope: "A larger delivered result",
-        serviceInputFields: listing.serviceInputFields,
         warrantyPolicy: {
           durationHours: 72,
           kind: "TIMED",
-          terms: "Fix defects during the warranty window.",
         },
       },
       "10.00"
@@ -125,6 +123,9 @@ describe("Listing contract checkout helpers", () => {
 
     expect(parsed.priceAmount).toBe(250_000);
     expect(parsed.servicePackageSnapshot?.name).toBe("Premium");
+    expect(parsed.servicePackageSnapshot?.description).toBe(
+      "A larger delivered result"
+    );
     expect(parsed.fingerprint).toMatch(/^[a-f0-9]{64}$/u);
   });
 

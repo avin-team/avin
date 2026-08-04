@@ -39,7 +39,6 @@ export const warrantyPolicySchema = z.discriminatedUnion("kind", [
   z.object({
     durationHours: z.number().int().positive(),
     kind: z.literal("TIMED"),
-    terms: z.string().trim().min(1),
   }),
   z.object({
     kind: z.literal("NO_WARRANTY"),
@@ -49,11 +48,10 @@ export const warrantyPolicySchema = z.discriminatedUnion("kind", [
 export type WarrantyPolicy = z.infer<typeof warrantyPolicySchema>;
 
 export const servicePackageDraftSchema = z.object({
+  description: z.string().trim().min(1).max(10_000),
   name: z.string().trim().min(1).max(200),
   priceAmount: z.number().int().positive(),
   processingTimeHours: z.number().int().positive(),
-  scope: z.string().trim().min(1).max(10_000),
-  serviceInputFields: z.array(serviceInputFieldSchema).default([]),
   warrantyPolicy: warrantyPolicySchema,
 });
 
@@ -196,6 +194,7 @@ export const servicePackage = pgTable(
   "service_package",
   {
     createdAt: timestamp("created_at").defaultNow().notNull(),
+    description: text("description").notNull(),
     firstPublishedAt: timestamp("first_published_at"),
     id: uuid("id").defaultRandom().primaryKey(),
     listingId: uuid("listing_id")
@@ -204,11 +203,6 @@ export const servicePackage = pgTable(
     name: text("name").notNull(),
     priceAmount: integer("price_amount").notNull(),
     processingTimeHours: integer("processing_time_hours").notNull(),
-    scope: text("scope").notNull(),
-    serviceInputFields: jsonb("service_input_fields")
-      .$type<ServiceInputField[]>()
-      .default([])
-      .notNull(),
     status: servicePackageStatus("status").default("AVAILABLE").notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()

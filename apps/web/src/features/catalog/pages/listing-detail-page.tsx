@@ -304,7 +304,7 @@ export const ListingDetailPage = () => {
                         </span>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {selectedTimedWarranty.terms}
+                        Cam kết hỗ trợ xử lý sự cố trong suốt thời hạn bảo hành.
                       </p>
                     </div>
                   ) : null}

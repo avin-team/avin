@@ -1,11 +1,11 @@
 import { formatVND } from "@/utils/format";
 
 interface ServicePackageOption {
+  description: string;
   id: string;
   name: string;
   priceAmount: number;
   processingTimeHours: number;
-  scope: string;
 }
 
 export const ServicePackageSelector = ({
@@ -49,7 +49,7 @@ export const ServicePackageSelector = ({
       </select>
       {selectedPackage ? (
         <div className="space-y-1 text-xs text-muted-foreground">
-          <p>{selectedPackage.scope}</p>
+          <p>{selectedPackage.description}</p>
           <p>{selectedPackage.processingTimeHours} giờ xử lý</p>
         </div>
       ) : null}

@@ -180,7 +180,8 @@ export const OrderItemTimeline = ({
           </CardDescription>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">
-          {timeline.current.servicePackage.scope}
+          {timeline.current.servicePackage.description ??
+            timeline.current.servicePackage.scope}
         </CardContent>
       </Card>
     ) : null}

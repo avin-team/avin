@@ -6,6 +6,7 @@ import type {
   WarrantyPolicy,
 } from "@avin/db/schema/catalog";
 import type {
+  LegacyWarrantyPolicySnapshot,
   ListingSnapshot,
   ServicePackageSnapshot,
   WarrantyPolicySnapshot,
@@ -45,12 +46,11 @@ export interface ParsedListingContract {
 }
 
 export interface ServicePackageContractSource {
+  description: string;
   id: string;
   name: string;
   priceAmount: number;
   processingTimeHours: number;
-  scope: string;
-  serviceInputFields: unknown;
   warrantyPolicy: WarrantyPolicy;
 }
 
@@ -162,9 +162,8 @@ export const parseListingContract = (
   const serviceInputFields = parseServiceInputFields(source.serviceInputFields);
   const warrantyPolicy = {
     durationHours: source.warrantyDurationHours,
-    kind: "TIMED",
     terms: source.warrantyTerms,
-  } satisfies Extract<WarrantyPolicySnapshot, { kind: "TIMED" }>;
+  } satisfies LegacyWarrantyPolicySnapshot;
   const listingSnapshot = {
     categoryId: source.categoryId,
     description: source.description,
@@ -198,7 +197,6 @@ export const parseServicePackageContract = (
     ListingContractSource,
     | "priceAmount"
     | "processingTimeHours"
-    | "serviceInputFields"
     | "warrantyDurationHours"
     | "warrantyTerms"
   >,
@@ -224,7 +222,7 @@ export const parseServicePackageContract = (
     });
   }
 
-  if (!packageSource.name.trim() || !packageSource.scope.trim()) {
+  if (!packageSource.name.trim() || !packageSource.description.trim()) {
     throw new ORPCError("CONFLICT", {
       message: "Service package contract is incomplete.",
     });
@@ -239,8 +237,7 @@ export const parseServicePackageContract = (
   if (
     packageSource.warrantyPolicy.kind === "TIMED" &&
     (!Number.isInteger(packageSource.warrantyPolicy.durationHours) ||
-      packageSource.warrantyPolicy.durationHours <= 0 ||
-      !packageSource.warrantyPolicy.terms.trim())
+      packageSource.warrantyPolicy.durationHours <= 0)
   ) {
     throw new ORPCError("CONFLICT", {
       message: "Service package WarrantyPolicy is not available for checkout.",
@@ -248,7 +245,7 @@ export const parseServicePackageContract = (
   }
 
   const serviceInputFields = parseServiceInputFields(
-    packageSource.serviceInputFields
+    listingSource.serviceInputFields
   );
   const listingSnapshot = {
     categoryId: listingSource.categoryId,
@@ -260,12 +257,11 @@ export const parseServicePackageContract = (
     type: listingSource.type,
   } satisfies ListingSnapshot;
   const servicePackageSnapshot = {
+    description: packageSource.description,
     id: packageSource.id,
     name: packageSource.name,
     priceAmount: packageSource.priceAmount,
     processingTimeHours: packageSource.processingTimeHours,
-    scope: packageSource.scope,
-    serviceInputFields,
     warrantyPolicy: packageSource.warrantyPolicy,
   } satisfies ServicePackageSnapshot;
 

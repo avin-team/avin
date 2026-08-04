@@ -79,13 +79,12 @@ interface SelectedListingRow {
   parentCategoryStatus: "ACTIVE" | "ARCHIVED" | "HIDDEN";
   processingTimeHours: number | null;
   selectedPackageId: string | null;
+  servicePackageDescription: string | null;
   servicePackageId: string | null;
   servicePackageListingId: string | null;
   servicePackageName: string | null;
   servicePackagePriceAmount: number | null;
   servicePackageProcessingTimeHours: number | null;
-  servicePackageScope: string | null;
-  servicePackageInputFields: unknown;
   servicePackageStatus: "AVAILABLE" | "UNAVAILABLE" | null;
   servicePackageWarrantyPolicy: WarrantyPolicy | null;
   sellerBanned: boolean;
@@ -137,13 +136,12 @@ const getSelectedListingRows = async (
       sellerBanned: userTable.banned,
       sellerId: listing.sellerId,
       serviceInputFields: listing.serviceInputFields,
+      servicePackageDescription: servicePackage.description,
       servicePackageId: servicePackage.id,
-      servicePackageInputFields: servicePackage.serviceInputFields,
       servicePackageListingId: servicePackage.listingId,
       servicePackageName: servicePackage.name,
       servicePackagePriceAmount: servicePackage.priceAmount,
       servicePackageProcessingTimeHours: servicePackage.processingTimeHours,
-      servicePackageScope: servicePackage.scope,
       servicePackageStatus: servicePackage.status,
       servicePackageWarrantyPolicy: servicePackage.warrantyPolicy,
       warrantyDurationHours: listing.warrantyDurationHours,
@@ -207,13 +205,12 @@ const getSelectedListingRows = async (
     if (!selectedPackage) {
       continue;
     }
+    row.servicePackageDescription = selectedPackage.description;
     row.servicePackageId = selectedPackage.id;
-    row.servicePackageInputFields = selectedPackage.serviceInputFields;
     row.servicePackageListingId = selectedPackage.listingId;
     row.servicePackageName = selectedPackage.name;
     row.servicePackagePriceAmount = selectedPackage.priceAmount;
     row.servicePackageProcessingTimeHours = selectedPackage.processingTimeHours;
-    row.servicePackageScope = selectedPackage.scope;
     row.servicePackageStatus = selectedPackage.status;
     row.servicePackageWarrantyPolicy = selectedPackage.warrantyPolicy;
   }
@@ -382,7 +379,7 @@ const prepareCheckoutItems = (
         row.servicePackageId !== row.selectedPackageId ||
         row.servicePackageListingId !== row.listingId ||
         !row.servicePackageName ||
-        !row.servicePackageScope ||
+        !row.servicePackageDescription ||
         row.servicePackagePriceAmount === null ||
         row.servicePackageProcessingTimeHours === null ||
         row.servicePackageStatus !== "AVAILABLE" ||
@@ -399,18 +396,18 @@ const prepareCheckoutItems = (
           description: row.description,
           images: row.images,
           sellerId: row.sellerId,
+          serviceInputFields: row.serviceInputFields,
           slug: row.listingSlug,
           thumbnailUrl: row.listingThumbnailUrl,
           title: row.listingTitle,
           type: row.listingType,
         },
         {
+          description: row.servicePackageDescription,
           id: row.servicePackageId,
           name: row.servicePackageName,
           priceAmount: row.servicePackagePriceAmount,
           processingTimeHours: row.servicePackageProcessingTimeHours,
-          scope: row.servicePackageScope,
-          serviceInputFields: row.servicePackageInputFields,
           warrantyPolicy: row.servicePackageWarrantyPolicy,
         },
         row.commissionRatePercent

@@ -39,12 +39,13 @@ export type WarrantyPolicySnapshot =
   | LegacyWarrantyPolicySnapshot;
 
 export interface ServicePackageSnapshot {
+  description: string;
   id: string;
   name: string;
   priceAmount: number;
   processingTimeHours: number;
-  scope: string;
-  serviceInputFields: ServiceInputField[];
+  scope?: string;
+  serviceInputFields?: ServiceInputField[];
   warrantyPolicy: WarrantyPolicySnapshot;
 }
 

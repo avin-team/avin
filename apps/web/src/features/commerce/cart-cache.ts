@@ -43,6 +43,11 @@ export const addCartItemOptimistically = (
     (packageItem) => packageItem.id === selectedPackageId
   );
   const packageWarranty = selectedPackage?.warrantyPolicy;
+  let { warrantyTerms } = listing;
+  if (packageWarranty?.kind === "TIMED" && "terms" in packageWarranty) {
+    warrantyTerms = (packageWarranty as { terms?: string }).terms ?? null;
+  }
+
   const optimisticItem: CartView["items"][number] = {
     available: true,
     cartItemId: `optimistic-${listing.id}`,
@@ -55,8 +60,7 @@ export const addCartItemOptimistically = (
       priceAmount: selectedPackage?.priceAmount ?? listing.priceAmount,
       processingTimeHours:
         selectedPackage?.processingTimeHours ?? listing.processingTimeHours,
-      serviceInputFields:
-        selectedPackage?.serviceInputFields ?? listing.serviceInputFields ?? [],
+      serviceInputFields: listing.serviceInputFields ?? [],
       servicePackages,
       slug: listing.slug,
       thumbnailUrl: listing.thumbnailUrl,
@@ -66,10 +70,7 @@ export const addCartItemOptimistically = (
         packageWarranty?.kind === "TIMED"
           ? packageWarranty.durationHours
           : listing.warrantyDurationHours,
-      warrantyTerms:
-        packageWarranty?.kind === "TIMED"
-          ? packageWarranty.terms
-          : listing.warrantyTerms,
+      warrantyTerms,
     },
     selected: true,
     selectedPackageId: selectedPackage?.id ?? selectedPackageId ?? null,
