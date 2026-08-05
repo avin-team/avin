@@ -21,6 +21,7 @@ import { Route as errors503RouteImport } from './routes/(errors)/503'
 import { Route as publicIndexRouteImport } from './routes/(public)/index'
 import { Route as AuthenticatedAiRouteImport } from './routes/_authenticated/ai'
 import { Route as AuthenticatedCartRouteImport } from './routes/_authenticated/cart'
+import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/chat'
 import { Route as AuthenticatedSecurityRouteImport } from './routes/_authenticated/security'
 import { Route as AuthenticatedTwoFactorRouteImport } from './routes/_authenticated/two-factor'
 import { Route as authSellerLoginRouteImport } from './routes/(auth)/seller/login'
@@ -93,6 +94,11 @@ const AuthenticatedAiRoute = AuthenticatedAiRouteImport.update({
 const AuthenticatedCartRoute = AuthenticatedCartRouteImport.update({
   id: '/cart',
   path: '/cart',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedChatRoute = AuthenticatedChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedSecurityRoute = AuthenticatedSecurityRouteImport.update({
@@ -195,6 +201,7 @@ export interface FileRoutesByFullPath {
   '/503': typeof errors503Route
   '/ai': typeof AuthenticatedAiRoute
   '/cart': typeof AuthenticatedCartRoute
+  '/chat': typeof AuthenticatedChatRoute
   '/security': typeof AuthenticatedSecurityRoute
   '/two-factor': typeof AuthenticatedTwoFactorRoute
   '/seller/login': typeof authSellerLoginRoute
@@ -222,6 +229,7 @@ export interface FileRoutesByTo {
   '/503': typeof errors503Route
   '/ai': typeof AuthenticatedAiRoute
   '/cart': typeof AuthenticatedCartRoute
+  '/chat': typeof AuthenticatedChatRoute
   '/security': typeof AuthenticatedSecurityRoute
   '/two-factor': typeof AuthenticatedTwoFactorRoute
   '/seller/login': typeof authSellerLoginRoute
@@ -252,6 +260,7 @@ export interface FileRoutesById {
   '/(errors)/503': typeof errors503Route
   '/_authenticated/ai': typeof AuthenticatedAiRoute
   '/_authenticated/cart': typeof AuthenticatedCartRoute
+  '/_authenticated/chat': typeof AuthenticatedChatRoute
   '/_authenticated/security': typeof AuthenticatedSecurityRoute
   '/_authenticated/two-factor': typeof AuthenticatedTwoFactorRoute
   '/(public)/': typeof publicIndexRoute
@@ -282,6 +291,7 @@ export interface FileRouteTypes {
     | '/503'
     | '/ai'
     | '/cart'
+    | '/chat'
     | '/security'
     | '/two-factor'
     | '/seller/login'
@@ -309,6 +319,7 @@ export interface FileRouteTypes {
     | '/503'
     | '/ai'
     | '/cart'
+    | '/chat'
     | '/security'
     | '/two-factor'
     | '/seller/login'
@@ -338,6 +349,7 @@ export interface FileRouteTypes {
     | '/(errors)/503'
     | '/_authenticated/ai'
     | '/_authenticated/cart'
+    | '/_authenticated/chat'
     | '/_authenticated/security'
     | '/_authenticated/two-factor'
     | '/(public)/'
@@ -452,6 +464,13 @@ declare module '@tanstack/react-router' {
       path: '/cart'
       fullPath: '/cart'
       preLoaderRoute: typeof AuthenticatedCartRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/chat': {
+      id: '/_authenticated/chat'
+      path: '/chat'
+      fullPath: '/chat'
+      preLoaderRoute: typeof AuthenticatedChatRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/security': {
@@ -620,6 +639,7 @@ const AuthenticatedSellerListingsRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAiRoute: typeof AuthenticatedAiRoute
   AuthenticatedCartRoute: typeof AuthenticatedCartRoute
+  AuthenticatedChatRoute: typeof AuthenticatedChatRoute
   AuthenticatedSecurityRoute: typeof AuthenticatedSecurityRoute
   AuthenticatedTwoFactorRoute: typeof AuthenticatedTwoFactorRoute
   AuthenticatedOrdersIdRoute: typeof AuthenticatedOrdersIdRoute
@@ -635,6 +655,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAiRoute: AuthenticatedAiRoute,
   AuthenticatedCartRoute: AuthenticatedCartRoute,
+  AuthenticatedChatRoute: AuthenticatedChatRoute,
   AuthenticatedSecurityRoute: AuthenticatedSecurityRoute,
   AuthenticatedTwoFactorRoute: AuthenticatedTwoFactorRoute,
   AuthenticatedOrdersIdRoute: AuthenticatedOrdersIdRoute,

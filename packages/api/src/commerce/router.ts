@@ -2,6 +2,7 @@ import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 
 import {
+  auditedAdminProcedure,
   buyerProcedure,
   protectedProcedure,
   sellerProcedure,
@@ -13,6 +14,14 @@ import {
   setCartItemPackage,
   setCartItemSelected,
 } from "./cart";
+import {
+  getAfterMessages,
+  getUnreadCount,
+  listMessages,
+  markChatRead,
+  redactMessage,
+  sendMessage,
+} from "./chat";
 import { checkoutInputSchema, createCheckout } from "./checkout";
 import {
   cancelByBuyer,
@@ -33,6 +42,28 @@ import { getBuyerOrders, getSellerOrders } from "./orders";
 const listingIdInput = z.object({ listingId: z.uuid() });
 const packageSelectionInput = listingIdInput.extend({ packageId: z.uuid() });
 const orderItemIdInput = z.object({ itemId: z.uuid() });
+
+const sendMessageInputSchema = z.object({
+  attachmentFileIds: z.array(z.uuid()).max(5).optional(),
+  content: z.string().max(2000).optional().nullable(),
+  orderId: z.uuid(),
+});
+
+const listMessagesInputSchema = z.object({
+  before: z.uuid().optional(),
+  limit: z.number().min(1).max(50).optional(),
+  orderId: z.uuid(),
+});
+
+const getAfterMessagesInputSchema = z.object({
+  after: z.uuid(),
+  orderId: z.uuid(),
+});
+
+const markChatReadInputSchema = z.object({
+  messageId: z.uuid(),
+  orderId: z.uuid(),
+});
 
 const orderItemCommandInput = orderItemIdInput.extend(
   fulfillmentCommandInputSchema.shape
@@ -98,6 +129,71 @@ export const commerceRouter = {
           input.listingId,
           input.selected
         )
+      ),
+  },
+
+  chat: {
+    getAfter: protectedProcedure
+      .input(getAfterMessagesInputSchema)
+      .handler(({ context, input }) =>
+        getAfterMessages({
+          database: context.db,
+          input,
+          userId: context.session.user.id,
+          userRole: context.session.user.role,
+        })
+      ),
+
+    getUnreadCount: protectedProcedure
+      .input(z.object({ orderId: z.uuid() }))
+      .handler(({ context, input }) =>
+        getUnreadCount({
+          database: context.db,
+          orderId: input.orderId,
+          userId: context.session.user.id,
+        })
+      ),
+
+    listMessages: protectedProcedure
+      .input(listMessagesInputSchema)
+      .handler(({ context, input }) =>
+        listMessages({
+          database: context.db,
+          input,
+          userId: context.session.user.id,
+          userRole: context.session.user.role,
+        })
+      ),
+
+    markRead: protectedProcedure
+      .input(markChatReadInputSchema)
+      .handler(({ context, input }) =>
+        markChatRead({
+          database: context.db,
+          input,
+          userId: context.session.user.id,
+        })
+      ),
+
+    redactMessage: auditedAdminProcedure("chat.redactMessage")
+      .input(z.object({ messageId: z.uuid() }))
+      .handler(({ context, input }) =>
+        redactMessage({
+          adminUserId: context.session.user.id,
+          database: context.db,
+          input,
+        })
+      ),
+
+    sendMessage: protectedProcedure
+      .input(sendMessageInputSchema)
+      .handler(({ context, input }) =>
+        sendMessage({
+          database: context.db,
+          input,
+          userId: context.session.user.id,
+          userRole: context.session.user.role,
+        })
       ),
   },
 

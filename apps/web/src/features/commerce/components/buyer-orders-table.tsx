@@ -146,9 +146,13 @@ export const BuyerOrdersTable = ({ orders }: BuyerOrdersTableProps) => {
   // Flatten items for table row representation
   const allItems = useMemo(
     () =>
-      orders.flatMap((order) =>
-        order.items.map((item) => ({ ...item, order }))
-      ),
+      orders
+        .flatMap((order) => order.items.map((item) => ({ ...item, order })))
+        .sort(
+          (a, b) =>
+            new Date(b.order.createdAt).getTime() -
+            new Date(a.order.createdAt).getTime()
+        ),
     [orders]
   );
 

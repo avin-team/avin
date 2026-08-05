@@ -4,6 +4,8 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
 import * as schema from "./schema";
 
+export * from "./uuid";
+
 export const createDb = (): NodePgDatabase<typeof schema> =>
   drizzle(env.DATABASE_URL, { schema });
 

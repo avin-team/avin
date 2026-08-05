@@ -8,6 +8,7 @@ import {
   numeric,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -79,6 +80,18 @@ export const escrowHoldStatus = pgEnum("escrow_hold_status", [
   "RELEASED",
   "REFUNDED",
   "CANCELLED",
+]);
+
+export const orderMessageSenderRole = pgEnum("order_message_sender_role", [
+  "buyer",
+  "seller",
+  "admin",
+]);
+
+export const orderMessageType = pgEnum("order_message_type", [
+  "text",
+  "system",
+  "admin_mediation",
 ]);
 
 export const cart = pgTable(
@@ -272,6 +285,55 @@ export const deliverySubmission = pgTable(
   ]
 );
 
+export const orderMessage = pgTable(
+  "order_message",
+  {
+    content: text("content"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    id: uuid("id").primaryKey(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => order.id, { onDelete: "restrict" }),
+    redactedAt: timestamp("redacted_at"),
+    redactedByUserId: text("redacted_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    senderId: text("sender_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    senderRole: orderMessageSenderRole("sender_role").notNull(),
+    type: orderMessageType("type").default("text").notNull(),
+  },
+  (table) => [
+    index("order_message_order_idx").on(table.orderId),
+    index("order_message_order_created_idx").on(table.orderId, table.createdAt),
+  ]
+);
+
+export const chatReadCursor = pgTable(
+  "chat_read_cursor",
+  {
+    lastReadMessageId: uuid("last_read_message_id").references(
+      () => orderMessage.id,
+      { onDelete: "set null" }
+    ),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => order.id, { onDelete: "cascade" }),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.orderId, table.userId] }),
+    index("chat_read_cursor_order_user_idx").on(table.orderId, table.userId),
+  ]
+);
+
 export const orderFile = pgTable(
   "order_file",
   {
@@ -290,6 +352,9 @@ export const orderFile = pgTable(
     orderItemId: uuid("order_item_id").references(() => orderItem.id, {
       onDelete: "restrict",
     }),
+    orderMessageId: uuid("order_message_id").references(() => orderMessage.id, {
+      onDelete: "set null",
+    }),
     storageKey: text("storage_key").notNull(),
     uploadedByUserId: text("uploaded_by_user_id")
       .notNull()
@@ -299,6 +364,7 @@ export const orderFile = pgTable(
     index("order_file_order_idx").on(table.orderId),
     index("order_file_order_item_idx").on(table.orderItemId),
     index("order_file_delivery_submission_idx").on(table.deliverySubmissionId),
+    index("order_file_order_message_idx").on(table.orderMessageId),
     uniqueIndex("order_file_storage_key_unique_idx").on(table.storageKey),
   ]
 );
@@ -521,6 +587,10 @@ export const orderFileRelations = relations(orderFile, ({ one }) => ({
     fields: [orderFile.orderItemId],
     references: [orderItem.id],
   }),
+  orderMessage: one(orderMessage, {
+    fields: [orderFile.orderMessageId],
+    references: [orderMessage.id],
+  }),
   uploadedBy: one(user, {
     fields: [orderFile.uploadedByUserId],
     references: [user.id],
@@ -575,5 +645,39 @@ export const escrowHoldRelations = relations(escrowHold, ({ one }) => ({
   purchaseTransaction: one(ledgerTransaction, {
     fields: [escrowHold.purchaseTransactionId],
     references: [ledgerTransaction.id],
+  }),
+}));
+
+export const orderMessageRelations = relations(
+  orderMessage,
+  ({ many, one }) => ({
+    attachments: many(orderFile),
+    order: one(order, {
+      fields: [orderMessage.orderId],
+      references: [order.id],
+    }),
+    redactedBy: one(user, {
+      fields: [orderMessage.redactedByUserId],
+      references: [user.id],
+    }),
+    sender: one(user, {
+      fields: [orderMessage.senderId],
+      references: [user.id],
+    }),
+  })
+);
+
+export const chatReadCursorRelations = relations(chatReadCursor, ({ one }) => ({
+  lastReadMessage: one(orderMessage, {
+    fields: [chatReadCursor.lastReadMessageId],
+    references: [orderMessage.id],
+  }),
+  order: one(order, {
+    fields: [chatReadCursor.orderId],
+    references: [order.id],
+  }),
+  user: one(user, {
+    fields: [chatReadCursor.userId],
+    references: [user.id],
   }),
 }));

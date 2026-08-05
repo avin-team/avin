@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { siteConfig } from "@/config/site";
 import { UserMenu } from "@/features/auth/components/user-menu";
+import { ChatButton } from "@/features/chat/components/chat-button";
 import { CartButton } from "@/features/commerce/components/cart-button";
 import { WalletButton } from "@/features/wallet/components/wallet-button";
 
@@ -102,6 +103,8 @@ export const Header = () => {
               <WalletButton />
 
               <CartButton />
+
+              <ChatButton />
 
               <div className="hidden lg:block">
                 <UserMenu />

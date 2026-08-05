@@ -8,20 +8,23 @@ import {
   ArrowClockwise,
   ArrowLeft,
   Calendar,
+  ChatTeardropText,
   Receipt,
   Storefront,
   WarningCircle,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "@tanstack/react-router";
+import * as React from "react";
 
 import { Shell } from "@/components/shell";
 import { BuyerOrderItemCard } from "@/features/commerce/components/buyer-order-item-card";
+import { OrderChatPanel } from "@/features/commerce/components/order-chat-panel";
 import {
   formatOrderDate,
+  getOrderItemStatusColorClassName,
   getOrderItemStatusLabel,
   getOrderItemStatusVariant,
-  getOrderItemStatusColorClassName,
 } from "@/features/commerce/order-status";
 import { formatVND } from "@/utils/format";
 import { orpc } from "@/utils/orpc";
@@ -108,7 +111,7 @@ export const OrderDetailPage = () => {
 
   return (
     <Shell variant="default">
-      <div className="flex flex-col gap-6 py-8">
+      <div className="flex flex-col gap-6 py-8 pb-24">
         {/* Navigation Top Bar */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/60 pb-4">
           <div className="flex items-center gap-3">
@@ -186,8 +189,25 @@ export const OrderDetailPage = () => {
           </CardContent>
         </Card>
 
-        {/* Main Item Actions, Timeline Log & Evidence */}
-        <BuyerOrderItemCard item={targetItem} />
+        {/* Split layout: order detail left, chat right */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="lg:col-span-7 flex flex-col gap-6">
+            <BuyerOrderItemCard item={targetItem} />
+          </div>
+          <div className="lg:col-span-5 sticky top-20">
+            <div className="flex flex-col gap-2">
+              <h2 className="text-base font-semibold flex items-center gap-2">
+                <ChatTeardropText className="h-4 w-4 text-primary" />
+                <span>Trao đổi với Người bán</span>
+              </h2>
+              <OrderChatPanel
+                heightClass="h-[520px]"
+                orderId={targetOrder.id}
+                sellerName={targetOrder.seller.name}
+              />
+            </div>
+          </div>
+        </div>
       </div>
     </Shell>
   );

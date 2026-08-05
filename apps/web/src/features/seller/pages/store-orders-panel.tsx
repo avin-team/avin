@@ -48,6 +48,7 @@ type OrderItemFlat = SellerOrderView["items"][number] & {
     name: string;
   };
   buyerId: string;
+  orderCreatedAt: string;
   orderId: string;
 };
 
@@ -153,15 +154,22 @@ export const StoreOrdersPanel = () => {
   // Flatten all items for high-density operational view
   const allItems: OrderItemFlat[] = useMemo(
     () =>
-      (ordersQuery.data ?? []).flatMap((o) => {
-        const buyerObj = (o as { buyer?: OrderItemFlat["buyer"] }).buyer;
-        return o.items.map((i) => ({
-          ...i,
-          buyer: buyerObj,
-          buyerId: o.buyerId,
-          orderId: o.id,
-        }));
-      }),
+      (ordersQuery.data ?? [])
+        .flatMap((o) => {
+          const buyerObj = (o as { buyer?: OrderItemFlat["buyer"] }).buyer;
+          return o.items.map((i) => ({
+            ...i,
+            buyer: buyerObj,
+            buyerId: o.buyerId,
+            orderCreatedAt: o.createdAt,
+            orderId: o.id,
+          }));
+        })
+        .sort(
+          (a, b) =>
+            new Date(b.orderCreatedAt).getTime() -
+            new Date(a.orderCreatedAt).getTime()
+        ),
     [ordersQuery.data]
   );
 

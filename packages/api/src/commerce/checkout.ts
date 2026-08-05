@@ -146,7 +146,7 @@ const getSelectedListingRows = async (
     .leftJoin(servicePackage, eq(cartItem.servicePackageId, servicePackage.id))
     .where(and(eq(cart.userId, userId), eq(cartItem.selected, true)))
     .orderBy(asc(cartItem.createdAt), asc(cartItem.id))
-    .for("update");
+    .for("update", { of: cartItem });
 
   const serviceListingIds: string[] = [];
   for (const row of rows) {
