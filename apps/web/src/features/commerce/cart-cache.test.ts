@@ -153,6 +153,7 @@ describe("cart cache optimistic updates", () => {
             priceAmount: 100_000,
             processingTimeHours: 24,
             status: "AVAILABLE",
+            warrantyPolicy: { kind: "NO_WARRANTY" },
           },
           {
             description: "Pkg 2",
@@ -161,6 +162,7 @@ describe("cart cache optimistic updates", () => {
             priceAmount: 250_000,
             processingTimeHours: 48,
             status: "AVAILABLE",
+            warrantyPolicy: { kind: "NO_WARRANTY" },
           },
         ],
       },

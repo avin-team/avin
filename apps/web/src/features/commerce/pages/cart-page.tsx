@@ -220,11 +220,7 @@ export const CartItemCard = ({
                   <LockKeyhole className="size-3.5 text-primary" />
                   Escrow bảo vệ
                 </span>
-                {item.available ? (
-                  <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                    Đang có thể mua
-                  </span>
-                ) : (
+                {item.available ? null : (
                   <span className="font-medium text-destructive">
                     Không còn khả dụng
                   </span>
@@ -346,7 +342,11 @@ export const CartPage = () => {
   );
   const packageMutation = useMutation({
     ...orpc.commerce.cart.selectPackage.mutationOptions(),
-    onError: (error, _variables, context) => {
+    onError: (
+      error,
+      _variables,
+      context: { previousCart?: CartView } | undefined
+    ) => {
       if (context?.previousCart) {
         queryClient.setQueryData(
           orpc.commerce.cart.get.queryOptions().queryKey,
