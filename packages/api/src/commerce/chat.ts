@@ -2,7 +2,7 @@
 
 import { generateUuidV7 } from "@avin/db";
 import type { db } from "@avin/db";
-import { user } from "@avin/db/schema/auth";
+import { auditLog, user } from "@avin/db/schema/auth";
 import {
   chatReadCursor,
   dispute,
@@ -71,6 +71,45 @@ export interface RedactMessageOptions {
   adminUserId: string;
   database: typeof db;
   input: RedactMessageInput;
+}
+
+export interface GetRealtimeTokenInput {
+  orderId: string;
+}
+
+export interface GetRealtimeTokenOptions {
+  database: typeof db;
+  input: GetRealtimeTokenInput;
+  userId: string;
+  userRole?: string | null;
+}
+
+async function assertCanReadChat({
+  database,
+  orderRecord,
+  userId,
+  userRole,
+}: {
+  database: typeof db;
+  orderRecord: { buyerId: string; sellerId: string };
+  userId: string;
+  userRole?: string | null;
+}): Promise<{ isAdmin: boolean }> {
+  const isAdmin = userRole === "ADMIN";
+  if (userId === orderRecord.sellerId) {
+    const sellerUser = await database.query.user.findFirst({
+      where: eq(user.id, userId),
+    });
+    if (sellerUser?.banned) {
+      throw new ORPCError("FORBIDDEN", {
+        message: "Banned seller cannot access order chat",
+      });
+    }
+  } else if (userId !== orderRecord.buyerId && !isAdmin) {
+    throw new ORPCError("FORBIDDEN", { message: "Not authorized" });
+  }
+
+  return { isAdmin };
 }
 
 async function resolveSenderRoleAndType({
@@ -247,18 +286,25 @@ export async function listMessages({
     throw new ORPCError("NOT_FOUND", { message: "Order not found" });
   }
 
-  const isAdmin = userRole === "ADMIN";
-  if (userId === existingOrder.sellerId) {
-    const sellerUser = await database.query.user.findFirst({
-      where: eq(user.id, userId),
+  const { isAdmin } = await assertCanReadChat({
+    database,
+    orderRecord: existingOrder,
+    userId,
+    userRole,
+  });
+
+  if (
+    isAdmin &&
+    userId !== existingOrder.buyerId &&
+    userId !== existingOrder.sellerId
+  ) {
+    await database.insert(auditLog).values({
+      action: "chat.readMessages",
+      actorUserId: userId,
+      outcome: "SUCCESS",
+      targetId: input.orderId,
+      targetType: "order_chat",
     });
-    if (sellerUser?.banned) {
-      throw new ORPCError("FORBIDDEN", {
-        message: "Banned seller cannot access order chat",
-      });
-    }
-  } else if (userId !== existingOrder.buyerId && !isAdmin) {
-    throw new ORPCError("FORBIDDEN", { message: "Not authorized" });
   }
 
   const limit = Math.min(Math.max(input.limit ?? 30, 1), 50);
@@ -277,17 +323,17 @@ export async function listMessages({
     },
   });
 
-  const processedMessages = messages.map(
-    (msg: typeof orderMessage.$inferSelect) => {
-      if (msg.redactedAt && !isAdmin) {
-        return {
-          ...msg,
-          content: "[Tin nhắn đã bị ẩn bởi quản trị viên]",
-        };
-      }
-      return msg;
+  const processedMessages = messages.map((msg) => {
+    if (msg.redactedAt && !isAdmin) {
+      return {
+        ...msg,
+        attachments: [],
+        content: "[Tin nhắn đã bị ẩn bởi quản trị viên]",
+        redactedByUserId: null,
+      };
     }
-  );
+    return msg;
+  });
 
   const nextCursor =
     processedMessages.length === limit
@@ -314,18 +360,25 @@ export async function getAfterMessages({
     throw new ORPCError("NOT_FOUND", { message: "Order not found" });
   }
 
-  const isAdmin = userRole === "ADMIN";
-  if (userId === existingOrder.sellerId) {
-    const sellerUser = await database.query.user.findFirst({
-      where: eq(user.id, userId),
+  const { isAdmin } = await assertCanReadChat({
+    database,
+    orderRecord: existingOrder,
+    userId,
+    userRole,
+  });
+
+  if (
+    isAdmin &&
+    userId !== existingOrder.buyerId &&
+    userId !== existingOrder.sellerId
+  ) {
+    await database.insert(auditLog).values({
+      action: "chat.readMessages",
+      actorUserId: userId,
+      outcome: "SUCCESS",
+      targetId: input.orderId,
+      targetType: "order_chat",
     });
-    if (sellerUser?.banned) {
-      throw new ORPCError("FORBIDDEN", {
-        message: "Banned seller cannot access order chat",
-      });
-    }
-  } else if (userId !== existingOrder.buyerId && !isAdmin) {
-    throw new ORPCError("FORBIDDEN", { message: "Not authorized" });
   }
 
   const messages = await database.query.orderMessage.findMany({
@@ -339,11 +392,13 @@ export async function getAfterMessages({
     },
   });
 
-  return messages.map((msg: typeof orderMessage.$inferSelect) => {
+  return messages.map((msg) => {
     if (msg.redactedAt && !isAdmin) {
       return {
         ...msg,
+        attachments: [],
         content: "[Tin nhắn đã bị ẩn bởi quản trị viên]",
+        redactedByUserId: null,
       };
     }
     return msg;
@@ -363,9 +418,11 @@ export async function markChatRead({
     throw new ORPCError("NOT_FOUND", { message: "Order not found" });
   }
 
-  if (userId !== existingOrder.buyerId && userId !== existingOrder.sellerId) {
-    throw new ORPCError("FORBIDDEN", { message: "Not authorized" });
-  }
+  await assertCanReadChat({
+    database,
+    orderRecord: existingOrder,
+    userId,
+  });
 
   await database
     .insert(chatReadCursor)
@@ -395,6 +452,20 @@ export async function getUnreadCount({
   orderId: string;
   userId: string;
 }) {
+  const existingOrder = await database.query.order.findFirst({
+    where: eq(order.id, orderId),
+  });
+
+  if (!existingOrder) {
+    throw new ORPCError("NOT_FOUND", { message: "Order not found" });
+  }
+
+  await assertCanReadChat({
+    database,
+    orderRecord: existingOrder,
+    userId,
+  });
+
   const cursorRecord = await database.query.chatReadCursor.findFirst({
     where: and(
       eq(chatReadCursor.orderId, orderId),
@@ -440,4 +511,31 @@ export async function redactMessage({
     .returning();
 
   return updated;
+}
+
+export async function getRealtimeToken({
+  database,
+  input,
+  userId,
+  userRole,
+}: GetRealtimeTokenOptions) {
+  const existingOrder = await database.query.order.findFirst({
+    where: eq(order.id, input.orderId),
+  });
+
+  if (!existingOrder) {
+    throw new ORPCError("NOT_FOUND", { message: "Order not found" });
+  }
+
+  await assertCanReadChat({
+    database,
+    orderRecord: existingOrder,
+    userId,
+    userRole,
+  });
+
+  return {
+    channel: `order:${input.orderId}`,
+    expiresInSeconds: 600,
+  };
 }

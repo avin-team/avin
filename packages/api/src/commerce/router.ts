@@ -16,6 +16,7 @@ import {
 } from "./cart";
 import {
   getAfterMessages,
+  getRealtimeToken,
   getUnreadCount,
   listMessages,
   markChatRead,
@@ -137,6 +138,17 @@ export const commerceRouter = {
       .input(getAfterMessagesInputSchema)
       .handler(({ context, input }) =>
         getAfterMessages({
+          database: context.db,
+          input,
+          userId: context.session.user.id,
+          userRole: context.session.user.role,
+        })
+      ),
+
+    getRealtimeToken: protectedProcedure
+      .input(z.object({ orderId: z.uuid() }))
+      .handler(({ context, input }) =>
+        getRealtimeToken({
           database: context.db,
           input,
           userId: context.session.user.id,

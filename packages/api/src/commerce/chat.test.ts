@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   getAfterMessages,
+  getRealtimeToken,
   getUnreadCount,
   listMessages,
   markChatRead,
@@ -83,12 +84,14 @@ describe("Order Chat Logic", () => {
     ...overrides,
   });
 
+  type MockDatabase = Parameters<typeof sendMessage>[0]["database"];
+
   it("rejects empty messages without content or attachments", async () => {
-    const db = createMockDb() as unknown as typeof db;
+    const mockDb = createMockDb() as unknown as MockDatabase;
 
     await expect(
       sendMessage({
-        database: db,
+        database: mockDb,
         input: { content: "   ", orderId },
         userId: buyerId,
       })
@@ -96,11 +99,11 @@ describe("Order Chat Logic", () => {
   });
 
   it("rejects messages exceeding 2000 characters", async () => {
-    const db = createMockDb() as unknown as typeof db;
+    const mockDb = createMockDb() as unknown as MockDatabase;
 
     await expect(
       sendMessage({
-        database: db,
+        database: mockDb,
         input: { content: "a".repeat(2001), orderId },
         userId: buyerId,
       })
@@ -108,11 +111,11 @@ describe("Order Chat Logic", () => {
   });
 
   it("rejects messages with more than 5 attachments", async () => {
-    const db = createMockDb() as unknown as typeof db;
+    const mockDb = createMockDb() as unknown as MockDatabase;
 
     await expect(
       sendMessage({
-        database: db,
+        database: mockDb,
         input: {
           attachmentFileIds: ["1", "2", "3", "4", "5", "6"],
           content: "Hi",
@@ -124,10 +127,10 @@ describe("Order Chat Logic", () => {
   });
 
   it("allows Buyer of order to send message", async () => {
-    const db = createMockDb() as unknown as typeof db;
+    const mockDb = createMockDb() as unknown as MockDatabase;
 
     const result = await sendMessage({
-      database: db,
+      database: mockDb,
       input: { content: "Hello seller", orderId },
       userId: buyerId,
     });
@@ -139,7 +142,7 @@ describe("Order Chat Logic", () => {
   });
 
   it("rejects Banned seller from sending messages", async () => {
-    const db = createMockDb({
+    const mockDb = createMockDb({
       query: {
         order: {
           findFirst: vi.fn().mockResolvedValue({
@@ -152,11 +155,11 @@ describe("Order Chat Logic", () => {
           findFirst: vi.fn().mockResolvedValue({ banned: true, id: sellerId }),
         },
       },
-    }) as unknown as typeof db;
+    }) as unknown as MockDatabase;
 
     await expect(
       sendMessage({
-        database: db,
+        database: mockDb,
         input: { content: "I am seller", orderId },
         userId: sellerId,
       })
@@ -164,7 +167,7 @@ describe("Order Chat Logic", () => {
   });
 
   it("allows Admin to send message ONLY during an open dispute", async () => {
-    const dbNoDispute = createMockDb() as unknown as typeof db;
+    const dbNoDispute = createMockDb() as unknown as MockDatabase;
 
     await expect(
       sendMessage({
@@ -191,7 +194,7 @@ describe("Order Chat Logic", () => {
           findMany: vi.fn().mockResolvedValue([{ id: "item_1" }]),
         },
       },
-    }) as unknown as typeof db;
+    }) as unknown as MockDatabase;
 
     const result = await sendMessage({
       database: dbWithDispute,
@@ -203,8 +206,9 @@ describe("Order Chat Logic", () => {
     expect(result).toBeDefined();
   });
 
-  it("obscures redacted message content for non-admin viewers", async () => {
+  it("obscures redacted message content and masks attachments & admin metadata for non-admin viewers", async () => {
     const redactedMsg = {
+      attachments: [{ id: "file_1", name: "secret.pdf" }],
       content: "Secret offensive text",
       id: "018f3b4c-9f88-7777-8000-000000000010",
       orderId,
@@ -214,7 +218,7 @@ describe("Order Chat Logic", () => {
       senderRole: "buyer",
     };
 
-    const db = createMockDb({
+    const mockDb = createMockDb({
       query: {
         order: {
           findFirst: vi.fn().mockResolvedValue({
@@ -227,10 +231,10 @@ describe("Order Chat Logic", () => {
           findMany: vi.fn().mockResolvedValue([redactedMsg]),
         },
       },
-    }) as unknown as typeof db;
+    }) as unknown as MockDatabase;
 
     const buyerView = await listMessages({
-      database: db,
+      database: mockDb,
       input: { orderId },
       userId: buyerId,
     });
@@ -238,15 +242,19 @@ describe("Order Chat Logic", () => {
     expect(buyerView.messages[0]?.content).toBe(
       "[Tin nhắn đã bị ẩn bởi quản trị viên]"
     );
+    expect(buyerView.messages[0]?.attachments).toEqual([]);
+    expect(buyerView.messages[0]?.redactedByUserId).toBeNull();
 
     const adminView = await listMessages({
-      database: db,
+      database: mockDb,
       input: { orderId },
       userId: adminId,
       userRole: "ADMIN",
     });
 
     expect(adminView.messages[0]?.content).toBe("Secret offensive text");
+    expect(adminView.messages[0]?.attachments).toHaveLength(1);
+    expect(adminView.messages[0]?.redactedByUserId).toBe(adminId);
   });
 
   it("fetches messages after cursor for reconnect recovery", async () => {
@@ -256,7 +264,7 @@ describe("Order Chat Logic", () => {
       orderId,
     };
 
-    const db = createMockDb({
+    const mockDb = createMockDb({
       query: {
         order: {
           findFirst: vi.fn().mockResolvedValue({
@@ -269,10 +277,10 @@ describe("Order Chat Logic", () => {
           findMany: vi.fn().mockResolvedValue([msg]),
         },
       },
-    }) as unknown as typeof db;
+    }) as unknown as MockDatabase;
 
     const res = await getAfterMessages({
-      database: db,
+      database: mockDb,
       input: { after: "018f3b4c-9f88-7777-8000-000000000000", orderId },
       userId: buyerId,
     });
@@ -282,17 +290,17 @@ describe("Order Chat Logic", () => {
   });
 
   it("marks chat as read and fetches unread count", async () => {
-    const db = createMockDb() as unknown as typeof db;
+    const mockDb = createMockDb() as unknown as MockDatabase;
 
     const markRes = await markChatRead({
-      database: db,
+      database: mockDb,
       input: { messageId: "018f3b4c-9f88-7777-8000-000000000010", orderId },
       userId: buyerId,
     });
     expect(markRes).toEqual({ success: true });
 
     const unreadRes = await getUnreadCount({
-      database: db,
+      database: mockDb,
       orderId,
       userId: buyerId,
     });
@@ -300,23 +308,38 @@ describe("Order Chat Logic", () => {
   });
 
   it("redacts a message as admin", async () => {
-    const db = createMockDb({
+    const mockDb = createMockDb({
       query: {
         orderMessage: {
           findFirst: vi.fn().mockResolvedValue({ id: "msg_1" }),
         },
       },
-    }) as unknown as typeof db;
+    }) as unknown as MockDatabase;
 
     const redacted = await redactMessage({
       adminUserId: adminId,
-      database: db,
+      database: mockDb,
       input: { messageId: "msg_1" },
     });
 
     expect(redacted).toMatchObject({
       id: "msg_1",
       redactedByUserId: adminId,
+    });
+  });
+
+  it("generates realtime channel token for authorized participant", async () => {
+    const mockDb = createMockDb() as unknown as MockDatabase;
+
+    const res = await getRealtimeToken({
+      database: mockDb,
+      input: { orderId },
+      userId: buyerId,
+    });
+
+    expect(res).toEqual({
+      channel: `order:${orderId}`,
+      expiresInSeconds: 600,
     });
   });
 });
