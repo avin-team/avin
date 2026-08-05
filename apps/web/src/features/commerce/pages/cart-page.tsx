@@ -6,6 +6,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@avin/ui/components/select";
 import { Skeleton } from "@avin/ui/components/skeleton";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -24,6 +31,7 @@ import { toast } from "sonner";
 import { Shell } from "@/components/shell";
 import {
   removeCartItemOptimistically,
+  setCartItemPackageOptimistically,
   setCartItemSelectedOptimistically,
 } from "@/features/commerce/cart-cache";
 import type { CartView } from "@/features/commerce/cart-cache";
@@ -101,35 +109,48 @@ const CartItemPackageSelect = ({
   onSelectPackage?: (packageId: string) => void;
   packages: NonNullable<CartItem["listing"]["servicePackages"]>;
   selectedPackageId?: string | null;
-}) => (
-  <div className="flex items-center gap-2">
-    <label
-      className="text-xs font-semibold text-muted-foreground"
-      htmlFor={`cart-package-${listingId}`}
-    >
-      Gói:
-    </label>
-    <select
-      className="rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground outline-none focus:ring-1 focus:ring-primary"
-      disabled={disabled}
-      id={`cart-package-${listingId}`}
-      onChange={(event) => onSelectPackage?.(event.target.value)}
-      value={selectedPackageId ?? ""}
-    >
-      <option value="">Chọn một gói</option>
-      {packages.map((packageItem) => (
-        <option
-          disabled={packageItem.status !== "AVAILABLE"}
-          key={packageItem.id}
-          value={packageItem.id}
+}) => {
+  const items = packages.map((pkg) => ({
+    label: `${pkg.name}${pkg.status === "UNAVAILABLE" ? " (không khả dụng)" : ""}`,
+    value: pkg.id,
+  }));
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs font-semibold text-muted-foreground">Gói:</span>
+      <Select
+        disabled={disabled}
+        items={items}
+        onValueChange={(val) => {
+          if (val) {
+            onSelectPackage?.(val);
+          }
+        }}
+        value={selectedPackageId ?? undefined}
+      >
+        <SelectTrigger
+          aria-label={`Chọn gói dịch vụ cho ${listingId}`}
+          className="h-8 min-w-[130px] text-xs font-medium"
+          size="sm"
         >
-          {packageItem.name} ({formatVND(packageItem.priceAmount)})
-          {packageItem.status === "UNAVAILABLE" ? " (không khả dụng)" : ""}
-        </option>
-      ))}
-    </select>
-  </div>
-);
+          <SelectValue placeholder="Chọn một gói" />
+        </SelectTrigger>
+        <SelectContent align="end">
+          {packages.map((packageItem) => (
+            <SelectItem
+              disabled={packageItem.status !== "AVAILABLE"}
+              key={packageItem.id}
+              value={packageItem.id}
+            >
+              {packageItem.name}
+              {packageItem.status === "UNAVAILABLE" ? " (không khả dụng)" : ""}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+};
 
 /**
  * Option C — Side-by-Side Split Cart Item Card using theme colors & design system tokens
@@ -325,13 +346,31 @@ export const CartPage = () => {
   );
   const packageMutation = useMutation({
     ...orpc.commerce.cart.selectPackage.mutationOptions(),
-    onError: (error) => {
+    onError: (error, _variables, context) => {
+      if (context?.previousCart) {
+        queryClient.setQueryData(
+          orpc.commerce.cart.get.queryOptions().queryKey,
+          context.previousCart
+        );
+      }
       toast.error(
         error instanceof Error
           ? error.message
           : "Không thể cập nhật gói dịch vụ."
       );
     },
+    onMutate: async ({ listingId, packageId }) => {
+      const cartQueryKey = orpc.commerce.cart.get.queryOptions().queryKey;
+      await queryClient.cancelQueries({ queryKey: cartQueryKey });
+      const previousCart = queryClient.getQueryData<CartView>(cartQueryKey);
+
+      queryClient.setQueryData<CartView>(cartQueryKey, (currentCart) =>
+        setCartItemPackageOptimistically(currentCart, listingId, packageId)
+      );
+
+      return { previousCart };
+    },
+    onSettled: invalidateCart,
     onSuccess: (updatedCart) => {
       queryClient.setQueryData(
         orpc.commerce.cart.get.queryOptions().queryKey,
@@ -442,10 +481,7 @@ export const CartPage = () => {
   const hasMissingContract = selectedItems.some(
     (item) => item.contractFingerprint === null
   );
-  const actionPending =
-    removeMutation.isPending ||
-    checkoutMutation.isPending ||
-    packageMutation.isPending;
+  const actionPending = removeMutation.isPending || checkoutMutation.isPending;
   const busy = actionPending || selectionPending;
 
   const submitCheckout = async (confirm = false): Promise<void> => {

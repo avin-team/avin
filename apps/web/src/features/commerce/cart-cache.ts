@@ -158,3 +158,47 @@ export const setCartItemSelectedOptimistically = (
     selectedTotalAmount: Math.max(0, cart.selectedTotalAmount + priceDelta),
   };
 };
+
+export const setCartItemPackageOptimistically = (
+  cart: CartView | undefined,
+  listingId: string,
+  packageId: string
+): CartView | undefined => {
+  if (!cart) {
+    return cart;
+  }
+
+  const targetItem = cart.items.find((item) => item.listing.id === listingId);
+  if (!targetItem) {
+    return cart;
+  }
+
+  const selectedPackage = targetItem.listing.servicePackages?.find(
+    (pkg) => pkg.id === packageId
+  );
+  if (!selectedPackage) {
+    return cart;
+  }
+
+  const oldPackage = targetItem.listing.servicePackages?.find(
+    (pkg) => pkg.id === targetItem.selectedPackageId
+  );
+  const oldPrice = oldPackage
+    ? oldPackage.priceAmount
+    : (targetItem.listing.priceAmount ?? 0);
+  const newPrice = selectedPackage.priceAmount;
+  const priceDelta = newPrice - oldPrice;
+
+  return {
+    ...cart,
+    items: cart.items.map((item) =>
+      item.listing.id === listingId
+        ? { ...item, selectedPackageId: packageId }
+        : item
+    ),
+    selectedTotalAmount:
+      targetItem.selected && targetItem.available
+        ? Math.max(0, cart.selectedTotalAmount + priceDelta)
+        : cart.selectedTotalAmount,
+  };
+};

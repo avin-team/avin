@@ -4,6 +4,7 @@ import type { CartView, ListingForCart } from "./cart-cache";
 import {
   addCartItemOptimistically,
   removeCartItemOptimistically,
+  setCartItemPackageOptimistically,
   setCartItemSelectedOptimistically,
 } from "./cart-cache";
 
@@ -137,5 +138,47 @@ describe("cart cache optimistic updates", () => {
 
     expect(nextCart?.selectedCount).toBe(1);
     expect(nextCart?.selectedTotalAmount).toBe(0);
+  });
+
+  it("updates selected package and recalculates total amount optimistically", () => {
+    const itemWithPackages: CartView["items"][number] = {
+      ...existingItem,
+      listing: {
+        ...existingItem.listing,
+        servicePackages: [
+          {
+            description: "Pkg 1",
+            id: "pkg-1",
+            name: "Basic",
+            priceAmount: 100_000,
+            processingTimeHours: 24,
+            status: "AVAILABLE",
+          },
+          {
+            description: "Pkg 2",
+            id: "pkg-2",
+            name: "Pro",
+            priceAmount: 250_000,
+            processingTimeHours: 48,
+            status: "AVAILABLE",
+          },
+        ],
+      },
+      selectedPackageId: "pkg-1",
+    };
+    const packageCart: CartView = {
+      ...cart,
+      items: [itemWithPackages],
+      selectedTotalAmount: 100_000,
+    };
+
+    const nextCart = setCartItemPackageOptimistically(
+      packageCart,
+      existingItem.listing.id,
+      "pkg-2"
+    );
+
+    expect(nextCart?.items[0]?.selectedPackageId).toBe("pkg-2");
+    expect(nextCart?.selectedTotalAmount).toBe(250_000);
   });
 });
