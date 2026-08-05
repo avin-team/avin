@@ -5,7 +5,6 @@ import {
   fingerprintCheckoutRequest,
   parseListingContract,
   parseServicePackageContract,
-  validateOrderCustomInputs,
 } from "./contracts";
 
 const listing = {
@@ -15,22 +14,6 @@ const listing = {
   priceAmount: 100_000,
   processingTimeHours: 24,
   sellerId: "seller-1",
-  serviceInputFields: [
-    {
-      id: "field-1",
-      key: "profile_link",
-      label: "Profile link",
-      required: true,
-      type: "url" as const,
-    },
-    {
-      id: "field-2",
-      key: "quantity",
-      label: "Quantity",
-      required: false,
-      type: "number" as const,
-    },
-  ],
   slug: "useful-service",
   thumbnailUrl: "https://example.com/listing.png",
   title: "Useful service",
@@ -46,12 +29,10 @@ describe("Listing contract checkout helpers", () => {
       items: [
         {
           contractFingerprint: "a".repeat(64),
-          inputs: { name: "A" },
           listingId: "listing-b",
         },
         {
           contractFingerprint: "b".repeat(64),
-          inputs: { name: "B" },
           listingId: "listing-a",
         },
       ],
@@ -61,12 +42,10 @@ describe("Listing contract checkout helpers", () => {
       items: [
         {
           contractFingerprint: "b".repeat(64),
-          inputs: { name: "B" },
           listingId: "listing-a",
         },
         {
           contractFingerprint: "a".repeat(64),
-          inputs: { name: "A" },
           listingId: "listing-b",
         },
       ],
@@ -80,28 +59,7 @@ describe("Listing contract checkout helpers", () => {
 
     expect(parsed.priceAmount).toBe(100_000);
     expect(parsed.warrantyPolicy.durationHours).toBe(48);
-    expect(parsed.serviceInputFields.map((field) => field.key)).toEqual([
-      "profile_link",
-      "quantity",
-    ]);
     expect(parsed.fingerprint).toMatch(/^[a-f0-9]{64}$/u);
-  });
-
-  it("rejects missing, undeclared, and incorrectly typed ServiceInputFields", () => {
-    expect(() =>
-      validateOrderCustomInputs(listing.serviceInputFields, {})
-    ).toThrow("Profile link");
-    expect(() =>
-      validateOrderCustomInputs(listing.serviceInputFields, {
-        profile_link: "https://example.com",
-        unknown: "value",
-      })
-    ).toThrow("not declared");
-    expect(() =>
-      validateOrderCustomInputs(listing.serviceInputFields, {
-        profile_link: "not a URL",
-      })
-    ).toThrow("invalid value");
   });
 
   it("fingerprints the selected Service package into the checkout contract", () => {
@@ -127,22 +85,6 @@ describe("Listing contract checkout helpers", () => {
       "A larger delivered result"
     );
     expect(parsed.fingerprint).toMatch(/^[a-f0-9]{64}$/u);
-  });
-
-  it("returns validated inputs in Listing definition order", () => {
-    const inputs = validateOrderCustomInputs(listing.serviceInputFields, {
-      profile_link: "https://example.com",
-      quantity: 2,
-    });
-
-    expect(inputs).toEqual([
-      {
-        fieldKey: "profile_link",
-        fieldType: "url",
-        value: "https://example.com",
-      },
-      { fieldKey: "quantity", fieldType: "number", value: 2 },
-    ]);
   });
 
   it("rejects duplicate Listings and applies safe Checkout defaults", () => {
@@ -179,6 +121,6 @@ describe("Listing contract checkout helpers", () => {
       ],
     });
     expect(valid.confirmMaterialChanges).toBe(false);
-    expect(valid.items[0]?.inputs).toEqual({});
+    expect(valid.items[0]?.packageId).toBeUndefined();
   });
 });

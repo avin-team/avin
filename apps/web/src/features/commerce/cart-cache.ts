@@ -15,7 +15,6 @@ export type ListingForCart = Pick<
   | "images"
   | "priceAmount"
   | "processingTimeHours"
-  | "serviceInputFields"
   | "slug"
   | "thumbnailUrl"
   | "title"
@@ -60,7 +59,6 @@ export const addCartItemOptimistically = (
       priceAmount: selectedPackage?.priceAmount ?? listing.priceAmount,
       processingTimeHours:
         selectedPackage?.processingTimeHours ?? listing.processingTimeHours,
-      serviceInputFields: listing.serviceInputFields ?? [],
       servicePackages,
       slug: listing.slug,
       thumbnailUrl: listing.thumbnailUrl,

@@ -1,11 +1,9 @@
 /* eslint-disable no-await-in-loop */
 import { db } from "./index";
 import { parentCategory, subCategory } from "./schema/catalog";
-import type { ServiceInputField } from "./schema/catalog";
 
 interface SubCategoryInput {
   commissionRatePercent: string;
-  defaultServiceInputs: ServiceInputField[];
   defaultWarrantyDurationHours: number;
   defaultWarrantyTerms: string;
   maxWarrantyHours: number;
@@ -32,22 +30,6 @@ const SEED_DATA: ParentCategoryInput[] = [
     subs: [
       {
         commissionRatePercent: "5.00",
-        defaultServiceInputs: [
-          {
-            id: "1",
-            key: "profile_link",
-            label: "Đường dẫn trang cá nhân (Profile Link / UID)",
-            required: true,
-            type: "url",
-          },
-          {
-            id: "2",
-            key: "description",
-            label: "Mô tả tình trạng sự cố tài khoản",
-            required: true,
-            type: "text",
-          },
-        ],
         defaultWarrantyDurationHours: 168,
         defaultWarrantyTerms:
           "Bảo hành lấy lại thành công 100%, bảo mật thông tin tài khoản và hỗ trợ cài 2FA.",
@@ -58,22 +40,6 @@ const SEED_DATA: ParentCategoryInput[] = [
       },
       {
         commissionRatePercent: "5.00",
-        defaultServiceInputs: [
-          {
-            id: "1",
-            key: "account_id",
-            label: "Email / SĐT đăng nhập tài khoản",
-            required: true,
-            type: "text",
-          },
-          {
-            id: "2",
-            key: "screenshot",
-            label: "Ảnh chụp màn hình lỗi Checkpoint",
-            required: true,
-            type: "file",
-          },
-        ],
         defaultWarrantyDurationHours: 168,
         defaultWarrantyTerms:
           "Hoàn tiền 100% nếu không mở được tài khoản trong thời gian cam kết.",
@@ -84,22 +50,6 @@ const SEED_DATA: ParentCategoryInput[] = [
       },
       {
         commissionRatePercent: "5.00",
-        defaultServiceInputs: [
-          {
-            id: "1",
-            key: "profile_link",
-            label: "Đường dẫn trang cá nhân",
-            required: true,
-            type: "url",
-          },
-          {
-            id: "2",
-            key: "reason",
-            label: "Thông báo lỗi từ Facebook",
-            required: true,
-            type: "text",
-          },
-        ],
         defaultWarrantyDurationHours: 168,
         defaultWarrantyTerms:
           "Khôi phục trạng thái hoạt động bình thường cho trang cá nhân.",
@@ -110,22 +60,6 @@ const SEED_DATA: ParentCategoryInput[] = [
       },
       {
         commissionRatePercent: "5.00",
-        defaultServiceInputs: [
-          {
-            id: "1",
-            key: "page_url",
-            label: "Đường dẫn Fanpage / ID Business Manager",
-            required: true,
-            type: "text",
-          },
-          {
-            id: "2",
-            key: "error_details",
-            label: "Mô tả lỗi vi phạm hoặc quét nhầm",
-            required: true,
-            type: "text",
-          },
-        ],
         defaultWarrantyDurationHours: 168,
         defaultWarrantyTerms:
           "Khôi phục quyền quảng cáo và trạng thái hoạt động của Page/BM.",
@@ -136,22 +70,6 @@ const SEED_DATA: ParentCategoryInput[] = [
       },
       {
         commissionRatePercent: "5.00",
-        defaultServiceInputs: [
-          {
-            id: "1",
-            key: "target_link",
-            label: "Đường dẫn Trang cá nhân hoặc Fanpage",
-            required: true,
-            type: "url",
-          },
-          {
-            id: "2",
-            key: "quantity",
-            label: "Số lượng cần tăng",
-            required: true,
-            type: "number",
-          },
-        ],
         defaultWarrantyDurationHours: 720,
         defaultWarrantyTerms:
           "Bảo hành tụt Like/Follow trong vòng 30 ngày (bù đủ số lượng nếu hụt).",
@@ -162,22 +80,6 @@ const SEED_DATA: ParentCategoryInput[] = [
       },
       {
         commissionRatePercent: "8.00",
-        defaultServiceInputs: [
-          {
-            id: "1",
-            key: "target_url",
-            label: "Đường dẫn Fanpage / Trang cá nhân cần lên tích",
-            required: true,
-            type: "url",
-          },
-          {
-            id: "2",
-            key: "doc_info",
-            label: "Thông tin giấy tờ định danh (CMND/CCCD/ĐKKD)",
-            required: true,
-            type: "text",
-          },
-        ],
         defaultWarrantyDurationHours: 720,
         defaultWarrantyTerms: "Cam kết giữ huy hiệu tích xanh chính chủ.",
         maxWarrantyHours: 2160,
@@ -196,22 +98,6 @@ const SEED_DATA: ParentCategoryInput[] = [
     subs: [
       {
         commissionRatePercent: "5.00",
-        defaultServiceInputs: [
-          {
-            id: "1",
-            key: "username",
-            label: "Tên người dùng (Username Instagram)",
-            required: true,
-            type: "text",
-          },
-          {
-            id: "2",
-            key: "email",
-            label: "Email liên kết với tài khoản",
-            required: true,
-            type: "text",
-          },
-        ],
         defaultWarrantyDurationHours: 168,
         defaultWarrantyTerms: "Hoàn tiền 100% nếu không khôi phục thành công.",
         maxWarrantyHours: 720,
@@ -221,22 +107,6 @@ const SEED_DATA: ParentCategoryInput[] = [
       },
       {
         commissionRatePercent: "5.00",
-        defaultServiceInputs: [
-          {
-            id: "1",
-            key: "profile_link",
-            label: "Link trang cá nhân Instagram",
-            required: true,
-            type: "url",
-          },
-          {
-            id: "2",
-            key: "quantity",
-            label: "Số lượng Follower",
-            required: true,
-            type: "number",
-          },
-        ],
         defaultWarrantyDurationHours: 720,
         defaultWarrantyTerms:
           "Bảo hành duy trì số lượng Follower trong 30 ngày.",
@@ -247,15 +117,6 @@ const SEED_DATA: ParentCategoryInput[] = [
       },
       {
         commissionRatePercent: "5.00",
-        defaultServiceInputs: [
-          {
-            id: "1",
-            key: "post_url",
-            label: "Đường dẫn bài viết hoặc Video Reel",
-            required: true,
-            type: "url",
-          },
-        ],
         defaultWarrantyDurationHours: 168,
         defaultWarrantyTerms:
           "Bảo hành đủ số lượng tương tác theo đơn đặt hàng.",
@@ -275,15 +136,6 @@ const SEED_DATA: ParentCategoryInput[] = [
     subs: [
       {
         commissionRatePercent: "6.00",
-        defaultServiceInputs: [
-          {
-            id: "1",
-            key: "channel_url",
-            label: "Đường dẫn kênh YouTube",
-            required: true,
-            type: "url",
-          },
-        ],
         defaultWarrantyDurationHours: 720,
         defaultWarrantyTerms:
           "Cam kết đạt 1,000 Subs + 4,000 giờ xem và gửi đơn xét duyệt kiếm tiền thành công.",
@@ -294,22 +146,6 @@ const SEED_DATA: ParentCategoryInput[] = [
       },
       {
         commissionRatePercent: "7.00",
-        defaultServiceInputs: [
-          {
-            id: "1",
-            key: "channel_url",
-            label: "Link kênh YouTube bị gậy",
-            required: true,
-            type: "url",
-          },
-          {
-            id: "2",
-            key: "strike_notice",
-            label: "Chi tiết thông báo gậy từ YouTube",
-            required: true,
-            type: "text",
-          },
-        ],
         defaultWarrantyDurationHours: 336,
         defaultWarrantyTerms: "Hỗ trợ gỡ gậy sạch sẽ, bảo vệ trạng thái kênh.",
         maxWarrantyHours: 1440,
@@ -319,22 +155,6 @@ const SEED_DATA: ParentCategoryInput[] = [
       },
       {
         commissionRatePercent: "5.00",
-        defaultServiceInputs: [
-          {
-            id: "1",
-            key: "video_url",
-            label: "Link Video hoặc Link Kênh YouTube",
-            required: true,
-            type: "url",
-          },
-          {
-            id: "2",
-            key: "quantity",
-            label: "Số lượng mong muốn",
-            required: true,
-            type: "number",
-          },
-        ],
         defaultWarrantyDurationHours: 720,
         defaultWarrantyTerms:
           "Views và Subs thật, không tuột, an toàn tuyệt đối cho kênh.",
@@ -354,22 +174,6 @@ const SEED_DATA: ParentCategoryInput[] = [
     subs: [
       {
         commissionRatePercent: "6.00",
-        defaultServiceInputs: [
-          {
-            id: "1",
-            key: "tiktok_handle",
-            label: "ID TikTok (@username)",
-            required: true,
-            type: "text",
-          },
-          {
-            id: "2",
-            key: "ban_reason",
-            label: "Lý do khóa / Ảnh chụp màn hình vi phạm",
-            required: true,
-            type: "text",
-          },
-        ],
         defaultWarrantyDurationHours: 336,
         defaultWarrantyTerms: "Khôi phục kênh TikTok và xóa lịch sử vi phạm.",
         maxWarrantyHours: 1440,
@@ -379,15 +183,6 @@ const SEED_DATA: ParentCategoryInput[] = [
       },
       {
         commissionRatePercent: "6.00",
-        defaultServiceInputs: [
-          {
-            id: "1",
-            key: "shop_id",
-            label: "ID gian hàng TikTok Shop / Link Shop",
-            required: true,
-            type: "text",
-          },
-        ],
         defaultWarrantyDurationHours: 336,
         defaultWarrantyTerms: "Gỡ vi phạm gian hàng TikTok Shop thành công.",
         maxWarrantyHours: 1440,
@@ -397,15 +192,6 @@ const SEED_DATA: ParentCategoryInput[] = [
       },
       {
         commissionRatePercent: "5.00",
-        defaultServiceInputs: [
-          {
-            id: "1",
-            key: "tiktok_link",
-            label: "Link trang cá nhân TikTok",
-            required: true,
-            type: "url",
-          },
-        ],
         defaultWarrantyDurationHours: 720,
         defaultWarrantyTerms:
           "Tăng đủ 1,000+ Follower để mở ngay tính năng Livestream & Shop.",
@@ -425,22 +211,6 @@ const SEED_DATA: ParentCategoryInput[] = [
     subs: [
       {
         commissionRatePercent: "5.00",
-        defaultServiceInputs: [
-          {
-            id: "1",
-            key: "business_name",
-            label: "Tên doanh nghiệp / Địa điểm",
-            required: true,
-            type: "text",
-          },
-          {
-            id: "2",
-            key: "address",
-            label: "Địa chỉ chi tiết",
-            required: true,
-            type: "text",
-          },
-        ],
         defaultWarrantyDurationHours: 720,
         defaultWarrantyTerms:
           "Bảo hành xác minh địa điểm hiển thị sống 100% trên Google Search & Maps.",
@@ -451,23 +221,6 @@ const SEED_DATA: ParentCategoryInput[] = [
       },
       {
         commissionRatePercent: "7.00",
-        defaultServiceInputs: [
-          {
-            id: "1",
-            key: "cid",
-            label: "Mã khách hàng Google Ads (CID 10 số)",
-            required: true,
-            type: "text",
-          },
-          {
-            id: "2",
-            key: "suspension_reason",
-            label:
-              "Lý do tạm ngưng (Tạm ngưng thanh toán, Né tránh hệ thống...)",
-            required: true,
-            type: "text",
-          },
-        ],
         defaultWarrantyDurationHours: 336,
         defaultWarrantyTerms: "Kháng tài khoản hoạt động lại bình thường.",
         maxWarrantyHours: 1440,
@@ -477,22 +230,6 @@ const SEED_DATA: ParentCategoryInput[] = [
       },
       {
         commissionRatePercent: "5.00",
-        defaultServiceInputs: [
-          {
-            id: "1",
-            key: "maps_link",
-            label: "Đường dẫn vị trí Google Maps",
-            required: true,
-            type: "url",
-          },
-          {
-            id: "2",
-            key: "quantity",
-            label: "Số lượng Review 5 sao",
-            required: true,
-            type: "number",
-          },
-        ],
         defaultWarrantyDurationHours: 720,
         defaultWarrantyTerms:
           "Bảo hành giữ đánh giá không bị Google rà soát ẩn.",
@@ -545,7 +282,6 @@ export const seedCategories = async (): Promise<void> => {
       if (!existingSub) {
         await db.insert(subCategory).values({
           commissionRatePercent: subData.commissionRatePercent,
-          defaultServiceInputs: subData.defaultServiceInputs,
           defaultWarrantyPolicy: {
             durationHours: subData.defaultWarrantyDurationHours,
             terms: subData.defaultWarrantyTerms,

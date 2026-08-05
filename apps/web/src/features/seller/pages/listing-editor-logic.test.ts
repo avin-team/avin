@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   getFirstIncompleteEditorStepIndex,
   getListingEditorStepOrder,
-  getServiceInputFieldsForDraft,
   isListingEditorStepLocked,
   LISTING_EDITOR_STEP_ORDER,
   SERVICE_LISTING_EDITOR_STEP_ORDER,
@@ -64,31 +63,5 @@ describe("listing editor navigation helpers", () => {
   it("locks later new listing steps until a draft exists", () => {
     expect(isListingEditorStepLocked(true, false, 1)).toBe(true);
     expect(isListingEditorStepLocked(false, true, 1)).toBe(false);
-  });
-
-  it("uses category buyer-input defaults for a new listing", () => {
-    const categoryDefaults = [
-      {
-        id: "profile-link",
-        key: "profile_link",
-        label: "Link Profile",
-        type: "url" as const,
-      },
-    ];
-
-    expect(getServiceInputFieldsForDraft([], categoryDefaults)).toEqual(
-      categoryDefaults
-    );
-    expect(
-      getServiceInputFieldsForDraft(categoryDefaults.slice(0, 1), [
-        ...categoryDefaults,
-        {
-          id: "email",
-          key: "email",
-          label: "Email",
-          type: "text" as const,
-        },
-      ])
-    ).toEqual(categoryDefaults.slice(0, 1));
   });
 });

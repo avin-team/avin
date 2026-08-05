@@ -16,7 +16,7 @@ import {
 
 import { user } from "./auth";
 import { listing, servicePackage } from "./catalog";
-import type { ServiceInputField, WarrantyPolicy } from "./catalog";
+import type { WarrantyPolicy } from "./catalog";
 import { ledgerTransaction } from "./wallet";
 
 export interface ListingSnapshot {
@@ -45,7 +45,6 @@ export interface ServicePackageSnapshot {
   priceAmount: number;
   processingTimeHours: number;
   scope?: string;
-  serviceInputFields?: ServiceInputField[];
   warrantyPolicy: WarrantyPolicySnapshot;
 }
 
@@ -214,9 +213,6 @@ export const orderItem = pgTable(
     processingDeadlineAt: timestamp("processing_deadline_at").notNull(),
     processingTimeHours: integer("processing_time_hours").notNull(),
     quantity: integer("quantity").default(1).notNull(),
-    serviceInputFields: jsonb("service_input_fields")
-      .$type<ServiceInputField[]>()
-      .notNull(),
     servicePackageId: uuid("service_package_id").references(
       () => servicePackage.id,
       { onDelete: "restrict" }
@@ -399,27 +395,6 @@ export const notification = pgTable(
   ]
 );
 
-export const orderCustomInput = pgTable(
-  "order_custom_input",
-  {
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    fieldKey: text("field_key").notNull(),
-    fieldType: text("field_type").notNull(),
-    id: uuid("id").defaultRandom().primaryKey(),
-    orderItemId: uuid("order_item_id")
-      .notNull()
-      .references(() => orderItem.id, { onDelete: "restrict" }),
-    value: jsonb("value").$type<unknown>().notNull(),
-  },
-  (table) => [
-    uniqueIndex("order_custom_input_item_key_unique_idx").on(
-      table.orderItemId,
-      table.fieldKey
-    ),
-    index("order_custom_input_item_idx").on(table.orderItemId),
-  ]
-);
-
 export const escrowHold = pgTable(
   "escrow_hold",
   {
@@ -498,7 +473,6 @@ export const orderRelations = relations(order, ({ many, one }) => ({
 }));
 
 export const orderItemRelations = relations(orderItem, ({ many, one }) => ({
-  customInputs: many(orderCustomInput),
   deliverySubmission: one(deliverySubmission),
   dispute: one(dispute),
   escrowHold: one(escrowHold),
@@ -592,16 +566,6 @@ export const notificationRelations = relations(notification, ({ one }) => ({
     references: [user.id],
   }),
 }));
-
-export const orderCustomInputRelations = relations(
-  orderCustomInput,
-  ({ one }) => ({
-    orderItem: one(orderItem, {
-      fields: [orderCustomInput.orderItemId],
-      references: [orderItem.id],
-    }),
-  })
-);
 
 export const escrowHoldRelations = relations(escrowHold, ({ one }) => ({
   orderItem: one(orderItem, {

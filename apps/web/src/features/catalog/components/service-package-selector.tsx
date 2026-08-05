@@ -1,10 +1,4 @@
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@avin/ui/components/select";
+import { Package } from "lucide-react";
 
 import { formatVND } from "@/utils/format";
 
@@ -29,46 +23,59 @@ export const ServicePackageSelector = ({
     return null;
   }
 
-  const selectedPackage = packages.find(
-    (packageItem) => packageItem.id === selectedPackageId
-  );
-
-  const packageItems = packages.map((packageItem) => ({
-    label: `${packageItem.name} · ${formatVND(packageItem.priceAmount)}`,
-    value: packageItem.id,
-  }));
-
   return (
-    <div className="mt-6 space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-5">
-      <h2 className="text-sm font-bold text-foreground">Chọn gói dịch vụ</h2>
-      <p className="text-xs text-muted-foreground">
-        Mỗi gói có phạm vi, thời gian xử lý và điều khoản riêng.
-      </p>
-      <label className="block text-sm font-medium" htmlFor="service-package">
-        Gói bạn muốn mua
-      </label>
-      <Select
-        items={packageItems}
-        onValueChange={(value) => onChange(value || null)}
-        value={selectedPackage?.id ?? ""}
-      >
-        <SelectTrigger className="w-full" id="service-package">
-          <SelectValue placeholder="Chọn một gói" />
-        </SelectTrigger>
-        <SelectContent>
-          {packageItems.map((item) => (
-            <SelectItem key={item.value} value={item.value}>
-              {item.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      {selectedPackage ? (
-        <div className="space-y-1 text-xs text-muted-foreground">
-          <p>{selectedPackage.description}</p>
-          <p>{selectedPackage.processingTimeHours} giờ xử lý</p>
-        </div>
-      ) : null}
+    <div className="space-y-4">
+      <h3 className="text-sm font-semibold text-foreground">Chọn gói</h3>
+      <div className="flex flex-col gap-3">
+        {packages.map((packageItem) => {
+          const isSelected = packageItem.id === selectedPackageId;
+          return (
+            <button
+              key={packageItem.id}
+              onClick={() => onChange(packageItem.id)}
+              type="button"
+              className={`flex w-full items-center gap-3 rounded-xl border p-4 text-left transition-all ${
+                isSelected
+                  ? "border-primary bg-primary/5"
+                  : "border-border hover:border-border/80 hover:bg-muted/50"
+              }`}
+            >
+              <div
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+                  isSelected
+                    ? "bg-primary/10 text-primary"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
+                <Package className="h-5 w-5" />
+              </div>
+              <div className="flex flex-1 flex-col justify-center">
+                <div className="flex items-center justify-between">
+                  <span
+                    className={`font-semibold text-sm ${
+                      isSelected ? "text-foreground" : "text-foreground"
+                    }`}
+                  >
+                    {packageItem.name}
+                  </span>
+                  <span
+                    className={`font-bold text-sm ${
+                      isSelected ? "text-primary" : "text-foreground"
+                    }`}
+                  >
+                    {formatVND(packageItem.priceAmount)}
+                  </span>
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  {packageItem.processingTimeHours
+                    ? `${packageItem.processingTimeHours} giờ xử lý`
+                    : "Xử lý tiêu chuẩn"}
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 };

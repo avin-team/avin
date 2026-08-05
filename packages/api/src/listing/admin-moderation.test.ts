@@ -226,7 +226,6 @@ describe("Listing moderation transition rules", () => {
       images: ["https://storage.avin.internal/listing-1/1.jpg"],
       priceAmount: 150_000,
       processingTimeHours: 12,
-      serviceInputFields: [],
       slug: "premium-account-setup-1234",
       status: "HIDDEN" as const,
       thumbnailUrl: "https://storage.avin.internal/listing-1/1.jpg",

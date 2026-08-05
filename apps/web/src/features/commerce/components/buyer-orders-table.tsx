@@ -1,34 +1,141 @@
 import type { BuyerOrderView } from "@avin/api/commerce/orders";
 import { Badge } from "@avin/ui/components/badge";
 import { Button } from "@avin/ui/components/button";
+import { Calendar as CalendarUI } from "@avin/ui/components/calendar";
 import { Card, CardContent } from "@avin/ui/components/card";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@avin/ui/components/input-group";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@avin/ui/components/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@avin/ui/components/select";
+import { cn } from "@avin/ui/lib/utils";
 import {
   Calendar,
   CaretLeft,
   CaretRight,
   CheckCircle,
-  FileText,
   MagnifyingGlass,
   Receipt,
   Truck,
   Wallet,
+  X,
   XCircle,
 } from "@phosphor-icons/react";
-import { Link } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 
 import {
   formatOrderDate,
   getOrderItemStatusLabel,
   getOrderItemStatusVariant,
+  getOrderItemStatusColorClassName,
 } from "@/features/commerce/order-status";
 import { formatVND } from "@/utils/format";
+
+const STATUS_FILTER_ITEMS = [
+  { label: "Tất cả trạng thái", value: "ALL" },
+  { label: "Chờ Seller tiếp nhận", value: "AWAITING_SELLER" },
+  { label: "Đang thực hiện", value: "PROCESSING" },
+  { label: "Đã bàn giao", value: "DELIVERED" },
+  { label: "Đang bảo hành", value: "WARRANTY_ACTIVE" },
+  { label: "Hoàn tất", value: "COMPLETED" },
+  { label: "Đã hủy", value: "CANCELLED" },
+  { label: "Đã hoàn tiền", value: "REFUNDED" },
+];
+
+interface DatePickerProps {
+  ariaLabel: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  value: string;
+}
+
+const DatePicker = ({
+  ariaLabel,
+  onChange,
+  placeholder,
+  value,
+}: DatePickerProps) => {
+  const selectedDate = value ? new Date(`${value}T00:00:00`) : undefined;
+
+  const handleSelect = (date: Date | undefined) => {
+    if (!date) {
+      onChange("");
+      return;
+    }
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    onChange(`${year}-${month}-${day}`);
+  };
+
+  const formattedDisplay = value
+    ? new Date(`${value}T00:00:00`).toLocaleDateString("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      })
+    : placeholder;
+
+  return (
+    <Popover>
+      <PopoverTrigger
+        aria-label={ariaLabel}
+        className={cn(
+          "flex h-9 items-center justify-between gap-2 rounded-3xl border border-transparent bg-input/50 px-3 py-2 text-xs font-medium text-foreground transition-[color,box-shadow,background-color] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 select-none cursor-pointer",
+          !value && "text-muted-foreground"
+        )}
+      >
+        <div className="flex items-center gap-2">
+          <Calendar
+            aria-hidden="true"
+            className="size-4 shrink-0 text-muted-foreground"
+          />
+          <span>{formattedDisplay}</span>
+        </div>
+        {value ? (
+          <button
+            aria-label="Xóa ngày"
+            className="flex size-4 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange("");
+            }}
+            type="button"
+          >
+            <X aria-hidden="true" className="size-3" />
+          </button>
+        ) : null}
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-auto p-0">
+        <CalendarUI
+          mode="single"
+          onSelect={handleSelect}
+          selected={selectedDate}
+        />
+      </PopoverContent>
+    </Popover>
+  );
+};
 
 interface BuyerOrdersTableProps {
   orders: BuyerOrderView[];
 }
 
 export const BuyerOrdersTable = ({ orders }: BuyerOrdersTableProps) => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [startDate, setStartDate] = useState("");
@@ -236,66 +343,72 @@ export const BuyerOrdersTable = ({ orders }: BuyerOrdersTableProps) => {
       <Card className="border-border/60 bg-card">
         <CardContent className="flex flex-wrap items-center gap-3 p-4">
           {/* Search Input */}
-          <div className="relative flex-1 min-w-[240px]">
-            <input
-              className="w-full rounded-xl border border-input bg-background py-2 pl-3 pr-9 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-              onChange={(e) => setSearchTerm(e.target.value)}
+          <InputGroup className="min-w-[240px] flex-1">
+            <InputGroupInput
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
               placeholder="Tìm mã đơn hoặc mã nhóm"
               type="text"
               value={searchTerm}
             />
-            <MagnifyingGlass className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          </div>
+            <InputGroupAddon align="inline-end">
+              <MagnifyingGlass aria-hidden="true" className="size-4" />
+            </InputGroupAddon>
+          </InputGroup>
 
           {/* Status Filter Dropdown */}
-          <select
-            aria-label="Lọc theo trạng thái"
-            className="rounded-xl border border-input bg-background px-3 py-2 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-            onChange={(e) => setStatusFilter(e.target.value)}
+          <Select
+            items={STATUS_FILTER_ITEMS}
+            onValueChange={(val) => {
+              if (val) {
+                setStatusFilter(val);
+                setCurrentPage(1);
+              }
+            }}
             value={statusFilter}
           >
-            <option value="ALL">Tất cả trạng thái</option>
-            <option value="AWAITING_SELLER">Chờ Seller tiếp nhận</option>
-            <option value="PROCESSING">Đang thực hiện</option>
-            <option value="DELIVERED">Đã bàn giao</option>
-            <option value="WARRANTY_ACTIVE">Đang bảo hành</option>
-            <option value="COMPLETED">Hoàn tất</option>
-            <option value="CANCELLED">Đã hủy</option>
-            <option value="REFUNDED">Đã hoàn tiền</option>
-          </select>
+            <SelectTrigger
+              aria-label="Lọc theo trạng thái"
+              className="w-[190px]"
+            >
+              <SelectValue placeholder="Tất cả trạng thái" />
+            </SelectTrigger>
+            <SelectContent>
+              {STATUS_FILTER_ITEMS.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           {/* Date Picker 1 */}
-          <div className="relative">
-            <input
-              aria-label="Từ ngày"
-              className="rounded-xl border border-input bg-background py-2 pl-8 pr-3 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-              onChange={(e) => setStartDate(e.target.value)}
-              placeholder="Từ ngày"
-              type="date"
-              value={startDate}
-            />
-            <Calendar className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-          </div>
+          <DatePicker
+            ariaLabel="Từ ngày"
+            onChange={(val) => {
+              setStartDate(val);
+              setCurrentPage(1);
+            }}
+            placeholder="Từ ngày"
+            value={startDate}
+          />
 
           {/* Date Picker 2 */}
-          <div className="relative">
-            <input
-              aria-label="Đến ngày"
-              className="rounded-xl border border-input bg-background py-2 pl-8 pr-3 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-              onChange={(e) => setEndDate(e.target.value)}
-              placeholder="Đến ngày"
-              type="date"
-              value={endDate}
-            />
-            <Calendar className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-          </div>
+          <DatePicker
+            ariaLabel="Đến ngày"
+            onChange={(val) => {
+              setEndDate(val);
+              setCurrentPage(1);
+            }}
+            placeholder="Đến ngày"
+            value={endDate}
+          />
 
           {/* Search Button */}
-          <Button
-            size="sm"
-            className="gap-1.5 rounded-xl px-4 text-xs font-medium"
-          >
-            <MagnifyingGlass className="h-3.5 w-3.5" />
+          <Button className="gap-1.5" size="sm" type="button">
+            <MagnifyingGlass aria-hidden="true" className="size-4" />
             Tìm kiếm
           </Button>
         </CardContent>
@@ -314,7 +427,6 @@ export const BuyerOrdersTable = ({ orders }: BuyerOrdersTableProps) => {
                 <th className="py-3.5 px-4 text-center">Số lượng</th>
                 <th className="py-3.5 px-4">Tổng tiền</th>
                 <th className="py-3.5 px-4">Ngày tạo</th>
-                <th className="py-3.5 px-4 text-center">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
@@ -336,7 +448,13 @@ export const BuyerOrdersTable = ({ orders }: BuyerOrdersTableProps) => {
                   return (
                     <tr
                       key={`row-${item.id}`}
-                      className="hover:bg-muted/20 transition-colors"
+                      className="hover:bg-muted/20 transition-colors cursor-pointer"
+                      onClick={() => {
+                        navigate({
+                          params: { id: item.id },
+                          to: "/orders/$id",
+                        });
+                      }}
                     >
                       {/* Mã đơn */}
                       <td aria-label="Mã đơn" className="py-4 px-4 align-top">
@@ -347,16 +465,6 @@ export const BuyerOrdersTable = ({ orders }: BuyerOrdersTableProps) => {
                           <span className="text-[11px] text-muted-foreground">
                             Item {item.id.slice(0, 8)}
                           </span>
-                          <Button
-                            className="mt-1 h-7 gap-1 rounded-lg px-2.5 text-[11px] font-medium"
-                            render={
-                              <Link params={{ id: item.id }} to="/orders/$id" />
-                            }
-                            size="sm"
-                            variant="outline"
-                          >
-                            Xem chi tiết
-                          </Button>
                         </div>
                       </td>
 
@@ -375,13 +483,9 @@ export const BuyerOrdersTable = ({ orders }: BuyerOrdersTableProps) => {
                             </div>
                           )}
                           <div className="flex flex-col gap-0.5">
-                            <Link
-                              className="font-semibold text-foreground line-clamp-2 hover:underline"
-                              params={{ id: item.id }}
-                              to="/orders/$id"
-                            >
+                            <span className="font-semibold text-foreground line-clamp-2">
                               {item.listing.title}
-                            </Link>
+                            </span>
                             <span className="text-[11px] text-muted-foreground">
                               Loại: {item.listing.type}
                             </span>
@@ -410,7 +514,10 @@ export const BuyerOrdersTable = ({ orders }: BuyerOrdersTableProps) => {
                         className="py-4 px-4 align-top whitespace-nowrap"
                       >
                         <Badge
-                          className="rounded-full px-2.5 py-0.5 text-[11px] font-medium"
+                          className={cn(
+                            "rounded-full px-2.5 py-0.5 text-[11px] font-medium",
+                            getOrderItemStatusColorClassName(item.status)
+                          )}
                           variant={getOrderItemStatusVariant(item.status)}
                         >
                           {getOrderItemStatusLabel(item.status)}
@@ -450,20 +557,6 @@ export const BuyerOrdersTable = ({ orders }: BuyerOrdersTableProps) => {
                             {formatOrderDate(item.order.createdAt)}
                           </span>
                         </div>
-                      </td>
-
-                      {/* Thao tác */}
-                      <td className="py-4 px-4 align-top text-center">
-                        <Button
-                          aria-label="Chi tiết đơn"
-                          className="h-8 w-8 rounded-lg p-0"
-                          render={
-                            <Link params={{ id: item.id }} to="/orders/$id" />
-                          }
-                          variant="ghost"
-                        >
-                          <FileText className="h-4 w-4" />
-                        </Button>
                       </td>
                     </tr>
                   );

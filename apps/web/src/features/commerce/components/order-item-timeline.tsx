@@ -7,11 +7,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
+import { cn } from "@avin/ui/lib/utils";
 import { FileText, ShieldCheck, Timer } from "@phosphor-icons/react";
 
 import {
   formatOrderDate,
   formatOrderDeadline,
+  getOrderItemStatusColorClassName,
   getOrderItemStatusLabel,
   getOrderItemStatusVariant,
   getWarrantyPolicyLabel,
@@ -118,7 +120,10 @@ export const OrderItemTimeline = ({
       <div className="rounded-2xl border border-border/60 bg-muted/20 p-3">
         <p className="text-xs text-muted-foreground">Trạng thái hiện tại</p>
         <Badge
-          className="mt-2"
+          className={cn(
+            "mt-2",
+            getOrderItemStatusColorClassName(timeline.current.status)
+          )}
           variant={getOrderItemStatusVariant(timeline.current.status)}
         >
           {getOrderItemStatusLabel(timeline.current.status)}
@@ -235,7 +240,12 @@ export const OrderItemTimeline = ({
                   <p className="font-semibold text-foreground">
                     {getTimelineEventTitle(event)}
                   </p>
-                  <Badge variant={getOrderItemStatusVariant(event.newStatus)}>
+                  <Badge
+                    className={getOrderItemStatusColorClassName(
+                      event.newStatus
+                    )}
+                    variant={getOrderItemStatusVariant(event.newStatus)}
+                  >
                     {getOrderItemStatusLabel(event.newStatus)}
                   </Badge>
                   <span className="text-xs text-muted-foreground">

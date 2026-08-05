@@ -2,7 +2,6 @@ import { db } from "@avin/db";
 import { user as userTable } from "@avin/db/schema/auth";
 import {
   listing,
-  serviceInputFieldSchema,
   servicePackage,
   servicePackageDraftSchema,
   subCategory,
@@ -45,7 +44,6 @@ const draftFieldsSchema = z.object({
   images: z.array(z.string()).max(LISTING_IMAGE_MAX_COUNT).optional(),
   priceAmount: z.number().int().nullable().optional(),
   processingTimeHours: z.number().int().nullable().optional(),
-  serviceInputFields: z.array(serviceInputFieldSchema).optional(),
   servicePackages: z.array(servicePackageDraftSchema).optional(),
   thumbnailUrl: z.string().nullable().optional(),
   title: z.string().max(200).nullable().optional(),
@@ -201,7 +199,6 @@ export const assertPublishable = (
     images?: string[] | null;
     priceAmount: number | null;
     processingTimeHours: number | null;
-    serviceInputFields?: unknown[] | null;
     slug: string;
     thumbnailUrl: string | null;
     title: string | null;
@@ -290,17 +287,6 @@ export const assertPublishable = (
       message: "Warranty terms are required",
     });
   }
-
-  if (draft.serviceInputFields && Array.isArray(draft.serviceInputFields)) {
-    for (const field of draft.serviceInputFields) {
-      const parsed = serviceInputFieldSchema.safeParse(field);
-      if (!parsed.success) {
-        throw new ORPCError("BAD_REQUEST", {
-          message: "All service input fields must be valid",
-        });
-      }
-    }
-  }
 };
 
 export const assertServiceListingBasics = (draft: {
@@ -349,7 +335,6 @@ const ensureServicePackages = async (
     id: string;
     priceAmount: number | null;
     processingTimeHours: number | null;
-    serviceInputFields: unknown;
     title: string | null;
     warrantyDurationHours: number | null;
     warrantyTerms: string | null;
@@ -492,7 +477,6 @@ export const sellerWorkspaceRouter = {
           priceAmount: input.priceAmount,
           processingTimeHours: input.processingTimeHours,
           sellerId: context.session.user.id,
-          serviceInputFields: input.serviceInputFields ?? [],
           slug: makeSlug(input.title),
           thumbnailUrl: getPrimaryListingImage(
             input.images,
@@ -957,8 +941,6 @@ export const sellerWorkspaceRouter = {
           processingTimeHours: Object.hasOwn(input, "processingTimeHours")
             ? (input.processingTimeHours ?? null)
             : found.processingTimeHours,
-          serviceInputFields:
-            input.serviceInputFields ?? found.serviceInputFields,
           thumbnailUrl: nextThumbnailUrl,
           title: Object.hasOwn(input, "title")
             ? (input.title ?? null)
@@ -991,9 +973,6 @@ export const sellerWorkspaceRouter = {
             : {}),
           ...(Object.hasOwn(input, "processingTimeHours")
             ? { processingTimeHours: input.processingTimeHours }
-            : {}),
-          ...(input.serviceInputFields
-            ? { serviceInputFields: input.serviceInputFields }
             : {}),
           ...(hasImagesInput || hasThumbnailInput
             ? { thumbnailUrl: nextThumbnailUrl }

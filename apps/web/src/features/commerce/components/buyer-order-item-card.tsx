@@ -48,6 +48,7 @@ import {
   formatOrderDeadline,
   getOrderItemStatusLabel,
   getOrderItemStatusVariant,
+  getOrderItemStatusColorClassName,
   getWarrantyPolicyLabel,
   isNoWarrantyPolicy,
 } from "@/features/commerce/order-status";
@@ -229,7 +230,10 @@ export const BuyerOrderItemCard = ({
               OrderItem {item.id.slice(0, 8)} · {formatVND(item.priceAmount)}
             </CardDescription>
           </div>
-          <Badge variant={getOrderItemStatusVariant(status)}>
+          <Badge
+            className={getOrderItemStatusColorClassName(status)}
+            variant={getOrderItemStatusVariant(status)}
+          >
             {getOrderItemStatusLabel(status)}
           </Badge>
         </div>

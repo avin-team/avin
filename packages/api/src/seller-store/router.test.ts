@@ -212,7 +212,6 @@ describe("public Store profile route", () => {
       description: "Internal description",
       id: "listing-1",
       priceAmount: 150_000,
-      serviceInputFields: [{ id: "secret" }],
       servicePackages: [
         { name: "Basic", priceAmount: 120_000, status: "AVAILABLE" },
       ],

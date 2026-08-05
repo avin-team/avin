@@ -6,10 +6,7 @@ import {
   servicePackage,
   subCategory,
 } from "@avin/db/schema/catalog";
-import type {
-  ServiceInputField,
-  WarrantyPolicy,
-} from "@avin/db/schema/catalog";
+import type { WarrantyPolicy } from "@avin/db/schema/catalog";
 import { cart, cartItem } from "@avin/db/schema/commerce";
 import type { WarrantyPolicySnapshot } from "@avin/db/schema/commerce";
 import { sellerProfile } from "@avin/db/schema/seller";
@@ -46,7 +43,6 @@ export interface CartItemView {
     images: string[];
     priceAmount: number | null;
     processingTimeHours: number | null;
-    serviceInputFields: ServiceInputField[];
     servicePackages?: CartPackageView[];
     slug: string;
     thumbnailUrl: string | null;
@@ -167,7 +163,6 @@ export const getCart = async (
       sellerImage: userTable.image,
       sellerName: userTable.name,
       sellerStorefrontName: sellerProfile.storefrontName,
-      serviceInputFields: listing.serviceInputFields,
       warrantyDurationHours: listing.warrantyDurationHours,
       warrantyTerms: listing.warrantyTerms,
     })
@@ -247,7 +242,6 @@ export const getCart = async (
         contract = parseServicePackageContract(
           {
             ...listingSource,
-            serviceInputFields: row.serviceInputFields,
           },
           selectedPackage,
           row.commissionRatePercent
@@ -259,7 +253,6 @@ export const getCart = async (
           ...listingSource,
           priceAmount: row.listingPriceAmount,
           processingTimeHours: row.processingTimeHours,
-          serviceInputFields: row.serviceInputFields,
           warrantyDurationHours: row.warrantyDurationHours,
           warrantyTerms: row.warrantyTerms,
         },
@@ -297,7 +290,6 @@ export const getCart = async (
           contract?.processingTimeHours ??
           selectedPackage?.processingTimeHours ??
           row.processingTimeHours,
-        serviceInputFields: contract?.serviceInputFields ?? [],
         servicePackages: listingPackages.map((packageRow) => ({
           description: packageRow.description,
           id: packageRow.id,

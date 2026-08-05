@@ -44,10 +44,13 @@ import { toast } from "sonner";
 import { OrderItemTimeline } from "@/features/commerce/components/order-item-timeline";
 import {
   ORDER_TIMELINE_REFRESH_INTERVAL_MS,
+  formatOrderDate,
   formatOrderDeadline,
   getOrderItemStatusLabel,
   getOrderItemStatusVariant,
+  getOrderItemStatusColorClassName,
   getWarrantyPolicyLabel,
+  isNoWarrantyPolicy,
 } from "@/features/commerce/order-status";
 import {
   sellerCancellationSchema,
@@ -70,6 +73,25 @@ const getEscrowHoldStatusLabel = (status: string): string => {
   return "Đã hủy";
 };
 
+const getEscrowReleaseMessage = (
+  status: string,
+  warrantyExpiresAt: string | null,
+  warrantyPolicy: SellerOrderView["items"][number]["warrantyPolicy"],
+  deliveryReviewDeadlineAt: string | null
+): string => {
+  if (status === "IN_WARRANTY" && warrantyExpiresAt) {
+    return `Giải ngân vào: ${formatOrderDate(warrantyExpiresAt)}`;
+  }
+  if (
+    status === "DELIVERED" &&
+    isNoWarrantyPolicy(warrantyPolicy) &&
+    deliveryReviewDeadlineAt
+  ) {
+    return `Giải ngân vào: ${formatOrderDate(deliveryReviewDeadlineAt)}`;
+  }
+  return "Sẽ giải ngân khi hoàn tất đơn hàng";
+};
+
 const getEvidenceFiles = (value: string) =>
   value
     .split("\n")
@@ -81,17 +103,6 @@ const getEvidenceFiles = (value: string) =>
       fileName: `Bằng chứng ${index + 1}`,
       storageKey,
     }));
-
-const formatInputValue = (value: unknown): string => {
-  if (typeof value === "string" || typeof value === "number") {
-    return String(value);
-  }
-  try {
-    return JSON.stringify(value) ?? "—";
-  } catch {
-    return "—";
-  }
-};
 
 const SellerDeliveryForm = ({
   itemId,
@@ -303,6 +314,10 @@ export const SellerOrderItemCard = ({
 
   const current = timelineQuery.data?.current;
   const status = current?.status ?? item.status;
+  const warrantyExpiresAt =
+    current?.warrantyExpiresAt ?? item.warrantyExpiresAt;
+  const deliveryReviewDeadlineAt =
+    current?.deliveryReviewDeadlineAt ?? item.deliveryReviewDeadlineAt;
   const canCancel = status === "AWAITING_SELLER" || status === "IN_PROGRESS";
   const timelineContent = (() => {
     if (timelineQuery.isPending) {
@@ -373,7 +388,10 @@ export const SellerOrderItemCard = ({
               {formatVND(item.priceAmount)}
             </CardDescription>
           </div>
-          <Badge variant={getOrderItemStatusVariant(status)}>
+          <Badge
+            className={getOrderItemStatusColorClassName(status)}
+            variant={getOrderItemStatusVariant(status)}
+          >
             {getOrderItemStatusLabel(status)}
           </Badge>
         </div>
@@ -402,26 +420,23 @@ export const SellerOrderItemCard = ({
               {formatVND(item.escrowHold.amount)} ·{" "}
               {getEscrowHoldStatusLabel(item.escrowHold.status)}
             </p>
+            {item.escrowHold.status === "HELD" && (
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {getEscrowReleaseMessage(
+                  status,
+                  warrantyExpiresAt,
+                  item.warrantyPolicy,
+                  deliveryReviewDeadlineAt
+                )}
+              </p>
+            )}
+            {item.escrowHold.status === "RELEASED" && (
+              <p className="mt-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-500">
+                Tiền đã cộng vào số dư của bạn
+              </p>
+            )}
           </div>
         </div>
-
-        {item.customInputs.length > 0 ? (
-          <div className="rounded-2xl border border-border/60 bg-muted/20 p-4">
-            <h4 className="font-semibold">Thông tin Khách hàng cung cấp</h4>
-            <dl className="mt-3 grid gap-3 sm:grid-cols-2">
-              {item.customInputs.map((input) => (
-                <div key={input.fieldKey}>
-                  <dt className="text-xs text-muted-foreground">
-                    {input.fieldKey}
-                  </dt>
-                  <dd className="mt-1 break-words text-sm">
-                    {formatInputValue(input.value)}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-        ) : null}
 
         <div className="flex flex-wrap gap-2">
           {status === "AWAITING_SELLER" ? (

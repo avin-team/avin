@@ -14,7 +14,6 @@ export default defineConfig({
     react(),
   ],
   resolve: {
-    conditions: ["development", "browser"],
     tsconfigPaths: true,
   },
   server: {

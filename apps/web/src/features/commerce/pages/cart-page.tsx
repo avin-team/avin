@@ -6,8 +6,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
-import { Field, FieldError, FieldLabel } from "@avin/ui/components/field";
-import { Input } from "@avin/ui/components/input";
 import { Skeleton } from "@avin/ui/components/skeleton";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -22,7 +20,6 @@ import {
 import type { ReactNode } from "react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { z } from "zod";
 
 import { Shell } from "@/components/shell";
 import {
@@ -37,24 +34,6 @@ import {
 import { formatVND } from "@/utils/format";
 import { orpc } from "@/utils/orpc";
 
-type InputRecord = Record<string, unknown>;
-type InputValues = Record<string, InputRecord>;
-
-const EMPTY_INPUT_RECORD: InputRecord = {};
-const EMPTY_INPUT_VALUES: InputValues = {};
-const checkoutInputValuesSchema = z.record(
-  z.string(),
-  z.record(z.string(), z.unknown())
-);
-
-interface CartField {
-  id: string;
-  key: string;
-  label: string;
-  required: boolean;
-  type: "file" | "number" | "text" | "url";
-}
-
 interface CartItem {
   available: boolean;
   cartItemId: string;
@@ -64,22 +43,21 @@ interface CartItem {
     priceAmount: number | null;
     processingTimeHours: number | null;
     servicePackages?: {
+      description: string;
       id: string;
       name: string;
       priceAmount: number;
       processingTimeHours: number;
-      description: string;
       status: "AVAILABLE" | "UNAVAILABLE";
     }[];
-    serviceInputFields: CartField[];
     slug: string;
     thumbnailUrl: string | null;
     title: string | null;
     type: "COURSE" | "SERVICE";
     warrantyDurationHours: number | null;
   };
-  selectedPackageId?: string | null;
   selected: boolean;
+  selectedPackageId?: string | null;
   seller: {
     id: string;
     image: string | null;
@@ -87,211 +65,185 @@ interface CartItem {
   };
 }
 
-const getInputValue = (inputValues: InputRecord, fieldKey: string): unknown =>
-  inputValues[fieldKey] ?? "";
+const CartItemThumbnail = ({
+  title,
+  type,
+  url,
+}: {
+  title: string | null;
+  type: "COURSE" | "SERVICE";
+  url: string | null;
+}) => (
+  <div className="size-16 shrink-0 overflow-hidden rounded-xl bg-muted ring-1 ring-border">
+    {url ? (
+      <img
+        alt={title ?? "Listing"}
+        className="size-full object-cover"
+        src={url}
+      />
+    ) : (
+      <div className="flex size-full items-center justify-center text-xs text-muted-foreground">
+        {type === "SERVICE" ? "Dịch vụ" : "Khóa học"}
+      </div>
+    )}
+  </div>
+);
 
-const isInputRecord = (value: unknown): value is InputRecord =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+const CartItemPackageSelect = ({
+  disabled,
+  listingId,
+  onSelectPackage,
+  packages,
+  selectedPackageId,
+}: {
+  disabled: boolean;
+  listingId: string;
+  onSelectPackage?: (packageId: string) => void;
+  packages: NonNullable<CartItem["listing"]["servicePackages"]>;
+  selectedPackageId?: string | null;
+}) => (
+  <div className="flex items-center gap-2">
+    <label
+      className="text-xs font-semibold text-muted-foreground"
+      htmlFor={`cart-package-${listingId}`}
+    >
+      Gói:
+    </label>
+    <select
+      className="rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground outline-none focus:ring-1 focus:ring-primary"
+      disabled={disabled}
+      id={`cart-package-${listingId}`}
+      onChange={(event) => onSelectPackage?.(event.target.value)}
+      value={selectedPackageId ?? ""}
+    >
+      <option value="">Chọn một gói</option>
+      {packages.map((packageItem) => (
+        <option
+          disabled={packageItem.status !== "AVAILABLE"}
+          key={packageItem.id}
+          value={packageItem.id}
+        >
+          {packageItem.name} ({formatVND(packageItem.priceAmount)})
+          {packageItem.status === "UNAVAILABLE" ? " (không khả dụng)" : ""}
+        </option>
+      ))}
+    </select>
+  </div>
+);
 
-const getInputDisplayValue = (
-  field: CartField,
-  value: unknown
-): string | number => {
-  if (typeof value === "string" || typeof value === "number") {
-    return value;
-  }
-
-  if (
-    field.type === "file" &&
-    typeof value === "object" &&
-    value !== null &&
-    "fileId" in value &&
-    typeof value.fileId === "string"
-  ) {
-    return value.fileId;
-  }
-
-  return "";
-};
-
-const getInputPlaceholder = (field: CartField): string => {
-  if (field.type === "file") {
-    return "Nhập fileId đã tải lên";
-  }
-  if (field.type === "url") {
-    return "https://...";
-  }
-  return field.label;
-};
-
-const getInputChangeValue = (field: CartField, value: string): unknown => {
-  if (field.type === "number") {
-    return value === "" ? undefined : Number(value);
-  }
-  if (field.type === "file") {
-    return value === "" ? undefined : { fileId: value };
-  }
-  return value;
-};
-
-const validateRequiredInputFields = (
-  fields: CartField[],
-  value: unknown
-): string | undefined => {
-  const inputValues = isInputRecord(value) ? value : EMPTY_INPUT_RECORD;
-  for (const field of fields) {
-    if (!field.required) {
-      continue;
-    }
-
-    const inputValue = inputValues[field.key];
-    const hasValue =
-      (typeof inputValue === "string" && inputValue.trim().length > 0) ||
-      (typeof inputValue === "number" && Number.isFinite(inputValue)) ||
-      (typeof inputValue === "object" &&
-        inputValue !== null &&
-        "fileId" in inputValue &&
-        typeof inputValue.fileId === "string" &&
-        inputValue.fileId.trim().length > 0);
-    if (!hasValue) {
-      return `${field.label} là bắt buộc.`;
-    }
-  }
-
-  return undefined;
-};
-
+/**
+ * Option C — Side-by-Side Split Cart Item Card using theme colors & design system tokens
+ */
 export const CartItemCard = ({
-  children,
+  actionPending,
   item,
   onRemove,
   onSelectPackage,
   onToggle,
-  actionPending,
   selectionPending,
 }: {
   actionPending: boolean;
-  children?: ReactNode;
   item: CartItem;
   onRemove: () => void;
   onSelectPackage?: (packageId: string) => void;
   onToggle: (selected: boolean) => void;
   selectionPending: boolean;
-}) => (
-  <Card className={item.selected ? "border-primary/40" : "opacity-80"}>
-    <CardContent className="space-y-5 p-5">
-      <div className="flex gap-4">
-        <input
-          aria-label={`Chọn ${item.listing.title ?? "Listing"}`}
-          checked={item.selected}
-          className="mt-1 size-4 accent-primary"
-          disabled={actionPending}
-          onChange={(event) => onToggle(event.target.checked)}
-          type="checkbox"
-        />
-        <div className="size-20 shrink-0 overflow-hidden rounded-xl bg-muted">
-          {item.listing.thumbnailUrl ? (
-            <img
-              alt={item.listing.title ?? "Listing"}
-              className="size-full object-cover"
-              src={item.listing.thumbnailUrl}
-            />
-          ) : (
-            <div className="flex size-full items-center justify-center text-xs text-muted-foreground">
-              {item.listing.type === "SERVICE" ? "Dịch vụ" : "Khóa học"}
-            </div>
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-3">
+}) => {
+  const currentPkg = item.listing.servicePackages?.find(
+    (p) => p.id === item.selectedPackageId
+  );
+  const currentPrice = currentPkg
+    ? currentPkg.priceAmount
+    : (item.listing.priceAmount ?? 0);
+  const packages = item.listing.servicePackages ?? [];
+  const disabled = actionPending || selectionPending;
+
+  return (
+    <Card className={item.selected ? "border-primary/40" : "opacity-80"}>
+      <CardContent className="p-5">
+        <div className="flex items-start gap-4">
+          <input
+            aria-label={`Chọn ${item.listing.title ?? "Listing"}`}
+            checked={item.selected}
+            className="mt-1 size-4 accent-primary"
+            disabled={actionPending}
+            onChange={(event) => onToggle(event.target.checked)}
+            type="checkbox"
+          />
+
+          <CartItemThumbnail
+            title={item.listing.title}
+            type={item.listing.type}
+            url={item.listing.thumbnailUrl}
+          />
+
+          <div className="grid flex-1 gap-4 sm:grid-cols-[1fr_auto]">
             <div>
               <Link
-                className="font-semibold text-foreground hover:text-primary"
+                className="font-bold text-foreground hover:text-primary"
                 params={{ id: item.listing.slug }}
                 to="/listing/$id"
               >
                 {item.listing.title ?? "Listing chưa đặt tên"}
               </Link>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-0.5 text-xs text-muted-foreground">
                 Người bán: {item.seller.name}
               </p>
+
+              <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1">
+                  <Clock3 className="size-3.5 text-muted-foreground" />
+                  {item.listing.processingTimeHours ?? "—"} giờ xử lý
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <LockKeyhole className="size-3.5 text-primary" />
+                  Escrow bảo vệ
+                </span>
+                {item.available ? (
+                  <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                    Đang có thể mua
+                  </span>
+                ) : (
+                  <span className="font-medium text-destructive">
+                    Không còn khả dụng
+                  </span>
+                )}
+              </div>
             </div>
-            <p className="shrink-0 font-bold text-primary">
-              {formatVND(item.listing.priceAmount ?? 0)}
-            </p>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1">
-              <Clock3 className="size-3.5" />
-              {item.listing.processingTimeHours ?? "—"} giờ xử lý
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <LockKeyhole className="size-3.5" />
-              Escrow bảo vệ
-            </span>
-            {item.available ? (
-              <span className="text-emerald-600 dark:text-emerald-400">
-                Đang có thể mua
-              </span>
-            ) : (
-              <span className="text-destructive">Không còn khả dụng</span>
-            )}
+
+            <div className="flex flex-col items-end justify-between gap-3 sm:text-right">
+              <div className="flex items-center gap-2">
+                <span className="text-base font-bold text-primary">
+                  {formatVND(currentPrice)}
+                </span>
+                <Button
+                  aria-label={`Xóa ${item.listing.title ?? "Listing"} khỏi Cart`}
+                  disabled={disabled}
+                  onClick={onRemove}
+                  size="icon-sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
+
+              {item.listing.type === "SERVICE" && packages.length > 0 ? (
+                <CartItemPackageSelect
+                  disabled={disabled}
+                  listingId={item.listing.id}
+                  onSelectPackage={onSelectPackage}
+                  packages={packages}
+                  selectedPackageId={item.selectedPackageId}
+                />
+              ) : null}
+            </div>
           </div>
         </div>
-        <Button
-          aria-label={`Xóa ${item.listing.title ?? "Listing"} khỏi Cart`}
-          disabled={actionPending || selectionPending}
-          onClick={onRemove}
-          size="icon-sm"
-          type="button"
-          variant="ghost"
-        >
-          <Trash2 />
-        </Button>
-      </div>
-
-      {item.listing.type === "SERVICE" &&
-      (item.listing.servicePackages?.length ?? 0) > 0 ? (
-        <div className="space-y-2 rounded-xl border border-primary/20 bg-primary/5 p-4">
-          <label
-            className="text-sm font-semibold text-foreground"
-            htmlFor={`cart-package-${item.listing.id}`}
-          >
-            Gói dịch vụ
-          </label>
-          <select
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            disabled={actionPending || selectionPending}
-            id={`cart-package-${item.listing.id}`}
-            onChange={(event) => onSelectPackage?.(event.target.value)}
-            value={item.selectedPackageId ?? ""}
-          >
-            <option value="">Chọn một gói</option>
-            {item.listing.servicePackages?.map((packageItem) => (
-              <option
-                disabled={packageItem.status !== "AVAILABLE"}
-                key={packageItem.id}
-                value={packageItem.id}
-              >
-                {packageItem.name} · {formatVND(packageItem.priceAmount)}
-                {packageItem.status === "UNAVAILABLE"
-                  ? " (không khả dụng)"
-                  : ""}
-              </option>
-            ))}
-          </select>
-          {item.selectedPackageId ? null : (
-            <p className="text-xs text-destructive">
-              Chọn gói trước khi Checkout.
-            </p>
-          )}
-        </div>
-      ) : null}
-
-      {children}
-    </CardContent>
-  </Card>
-);
+      </CardContent>
+    </Card>
+  );
+};
 
 const CheckoutSummary = ({
   children,
@@ -387,6 +339,7 @@ export const CartPage = () => {
       );
     },
   });
+
   const queueSelectionUpdate = (variables: {
     listingId: string;
     selected: boolean;
@@ -447,6 +400,7 @@ export const CartPage = () => {
 
     selectionQueueRef.current = queuedRequest;
   };
+
   const removeMutation = useMutation({
     ...orpc.commerce.cart.remove.mutationOptions(),
     onError: (error) => {
@@ -476,6 +430,7 @@ export const CartPage = () => {
       );
     },
   });
+
   const checkoutMutation = useMutation(
     orpc.commerce.checkout.create.mutationOptions()
   );
@@ -493,10 +448,7 @@ export const CartPage = () => {
     packageMutation.isPending;
   const busy = actionPending || selectionPending;
 
-  const submitCheckout = async (
-    inputValues: InputValues,
-    confirm = false
-  ): Promise<void> => {
+  const submitCheckout = async (confirm = false): Promise<void> => {
     if (!cart || selectedItems.length === 0) {
       return;
     }
@@ -507,7 +459,6 @@ export const CartPage = () => {
         idempotencyKey: getCheckoutKey(),
         items: selectedItems.map((item) => ({
           contractFingerprint: item.contractFingerprint ?? "0".repeat(64),
-          inputs: inputValues[item.listing.id] ?? {},
           listingId: item.listing.id,
           packageId: item.selectedPackageId,
         })),
@@ -535,12 +486,9 @@ export const CartPage = () => {
   };
 
   const checkoutForm = useForm({
-    defaultValues: EMPTY_INPUT_VALUES,
-    onSubmit: async ({ value }) => {
-      await submitCheckout(value, confirmationRequested.current);
-    },
-    validators: {
-      onSubmit: checkoutInputValuesSchema,
+    defaultValues: {},
+    onSubmit: async () => {
+      await submitCheckout(confirmationRequested.current);
     },
   });
 
@@ -582,8 +530,7 @@ export const CartPage = () => {
             Cart của bạn
           </h1>
           <p className="mt-2 text-muted-foreground">
-            Chọn Listing, nhập thông tin cần thiết và thanh toán được bảo vệ bởi
-            Escrow.
+            Chọn Listing và thanh toán được bảo vệ bởi Escrow.
           </p>
         </div>
 
@@ -616,6 +563,7 @@ export const CartPage = () => {
               <div className="space-y-4">
                 {items.map((item) => (
                   <CartItemCard
+                    actionPending={actionPending}
                     item={item}
                     key={item.cartItemId}
                     onRemove={() => {
@@ -633,110 +581,8 @@ export const CartPage = () => {
                         selected,
                       });
                     }}
-                    actionPending={actionPending}
                     selectionPending={selectionPending}
-                  >
-                    {item.selected &&
-                    item.available &&
-                    item.listing.serviceInputFields.length > 0 ? (
-                      <checkoutForm.Field
-                        name={item.listing.id}
-                        validators={{
-                          onSubmit: ({ value }) =>
-                            validateRequiredInputFields(
-                              item.listing.serviceInputFields,
-                              value
-                            ),
-                        }}
-                      >
-                        {(listingField) => {
-                          const inputValues = isInputRecord(
-                            listingField.state.value
-                          )
-                            ? listingField.state.value
-                            : EMPTY_INPUT_RECORD;
-                          const isInvalid =
-                            listingField.state.meta.isTouched &&
-                            !listingField.state.meta.isValid;
-
-                          return (
-                            <Field
-                              className="rounded-xl border border-border/70 bg-muted/20 p-4"
-                              data-invalid={isInvalid}
-                            >
-                              <div>
-                                <p className="text-sm font-semibold">
-                                  Thông tin cho Seller
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  Các giá trị này sẽ được lưu riêng cho
-                                  OrderItem của Seller.
-                                </p>
-                              </div>
-                              {item.listing.serviceInputFields.map(
-                                (inputField) => {
-                                  const value = getInputValue(
-                                    inputValues,
-                                    inputField.key
-                                  );
-                                  const isNumber = inputField.type === "number";
-                                  return (
-                                    <Field key={inputField.id}>
-                                      <FieldLabel
-                                        htmlFor={`${item.listing.id}-${inputField.key}`}
-                                      >
-                                        {inputField.label}
-                                        {inputField.required ? (
-                                          <span className="text-destructive">
-                                            {" "}
-                                            *
-                                          </span>
-                                        ) : null}
-                                      </FieldLabel>
-                                      <Input
-                                        aria-invalid={isInvalid}
-                                        id={`${item.listing.id}-${inputField.key}`}
-                                        inputMode={
-                                          isNumber ? "numeric" : undefined
-                                        }
-                                        name={`${listingField.name}.${inputField.key}`}
-                                        onBlur={listingField.handleBlur}
-                                        onChange={(event) =>
-                                          listingField.handleChange({
-                                            ...inputValues,
-                                            [inputField.key]:
-                                              getInputChangeValue(
-                                                inputField,
-                                                event.target.value
-                                              ),
-                                          })
-                                        }
-                                        placeholder={getInputPlaceholder(
-                                          inputField
-                                        )}
-                                        type={isNumber ? "number" : "text"}
-                                        value={getInputDisplayValue(
-                                          inputField,
-                                          value
-                                        )}
-                                      />
-                                    </Field>
-                                  );
-                                }
-                              )}
-                              {isInvalid ? (
-                                <FieldError>
-                                  {listingField.state.meta.errors
-                                    .map(String)
-                                    .join(" ")}
-                                </FieldError>
-                              ) : null}
-                            </Field>
-                          );
-                        }}
-                      </checkoutForm.Field>
-                    ) : null}
-                  </CartItemCard>
+                  />
                 ))}
               </div>
 

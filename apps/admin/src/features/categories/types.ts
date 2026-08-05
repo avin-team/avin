@@ -1,11 +1,4 @@
-import type { ServiceInputField } from "@avin/db/schema/catalog";
-
 export type CategoryStatus = "ACTIVE" | "HIDDEN" | "ARCHIVED";
-
-export type {
-  ServiceInputField,
-  ServiceInputFieldType,
-} from "@avin/db/schema/catalog";
 
 export interface WarrantyPolicyTemplate {
   readonly durationHours: number;
@@ -27,7 +20,6 @@ export interface SubCategory {
   readonly sortOrder: number;
   readonly defaultWarrantyPolicy: WarrantyPolicyTemplate;
   readonly warrantyBounds: WarrantyBounds;
-  readonly defaultServiceInputs: readonly ServiceInputField[];
 }
 
 export interface ParentCategory {

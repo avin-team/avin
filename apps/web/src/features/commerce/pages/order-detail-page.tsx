@@ -3,6 +3,7 @@ import { Badge } from "@avin/ui/components/badge";
 import { Button } from "@avin/ui/components/button";
 import { Card, CardContent } from "@avin/ui/components/card";
 import { Skeleton } from "@avin/ui/components/skeleton";
+import { cn } from "@avin/ui/lib/utils";
 import {
   ArrowClockwise,
   ArrowLeft,
@@ -20,6 +21,7 @@ import {
   formatOrderDate,
   getOrderItemStatusLabel,
   getOrderItemStatusVariant,
+  getOrderItemStatusColorClassName,
 } from "@/features/commerce/order-status";
 import { formatVND } from "@/utils/format";
 import { orpc } from "@/utils/orpc";
@@ -120,7 +122,10 @@ export const OrderDetailPage = () => {
             </span>
           </div>
           <Badge
-            className="px-3 py-1 text-xs font-semibold"
+            className={cn(
+              "whitespace-nowrap",
+              getOrderItemStatusColorClassName(targetItem.status)
+            )}
             variant={getOrderItemStatusVariant(targetItem.status)}
           >
             {getOrderItemStatusLabel(targetItem.status)}

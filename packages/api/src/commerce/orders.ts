@@ -1,10 +1,5 @@
 import { user } from "@avin/db/schema/auth";
-import {
-  escrowHold,
-  order,
-  orderCustomInput,
-  orderItem,
-} from "@avin/db/schema/commerce";
+import { escrowHold, order, orderItem } from "@avin/db/schema/commerce";
 import type {
   ListingSnapshot,
   OrderItemStatus,
@@ -88,13 +83,7 @@ export interface SellerOrderView {
   createdAt: string;
   currency: string;
   id: string;
-  items: (OrderItemSummary & {
-    customInputs: {
-      fieldKey: string;
-      fieldType: string;
-      value: unknown;
-    }[];
-  })[];
+  items: OrderItemSummary[];
   sellerId: string;
   totalAmount: number;
 }
@@ -166,42 +155,10 @@ export const getSellerOrders = async (
     .where(inArray(orderItem.orderId, orderIds))
     .orderBy(asc(orderItem.createdAt), asc(orderItem.id));
 
-  const itemIds = itemRows.map(({ id }) => id);
-  const inputRows = itemIds.length
-    ? await executor
-        .select({
-          fieldKey: orderCustomInput.fieldKey,
-          fieldType: orderCustomInput.fieldType,
-          orderItemId: orderCustomInput.orderItemId,
-          value: orderCustomInput.value,
-        })
-        .from(orderCustomInput)
-        .where(inArray(orderCustomInput.orderItemId, itemIds))
-        .orderBy(
-          asc(orderCustomInput.orderItemId),
-          asc(orderCustomInput.fieldKey)
-        )
-    : [];
-
-  const inputsByItem = new Map<
-    string,
-    SellerOrderView["items"][number]["customInputs"]
-  >();
-  for (const input of inputRows) {
-    const itemInputs = inputsByItem.get(input.orderItemId) ?? [];
-    itemInputs.push({
-      fieldKey: input.fieldKey,
-      fieldType: input.fieldType,
-      value: input.value,
-    });
-    inputsByItem.set(input.orderItemId, itemInputs);
-  }
-
   const itemsByOrder = new Map<string, SellerOrderView["items"]>();
   for (const item of itemRows) {
     const orderItems = itemsByOrder.get(item.orderId) ?? [];
     orderItems.push({
-      customInputs: inputsByItem.get(item.id) ?? [],
       ...mapOrderItemSummary(item),
     });
     itemsByOrder.set(item.orderId, orderItems);

@@ -1,10 +1,5 @@
 import { db } from "@avin/db";
-import {
-  listing,
-  parentCategory,
-  serviceInputFieldSchema,
-  subCategory,
-} from "@avin/db/schema/catalog";
+import { listing, parentCategory, subCategory } from "@avin/db/schema/catalog";
 import { ORPCError } from "@orpc/server";
 import { count, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
@@ -139,7 +134,6 @@ export const categoryGovernanceRouter = {
     .input(
       z.object({
         commissionRatePercent: z.number(),
-        defaultServiceInputs: z.array(serviceInputFieldSchema).optional(),
         defaultWarrantyDurationHours: z.number().min(0),
         defaultWarrantyTerms: z.string().min(1),
         maxWarrantyHours: z.number().min(0),
@@ -188,7 +182,6 @@ export const categoryGovernanceRouter = {
         .insert(subCategory)
         .values({
           commissionRatePercent: input.commissionRatePercent.toString(),
-          defaultServiceInputs: input.defaultServiceInputs ?? [],
           defaultWarrantyPolicy: {
             durationHours: input.defaultWarrantyDurationHours,
             terms: input.defaultWarrantyTerms.trim(),
@@ -415,7 +408,6 @@ export const categoryGovernanceRouter = {
     .input(
       z.object({
         commissionRatePercent: z.number().optional(),
-        defaultServiceInputs: z.array(serviceInputFieldSchema).optional(),
         defaultWarrantyDurationHours: z.number().min(0).optional(),
         defaultWarrantyTerms: z.string().optional(),
         id: z.string(),
@@ -458,9 +450,6 @@ export const categoryGovernanceRouter = {
           ...(input.sortOrder === undefined
             ? {}
             : { sortOrder: input.sortOrder }),
-          ...(input.defaultServiceInputs
-            ? { defaultServiceInputs: input.defaultServiceInputs }
-            : {}),
           defaultWarrantyPolicy: {
             durationHours: durH,
             terms:

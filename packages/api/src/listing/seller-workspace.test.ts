@@ -1,4 +1,3 @@
-import type { ServiceInputFieldType } from "@avin/db/schema/catalog";
 import { describe, expect, it } from "vitest";
 
 import { assertStoreProfileComplete } from "../seller-store/public-visibility";
@@ -143,26 +142,6 @@ describe("seller workspace listing publication rules", () => {
     expect(() =>
       assertPublishable({ ...validListing, warrantyTerms: "  " }, validCategory)
     ).toThrow("Warranty terms are required");
-  });
-
-  it("rejects publication when service input fields are invalid", () => {
-    expect(() =>
-      assertPublishable(
-        {
-          ...validListing,
-          serviceInputFields: [
-            {
-              id: "f1",
-              key: "invalid",
-              label: "Invalid",
-              required: true,
-              type: "unknown" as unknown as ServiceInputFieldType,
-            },
-          ],
-        },
-        validCategory
-      )
-    ).toThrow("All service input fields must be valid");
   });
 });
 

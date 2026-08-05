@@ -1,10 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { serviceInputFieldSchema } from "@avin/db/schema/catalog";
-import type {
-  ServiceInputField,
-  WarrantyPolicy,
-} from "@avin/db/schema/catalog";
+import type { WarrantyPolicy } from "@avin/db/schema/catalog";
 import type {
   LegacyWarrantyPolicySnapshot,
   ListingSnapshot,
@@ -12,7 +8,6 @@ import type {
   WarrantyPolicySnapshot,
 } from "@avin/db/schema/commerce";
 import { ORPCError } from "@orpc/server";
-import { z } from "zod";
 
 export interface ListingContractSource {
   categoryId: string;
@@ -21,7 +16,6 @@ export interface ListingContractSource {
   priceAmount: number | null;
   processingTimeHours: number | null;
   sellerId: string;
-  serviceInputFields: unknown;
   slug: string;
   thumbnailUrl: string | null;
   title: string | null;
@@ -34,7 +28,6 @@ export interface ParsedListingContract {
   commissionRatePercent: string;
   listingSnapshot: ListingSnapshot;
   processingTimeHours: number;
-  serviceInputFields: ServiceInputField[];
   warrantyPolicy: WarrantyPolicySnapshot & {
     durationHours?: number;
     terms?: string;
@@ -53,10 +46,6 @@ export interface ServicePackageContractSource {
   processingTimeHours: number;
   warrantyPolicy: WarrantyPolicy;
 }
-
-const fileInputValueSchema = z.object({
-  fileId: z.uuid(),
-});
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -84,39 +73,6 @@ const stableSerialize = (value: unknown): string => {
 
 const fingerprint = (value: unknown): string =>
   createHash("sha256").update(stableSerialize(value)).digest("hex");
-
-const isHttpUrl = (value: string): boolean => {
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
-};
-
-const parseServiceInputFields = (value: unknown): ServiceInputField[] => {
-  const parsed = z.array(serviceInputFieldSchema).safeParse(value);
-  if (!parsed.success) {
-    throw new ORPCError("CONFLICT", {
-      message:
-        "Listing ServiceInputFields are invalid and cannot be purchased.",
-    });
-  }
-
-  const keys = new Set<string>();
-  for (const field of parsed.data) {
-    if (!field.key.trim() || keys.has(field.key)) {
-      throw new ORPCError("CONFLICT", {
-        message: "Listing ServiceInputField keys must be unique.",
-      });
-    }
-    keys.add(field.key);
-  }
-
-  return parsed.data.toSorted((left, right) =>
-    left.key.localeCompare(right.key)
-  );
-};
 
 export const parseListingContract = (
   source: ListingContractSource,
@@ -159,7 +115,6 @@ export const parseListingContract = (
     });
   }
 
-  const serviceInputFields = parseServiceInputFields(source.serviceInputFields);
   const warrantyPolicy = {
     durationHours: source.warrantyDurationHours,
     terms: source.warrantyTerms,
@@ -181,13 +136,11 @@ export const parseListingContract = (
       listingSnapshot,
       priceAmount: source.priceAmount,
       processingTimeHours: source.processingTimeHours,
-      serviceInputFields,
       warrantyPolicy,
     }),
     listingSnapshot,
     priceAmount: source.priceAmount,
     processingTimeHours: source.processingTimeHours,
-    serviceInputFields,
     warrantyPolicy,
   };
 };
@@ -244,9 +197,6 @@ export const parseServicePackageContract = (
     });
   }
 
-  const serviceInputFields = parseServiceInputFields(
-    listingSource.serviceInputFields
-  );
   const listingSnapshot = {
     categoryId: listingSource.categoryId,
     description: listingSource.description,
@@ -275,69 +225,16 @@ export const parseServicePackageContract = (
     listingSnapshot,
     priceAmount: packageSource.priceAmount,
     processingTimeHours: packageSource.processingTimeHours,
-    serviceInputFields,
     servicePackageId: packageSource.id,
     servicePackageSnapshot,
     warrantyPolicy: packageSource.warrantyPolicy,
   };
 };
 
-export const validateOrderCustomInputs = (
-  fields: ServiceInputField[],
-  inputs: Record<string, unknown>
-): {
-  fieldKey: string;
-  fieldType: ServiceInputField["type"];
-  value: unknown;
-}[] => {
-  const fieldsByKey = new Map(fields.map((field) => [field.key, field]));
-
-  for (const key of Object.keys(inputs)) {
-    if (!fieldsByKey.has(key)) {
-      throw new ORPCError("BAD_REQUEST", {
-        message: `ServiceInputField "${key}" is not declared by the Listing.`,
-      });
-    }
-  }
-
-  const values = [];
-  for (const field of fields) {
-    const value = inputs[field.key];
-    const hasValue = value !== undefined && value !== null;
-    if (!hasValue) {
-      if (field.required) {
-        throw new ORPCError("BAD_REQUEST", {
-          message: `ServiceInputField "${field.label}" is required.`,
-        });
-      }
-      continue;
-    }
-
-    const valid =
-      (field.type === "text" && typeof value === "string" && value.trim()) ||
-      (field.type === "url" && typeof value === "string" && isHttpUrl(value)) ||
-      (field.type === "number" &&
-        typeof value === "number" &&
-        Number.isFinite(value)) ||
-      (field.type === "file" && fileInputValueSchema.safeParse(value).success);
-
-    if (!valid) {
-      throw new ORPCError("BAD_REQUEST", {
-        message: `ServiceInputField "${field.label}" has an invalid value.`,
-      });
-    }
-
-    values.push({ fieldKey: field.key, fieldType: field.type, value });
-  }
-
-  return values;
-};
-
 export const fingerprintCheckoutRequest = (input: {
   confirmMaterialChanges: boolean;
   items: {
     contractFingerprint: string;
-    inputs: Record<string, unknown>;
     listingId: string;
     packageId?: string | null;
   }[];

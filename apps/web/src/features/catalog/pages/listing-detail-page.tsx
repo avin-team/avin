@@ -2,7 +2,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import {
   AlertCircle,
-  ArrowRight,
   BookOpen,
   CheckCircle2,
   ChevronRight,
@@ -95,7 +94,7 @@ export const ListingDetailPage = () => {
       await navigate({ to: "/cart" });
     },
   });
-  let addToCartLabel = "Thêm vào Cart";
+  let addToCartLabel = "Thêm vào giỏ";
   if (addToCartMutation.isPending) {
     addToCartLabel = "Đang thêm...";
   } else if (isService && !selectedPackage) {
@@ -254,14 +253,6 @@ export const ListingDetailPage = () => {
                   </div>
 
                   {/* Warranty & Terms Section */}
-                  {isService ? (
-                    <ServicePackageSelector
-                      onChange={setSelectedPackageId}
-                      packages={servicePackages}
-                      selectedPackageId={selectedPackage?.id ?? null}
-                    />
-                  ) : null}
-
                   {isService && selectedNoWarranty ? (
                     <div className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5 space-y-2">
                       <div className="flex items-center gap-2 text-amber-600 font-bold text-sm">
@@ -316,37 +307,71 @@ export const ListingDetailPage = () => {
                 <div className="sticky top-24 rounded-3xl border border-border bg-card p-6 shadow-sm backdrop-blur-md space-y-6">
                   {/* Price Box */}
                   <div>
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Giá bán
+                    <span className="text-xs font-medium text-foreground font-semibold">
+                      {isService ? "Gói đã chọn" : "Giá bán"}
                     </span>
                     <div className="mt-1 flex items-baseline gap-2">
                       <span className="text-3xl font-black tracking-tight text-primary">
                         {formatVND(selectedPrice)}
                       </span>
                     </div>
+                    {isService ? (
+                      <div className="mt-1 text-sm font-medium text-emerald-500">
+                        Còn hàng
+                      </div>
+                    ) : null}
                   </div>
 
+                  {/* Package Selector */}
+                  {isService ? (
+                    <ServicePackageSelector
+                      onChange={setSelectedPackageId}
+                      packages={servicePackages}
+                      selectedPackageId={selectedPackage?.id ?? null}
+                    />
+                  ) : null}
+
                   {/* Action CTA */}
-                  <button
-                    className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3.5 px-6 font-bold text-sm text-primary-foreground shadow-md transition-all hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/20 active:scale-[0.98]"
-                    disabled={
-                      addToCartMutation.isPending ||
-                      (isService && !selectedPackage)
-                    }
-                    onClick={() => {
-                      if (listing) {
-                        addToCartMutation.mutate({
-                          listingId: listing.id,
-                          packageId: selectedPackage?.id,
-                        });
+                  <div className="space-y-3">
+                    <button
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 px-6 font-bold text-sm text-primary-foreground shadow-md transition-all hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/20 active:scale-[0.98]"
+                      disabled={
+                        addToCartMutation.isPending ||
+                        (isService && !selectedPackage)
                       }
-                    }}
-                    type="button"
-                  >
-                    <ShoppingCart className="h-4 w-4" />
-                    <span>{addToCartLabel}</span>
-                    <ArrowRight className="h-4 w-4" />
-                  </button>
+                      onClick={() => {
+                        if (listing) {
+                          addToCartMutation.mutate({
+                            listingId: listing.id,
+                            packageId: selectedPackage?.id,
+                          });
+                        }
+                      }}
+                      type="button"
+                    >
+                      <span>Mua ngay</span>
+                    </button>
+
+                    <button
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-primary/20 bg-primary/5 py-3.5 px-6 font-bold text-sm text-primary transition-all hover:bg-primary/10 active:scale-[0.98]"
+                      disabled={
+                        addToCartMutation.isPending ||
+                        (isService && !selectedPackage)
+                      }
+                      onClick={() => {
+                        if (listing) {
+                          addToCartMutation.mutate({
+                            listingId: listing.id,
+                            packageId: selectedPackage?.id,
+                          });
+                        }
+                      }}
+                      type="button"
+                    >
+                      <ShoppingCart className="h-4 w-4" />
+                      <span>{addToCartLabel}</span>
+                    </button>
+                  </div>
 
                   <div className="border-t border-border/40 pt-4 space-y-4">
                     {/* Seller Info */}

@@ -32,10 +32,11 @@ import {
   TableRow,
 } from "@avin/ui/components/table";
 import { Textarea } from "@avin/ui/components/textarea";
+import { cn } from "@avin/ui/lib/utils";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, FileText, PackagePlus, Pencil, Trash2, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { servicePackagesQueryOptions } from "@/features/seller/api/service-packages";
@@ -74,7 +75,6 @@ export const ServicePackageManager = ({
 }: {
   categoryBounds: { maxHours: number; minHours: number } | undefined;
   disabled: boolean;
-  inputFields?: unknown;
   listingId: string;
 }) => {
   const queryClient = useQueryClient();
@@ -186,7 +186,45 @@ export const ServicePackageManager = ({
         // Mutation error handler shows toast
       }
     },
-    validators: { onSubmit: servicePackageFormSchema },
+    onSubmitInvalid: ({ value }) => {
+      const missingFields: string[] = [];
+      if (!value.name.trim()) {
+        missingFields.push("Tên gói");
+      }
+      if (!value.description.trim()) {
+        missingFields.push("Mô tả gói");
+      }
+      if (!value.priceAmount || Number(value.priceAmount) <= 0) {
+        missingFields.push("Giá bán");
+      }
+      if (
+        !value.processingTimeHours ||
+        Number(value.processingTimeHours) <= 0
+      ) {
+        missingFields.push("Thời gian xử lý");
+      }
+      if (
+        value.warrantyMode === "TIMED" &&
+        (!value.warrantyDurationHours ||
+          Number(value.warrantyDurationHours) <= 0)
+      ) {
+        missingFields.push("Thời hạn bảo hành");
+      }
+
+      if (missingFields.length > 0) {
+        toast.error(
+          `Vui lòng nhập đầy đủ thông tin: ${missingFields.join(", ")}.`
+        );
+      } else {
+        toast.error(
+          "Thông tin gói dịch vụ không hợp lệ. Vui lòng kiểm tra lại."
+        );
+      }
+    },
+    validators: {
+      onChange: servicePackageFormSchema,
+      onSubmit: servicePackageFormSchema,
+    },
   });
 
   const resetForm = (): void => {
@@ -204,15 +242,20 @@ export const ServicePackageManager = ({
     deleteMutation.isPending ||
     updateMutation.isPending;
 
-  const startEditing = (
-    packageItem: NonNullable<typeof packagesQuery.data>[number]
-  ): void => {
-    setIsAdding(false);
-    setEditingPackageId(packageItem.id);
+  useEffect(() => {
+    if (!editingPackageId) {
+      return;
+    }
+    const packageItem = packagesQuery.data?.find(
+      (p) => p.id === editingPackageId
+    );
+    if (!packageItem) {
+      return;
+    }
     packageForm.reset(
       packageItem.warrantyPolicy.kind === "TIMED"
         ? {
-            description: packageItem.description,
+            description: packageItem.description ?? "",
             name: packageItem.name,
             priceAmount: String(packageItem.priceAmount),
             processingTimeHours: String(packageItem.processingTimeHours),
@@ -222,7 +265,7 @@ export const ServicePackageManager = ({
             warrantyMode: "TIMED",
           }
         : {
-            description: packageItem.description,
+            description: packageItem.description ?? "",
             name: packageItem.name,
             priceAmount: String(packageItem.priceAmount),
             processingTimeHours: String(packageItem.processingTimeHours),
@@ -230,6 +273,13 @@ export const ServicePackageManager = ({
             warrantyMode: "NO_WARRANTY",
           }
     );
+  }, [categoryBounds, editingPackageId, packageForm, packagesQuery.data]);
+
+  const startEditing = (
+    packageItem: NonNullable<typeof packagesQuery.data>[number]
+  ): void => {
+    setIsAdding(false);
+    setEditingPackageId(packageItem.id);
   };
 
   const startAdding = (): void => {
@@ -244,107 +294,183 @@ export const ServicePackageManager = ({
   const renderInlineEditCells = () => (
     <>
       <TableCell className="min-w-56 align-top">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-start gap-1.5">
           <packageForm.Field name="name">
-            {(field) => (
-              <Input
-                aria-label="Tên gói"
-                className="h-8 text-xs font-medium"
-                disabled={disabled || isPending}
-                name={field.name}
-                onBlur={field.handleBlur}
-                onChange={(e) => field.handleChange(e.target.value)}
-                placeholder="Tên gói (Cơ bản…)"
-                value={field.state.value}
-              />
-            )}
-          </packageForm.Field>
-          <packageForm.Field name="description">
-            {(field) => (
-              <Popover>
-                <PopoverTrigger
-                  render={
-                    <Button
-                      className="h-8 shrink-0 px-2 text-xs"
-                      disabled={disabled || isPending}
-                      type="button"
-                      variant="outline"
-                    />
-                  }
-                >
-                  <FileText aria-hidden="true" className="mr-1 size-3.5" />
-                  {field.state.value.trim() ? "Mô tả ✓" : "Mô tả"}
-                </PopoverTrigger>
-                <PopoverContent className="w-80 p-3">
-                  <PopoverHeader className="mb-2">
-                    <PopoverTitle className="text-xs font-semibold">
-                      Mô tả gói dịch vụ
-                    </PopoverTitle>
-                  </PopoverHeader>
-                  <Textarea
-                    aria-label="Mô tả gói dịch vụ"
-                    className="text-xs"
+            {(field) => {
+              const isInvalid =
+                field.state.meta.isTouched &&
+                field.state.meta.errors.length > 0;
+              return (
+                <div className="w-full space-y-1">
+                  <Input
+                    aria-invalid={isInvalid}
+                    aria-label="Tên gói"
+                    className={cn(
+                      "h-8 text-xs font-medium",
+                      isInvalid &&
+                        "border-destructive focus-visible:ring-destructive"
+                    )}
                     disabled={disabled || isPending}
                     name={field.name}
                     onBlur={field.handleBlur}
                     onChange={(e) => field.handleChange(e.target.value)}
-                    placeholder="Khách hàng nhận được gì trong gói này?"
-                    rows={4}
+                    placeholder="Tên gói (Cơ bản…)"
                     value={field.state.value}
                   />
-                </PopoverContent>
-              </Popover>
-            )}
+                  {isInvalid ? (
+                    <p className="text-[10px] text-destructive">
+                      {field.state.meta.errors
+                        .map((err) => String(err?.message ?? err))
+                        .join(", ")}
+                    </p>
+                  ) : null}
+                </div>
+              );
+            }}
+          </packageForm.Field>
+          <packageForm.Field name="description">
+            {(field) => {
+              const isInvalid =
+                field.state.meta.isTouched &&
+                field.state.meta.errors.length > 0;
+              return (
+                <Popover>
+                  <PopoverTrigger
+                    render={
+                      <Button
+                        className={cn(
+                          "h-8 shrink-0 px-2 text-xs",
+                          isInvalid &&
+                            "border-destructive text-destructive hover:text-destructive"
+                        )}
+                        disabled={disabled || isPending}
+                        type="button"
+                        variant="outline"
+                      />
+                    }
+                  >
+                    <FileText aria-hidden="true" className="mr-1 size-3.5" />
+                    {field.state.value.trim() ? "Mô tả ✓" : "Mô tả"}
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-3">
+                    <PopoverHeader className="mb-2">
+                      <PopoverTitle className="text-xs font-semibold">
+                        Mô tả gói dịch vụ
+                      </PopoverTitle>
+                    </PopoverHeader>
+                    <Textarea
+                      aria-invalid={isInvalid}
+                      aria-label="Mô tả gói dịch vụ"
+                      className={cn(
+                        "text-xs",
+                        isInvalid &&
+                          "border-destructive focus-visible:ring-destructive"
+                      )}
+                      disabled={disabled || isPending}
+                      name={field.name}
+                      onBlur={field.handleBlur}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      placeholder="Khách hàng nhận được gì trong gói này?"
+                      rows={4}
+                      value={field.state.value}
+                    />
+                    {isInvalid ? (
+                      <p className="mt-1 text-[10px] text-destructive">
+                        {field.state.meta.errors
+                          .map((err) => String(err?.message ?? err))
+                          .join(", ")}
+                      </p>
+                    ) : null}
+                  </PopoverContent>
+                </Popover>
+              );
+            }}
           </packageForm.Field>
         </div>
       </TableCell>
       <TableCell className="align-top">
         <packageForm.Field name="priceAmount">
-          {(field) => (
-            <NumberInput
-              aria-label="Giá VND"
-              className="w-28"
-              disabled={disabled || isPending}
-              inputClassName="h-8 text-xs font-semibold"
-              inputProps={{ onBlur: field.handleBlur }}
-              min={1}
-              name={field.name}
-              onValueChange={(val) =>
-                field.handleChange(val === null ? "" : String(val))
-              }
-              placeholder="100000"
-              step={1}
-              value={field.state.value ? Number(field.state.value) : null}
-            />
-          )}
+          {(field) => {
+            const isInvalid =
+              field.state.meta.isTouched && field.state.meta.errors.length > 0;
+            return (
+              <div className="space-y-1">
+                <NumberInput
+                  aria-invalid={isInvalid}
+                  aria-label="Giá VND"
+                  className="w-28"
+                  disabled={disabled || isPending}
+                  inputClassName={cn(
+                    "h-8 text-xs font-semibold",
+                    isInvalid &&
+                      "border-destructive focus-visible:ring-destructive"
+                  )}
+                  inputProps={{ onBlur: field.handleBlur }}
+                  min={1}
+                  name={field.name}
+                  onValueChange={(val) =>
+                    field.handleChange(val === null ? "" : String(val))
+                  }
+                  placeholder="100000"
+                  step={1}
+                  value={field.state.value ? Number(field.state.value) : null}
+                />
+                {isInvalid ? (
+                  <p className="text-[10px] text-destructive">
+                    {field.state.meta.errors
+                      .map((err) => String(err?.message ?? err))
+                      .join(", ")}
+                  </p>
+                ) : null}
+              </div>
+            );
+          }}
         </packageForm.Field>
       </TableCell>
       <TableCell className="align-top">
-        <div className="flex items-center gap-1">
-          <packageForm.Field name="processingTimeHours">
-            {(field) => (
-              <NumberInput
-                aria-label="Thời gian xử lý (giờ)"
-                className="w-20"
-                disabled={disabled || isPending}
-                inputClassName="h-8 text-xs"
-                inputProps={{ onBlur: field.handleBlur }}
-                min={1}
-                name={field.name}
-                onValueChange={(val) =>
-                  field.handleChange(val === null ? "" : String(val))
-                }
-                placeholder="24"
-                step={1}
-                value={field.state.value ? Number(field.state.value) : null}
-              />
-            )}
-          </packageForm.Field>
-          <span className="text-xs text-muted-foreground">giờ</span>
-        </div>
+        <packageForm.Field name="processingTimeHours">
+          {(field) => {
+            const isInvalid =
+              field.state.meta.isTouched && field.state.meta.errors.length > 0;
+            return (
+              <div className="space-y-1">
+                <div className="flex items-center gap-1">
+                  <NumberInput
+                    aria-invalid={isInvalid}
+                    aria-label="Thời gian xử lý (giờ)"
+                    className="w-20"
+                    disabled={disabled || isPending}
+                    inputClassName={cn(
+                      "h-8 text-xs",
+                      isInvalid &&
+                        "border-destructive focus-visible:ring-destructive"
+                    )}
+                    inputProps={{ onBlur: field.handleBlur }}
+                    min={1}
+                    name={field.name}
+                    onValueChange={(val) =>
+                      field.handleChange(val === null ? "" : String(val))
+                    }
+                    placeholder="24"
+                    step={1}
+                    value={field.state.value ? Number(field.state.value) : null}
+                  />
+                  <span className="text-xs text-muted-foreground">giờ</span>
+                </div>
+                {isInvalid ? (
+                  <p className="text-[10px] text-destructive">
+                    {field.state.meta.errors
+                      .map((err) => String(err?.message ?? err))
+                      .join(", ")}
+                  </p>
+                ) : null}
+              </div>
+            );
+          }}
+        </packageForm.Field>
       </TableCell>
       <TableCell className="align-top">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-start gap-1.5">
           <packageForm.Field name="warrantyMode">
             {(field) => (
               <Select
@@ -376,26 +502,45 @@ export const ServicePackageManager = ({
             {(warrantyMode) =>
               warrantyMode === "TIMED" ? (
                 <packageForm.Field name="warrantyDurationHours">
-                  {(field) => (
-                    <NumberInput
-                      aria-label="Thời hạn bảo hành (giờ)"
-                      className="w-16"
-                      disabled={disabled || isPending}
-                      inputClassName="h-8 text-xs"
-                      inputProps={{ onBlur: field.handleBlur }}
-                      max={categoryBounds?.maxHours}
-                      min={categoryBounds?.minHours}
-                      name={field.name}
-                      onValueChange={(val) =>
-                        field.handleChange(val === null ? "" : String(val))
-                      }
-                      placeholder="24"
-                      step={1}
-                      value={
-                        field.state.value ? Number(field.state.value) : null
-                      }
-                    />
-                  )}
+                  {(field) => {
+                    const isInvalid =
+                      field.state.meta.isTouched &&
+                      field.state.meta.errors.length > 0;
+                    return (
+                      <div className="space-y-1">
+                        <NumberInput
+                          aria-invalid={isInvalid}
+                          aria-label="Thời hạn bảo hành (giờ)"
+                          className="w-16"
+                          disabled={disabled || isPending}
+                          inputClassName={cn(
+                            "h-8 text-xs",
+                            isInvalid &&
+                              "border-destructive focus-visible:ring-destructive"
+                          )}
+                          inputProps={{ onBlur: field.handleBlur }}
+                          max={categoryBounds?.maxHours}
+                          min={categoryBounds?.minHours}
+                          name={field.name}
+                          onValueChange={(val) =>
+                            field.handleChange(val === null ? "" : String(val))
+                          }
+                          placeholder="24"
+                          step={1}
+                          value={
+                            field.state.value ? Number(field.state.value) : null
+                          }
+                        />
+                        {isInvalid ? (
+                          <p className="text-[10px] text-destructive">
+                            {field.state.meta.errors
+                              .map((err) => String(err?.message ?? err))
+                              .join(", ")}
+                          </p>
+                        ) : null}
+                      </div>
+                    );
+                  }}
                 </packageForm.Field>
               ) : null
             }

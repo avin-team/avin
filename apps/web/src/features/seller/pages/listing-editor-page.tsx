@@ -69,19 +69,11 @@ import type { StoreSection } from "../data/store-types";
 import {
   getFirstIncompleteEditorStepIndex,
   getListingEditorStepOrder,
-  getServiceInputFieldsForDraft,
   isListingEditorStepLocked,
 } from "./listing-editor-logic";
-import type {
-  ListingEditorServiceInput,
-  ListingEditorStepId,
-} from "./listing-editor-logic";
+import type { ListingEditorStepId } from "./listing-editor-logic";
 
 type ListingStatus = "DRAFT" | "HIDDEN" | "PAUSED" | "PUBLISHED" | "ARCHIVED";
-
-interface ServiceInputField extends ListingEditorServiceInput {
-  required: boolean;
-}
 
 interface ListingEditorForm {
   categoryId: string;
@@ -89,7 +81,6 @@ interface ListingEditorForm {
   images: string[];
   priceAmount: string;
   processingTimeHours: string;
-  serviceInputFields: ServiceInputField[];
   thumbnailUrl: string;
   title: string;
   type: "" | "COURSE" | "SERVICE";
@@ -119,7 +110,6 @@ interface EditorCategory {
   name: string;
   parentId: string;
   parentName: string;
-  serviceInputFields: ServiceInputField[];
   warrantyBounds: { maxHours: number; minHours: number };
 }
 
@@ -239,7 +229,6 @@ const buildUpdateInput = (form: ListingEditorForm) => ({
   categoryId: form.categoryId || undefined,
   description: form.description.trim() || null,
   images: form.images,
-  serviceInputFields: form.serviceInputFields,
   thumbnailUrl: form.images[0]?.trim() || form.thumbnailUrl.trim() || null,
   title: form.title.trim() || null,
   type: form.type || undefined,
@@ -259,7 +248,6 @@ const buildCreateDraftInput = (
 ) => ({
   ...buildUpdateInput(form),
   categoryId: form.categoryId,
-  serviceInputFields: getServiceInputFieldsForDraft(form.serviceInputFields),
   type,
 });
 
@@ -275,7 +263,6 @@ const getCategoryOptions = (
       id: string;
       name: string;
       parentId: string;
-      defaultServiceInputs: ServiceInputField[];
       warrantyBounds: { maxHours: number; minHours: number };
     }[];
   }[]
@@ -286,7 +273,6 @@ const getCategoryOptions = (
       name: category.name,
       parentId: category.parentId,
       parentName: parent.name,
-      serviceInputFields: category.defaultServiceInputs,
       warrantyBounds: category.warrantyBounds,
     }))
   );
@@ -1039,7 +1025,6 @@ interface ListingEditorListing {
   images: string[];
   priceAmount: number | null;
   processingTimeHours: number | null;
-  serviceInputFields: ServiceInputField[];
   status: ListingStatus;
   thumbnailUrl: string | null;
   title: string | null;
@@ -1055,7 +1040,6 @@ const EMPTY_NEW_LISTING: ListingEditorListing = {
   images: [],
   priceAmount: null,
   processingTimeHours: null,
-  serviceInputFields: [],
   status: "DRAFT",
   thumbnailUrl: null,
   title: null,
@@ -1089,10 +1073,6 @@ const ListingEditorFormPage = ({
       listing.type === "COURSE"
         ? (listing.processingTimeHours?.toString() ?? "")
         : "",
-    serviceInputFields: getServiceInputFieldsForDraft(
-      listing.serviceInputFields,
-      initialCategory?.serviceInputFields ?? []
-    ),
     thumbnailUrl: listing.thumbnailUrl ?? "",
     title: listing.title ?? "",
     type: listing.type,
@@ -1207,7 +1187,6 @@ const ListingEditorFormPage = ({
     form.processingTimeHours.trim() ||
     form.images.length > 0 ||
     form.thumbnailUrl.trim() ||
-    form.serviceInputFields.length > 0 ||
     form.warrantyDurationHours.trim() ||
     form.warrantyTerms.trim()
   );
@@ -1318,18 +1297,6 @@ const ListingEditorFormPage = ({
   const handleCategoryChange = (nextCategoryId: string) => {
     markUnsaved();
     editorForm.setFieldValue("categoryId", nextCategoryId);
-    if (isNew && !draftId && form.type === "SERVICE") {
-      const nextCategory = categoryOptions.find(
-        (category) => category.id === nextCategoryId
-      );
-      editorForm.setFieldValue(
-        "serviceInputFields",
-        getServiceInputFieldsForDraft(
-          form.serviceInputFields,
-          nextCategory?.serviceInputFields ?? []
-        )
-      );
-    }
   };
 
   const isActionPending =
@@ -1739,7 +1706,6 @@ const ListingEditorFormPage = ({
                       <ServicePackageManager
                         categoryBounds={selectedCategory?.warrantyBounds}
                         disabled={isEditorStepDisabled}
-                        inputFields={form.serviceInputFields}
                         listingId={draftId ?? "new"}
                       />
                     </div>

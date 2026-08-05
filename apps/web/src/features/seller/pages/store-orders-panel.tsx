@@ -34,6 +34,7 @@ import {
   formatOrderDeadline,
   getOrderItemStatusLabel,
   getOrderItemStatusVariant,
+  getOrderItemStatusColorClassName,
 } from "@/features/commerce/order-status";
 import { SellerOrderItemCard } from "@/features/seller/components/seller-order-item-card";
 import { formatVND } from "@/utils/format";
@@ -87,17 +88,6 @@ const matchesTabFilterHelper = (
     );
   }
   return true;
-};
-
-const formatInputValue = (value: unknown): string => {
-  if (typeof value === "string" || typeof value === "number") {
-    return String(value);
-  }
-  try {
-    return JSON.stringify(value) ?? "—";
-  } catch {
-    return "—";
-  }
 };
 
 const getListingTypeLabel = (type: string): string => {
@@ -186,10 +176,7 @@ export const StoreOrdersPanel = () => {
           item.listing.title.toLowerCase().includes(query) ||
           item.buyerId.toLowerCase().includes(query) ||
           buyerName.toLowerCase().includes(query) ||
-          buyerEmail.toLowerCase().includes(query) ||
-          item.customInputs.some((input) =>
-            String(input.value).toLowerCase().includes(query)
-          );
+          buyerEmail.toLowerCase().includes(query);
 
         if (!matchesSearch) {
           return false;
@@ -372,7 +359,7 @@ export const StoreOrdersPanel = () => {
             <thead className="border-b border-border/60 bg-muted/40 font-semibold text-muted-foreground uppercase tracking-wider">
               <tr>
                 <th className="p-4">Sản phẩm</th>
-                <th className="p-4">Khách hàng & Yêu cầu</th>
+                <th className="p-4">Khách hàng</th>
                 <th className="p-4">Hạn xử lý</th>
                 <th className="p-4">Tạm giữ (Escrow) & Giá</th>
                 <th className="p-4">Trạng thái</th>
@@ -409,27 +396,6 @@ export const StoreOrdersPanel = () => {
                         {item.buyer.email}
                       </div>
                     ) : null}
-                    {item.customInputs.length > 0 ? (
-                      <div className="mt-1.5 flex flex-col gap-1 rounded-xl border border-primary/20 bg-primary/5 p-2.5 text-[11px]">
-                        <span className="font-semibold text-primary text-[10px] uppercase tracking-wider">
-                          Yêu cầu từ khách hàng:
-                        </span>
-                        {item.customInputs.map((input) => (
-                          <div key={input.fieldKey} className="break-words">
-                            <span className="text-muted-foreground font-medium">
-                              {input.fieldKey}:{" "}
-                            </span>
-                            <span className="font-semibold text-foreground">
-                              {formatInputValue(input.value)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="mt-1 block text-[11px] text-muted-foreground">
-                        Không có yêu cầu thêm
-                      </span>
-                    )}
                   </td>
 
                   <td className="p-4 whitespace-nowrap">
@@ -451,7 +417,10 @@ export const StoreOrdersPanel = () => {
                   </td>
 
                   <td className="p-4 whitespace-nowrap">
-                    <Badge variant={getOrderItemStatusVariant(item.status)}>
+                    <Badge
+                      className={getOrderItemStatusColorClassName(item.status)}
+                      variant={getOrderItemStatusVariant(item.status)}
+                    >
                       {getOrderItemStatusLabel(item.status)}
                     </Badge>
                   </td>

@@ -178,10 +178,12 @@ vi.mock("@phosphor-icons/react", () => ({
   ArrowClockwise: () => <span />,
   Calendar: () => <span />,
   CaretDown: () => <span />,
+  CaretDownIcon: () => <span />,
   CaretLeft: () => <span />,
   CaretRight: () => <span />,
   CaretUp: () => <span />,
   CheckCircle: () => <span />,
+  CheckIcon: () => <span />,
   Clock: () => <span />,
   FileText: () => <span />,
   Handshake: () => <span />,
@@ -311,7 +313,7 @@ describe("OrdersPage", () => {
     expect(screen.getByText("Chưa có đơn hàng")).toBeInTheDocument();
   });
 
-  it("renders mixed OrderItem states in the table overview with links to detail pages", () => {
+  it("renders mixed OrderItem states in the table overview", () => {
     mocks.ordersQuery.data = [order];
 
     render(<OrdersPage />);
@@ -319,6 +321,6 @@ describe("OrdersPage", () => {
     expect(screen.getAllByText(/Studio Avin/u)[0]).toBeInTheDocument();
     expect(screen.getAllByText("Chờ Seller tiếp nhận")[0]).toBeInTheDocument();
     expect(screen.getAllByText("Đã bàn giao")[0]).toBeInTheDocument();
-    expect(screen.getAllByText("Xem chi tiết")).toHaveLength(2);
+    expect(screen.getAllByRole("row")).toHaveLength(3);
   });
 });

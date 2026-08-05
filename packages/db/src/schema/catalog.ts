@@ -16,25 +16,6 @@ import { z } from "zod";
 import { user } from "./auth";
 import { sellerProfile } from "./seller";
 
-export const serviceInputFieldTypeSchema = z.enum([
-  "text",
-  "url",
-  "file",
-  "number",
-]);
-
-export type ServiceInputFieldType = z.infer<typeof serviceInputFieldTypeSchema>;
-
-export const serviceInputFieldSchema = z.object({
-  id: z.string(),
-  key: z.string(),
-  label: z.string(),
-  required: z.boolean(),
-  type: serviceInputFieldTypeSchema,
-});
-
-export type ServiceInputField = z.infer<typeof serviceInputFieldSchema>;
-
 export const warrantyPolicySchema = z.discriminatedUnion("kind", [
   z.object({
     durationHours: z.number().int().positive(),
@@ -108,10 +89,6 @@ export const subCategory = pgTable(
       scale: 2,
     }).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
-    defaultServiceInputs: jsonb("default_service_inputs")
-      .$type<ServiceInputField[]>()
-      .default([])
-      .notNull(),
     defaultWarrantyPolicy: jsonb("default_warranty_policy")
       .$type<{
         durationHours: number;
@@ -164,10 +141,6 @@ export const listing = pgTable(
     sellerId: text("seller_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    serviceInputFields: jsonb("service_input_fields")
-      .$type<ServiceInputField[]>()
-      .default([])
-      .notNull(),
     slug: text("slug").notNull().unique(),
     status: listingStatus("status").default("DRAFT").notNull(),
     thumbnailUrl: text("thumbnail_url"),

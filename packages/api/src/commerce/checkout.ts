@@ -15,7 +15,6 @@ import {
   checkout,
   escrowHold,
   order,
-  orderCustomInput,
   orderItem,
   orderItemLifecycleEvent,
 } from "@avin/db/schema/commerce";
@@ -33,7 +32,6 @@ import {
   fingerprintCheckoutRequest,
   parseListingContract,
   parseServicePackageContract,
-  validateOrderCustomInputs,
 } from "./contracts";
 
 export { checkoutInputSchema } from "./checkout-input";
@@ -90,19 +88,12 @@ interface SelectedListingRow {
   sellerBanned: boolean;
   sellerBanExpires: Date | null;
   sellerId: string;
-  serviceInputFields: unknown;
   warrantyDurationHours: number | null;
   warrantyTerms: string | null;
 }
 
 interface PreparedCheckoutItem {
   contract: ReturnType<typeof parseListingContract>;
-  customInputs: {
-    fieldKey: string;
-    fieldType: "file" | "number" | "text" | "url";
-    value: unknown;
-  }[];
-  input: CheckoutItemInput;
   row: SelectedListingRow;
 }
 
@@ -135,7 +126,6 @@ const getSelectedListingRows = async (
       sellerBanExpires: userTable.banExpires,
       sellerBanned: userTable.banned,
       sellerId: listing.sellerId,
-      serviceInputFields: listing.serviceInputFields,
       servicePackageDescription: servicePackage.description,
       servicePackageId: servicePackage.id,
       servicePackageListingId: servicePackage.listingId,
@@ -396,7 +386,6 @@ const prepareCheckoutItems = (
           description: row.description,
           images: row.images,
           sellerId: row.sellerId,
-          serviceInputFields: row.serviceInputFields,
           slug: row.listingSlug,
           thumbnailUrl: row.listingThumbnailUrl,
           title: row.listingTitle,
@@ -426,7 +415,6 @@ const prepareCheckoutItems = (
           priceAmount: row.listingPriceAmount,
           processingTimeHours: row.processingTimeHours,
           sellerId: row.sellerId,
-          serviceInputFields: row.serviceInputFields,
           slug: row.listingSlug,
           thumbnailUrl: row.listingThumbnailUrl,
           title: row.listingTitle,
@@ -450,11 +438,6 @@ const prepareCheckoutItems = (
 
     prepared.push({
       contract,
-      customInputs: validateOrderCustomInputs(
-        contract.serviceInputFields,
-        requestedItem.inputs
-      ),
-      input: requestedItem,
       row,
     });
   }
@@ -496,13 +479,12 @@ const createOrdersAndEscrowHolds = async (
       throw new Error("Order was not created");
     }
 
-    for (const { contract, customInputs, row } of sellerItems) {
+    for (const { contract, row } of sellerItems) {
       const {
         commissionRatePercent,
         listingSnapshot,
         priceAmount,
         processingTimeHours,
-        serviceInputFields,
         warrantyPolicy,
       } = contract;
       const [createdItem] = await transaction
@@ -517,7 +499,6 @@ const createOrdersAndEscrowHolds = async (
             now.getTime() + processingTimeHours * 60 * 60 * 1000
           ),
           processingTimeHours,
-          serviceInputFields,
           servicePackageId: contract.servicePackageId ?? null,
           servicePackageSnapshot: contract.servicePackageSnapshot ?? null,
           warrantyPolicy,
@@ -540,17 +521,6 @@ const createOrdersAndEscrowHolds = async (
         orderItemId: createdItem.id,
         reason: "Checkout created OrderItem",
       });
-
-      if (customInputs.length > 0) {
-        await transaction.insert(orderCustomInput).values(
-          customInputs.map((input) => ({
-            fieldKey: input.fieldKey,
-            fieldType: input.fieldType,
-            orderItemId: createdItem.id,
-            value: input.value,
-          }))
-        );
-      }
 
       await transaction.insert(escrowHold).values({
         amount: priceAmount,

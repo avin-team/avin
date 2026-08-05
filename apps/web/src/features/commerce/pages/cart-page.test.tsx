@@ -17,7 +17,6 @@ const item = {
     id: "listing-1",
     priceAmount: 150_000,
     processingTimeHours: 48,
-    serviceInputFields: [],
     slug: "listing-1",
     thumbnailUrl: null,
     title: "Kháng 282",

@@ -40,7 +40,6 @@ describe("Category workflow", () => {
         subCategories: [
           {
             commissionRatePercent: 5,
-            defaultServiceInputs: [],
             defaultWarrantyPolicy: { durationHours: 24, terms: "" },
             id: "s1",
             name: "S1",

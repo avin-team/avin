@@ -180,9 +180,6 @@ vi.mock("@/features/commerce/components/order-item-timeline", () => ({
 }));
 
 const baseItem = {
-  customInputs: [
-    { fieldKey: "profile_link", fieldType: "url", value: "https://buyer.test" },
-  ],
   deliveredAt: null,
   deliveryReviewDeadlineAt: null,
   escrowHold: { amount: 150_000, id: "escrow-1", status: "HELD" as const },
@@ -212,7 +209,6 @@ const order: SellerOrderView = {
     baseItem,
     {
       ...baseItem,
-      customInputs: [],
       id: "item-2",
       listing: { ...baseItem.listing, title: "Thiết kế banner" },
       status: "IN_PROGRESS",

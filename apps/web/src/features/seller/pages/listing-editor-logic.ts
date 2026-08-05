@@ -26,19 +26,6 @@ export interface ListingEditorStep {
   step: ListingEditorStepId;
 }
 
-export interface ListingEditorServiceInput {
-  id: string;
-  key: string;
-  label: string;
-  type: "file" | "number" | "text" | "url";
-}
-
-export const getServiceInputFieldsForDraft = <T>(
-  serviceInputFields: T[],
-  categoryDefaults: T[] = []
-): T[] =>
-  serviceInputFields.length > 0 ? serviceInputFields : categoryDefaults;
-
 export const isListingEditorStepLocked = (
   isNew: boolean,
   hasDraft: boolean,
