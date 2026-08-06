@@ -36,7 +36,7 @@ export const WalletButton = () => {
       render={<Link to="/wallet" />}
       variant="outline"
     >
-      <WalletIcon className="size-4 text-primary" />
+      <WalletIcon className="size-5.5 text-primary" />
       <span className="font-semibold text-foreground">
         {formatVND(balance)}
       </span>

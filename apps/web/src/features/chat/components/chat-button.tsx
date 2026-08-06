@@ -16,7 +16,7 @@ export const ChatButton = () => {
       size="icon"
       variant="ghost"
     >
-      <ChatCircleDotsIcon className="h-5 w-5" />
+      <ChatCircleDotsIcon className="size-5.5" />
       {unreadCount > 0 ? (
         <Badge
           aria-hidden="true"

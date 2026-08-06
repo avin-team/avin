@@ -82,11 +82,14 @@ export const OrderChatPanel = ({
   const [inputText, setInputText] = React.useState("");
   const queryClient = useQueryClient();
 
-  const messagesQuery = useQuery(
-    orpc.commerce.chat.listMessages.queryOptions({
-      input: { orderId },
-    })
+  const messagesQueryOptions = React.useMemo(
+    () =>
+      orpc.commerce.chat.listMessages.queryOptions({
+        input: { orderId },
+      }),
+    [orderId]
   );
+  const messagesQuery = useQuery(messagesQueryOptions);
   const rawMessages = messagesQuery.data?.messages;
 
   React.useEffect(() => {
@@ -151,7 +154,7 @@ export const OrderChatPanel = ({
       .channel(channelName, { config: { private: true } })
       .on("broadcast", { event: "new_message" }, () => {
         void queryClient.invalidateQueries({
-          queryKey: [["commerce", "chat", "listMessages"]],
+          queryKey: messagesQueryOptions.queryKey,
         });
       })
       .on("broadcast", { event: "typing" }, (payload) => {
@@ -181,13 +184,13 @@ export const OrderChatPanel = ({
                 })
               );
               await queryClient.invalidateQueries({
-                queryKey: [["commerce", "chat", "listMessages"]],
+                queryKey: messagesQueryOptions.queryKey,
               });
             })();
             return;
           }
           void queryClient.invalidateQueries({
-            queryKey: [["commerce", "chat", "listMessages"]],
+            queryKey: messagesQueryOptions.queryKey,
           });
         }
       });
@@ -207,6 +210,7 @@ export const OrderChatPanel = ({
     broadcastTyping,
     orderId,
     queryClient,
+    messagesQueryOptions.queryKey,
     realtimeToken?.accessToken,
     realtimeToken?.channel,
   ]);

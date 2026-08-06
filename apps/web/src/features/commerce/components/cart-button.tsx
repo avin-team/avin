@@ -36,7 +36,7 @@ export const CartButton = () => {
       size="icon"
       variant="ghost"
     >
-      <ShoppingCartIcon data-icon="inline-start" />
+      <ShoppingCartIcon className="size-5.5" />
       {itemCount > 0 ? (
         <Badge
           aria-hidden="true"
