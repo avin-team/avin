@@ -17,7 +17,18 @@ import {
 } from "@avin/db/schema/commerce";
 import { sellerProfile } from "@avin/db/schema/seller";
 import { ORPCError } from "@orpc/server";
-import { and, asc, count, desc, eq, gt, inArray, lt, or } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gt,
+  inArray,
+  lt,
+  ne,
+  or,
+} from "drizzle-orm";
 
 import { createSupabaseAccessToken } from "../access/supabase-access-token";
 import type { MarketplaceSession } from "../runtime/context";
@@ -89,6 +100,12 @@ export interface GetRealtimeTokenOptions {
   createAccessToken?: (user: MarketplaceSession["user"]) => Promise<string>;
   database: typeof db;
   input: GetRealtimeTokenInput;
+  userId: string;
+  userRole?: string | null;
+}
+
+export interface GetNotificationRealtimeTokenOptions {
+  createAccessToken?: (user: MarketplaceSession["user"]) => Promise<string>;
   userId: string;
   userRole?: string | null;
 }
@@ -241,7 +258,10 @@ export async function listConversations({
         }),
       ]);
       const lastReadId = cursorRecord?.lastReadMessageId;
-      const unreadWhereConditions = [eq(orderMessage.orderId, orderRecord.id)];
+      const unreadWhereConditions = [
+        eq(orderMessage.orderId, orderRecord.id),
+        ne(orderMessage.senderId, userId),
+      ];
       if (lastReadId) {
         unreadWhereConditions.push(gt(orderMessage.id, lastReadId));
       }
@@ -769,7 +789,10 @@ export async function getUnreadCount({
 
   const lastReadId = cursorRecord?.lastReadMessageId;
 
-  const whereConditions = [eq(orderMessage.orderId, orderId)];
+  const whereConditions = [
+    eq(orderMessage.orderId, orderId),
+    ne(orderMessage.senderId, userId),
+  ];
   if (lastReadId) {
     whereConditions.push(gt(orderMessage.id, lastReadId));
   }
@@ -837,6 +860,23 @@ export async function getRealtimeToken({
   return {
     accessToken,
     channel: `order:${input.orderId}`,
+    expiresInSeconds: 600,
+  };
+}
+
+export async function getNotificationRealtimeToken({
+  createAccessToken = createSupabaseAccessToken,
+  userId,
+  userRole,
+}: GetNotificationRealtimeTokenOptions) {
+  const accessToken = await createAccessToken({
+    id: userId,
+    role: userRole,
+  } as MarketplaceSession["user"]);
+
+  return {
+    accessToken,
+    channel: `inbox:${userId}`,
     expiresInSeconds: 600,
   };
 }

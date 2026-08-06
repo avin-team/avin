@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   getAfterMessages,
+  getNotificationRealtimeToken,
   getRealtimeToken,
   getUnreadCount,
   listMessages,
@@ -368,6 +369,20 @@ describe("Order Chat Logic", () => {
     expect(res).toMatchObject({
       accessToken: "realtime-access-token",
       channel: `order:${orderId}`,
+      expiresInSeconds: 600,
+    });
+  });
+
+  it("generates a private inbox token for chat notifications", async () => {
+    const res = await getNotificationRealtimeToken({
+      createAccessToken: () => Promise.resolve("realtime-access-token"),
+      userId: buyerId,
+      userRole: "BUYER",
+    });
+
+    expect(res).toEqual({
+      accessToken: "realtime-access-token",
+      channel: `inbox:${buyerId}`,
       expiresInSeconds: 600,
     });
   });

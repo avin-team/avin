@@ -1,3 +1,4 @@
+import type { OrderItemStatus } from "@avin/api/commerce/orders";
 import {
   Avatar,
   AvatarFallback,
@@ -13,10 +14,10 @@ import {
   MagnifyingGlassIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
+import { useSearch } from "@tanstack/react-router";
 import * as React from "react";
 
 import { OrderChatPanel } from "@/features/commerce/components/order-chat-panel";
-import type { OrderItemStatus } from "@/features/commerce/order-status";
 import {
   getOrderItemStatusColorClassName,
   getOrderItemStatusLabel,
@@ -26,13 +27,16 @@ import { orpc } from "@/utils/orpc";
 type FilterTab = "all" | "active" | "completed";
 
 export const ChatPage = () => {
+  const { orderId: orderIdFromSearch } = useSearch({
+    from: "/_authenticated/chat",
+  });
   const conversationsQuery = useQuery(
     orpc.commerce.chat.listConversations.queryOptions()
   );
   const [searchTerm, setSearchTerm] = React.useState("");
   const [activeTab, setActiveTab] = React.useState<FilterTab>("all");
   const [selectedOrderId, setSelectedOrderId] = React.useState<string | null>(
-    null
+    orderIdFromSearch ?? null
   );
 
   const rawConversations = conversationsQuery.data;

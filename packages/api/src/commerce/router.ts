@@ -18,6 +18,7 @@ import {
   createAttachment,
   getAttachmentUrl,
   getAfterMessages,
+  getNotificationRealtimeToken,
   getRealtimeToken,
   getUnreadCount,
   listConversations,
@@ -176,6 +177,13 @@ export const commerceRouter = {
           userRole: context.session.user.role,
         })
       ),
+
+    getNotificationRealtimeToken: protectedProcedure.handler(({ context }) =>
+      getNotificationRealtimeToken({
+        userId: context.session.user.id,
+        userRole: context.session.user.role,
+      })
+    ),
 
     getRealtimeToken: protectedProcedure
       .input(z.object({ orderId: z.uuid() }))
