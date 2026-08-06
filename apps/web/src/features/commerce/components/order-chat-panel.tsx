@@ -69,6 +69,7 @@ export const OrderChatPanel = ({
     typeof supabasePublic.channel
   > | null>(null);
   const lastMessageIdRef = React.useRef<string | null>(null);
+  const messageListEndRef = React.useRef<HTMLDivElement>(null);
   const lastTypingBroadcastAtRef = React.useRef(0);
   const typingIndicatorTimeoutRef = React.useRef<ReturnType<
     typeof setTimeout
@@ -91,10 +92,18 @@ export const OrderChatPanel = ({
   );
   const messagesQuery = useQuery(messagesQueryOptions);
   const rawMessages = messagesQuery.data?.messages;
+  const latestMessageId = rawMessages?.[0]?.id;
 
   React.useEffect(() => {
     lastMessageIdRef.current = rawMessages?.[0]?.id ?? null;
   }, [rawMessages]);
+
+  React.useLayoutEffect(() => {
+    messageListEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "end",
+    });
+  }, [latestMessageId]);
 
   const sendMessageMutation = useMutation(
     orpc.commerce.chat.sendMessage.mutationOptions({
@@ -403,6 +412,7 @@ export const OrderChatPanel = ({
                   </MessageScrollerItem>
                 );
               })}
+              <div ref={messageListEndRef} />
             </MessageScrollerContent>
           </MessageScrollerViewport>
           <MessageScrollerButton direction="end" />
