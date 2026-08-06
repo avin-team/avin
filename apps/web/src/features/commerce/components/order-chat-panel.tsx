@@ -1,5 +1,6 @@
 /* eslint-disable react-doctor/effect-needs-cleanup */
 
+import type { OrderItemStatus } from "@avin/api/commerce/orders";
 import { ORDER_CHAT_ATTACHMENT_UPLOAD_ROUTE } from "@avin/api/storage";
 import { env } from "@avin/env/web";
 import {
@@ -37,7 +38,6 @@ import { Link } from "@tanstack/react-router";
 import * as React from "react";
 import { toast } from "sonner";
 
-import type { OrderItemStatus } from "@/features/commerce/order-status";
 import {
   getOrderItemStatusColorClassName,
   getOrderItemStatusLabel,
@@ -80,6 +80,7 @@ const getBubbleVariant = (
 
 interface OrderChatHeaderProps {
   isOtherParticipantPresent: boolean;
+  isOtherTyping?: boolean;
   orderId: string;
   orderStatus?: string;
   participantLabel: string;
@@ -90,8 +91,50 @@ interface OrderChatHeaderProps {
   showOrderHeaderLink: boolean;
 }
 
+const renderHeaderStatus = (
+  isOtherTyping: boolean,
+  isOtherParticipantPresent: boolean,
+  participantLabel: string
+) => {
+  if (isOtherTyping) {
+    return (
+      <>
+        <span className="relative flex size-2">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+          <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+        </span>
+        <span className="font-medium text-emerald-600 dark:text-emerald-400">
+          Đang nhập...
+        </span>
+      </>
+    );
+  }
+
+  if (isOtherParticipantPresent) {
+    return (
+      <>
+        <span className="relative flex size-2">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+          <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+        </span>
+        <span className="font-medium text-emerald-600 dark:text-emerald-400">
+          Đang hoạt động
+        </span>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <span className="size-2 rounded-full bg-muted-foreground/30 shrink-0" />
+      <span>{participantLabel}</span>
+    </>
+  );
+};
+
 const OrderChatHeader = ({
   isOtherParticipantPresent,
+  isOtherTyping = false,
   orderId,
   orderStatus,
   participantLabel,
@@ -103,14 +146,22 @@ const OrderChatHeader = ({
 }: OrderChatHeaderProps) => (
   <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-border/60 bg-muted/30 shrink-0">
     <div className="flex items-center gap-2.5 min-w-0">
-      <Avatar size="sm" className="size-8 shrink-0 border border-border/50">
-        {sellerImage ? (
-          <AvatarImage src={sellerImage} alt={sellerName} />
+      <div className="relative shrink-0">
+        <Avatar size="sm" className="size-8 shrink-0 border border-border/50">
+          {sellerImage ? (
+            <AvatarImage src={sellerImage} alt={sellerName} />
+          ) : null}
+          <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
+            {sellerName.slice(0, 2).toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+        {isOtherParticipantPresent ? (
+          <span
+            aria-hidden="true"
+            className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-emerald-500 ring-2 ring-background"
+          />
         ) : null}
-        <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
-          {sellerName.slice(0, 2).toUpperCase()}
-        </AvatarFallback>
-      </Avatar>
+      </div>
       <div className="min-w-0">
         <div className="flex items-center gap-1.5 min-w-0">
           {sellerStoreSlug ? (
@@ -136,9 +187,13 @@ const OrderChatHeader = ({
           ) : null}
         </div>
         <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-          <span>
-            {isOtherParticipantPresent ? "Đang hoạt động" : participantLabel}
-          </span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {renderHeaderStatus(
+              isOtherTyping,
+              isOtherParticipantPresent,
+              participantLabel
+            )}
+          </div>
           {orderStatus ? (
             <Badge
               className={cn(
@@ -194,6 +249,8 @@ export const OrderChatPanel = ({
   const [isOtherParticipantPresent, setIsOtherParticipantPresent] =
     React.useState(false);
   const [isOtherTyping, setIsOtherTyping] = React.useState(false);
+  const [isNewestMessageVisible, setIsNewestMessageVisible] =
+    React.useState(false);
   const [inputText, setInputText] = React.useState("");
   const queryClient = useQueryClient();
 
@@ -220,7 +277,7 @@ export const OrderChatPanel = ({
 
   React.useEffect(() => {
     lastMessageIdRef.current = latestMessageId ?? null;
-    if (!latestMessageId) {
+    if (!latestMessageId || !isNewestMessageVisible) {
       return;
     }
 
@@ -234,7 +291,7 @@ export const OrderChatPanel = ({
       messageId: latestMessageId,
       orderId,
     });
-  }, [latestMessageId, markChatRead, orderId]);
+  }, [isNewestMessageVisible, latestMessageId, markChatRead, orderId]);
 
   React.useLayoutEffect(() => {
     if (typeof messageListEndRef.current?.scrollIntoView === "function") {
@@ -243,6 +300,21 @@ export const OrderChatPanel = ({
         block: "end",
       });
     }
+  }, [latestMessageId]);
+
+  React.useEffect(() => {
+    const messageListEnd = messageListEndRef.current;
+    if (!(latestMessageId && messageListEnd)) {
+      setIsNewestMessageVisible(false);
+      return;
+    }
+
+    const observer = new IntersectionObserver(([entry]) => {
+      setIsNewestMessageVisible(entry?.isIntersecting === true);
+    });
+    observer.observe(messageListEnd);
+
+    return () => observer.disconnect();
   }, [latestMessageId]);
 
   const sendMessageMutation = useMutation(
@@ -463,6 +535,7 @@ export const OrderChatPanel = ({
     >
       <OrderChatHeader
         isOtherParticipantPresent={isOtherParticipantPresent}
+        isOtherTyping={isOtherTyping}
         orderId={orderId}
         orderStatus={orderStatus}
         participantLabel={participantLabel}
@@ -550,7 +623,30 @@ export const OrderChatPanel = ({
                   </MessageScrollerItem>
                 );
               })}
-              <div ref={messageListEndRef} />
+              {isOtherTyping && (
+                <MessageScrollerItem className="flex justify-start">
+                  <Message align="start">
+                    <MessageAvatar>
+                      <Avatar size="sm" className="size-7">
+                        <AvatarFallback className="text-[10px] font-semibold bg-primary/10 text-primary">
+                          {sellerName.slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </MessageAvatar>
+                    <MessageContent>
+                      <div className="flex items-center gap-1 rounded-2xl bg-muted/60 border border-border/40 px-3 py-2 text-xs text-muted-foreground">
+                        <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse [animation-delay:-0.3s]" />
+                        <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse [animation-delay:-0.15s]" />
+                        <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="ml-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                          Đang nhập...
+                        </span>
+                      </div>
+                    </MessageContent>
+                  </Message>
+                </MessageScrollerItem>
+              )}
+              <div className="h-px" ref={messageListEndRef} />
             </MessageScrollerContent>
           </MessageScrollerViewport>
           <MessageScrollerButton direction="end" />
@@ -608,11 +704,6 @@ export const OrderChatPanel = ({
         <p className="px-3 pb-2 text-xs text-muted-foreground">
           Đính kèm:{" "}
           {attachmentDrafts.map((attachment) => attachment.name).join(", ")}
-        </p>
-      )}
-      {isOtherTyping && (
-        <p className="px-3 pb-2 text-xs text-muted-foreground">
-          Người tham gia khác đang nhập…
         </p>
       )}
     </div>

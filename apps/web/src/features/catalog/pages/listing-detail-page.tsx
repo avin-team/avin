@@ -1,13 +1,14 @@
 import {
   WarningCircleIcon,
   BookOpenIcon,
-  CheckCircleIcon,
   CaretRightIcon,
+  CheckCircleIcon,
   ClockIcon,
   HouseIcon,
   ShieldCheckIcon,
   ShoppingCartIcon,
-  UserCheckIcon,
+  StarIcon,
+  StorefrontIcon,
   WrenchIcon,
 } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -40,11 +41,14 @@ export const ListingDetailPage = () => {
 
   const listing = listingQuery.data;
   const isService = listing?.type === "SERVICE";
+  const sellerStoreSlug = listing?.seller?.storeSlug;
+  const sellerName = listing?.seller?.name || "Nhà cung cấp xác minh";
+  const sellerAvatar = listing?.seller?.image;
   const servicePackages = listing?.servicePackages ?? [];
   const selectedPackage =
     servicePackages.find(
       (packageItem) => packageItem.id === selectedPackageId
-    ) ?? (servicePackages.length === 1 ? servicePackages[0] : undefined);
+    ) ?? servicePackages[0];
   const selectedWarranty = selectedPackage?.warrantyPolicy;
   const selectedTimedWarranty =
     selectedWarranty?.kind === "TIMED" ? selectedWarranty : null;
@@ -184,122 +188,219 @@ export const ListingDetailPage = () => {
             {/* Main Content Layout */}
             <div className="mt-6 grid gap-8 lg:grid-cols-12">
               {/* Left Column: Info & Details */}
-              <div className="space-y-6 lg:col-span-8">
-                {/* Hero Card */}
-                <div className="overflow-hidden rounded-3xl border border-border bg-card p-6 shadow-xs backdrop-blur-md sm:p-8">
-                  {/* Type Badge & Category Tag */}
-                  <div className="mb-4 flex flex-wrap items-center gap-2">
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${
-                        isService
-                          ? "bg-blue-500/10 text-blue-500 border border-blue-500/20"
-                          : "bg-purple-500/10 text-purple-500 border border-purple-500/20"
-                      }`}
-                    >
-                      {isService ? (
-                        <>
-                          <WrenchIcon className="h-3.5 w-3.5" /> Dịch vụ số
-                        </>
-                      ) : (
-                        <>
-                          <BookOpenIcon className="h-3.5 w-3.5" /> Khóa học
-                          online
-                        </>
-                      )}
-                    </span>
+              <div className="space-y-8 lg:col-span-8">
+                {/* Type Badge & Category Tag */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${
+                      isService
+                        ? "bg-blue-500/10 text-blue-500 border border-blue-500/20"
+                        : "bg-purple-500/10 text-purple-500 border border-purple-500/20"
+                    }`}
+                  >
+                    {isService ? (
+                      <>
+                        <WrenchIcon className="h-3.5 w-3.5" /> Dịch vụ số
+                      </>
+                    ) : (
+                      <>
+                        <BookOpenIcon className="h-3.5 w-3.5" /> Khóa học online
+                      </>
+                    )}
+                  </span>
 
-                    {subCategory ? (
-                      <span className="rounded-full border border-border bg-muted/60 px-3 py-1 text-xs font-medium text-muted-foreground">
-                        {subCategory.name}
+                  {subCategory ? (
+                    <span className="rounded-full border border-border bg-muted/60 px-3 py-1 text-xs font-medium text-muted-foreground">
+                      {subCategory.name}
+                    </span>
+                  ) : null}
+                </div>
+
+                {/* Title */}
+                <h1 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
+                  {listing.title ?? "Untitled listing"}
+                </h1>
+
+                {/* Listing media gallery */}
+                <div>
+                  {listingImages.length > 0 ? (
+                    <ListingMediaGallery
+                      images={listingImages}
+                      title={listing.title ?? "Listing"}
+                    />
+                  ) : (
+                    <div className="aspect-video w-full overflow-hidden rounded-2xl border border-border/40 bg-muted/40">
+                      <div className="flex h-full w-full flex-col items-center justify-center bg-linear-to-br from-primary/10 via-muted/30 to-background p-8 text-center">
+                        {isService ? (
+                          <WrenchIcon className="h-16 w-16 text-primary/40" />
+                        ) : (
+                          <BookOpenIcon className="h-16 w-16 text-primary/40" />
+                        )}
+                        <span className="mt-3 text-sm font-semibold text-muted-foreground">
+                          {listing.title ?? "Untitled listing"}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Description Section */}
+                <div className="space-y-3">
+                  <h2 className="text-lg font-bold text-foreground">
+                    Tổng quan & Chi tiết
+                  </h2>
+                  <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
+                    {listing.description || "Chưa có mô tả."}
+                  </p>
+                </div>
+
+                {/* Warranty & Terms Section */}
+                {isService && selectedNoWarranty ? (
+                  <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5 space-y-2">
+                    <div className="flex items-center gap-2 text-amber-600 font-bold text-sm">
+                      <ShieldCheckIcon className="h-5 w-5" />
+                      <span>Không có bảo hành</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Vẫn có 48 giờ để xem xét sau khi Seller giao hàng.
+                    </p>
+                  </div>
+                ) : null}
+
+                {!isService && listing.warrantyDurationHours ? (
+                  <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-emerald-500 font-bold text-sm">
+                        <ShieldCheckIcon className="h-5 w-5" />
+                        <span>Bảo hành bảo vệ người mua</span>
+                      </div>
+                      <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-500">
+                        Bảo hành {listing.warrantyDurationHours} giờ
                       </span>
+                    </div>
+                    {listing.warrantyTerms ? (
+                      <p className="text-xs text-muted-foreground">
+                        {listing.warrantyTerms}
+                      </p>
                     ) : null}
                   </div>
+                ) : null}
+                {isService && selectedTimedWarranty ? (
+                  <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-emerald-500 font-bold text-sm">
+                        <ShieldCheckIcon className="h-5 w-5" />
+                        <span>Bảo hành bảo vệ người mua</span>
+                      </div>
+                      <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-500">
+                        Bảo hành {selectedTimedWarranty.durationHours} giờ
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Cam kết hỗ trợ xử lý sự cố trong suốt thời hạn bảo hành.
+                    </p>
+                  </div>
+                ) : null}
 
-                  {/* Title */}
-                  <h1 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
-                    {listing.title ?? "Untitled listing"}
-                  </h1>
+                {/* Store / Seller Info Section */}
+                <div className="pt-8 border-t border-border/60 space-y-4">
+                  <h2 className="text-lg font-bold text-foreground">
+                    Người bán
+                  </h2>
 
-                  {/* Listing media gallery */}
-                  <div className="mt-6">
-                    {listingImages.length > 0 ? (
-                      <ListingMediaGallery
-                        images={listingImages}
-                        title={listing.title ?? "Listing"}
-                      />
-                    ) : (
-                      <div className="aspect-video w-full overflow-hidden rounded-2xl border border-border/40 bg-muted/40">
-                        <div className="flex h-full w-full flex-col items-center justify-center bg-linear-to-br from-primary/10 via-muted/30 to-background p-8 text-center">
-                          {isService ? (
-                            <WrenchIcon className="h-16 w-16 text-primary/40" />
-                          ) : (
-                            <BookOpenIcon className="h-16 w-16 text-primary/40" />
-                          )}
-                          <span className="mt-3 text-sm font-semibold text-muted-foreground">
-                            {listing.title ?? "Untitled listing"}
-                          </span>
+                  <div className="space-y-5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-center gap-3.5">
+                        {sellerAvatar ? (
+                          <img
+                            alt={sellerName}
+                            className="h-12 w-12 rounded-full object-cover border border-border shadow-xs"
+                            src={sellerAvatar}
+                          />
+                        ) : (
+                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary border border-primary/20">
+                            <StorefrontIcon className="h-6 w-6" />
+                          </div>
+                        )}
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {sellerStoreSlug ? (
+                              <Link
+                                className="font-bold text-base text-foreground hover:text-primary transition-colors flex items-center gap-1.5"
+                                params={{ slug: sellerStoreSlug }}
+                                to="/store/$slug"
+                              >
+                                <span>{sellerName}</span>
+                                <CheckCircleIcon className="h-4 w-4 text-primary shrink-0" />
+                              </Link>
+                            ) : (
+                              <span className="font-bold text-base text-foreground flex items-center gap-1.5">
+                                <span>{sellerName}</span>
+                                <CheckCircleIcon className="h-4 w-4 text-primary shrink-0" />
+                              </span>
+                            )}
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-500">
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                              Offline 1 ngày
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1 font-semibold text-amber-500">
+                              <StarIcon className="h-3.5 w-3.5 fill-amber-500" />
+                              <span>5.0</span>
+                            </span>
+                            <span>•</span>
+                            <span>0 đánh giá</span>
+                            <span>•</span>
+                            <span>Đã bán 0</span>
+                          </div>
                         </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-border/40 text-xs">
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium block">
+                          Đánh giá
+                        </span>
+                        <span className="font-semibold text-foreground block truncate">
+                          Chưa có đánh giá công khai
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium block">
+                          Đơn hàng
+                        </span>
+                        <span className="font-semibold text-foreground block">
+                          Tin mới
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium block">
+                          Thời gian phản hồi
+                        </span>
+                        <span className="font-semibold text-foreground block">
+                          {selectedProcessingTime
+                            ? `Dự kiến ${selectedProcessingTime}h`
+                            : "Dự kiến 4h"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {sellerStoreSlug ? (
+                      <Link
+                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/5 py-3 px-4 font-bold text-sm text-rose-500 transition-all hover:bg-rose-500/10 hover:border-rose-500/60 active:scale-[0.99] text-center"
+                        params={{ slug: sellerStoreSlug }}
+                        to="/store/$slug"
+                      >
+                        <span>Xem gian hàng</span>
+                      </Link>
+                    ) : (
+                      <div className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-muted/20 py-3 px-4 font-bold text-sm text-muted-foreground text-center opacity-60">
+                        <span>Xem gian hàng</span>
                       </div>
                     )}
                   </div>
-
-                  {/* Description Section */}
-                  <div className="mt-8 space-y-3">
-                    <h2 className="text-lg font-bold text-foreground">
-                      Tổng quan & Chi tiết
-                    </h2>
-                    <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
-                      {listing.description || "Chưa có mô tả."}
-                    </p>
-                  </div>
-
-                  {/* Warranty & Terms Section */}
-                  {isService && selectedNoWarranty ? (
-                    <div className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5 space-y-2">
-                      <div className="flex items-center gap-2 text-amber-600 font-bold text-sm">
-                        <ShieldCheckIcon className="h-5 w-5" />
-                        <span>Không có bảo hành</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Vẫn có 48 giờ để xem xét sau khi Seller giao hàng.
-                      </p>
-                    </div>
-                  ) : null}
-
-                  {!isService && listing.warrantyDurationHours ? (
-                    <div className="mt-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-emerald-500 font-bold text-sm">
-                          <ShieldCheckIcon className="h-5 w-5" />
-                          <span>Bảo hành bảo vệ người mua</span>
-                        </div>
-                        <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-500">
-                          Bảo hành {listing.warrantyDurationHours} giờ
-                        </span>
-                      </div>
-                      {listing.warrantyTerms ? (
-                        <p className="text-xs text-muted-foreground">
-                          {listing.warrantyTerms}
-                        </p>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  {isService && selectedTimedWarranty ? (
-                    <div className="mt-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-emerald-500 font-bold text-sm">
-                          <ShieldCheckIcon className="h-5 w-5" />
-                          <span>Bảo hành bảo vệ người mua</span>
-                        </div>
-                        <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-500">
-                          Bảo hành {selectedTimedWarranty.durationHours} giờ
-                        </span>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Cam kết hỗ trợ xử lý sự cố trong suốt thời hạn bảo hành.
-                      </p>
-                    </div>
-                  ) : null}
                 </div>
               </div>
 
@@ -374,44 +475,19 @@ export const ListingDetailPage = () => {
                     </button>
                   </div>
 
-                  <div className="border-t border-border/40 pt-4 space-y-4">
-                    {/* Seller Info */}
-                    <div className="flex items-center gap-3">
-                      {listing.seller?.image ? (
-                        <img
-                          alt={listing.seller.name ?? "Seller"}
-                          className="h-10 w-10 rounded-full object-cover border border-border"
-                          src={listing.seller.image}
-                        />
-                      ) : (
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                          <UserCheckIcon className="h-5 w-5" />
-                        </div>
-                      )}
-                      <div>
-                        <span className="text-xs text-muted-foreground font-medium block">
-                          Người bán
-                        </span>
-                        <span className="font-bold text-sm text-foreground">
-                          {listing.seller?.name ?? "Nhà cung cấp xác minh"}
-                        </span>
-                      </div>
+                  {/* Trust badges */}
+                  <div className="space-y-2 text-xs text-muted-foreground pt-4 border-t border-border/40">
+                    <div className="flex items-center gap-2">
+                      <CheckCircleIcon className="h-4 w-4 text-emerald-500 shrink-0" />
+                      <span>Thanh toán bảo vệ qua Escrow</span>
                     </div>
-
-                    {/* Trust badges */}
-                    <div className="space-y-2 text-xs text-muted-foreground pt-2 border-t border-border/40">
-                      <div className="flex items-center gap-2">
-                        <CheckCircleIcon className="h-4 w-4 text-emerald-500 shrink-0" />
-                        <span>Thanh toán bảo vệ qua Escrow</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <ClockIcon className="h-4 w-4 text-primary shrink-0" />
-                        <span>
-                          {selectedProcessingTime
-                            ? `${selectedProcessingTime} giờ xử lý`
-                            : "Giao hàng nhanh / Tự động"}
-                        </span>
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <ClockIcon className="h-4 w-4 text-primary shrink-0" />
+                      <span>
+                        {selectedProcessingTime
+                          ? `${selectedProcessingTime} giờ xử lý`
+                          : "Giao hàng nhanh / Tự động"}
+                      </span>
                     </div>
                   </div>
                 </div>

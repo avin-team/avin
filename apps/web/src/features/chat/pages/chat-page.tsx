@@ -14,7 +14,7 @@ import {
   MagnifyingGlassIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
-import { useSearch } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import * as React from "react";
 
 import { OrderChatPanel } from "@/features/commerce/components/order-chat-panel";
@@ -27,6 +27,7 @@ import { orpc } from "@/utils/orpc";
 type FilterTab = "all" | "active" | "completed";
 
 export const ChatPage = () => {
+  const navigate = useNavigate();
   const { orderId: orderIdFromSearch } = useSearch({
     from: "/_authenticated/chat",
   });
@@ -35,10 +36,6 @@ export const ChatPage = () => {
   );
   const [searchTerm, setSearchTerm] = React.useState("");
   const [activeTab, setActiveTab] = React.useState<FilterTab>("all");
-  const [selectedOrderId, setSelectedOrderId] = React.useState<string | null>(
-    orderIdFromSearch ?? null
-  );
-
   const rawConversations = conversationsQuery.data;
 
   const filteredConversations = React.useMemo(
@@ -72,9 +69,9 @@ export const ChatPage = () => {
     [rawConversations, searchTerm, activeTab]
   );
 
-  const selectedConversation = selectedOrderId
+  const selectedConversation = orderIdFromSearch
     ? (rawConversations ?? []).find(
-        (conversation) => conversation.orderId === selectedOrderId
+        (conversation) => conversation.orderId === orderIdFromSearch
       )
     : null;
 
@@ -171,7 +168,12 @@ export const ChatPage = () => {
                     isSelected && "bg-accent"
                   )}
                   key={conversation.orderId}
-                  onClick={() => setSelectedOrderId(conversation.orderId)}
+                  onClick={() =>
+                    void navigate({
+                      search: { orderId: conversation.orderId },
+                      to: "/chat",
+                    })
+                  }
                   type="button"
                 >
                   <div className="relative shrink-0">
@@ -254,7 +256,7 @@ export const ChatPage = () => {
               <div className="flex items-center gap-2 sm:hidden">
                 <Button
                   aria-label="Quay lại danh sách tin nhắn"
-                  onClick={() => setSelectedOrderId(null)}
+                  onClick={() => void navigate({ search: {}, to: "/chat" })}
                   size="icon-xs"
                   type="button"
                   variant="ghost"
