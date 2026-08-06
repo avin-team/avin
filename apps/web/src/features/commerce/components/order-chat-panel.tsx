@@ -2,7 +2,12 @@
 
 import { ORDER_CHAT_ATTACHMENT_UPLOAD_ROUTE } from "@avin/api/storage";
 import { env } from "@avin/env/web";
-import { Avatar, AvatarFallback } from "@avin/ui/components/avatar";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@avin/ui/components/avatar";
+import { Badge } from "@avin/ui/components/badge";
 import { Bubble, BubbleContent } from "@avin/ui/components/bubble";
 import { Button } from "@avin/ui/components/button";
 import { Input } from "@avin/ui/components/input";
@@ -22,19 +27,34 @@ import {
 } from "@avin/ui/components/message-scroller";
 import { cn } from "@avin/ui/lib/utils";
 import { useUploadFiles } from "@better-upload/client";
-import { PaperPlaneRightIcon, PaperclipIcon } from "@phosphor-icons/react";
+import {
+  ArrowUpRightIcon,
+  PaperclipIcon,
+  PaperPlaneRightIcon,
+} from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import * as React from "react";
 import { toast } from "sonner";
 
+import type { OrderItemStatus } from "@/features/commerce/order-status";
+import {
+  getOrderItemStatusColorClassName,
+  getOrderItemStatusLabel,
+} from "@/features/commerce/order-status";
 import { orpc } from "@/utils/orpc";
 import { supabasePublic } from "@/utils/supabase";
 
 interface OrderChatPanelProps {
   heightClass?: string;
   orderId: string;
+  orderStatus?: string;
   participantLabel?: string;
+  sellerImage?: string | null;
   sellerName: string;
+  sellerStoreSlug?: string | null;
+  serviceTitle?: string;
+  showOrderHeaderLink?: boolean;
 }
 
 interface AttachmentDraft {
@@ -58,17 +78,111 @@ const getBubbleVariant = (
   return "muted";
 };
 
+interface OrderChatHeaderProps {
+  isOtherParticipantPresent: boolean;
+  orderId: string;
+  orderStatus?: string;
+  participantLabel: string;
+  sellerImage?: string | null;
+  sellerName: string;
+  sellerStoreSlug?: string | null;
+  serviceTitle?: string;
+  showOrderHeaderLink: boolean;
+}
+
+const OrderChatHeader = ({
+  isOtherParticipantPresent,
+  orderId,
+  orderStatus,
+  participantLabel,
+  sellerImage,
+  sellerName,
+  sellerStoreSlug,
+  serviceTitle,
+  showOrderHeaderLink,
+}: OrderChatHeaderProps) => (
+  <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-border/60 bg-muted/30 shrink-0">
+    <div className="flex items-center gap-2.5 min-w-0">
+      <Avatar size="sm" className="size-8 shrink-0 border border-border/50">
+        {sellerImage ? (
+          <AvatarImage src={sellerImage} alt={sellerName} />
+        ) : null}
+        <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
+          {sellerName.slice(0, 2).toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
+      <div className="min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0">
+          {sellerStoreSlug ? (
+            <Link
+              to="/store/$slug"
+              params={{ slug: sellerStoreSlug }}
+              className="text-xs font-semibold text-foreground truncate hover:text-primary hover:underline"
+            >
+              {sellerName}
+            </Link>
+          ) : (
+            <p className="text-xs font-semibold text-foreground truncate">
+              {sellerName}
+            </p>
+          )}
+          {serviceTitle ? (
+            <>
+              <span className="text-muted-foreground text-[10px]">•</span>
+              <span className="text-xs text-muted-foreground truncate">
+                {serviceTitle}
+              </span>
+            </>
+          ) : null}
+        </div>
+        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+          <span>
+            {isOtherParticipantPresent ? "Đang hoạt động" : participantLabel}
+          </span>
+          {orderStatus ? (
+            <Badge
+              className={cn(
+                "text-[9px] px-1.5 py-0 font-normal shrink-0",
+                getOrderItemStatusColorClassName(orderStatus as OrderItemStatus)
+              )}
+              variant="outline"
+            >
+              {getOrderItemStatusLabel(orderStatus as OrderItemStatus)}
+            </Badge>
+          ) : null}
+        </div>
+      </div>
+    </div>
+    {showOrderHeaderLink ? (
+      <Link
+        className="shrink-0 whitespace-nowrap text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+        params={{ id: orderId }}
+        to="/orders/$id"
+      >
+        <span>Xem đơn hàng</span>
+        <ArrowUpRightIcon className="size-3 shrink-0" />
+      </Link>
+    ) : null}
+  </div>
+);
+
 export const OrderChatPanel = ({
   heightClass = "h-110",
   orderId,
+  orderStatus,
   participantLabel = "Người bán",
+  sellerImage,
   sellerName,
+  sellerStoreSlug,
+  serviceTitle,
+  showOrderHeaderLink = false,
 }: OrderChatPanelProps) => {
   const attachmentInputRef = React.useRef<HTMLInputElement>(null);
   const channelRef = React.useRef<ReturnType<
     typeof supabasePublic.channel
   > | null>(null);
   const lastMessageIdRef = React.useRef<string | null>(null);
+  const lastMarkedReadRef = React.useRef<string | null>(null);
   const messageListEndRef = React.useRef<HTMLDivElement>(null);
   const lastTypingBroadcastAtRef = React.useRef(0);
   const typingIndicatorTimeoutRef = React.useRef<ReturnType<
@@ -83,6 +197,16 @@ export const OrderChatPanel = ({
   const [inputText, setInputText] = React.useState("");
   const queryClient = useQueryClient();
 
+  const { mutate: markChatRead } = useMutation(
+    orpc.commerce.chat.markRead.mutationOptions({
+      onSuccess: () => {
+        void queryClient.invalidateQueries({
+          queryKey: orpc.commerce.chat.listConversations.queryKey(),
+        });
+      },
+    })
+  );
+
   const messagesQueryOptions = React.useMemo(
     () =>
       orpc.commerce.chat.listMessages.queryOptions({
@@ -95,14 +219,30 @@ export const OrderChatPanel = ({
   const latestMessageId = rawMessages?.[0]?.id;
 
   React.useEffect(() => {
-    lastMessageIdRef.current = rawMessages?.[0]?.id ?? null;
-  }, [rawMessages]);
+    lastMessageIdRef.current = latestMessageId ?? null;
+    if (!latestMessageId) {
+      return;
+    }
+
+    const readCursorKey = `${orderId}:${latestMessageId}`;
+    if (lastMarkedReadRef.current === readCursorKey) {
+      return;
+    }
+
+    lastMarkedReadRef.current = readCursorKey;
+    markChatRead({
+      messageId: latestMessageId,
+      orderId,
+    });
+  }, [latestMessageId, markChatRead, orderId]);
 
   React.useLayoutEffect(() => {
-    messageListEndRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "end",
-    });
+    if (typeof messageListEndRef.current?.scrollIntoView === "function") {
+      messageListEndRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "end",
+      });
+    }
   }, [latestMessageId]);
 
   const sendMessageMutation = useMutation(
@@ -321,19 +461,17 @@ export const OrderChatPanel = ({
         heightClass
       )}
     >
-      <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border/60 bg-muted/30 shrink-0">
-        <Avatar size="sm" className="size-7">
-          <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
-            {sellerName.slice(0, 2).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-        <div>
-          <p className="text-xs font-semibold text-foreground">{sellerName}</p>
-          <p className="text-[10px] text-muted-foreground">
-            {isOtherParticipantPresent ? "Đang hoạt động" : participantLabel}
-          </p>
-        </div>
-      </div>
+      <OrderChatHeader
+        isOtherParticipantPresent={isOtherParticipantPresent}
+        orderId={orderId}
+        orderStatus={orderStatus}
+        participantLabel={participantLabel}
+        sellerImage={sellerImage}
+        sellerName={sellerName}
+        sellerStoreSlug={sellerStoreSlug}
+        serviceTitle={serviceTitle}
+        showOrderHeaderLink={showOrderHeaderLink}
+      />
 
       <MessageScrollerProvider>
         <MessageScroller className="flex-1 min-h-0">

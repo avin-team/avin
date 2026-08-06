@@ -62,6 +62,9 @@ vi.mock("@/utils/orpc", () => ({
         listMessages: {
           queryOptions: () => ({ queryKey: ["chat-messages"] }),
         },
+        markRead: {
+          mutationOptions: () => ({}),
+        },
         sendMessage: {
           mutationOptions: () => ({}),
         },

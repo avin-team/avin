@@ -15,6 +15,7 @@ import {
   orderItem,
   orderMessage,
 } from "@avin/db/schema/commerce";
+import { sellerProfile } from "@avin/db/schema/seller";
 import { ORPCError } from "@orpc/server";
 import { and, asc, count, desc, eq, gt, inArray, lt, or } from "drizzle-orm";
 
@@ -146,6 +147,38 @@ async function assertCanReadChat({
   return { isAdmin };
 }
 
+interface ConversationParticipantProfile {
+  avatarUrl?: string | null;
+  storeSlug?: string | null;
+  storefrontName?: string | null;
+}
+
+function buildConversationParticipant(
+  isBuyer: boolean,
+  seller: { id: string; image: string | null; name: string },
+  buyer: { id: string; image: string | null; name: string },
+  profile?: ConversationParticipantProfile
+) {
+  if (isBuyer) {
+    return {
+      avatarUrl: profile?.avatarUrl ?? null,
+      id: seller.id,
+      image: profile?.avatarUrl ?? seller.image,
+      name: profile?.storefrontName ?? seller.name,
+      storeSlug: profile?.storeSlug ?? null,
+      storefrontName: profile?.storefrontName ?? null,
+    };
+  }
+  return {
+    avatarUrl: null,
+    id: buyer.id,
+    image: buyer.image,
+    name: buyer.name,
+    storeSlug: null,
+    storefrontName: null,
+  };
+}
+
 export async function listConversations({
   database,
   userId,
@@ -157,26 +190,95 @@ export async function listConversations({
       buyer: {
         columns: { id: true, image: true, name: true },
       },
+      items: {
+        columns: {
+          id: true,
+          listingSnapshot: true,
+          status: true,
+        },
+      },
       seller: {
         columns: { id: true, image: true, name: true },
       },
     },
   });
 
-  return orders.map((orderRecord) => {
-    const isBuyer = orderRecord.buyerId === userId;
-    const participant = isBuyer ? orderRecord.seller : orderRecord.buyer;
-    return {
-      createdAt: orderRecord.createdAt,
-      orderId: orderRecord.id,
-      participant: {
-        id: participant.id,
-        image: participant.image,
-        name: participant.name,
-      },
-      participantRole: isBuyer ? "seller" : "buyer",
-    };
-  });
+  const sellerUserIds = [
+    ...new Set(orders.map((orderRecord) => orderRecord.sellerId)),
+  ];
+
+  const sellerProfiles =
+    sellerUserIds.length > 0
+      ? await database.query.sellerProfile.findMany({
+          where: inArray(sellerProfile.userId, sellerUserIds),
+        })
+      : [];
+
+  const profilesByUserId = new Map(sellerProfiles.map((p) => [p.userId, p]));
+
+  return await Promise.all(
+    orders.map(async (orderRecord) => {
+      const isBuyer = orderRecord.buyerId === userId;
+      const participant = buildConversationParticipant(
+        isBuyer,
+        orderRecord.seller,
+        orderRecord.buyer,
+        profilesByUserId.get(orderRecord.sellerId)
+      );
+      const firstItem = orderRecord.items?.[0];
+      const listingSnapshot = firstItem?.listingSnapshot;
+
+      const [lastMsg, cursorRecord] = await Promise.all([
+        database.query.orderMessage.findFirst({
+          orderBy: [desc(orderMessage.id)],
+          where: eq(orderMessage.orderId, orderRecord.id),
+        }),
+        database.query.chatReadCursor.findFirst({
+          where: and(
+            eq(chatReadCursor.orderId, orderRecord.id),
+            eq(chatReadCursor.userId, userId)
+          ),
+        }),
+      ]);
+      const lastReadId = cursorRecord?.lastReadMessageId;
+      const unreadWhereConditions = [eq(orderMessage.orderId, orderRecord.id)];
+      if (lastReadId) {
+        unreadWhereConditions.push(gt(orderMessage.id, lastReadId));
+      }
+      const [unreadRes] = await database
+        .select({ value: count() })
+        .from(orderMessage)
+        .where(and(...unreadWhereConditions));
+      const unreadCount = Number(unreadRes?.value ?? 0);
+
+      return {
+        createdAt: orderRecord.createdAt,
+        lastMessage: lastMsg
+          ? {
+              content: lastMsg.content,
+              createdAt: lastMsg.createdAt,
+              senderId: lastMsg.senderId,
+            }
+          : null,
+        orderId: orderRecord.id,
+        orderStatus: firstItem?.status ?? "AWAITING_SELLER",
+        participant: {
+          id: participant.id,
+          image: participant.image,
+          name: participant.name,
+        },
+        participantRole: isBuyer ? ("seller" as const) : ("buyer" as const),
+        service: {
+          thumbnailUrl:
+            listingSnapshot?.thumbnailUrl ??
+            listingSnapshot?.images?.[0] ??
+            null,
+          title: listingSnapshot?.title ?? "Dịch vụ số",
+        },
+        unreadCount,
+      };
+    })
+  );
 }
 
 async function resolveSenderRoleAndType({

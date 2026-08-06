@@ -39,6 +39,16 @@ vi.mock("@tanstack/react-query", () => ({
 vi.mock("@/utils/orpc", () => ({
   orpc: {
     commerce: {
+      chat: {
+        createAttachment: { mutationOptions: () => ({}) },
+        getAttachmentUrl: { mutationOptions: () => ({}) },
+        getRealtimeToken: {
+          queryOptions: () => ({ queryKey: ["realtime-token"] }),
+        },
+        listMessages: { queryOptions: () => ({ queryKey: ["chat-messages"] }) },
+        markRead: { mutationOptions: () => ({}) },
+        sendMessage: { mutationOptions: () => ({}) },
+      },
       orders: {
         item: {
           cancelBySeller: { mutationOptions: () => ({}) },

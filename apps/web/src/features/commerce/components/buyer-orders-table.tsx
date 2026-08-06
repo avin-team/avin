@@ -33,7 +33,7 @@ import {
   XIcon,
   XCircleIcon,
 } from "@phosphor-icons/react";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 
 import {
@@ -423,7 +423,7 @@ export const BuyerOrdersTable = ({ orders }: BuyerOrdersTableProps) => {
               <tr className="border-b border-border/60 bg-muted/40 text-muted-foreground font-semibold">
                 <th className="py-3.5 px-4">Mã đơn</th>
                 <th className="py-3.5 px-4">Sản phẩm</th>
-                <th className="py-3.5 px-4">Người bán</th>
+                <th className="py-3.5 px-4">Cửa hàng</th>
                 <th className="py-3.5 px-4">Trạng thái</th>
                 <th className="py-3.5 px-4 text-center">Số lượng</th>
                 <th className="py-3.5 px-4">Tổng tiền</th>
@@ -442,9 +442,11 @@ export const BuyerOrdersTable = ({ orders }: BuyerOrdersTableProps) => {
                 </tr>
               ) : (
                 paginatedItems.map((item) => {
-                  const initial = item.order.seller.name
-                    .charAt(0)
-                    .toUpperCase();
+                  const storeDisplayName =
+                    item.order.seller.storefrontName ?? item.order.seller.name;
+                  const storeAvatar =
+                    item.order.seller.avatarUrl ?? item.order.seller.image;
+                  const initial = storeDisplayName.charAt(0).toUpperCase();
 
                   return (
                     <tr
@@ -494,19 +496,48 @@ export const BuyerOrdersTable = ({ orders }: BuyerOrdersTableProps) => {
                         </div>
                       </td>
 
-                      {/* Người bán */}
-                      <td
-                        aria-label="Người bán"
-                        className="py-4 px-4 align-top"
-                      >
-                        <div className="flex items-center gap-2 min-w-30">
-                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-rose-500/15 text-[10px] font-bold text-rose-600 dark:text-rose-400">
-                            {initial}
+                      {/* Cửa hàng */}
+                      <td aria-label="Cửa hàng" className="py-4 px-4 align-top">
+                        {item.order.seller.storeSlug ? (
+                          <Link
+                            to="/store/$slug"
+                            params={{ slug: item.order.seller.storeSlug }}
+                            className="flex items-center gap-2 min-w-30 hover:underline group"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {storeAvatar ? (
+                              <img
+                                alt={storeDisplayName}
+                                className="h-6 w-6 rounded-full object-cover border border-border/50 shrink-0"
+                                src={storeAvatar}
+                              />
+                            ) : (
+                              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-rose-500/15 text-[10px] font-bold text-rose-600 dark:text-rose-400 shrink-0">
+                                {initial}
+                              </div>
+                            )}
+                            <span className="font-medium text-foreground truncate max-w-27.5 group-hover:text-primary">
+                              {storeDisplayName}
+                            </span>
+                          </Link>
+                        ) : (
+                          <div className="flex items-center gap-2 min-w-30">
+                            {storeAvatar ? (
+                              <img
+                                alt={storeDisplayName}
+                                className="h-6 w-6 rounded-full object-cover border border-border/50 shrink-0"
+                                src={storeAvatar}
+                              />
+                            ) : (
+                              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-rose-500/15 text-[10px] font-bold text-rose-600 dark:text-rose-400 shrink-0">
+                                {initial}
+                              </div>
+                            )}
+                            <span className="font-medium text-foreground truncate max-w-27.5">
+                              {storeDisplayName}
+                            </span>
                           </div>
-                          <span className="font-medium text-foreground truncate max-w-27.5">
-                            {item.order.seller.name}
-                          </span>
-                        </div>
+                        )}
                       </td>
 
                       {/* Trạng thái */}

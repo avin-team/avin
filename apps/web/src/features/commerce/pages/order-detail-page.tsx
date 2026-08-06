@@ -155,11 +155,23 @@ export const OrderDetailPage = () => {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">
-                  Người bán (Seller)
+                  Cửa hàng (Store)
                 </p>
-                <p className="font-semibold text-foreground">
-                  {targetOrder.seller.name}
-                </p>
+                {targetOrder.seller.storeSlug ? (
+                  <Link
+                    to="/store/$slug"
+                    params={{ slug: targetOrder.seller.storeSlug }}
+                    className="font-semibold text-foreground hover:text-primary hover:underline"
+                  >
+                    {targetOrder.seller.storefrontName ??
+                      targetOrder.seller.name}
+                  </Link>
+                ) : (
+                  <p className="font-semibold text-foreground">
+                    {targetOrder.seller.storefrontName ??
+                      targetOrder.seller.name}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -203,7 +215,13 @@ export const OrderDetailPage = () => {
               <OrderChatPanel
                 heightClass="h-130"
                 orderId={targetOrder.id}
-                sellerName={targetOrder.seller.name}
+                sellerImage={
+                  targetOrder.seller.avatarUrl ?? targetOrder.seller.image
+                }
+                sellerName={
+                  targetOrder.seller.storefrontName ?? targetOrder.seller.name
+                }
+                sellerStoreSlug={targetOrder.seller.storeSlug}
               />
             </div>
           </div>

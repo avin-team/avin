@@ -6,6 +6,7 @@ import type {
   ServicePackageSnapshot,
   WarrantyPolicySnapshot,
 } from "@avin/db/schema/commerce";
+import { sellerProfile } from "@avin/db/schema/seller";
 import { asc, eq, inArray } from "drizzle-orm";
 
 import type { CommerceExecutor } from "./cart";
@@ -96,9 +97,12 @@ export interface BuyerOrderView {
   id: string;
   items: OrderItemSummary[];
   seller: {
+    avatarUrl?: string | null;
     id: string;
     image: string | null;
     name: string;
+    storeSlug?: string | null;
+    storefrontName?: string | null;
   };
   sellerId: string;
   totalAmount: number;
@@ -193,13 +197,17 @@ export const getBuyerOrders = async (
       createdAt: order.createdAt,
       currency: order.currency,
       id: order.id,
+      sellerAvatarUrl: sellerProfile.avatarUrl,
       sellerId: order.sellerId,
       sellerImage: user.image,
       sellerName: user.name,
+      sellerStoreSlug: sellerProfile.storeSlug,
+      sellerStorefrontName: sellerProfile.storefrontName,
       totalAmount: order.totalAmount,
     })
     .from(order)
     .innerJoin(user, eq(user.id, order.sellerId))
+    .leftJoin(sellerProfile, eq(sellerProfile.userId, order.sellerId))
     .where(eq(order.buyerId, buyerId))
     .orderBy(asc(order.createdAt), asc(order.id));
 
@@ -247,9 +255,12 @@ export const getBuyerOrders = async (
     id: item.id,
     items: itemsByOrder.get(item.id) ?? [],
     seller: {
+      avatarUrl: item.sellerAvatarUrl,
       id: item.sellerId,
-      image: item.sellerImage,
-      name: item.sellerName,
+      image: item.sellerAvatarUrl ?? item.sellerImage,
+      name: item.sellerStorefrontName ?? item.sellerName,
+      storeSlug: item.sellerStoreSlug,
+      storefrontName: item.sellerStorefrontName,
     },
     sellerId: item.sellerId,
     totalAmount: item.totalAmount,

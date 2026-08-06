@@ -304,7 +304,7 @@ export const ListingDetailPage = () => {
               </div>
 
               {/* Right Column: Pricing & Seller CTA Card */}
-              <div className="space-y-6">
+              <div className="space-y-6 lg:col-span-4">
                 <div className="sticky top-24 rounded-3xl border border-border bg-card p-6 shadow-sm backdrop-blur-md space-y-6">
                   {/* Price Box */}
                   <div>
