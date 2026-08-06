@@ -15,6 +15,8 @@ import {
   setCartItemSelected,
 } from "./cart";
 import {
+  createAttachment,
+  getAttachmentUrl,
   getAfterMessages,
   getRealtimeToken,
   getUnreadCount,
@@ -49,6 +51,14 @@ const sendMessageInputSchema = z.object({
   content: z.string().max(2000).optional().nullable(),
   orderId: z.uuid(),
 });
+const createAttachmentInputSchema = z.object({
+  byteSize: z.number().int().nonnegative().nullable().optional(),
+  contentType: z.string().trim().min(1).max(255),
+  fileName: z.string().trim().min(1).max(255),
+  orderId: z.uuid(),
+  storageKey: z.string().trim().min(1).max(1024),
+});
+const attachmentIdInputSchema = z.object({ attachmentId: z.uuid() });
 
 const listMessagesInputSchema = z.object({
   before: z.uuid().optional(),
@@ -134,10 +144,31 @@ export const commerceRouter = {
   },
 
   chat: {
+    createAttachment: protectedProcedure
+      .input(createAttachmentInputSchema)
+      .handler(({ context, input }) =>
+        createAttachment({
+          database: context.db,
+          input,
+          user: context.session.user,
+        })
+      ),
+
     getAfter: protectedProcedure
       .input(getAfterMessagesInputSchema)
       .handler(({ context, input }) =>
         getAfterMessages({
+          database: context.db,
+          input,
+          userId: context.session.user.id,
+          userRole: context.session.user.role,
+        })
+      ),
+
+    getAttachmentUrl: protectedProcedure
+      .input(attachmentIdInputSchema)
+      .handler(({ context, input }) =>
+        getAttachmentUrl({
           database: context.db,
           input,
           userId: context.session.user.id,

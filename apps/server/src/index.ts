@@ -19,6 +19,7 @@ import { logger } from "hono/logger";
 import { startFulfillmentMaintenanceSchedule } from "./jobs/fulfillment-maintenance";
 import { startSePayReconciliationSchedule } from "./jobs/sepay-reconciliation";
 import {
+  createOrderChatAttachmentUploadRouter,
   handleListingImageUpload,
   createListingImageUploadRouter,
 } from "./uploads/listing-image-upload";
@@ -28,6 +29,9 @@ const app = new Hono();
 const listingImageStorage = createListingImageStorage();
 const listingImageUploadRouter = listingImageStorage
   ? createListingImageUploadRouter(listingImageStorage.client)
+  : null;
+const orderChatAttachmentUploadRouter = listingImageStorage
+  ? createOrderChatAttachmentUploadRouter(listingImageStorage.client)
   : null;
 
 const sePayWebhookConfiguration = {
@@ -58,6 +62,17 @@ app.post("/api/upload", (c) => {
   }
 
   return handleListingImageUpload(c.req.raw, listingImageUploadRouter);
+});
+
+app.post("/api/order-chat-upload", (c) => {
+  if (!orderChatAttachmentUploadRouter) {
+    return c.json(
+      { error: "Order attachment uploads are not configured" },
+      503
+    );
+  }
+
+  return handleListingImageUpload(c.req.raw, orderChatAttachmentUploadRouter);
 });
 
 const sePayWebhook = (c: { req: { raw: Request } }) =>

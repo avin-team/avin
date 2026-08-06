@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   createListingImageKey,
+  createOrderChatAttachmentKey,
   createSellerLogoKey,
   createSellerBannerKey,
   createPublicMediaUrl,
   getManagedListingImageKeysToDelete,
+  isOrderChatAttachmentKey,
   LISTING_IMAGE_MAX_BYTES,
   SELLER_BANNER_MAX_BYTES,
   SELLER_LOGO_MAX_BYTES,
@@ -15,6 +17,7 @@ import {
 const SUPABASE_URL = "https://example.supabase.co";
 const LISTING_ID = "11111111-1111-4111-8111-111111111111";
 const SELLER_ID = "seller_123";
+const BUYER_ID = "buyer_123";
 const OLD_OBJECT_ID = "22222222-2222-4222-8222-222222222222";
 const NEW_OBJECT_ID = "33333333-3333-4333-8333-333333333333";
 const BYTES_PER_MEGABYTE = 1024 * 1024;
@@ -124,5 +127,19 @@ describe("seller banner storage helpers", () => {
     expect(() =>
       createSellerBannerKey(SELLER_ID, "image/gif", NEW_OBJECT_ID)
     ).toThrow("Unsupported seller banner type");
+  });
+});
+
+describe("order chat attachment storage helpers", () => {
+  it("creates and validates a key scoped to the Order participant", () => {
+    const key = createOrderChatAttachmentKey(
+      LISTING_ID,
+      BUYER_ID,
+      NEW_OBJECT_ID
+    );
+
+    expect(key).toBe(`orders/${LISTING_ID}/chat/${BUYER_ID}/${NEW_OBJECT_ID}`);
+    expect(isOrderChatAttachmentKey(key, LISTING_ID, BUYER_ID)).toBe(true);
+    expect(isOrderChatAttachmentKey(key, LISTING_ID, SELLER_ID)).toBe(false);
   });
 });

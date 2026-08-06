@@ -1,5 +1,9 @@
 /* eslint-disable func-style */
 
+import {
+  isOrderChatAttachmentKey,
+  ORDER_FILES_BUCKET,
+} from "@avin/api/storage";
 import { generateUuidV7 } from "@avin/db";
 import type { db } from "@avin/db";
 import { auditLog, user } from "@avin/db/schema/auth";
@@ -13,6 +17,9 @@ import {
 } from "@avin/db/schema/commerce";
 import { ORPCError } from "@orpc/server";
 import { and, asc, count, desc, eq, gt, inArray, lt } from "drizzle-orm";
+
+import { createSupabaseAccessToken } from "../access/supabase-access-token";
+import type { MarketplaceSession } from "../runtime/context";
 
 export interface SendMessageInput {
   attachmentFileIds?: string[];
@@ -78,8 +85,30 @@ export interface GetRealtimeTokenInput {
 }
 
 export interface GetRealtimeTokenOptions {
+  createAccessToken?: (user: MarketplaceSession["user"]) => Promise<string>;
   database: typeof db;
   input: GetRealtimeTokenInput;
+  userId: string;
+  userRole?: string | null;
+}
+
+export interface CreateAttachmentInput {
+  byteSize?: number | null;
+  contentType: string;
+  fileName: string;
+  orderId: string;
+  storageKey: string;
+}
+
+export interface CreateAttachmentOptions {
+  database: typeof db;
+  input: CreateAttachmentInput;
+  user: MarketplaceSession["user"];
+}
+
+export interface GetAttachmentUrlOptions {
+  database: typeof db;
+  input: { attachmentId: string };
   userId: string;
   userRole?: string | null;
 }
@@ -233,43 +262,166 @@ export async function sendMessage({
     }
   }
 
-  const messageId = generateUuidV7();
+  const insertMessageAndAttachments = async (transaction: typeof db) => {
+    const messageId = generateUuidV7();
+    const [inserted] = await transaction
+      .insert(orderMessage)
+      .values({
+        content,
+        id: messageId,
+        orderId: input.orderId,
+        senderId: userId,
+        senderRole,
+        type: messageType,
+      })
+      .returning();
 
-  const [inserted] = await database
-    .insert(orderMessage)
-    .values({
-      content,
-      id: messageId,
-      orderId: input.orderId,
-      senderId: userId,
-      senderRole,
-      type: messageType,
-    })
-    .returning();
+    if (!inserted) {
+      throw new ORPCError("INTERNAL_SERVER_ERROR", {
+        message: "Failed to persist message",
+      });
+    }
 
-  if (!inserted) {
-    throw new ORPCError("INTERNAL_SERVER_ERROR", {
-      message: "Failed to persist message",
+    if (attachmentFileIds.length > 0) {
+      await transaction
+        .update(orderFile)
+        .set({ orderMessageId: messageId })
+        .where(inArray(orderFile.id, attachmentFileIds));
+    }
+
+    const attachments = attachmentFileIds.length
+      ? await transaction.query.orderFile.findMany({
+          where: eq(orderFile.orderMessageId, messageId),
+        })
+      : [];
+
+    return {
+      ...inserted,
+      attachments,
+    };
+  };
+  const transactionRunner = (
+    database as typeof database & {
+      transaction?: <Result>(
+        callback: (transaction: typeof db) => Promise<Result>
+      ) => Promise<Result>;
+    }
+  ).transaction;
+
+  return transactionRunner
+    ? await transactionRunner(insertMessageAndAttachments)
+    : await insertMessageAndAttachments(database);
+}
+
+export async function createAttachment({
+  database,
+  input,
+  user: actor,
+}: CreateAttachmentOptions) {
+  const existingOrder = await database.query.order.findFirst({
+    where: eq(order.id, input.orderId),
+  });
+
+  if (!existingOrder) {
+    throw new ORPCError("NOT_FOUND", { message: "Order not found" });
+  }
+
+  await resolveSenderRoleAndType({
+    buyerId: existingOrder.buyerId,
+    database,
+    orderId: input.orderId,
+    sellerId: existingOrder.sellerId,
+    userId: actor.id,
+    userRole: actor.role,
+  });
+
+  if (!isOrderChatAttachmentKey(input.storageKey, input.orderId, actor.id)) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Invalid order chat attachment storage key",
     });
   }
 
-  if (attachmentFileIds.length > 0) {
-    await database
-      .update(orderFile)
-      .set({ orderMessageId: messageId })
-      .where(inArray(orderFile.id, attachmentFileIds));
+  const [attachment] = await database
+    .insert(orderFile)
+    .values({
+      byteSize: input.byteSize ?? null,
+      contentType: input.contentType,
+      fileName: input.fileName,
+      orderId: input.orderId,
+      storageKey: input.storageKey,
+      uploadedByUserId: actor.id,
+    })
+    .returning();
+
+  if (!attachment) {
+    throw new ORPCError("INTERNAL_SERVER_ERROR", {
+      message: "Failed to persist message attachment",
+    });
   }
 
-  const attachments = attachmentFileIds.length
-    ? await database.query.orderFile.findMany({
-        where: eq(orderFile.orderMessageId, messageId),
-      })
-    : [];
+  return attachment;
+}
 
-  return {
-    ...inserted,
-    attachments,
-  };
+export async function getAttachmentUrl({
+  database,
+  input,
+  userId,
+  userRole,
+}: GetAttachmentUrlOptions): Promise<{ url: string }> {
+  const attachment = await database.query.orderFile.findFirst({
+    where: eq(orderFile.id, input.attachmentId),
+  });
+  if (!attachment) {
+    throw new ORPCError("NOT_FOUND", { message: "Attachment not found" });
+  }
+
+  const existingOrder = await database.query.order.findFirst({
+    where: eq(order.id, attachment.orderId),
+  });
+  if (!existingOrder) {
+    throw new ORPCError("NOT_FOUND", { message: "Order not found" });
+  }
+  await assertCanReadChat({
+    database,
+    orderRecord: existingOrder,
+    userId,
+    userRole,
+  });
+
+  const { env } = await import("@avin/env/server");
+  const objectPath = attachment.storageKey
+    .split("/")
+    .map(encodeURIComponent)
+    .join("/");
+  const response = await fetch(
+    new URL(
+      `/storage/v1/object/sign/${ORDER_FILES_BUCKET}/${objectPath}`,
+      env.SUPABASE_URL
+    ),
+    {
+      body: JSON.stringify({ expiresIn: 60 }),
+      headers: {
+        Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
+        "Content-Type": "application/json",
+        apikey: env.SUPABASE_SECRET_KEY,
+      },
+      method: "POST",
+    }
+  );
+  if (!response.ok) {
+    throw new ORPCError("INTERNAL_SERVER_ERROR", {
+      message: "Unable to create attachment download URL",
+    });
+  }
+
+  const result = (await response.json()) as { signedURL?: string };
+  if (!result.signedURL) {
+    throw new ORPCError("INTERNAL_SERVER_ERROR", {
+      message: "Unable to create attachment download URL",
+    });
+  }
+
+  return { url: new URL(result.signedURL, env.SUPABASE_URL).toString() };
 }
 
 export async function listMessages({
@@ -514,6 +666,7 @@ export async function redactMessage({
 }
 
 export async function getRealtimeToken({
+  createAccessToken = createSupabaseAccessToken,
   database,
   input,
   userId,
@@ -534,7 +687,13 @@ export async function getRealtimeToken({
     userRole,
   });
 
+  const accessToken = await createAccessToken({
+    id: userId,
+    role: userRole,
+  } as MarketplaceSession["user"]);
+
   return {
+    accessToken,
     channel: `order:${input.orderId}`,
     expiresInSeconds: 600,
   };

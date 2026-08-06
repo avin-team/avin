@@ -1,8 +1,10 @@
 export const PUBLIC_MEDIA_BUCKET = "public-media";
+export const ORDER_FILES_BUCKET = "order-files";
 
 export const LISTING_IMAGE_UPLOAD_ROUTE = "listing-image";
 export const SELLER_LOGO_UPLOAD_ROUTE = "seller-logo";
 export const SELLER_BANNER_UPLOAD_ROUTE = "seller-banner";
+export const ORDER_CHAT_ATTACHMENT_UPLOAD_ROUTE = "order-chat-attachment";
 
 export interface ManagedObjectStore {
   deleteObject: (key: string) => Promise<void>;
@@ -26,6 +28,9 @@ export const SELLER_LOGO_MAX_BYTES = SELLER_BRANDING_MAX_BYTES;
 export const SELLER_LOGO_CONTENT_TYPES = LISTING_IMAGE_CONTENT_TYPES;
 export const SELLER_BANNER_MAX_BYTES = SELLER_BRANDING_MAX_BYTES;
 export const SELLER_BANNER_CONTENT_TYPES = LISTING_IMAGE_CONTENT_TYPES;
+
+export const ORDER_CHAT_ATTACHMENT_MAX_BYTES = 50 * 1024 * 1024;
+export const ORDER_CHAT_ATTACHMENT_MAX_COUNT = 5;
 
 type ListingImageContentType = (typeof LISTING_IMAGE_CONTENT_TYPES)[number];
 
@@ -95,6 +100,30 @@ export const createSellerBannerKey = (
 
   return `sellers/${sellerId}/banner/${objectId}.${extension}`;
 };
+
+export const createOrderChatAttachmentKey = (
+  orderId: string,
+  userId: string,
+  objectId = crypto.randomUUID()
+): string => {
+  if (
+    !SAFE_PATH_SEGMENT.test(orderId) ||
+    !SAFE_PATH_SEGMENT.test(userId) ||
+    !SAFE_PATH_SEGMENT.test(objectId)
+  ) {
+    throw new Error("Invalid order chat attachment path segment");
+  }
+
+  return `orders/${orderId}/chat/${userId}/${objectId}`;
+};
+
+export const isOrderChatAttachmentKey = (
+  key: string,
+  orderId: string,
+  userId: string
+): boolean =>
+  key.startsWith(`orders/${orderId}/chat/${userId}/`) &&
+  SAFE_PATH_SEGMENT.test(key.split("/").at(-1) ?? "");
 
 export const createPublicMediaUrl = (
   supabaseUrl: string,

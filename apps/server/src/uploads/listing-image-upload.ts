@@ -4,12 +4,17 @@ import {
 } from "@avin/api/listing/seller-workspace";
 import {
   createListingImageKey,
+  createOrderChatAttachmentKey,
   createSellerBannerKey,
   createSellerLogoKey,
   LISTING_IMAGE_CONTENT_TYPES,
   LISTING_IMAGE_MAX_COUNT,
   LISTING_IMAGE_MAX_BYTES,
   LISTING_IMAGE_UPLOAD_ROUTE,
+  ORDER_CHAT_ATTACHMENT_MAX_BYTES,
+  ORDER_CHAT_ATTACHMENT_MAX_COUNT,
+  ORDER_CHAT_ATTACHMENT_UPLOAD_ROUTE,
+  ORDER_FILES_BUCKET,
   PUBLIC_MEDIA_BUCKET,
   SELLER_BANNER_CONTENT_TYPES,
   SELLER_BANNER_MAX_BYTES,
@@ -30,6 +35,16 @@ const listingImageClientMetadataSchema = z.object({
 
 const sellerLogoClientMetadataSchema = z.object({});
 const sellerBannerClientMetadataSchema = z.object({});
+const orderChatAttachmentClientMetadataSchema = z.object({ orderId: z.uuid() });
+
+const ORDER_CHAT_ATTACHMENT_CONTENT_TYPES = [
+  "application/pdf",
+  "application/zip",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "text/plain",
+] as const;
 
 export const createListingImageUploadRouter = (
   client: Router["client"]
@@ -143,6 +158,55 @@ export const createListingImageUploadRouter = (
             cacheControl: "public, max-age=31536000, immutable",
             key: createSellerBannerKey(session.user.id, file.type),
           },
+        };
+      },
+    }),
+  },
+});
+
+export const createOrderChatAttachmentUploadRouter = (
+  client: Router["client"]
+): Router => ({
+  bucketName: ORDER_FILES_BUCKET,
+  client,
+  routes: {
+    [ORDER_CHAT_ATTACHMENT_UPLOAD_ROUTE]: route({
+      clientMetadataSchema: orderChatAttachmentClientMetadataSchema,
+      fileTypes: [...ORDER_CHAT_ATTACHMENT_CONTENT_TYPES],
+      maxFileSize: ORDER_CHAT_ATTACHMENT_MAX_BYTES,
+      maxFiles: ORDER_CHAT_ATTACHMENT_MAX_COUNT,
+      multipleFiles: true,
+      onBeforeUpload: async ({ clientMetadata, req }) => {
+        const session = await auth.api.getSession({ headers: req.headers });
+        if (!session) {
+          throw new RejectUpload(
+            "Sign in before uploading an order attachment"
+          );
+        }
+
+        const found = await db.query.order.findFirst({
+          columns: { buyerId: true, sellerId: true },
+          where: (table, { eq }) => eq(table.id, clientMetadata.orderId),
+        });
+
+        if (
+          !found ||
+          (found.buyerId !== session.user.id &&
+            found.sellerId !== session.user.id)
+        ) {
+          throw new RejectUpload(
+            "Only order participants can upload chat attachments"
+          );
+        }
+
+        return {
+          generateObjectInfo: () => ({
+            cacheControl: "private, max-age=0",
+            key: createOrderChatAttachmentKey(
+              clientMetadata.orderId,
+              session.user.id
+            ),
+          }),
         };
       },
     }),

@@ -332,12 +332,15 @@ describe("Order Chat Logic", () => {
     const mockDb = createMockDb() as unknown as MockDatabase;
 
     const res = await getRealtimeToken({
+      createAccessToken: () => Promise.resolve("realtime-access-token"),
       database: mockDb,
       input: { orderId },
       userId: buyerId,
+      userRole: "BUYER",
     });
 
-    expect(res).toEqual({
+    expect(res).toMatchObject({
+      accessToken: "realtime-access-token",
       channel: `order:${orderId}`,
       expiresInSeconds: 600,
     });
