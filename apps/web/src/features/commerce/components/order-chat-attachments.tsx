@@ -65,8 +65,8 @@ const OrderChatImageAttachment = ({
   }, [attachment.id, getAttachmentUrl]);
 
   return (
-    <Attachment orientation="vertical" size="sm">
-      <AttachmentMedia variant="image">
+    <Attachment className="w-48" orientation="vertical" size="sm">
+      <AttachmentMedia className="w-full" variant="image">
         {url ? (
           <img alt={attachment.fileName} src={url} />
         ) : (
