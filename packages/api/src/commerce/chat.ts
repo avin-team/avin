@@ -25,6 +25,7 @@ import {
   eq,
   gt,
   inArray,
+  isNull,
   lt,
   ne,
   or,
@@ -133,6 +134,12 @@ export interface GetAttachmentUrlOptions {
 
 export interface ListConversationsOptions {
   database: typeof db;
+  limit?: number;
+  userId: string;
+}
+
+export interface GetChatNotificationSummaryOptions {
+  database: typeof db;
   userId: string;
 }
 
@@ -198,9 +205,11 @@ function buildConversationParticipant(
 
 export async function listConversations({
   database,
+  limit,
   userId,
 }: ListConversationsOptions) {
   const orders = await database.query.order.findMany({
+    limit,
     orderBy: [desc(order.createdAt)],
     where: or(eq(order.buyerId, userId), eq(order.sellerId, userId)),
     with: {
@@ -299,6 +308,45 @@ export async function listConversations({
       };
     })
   );
+}
+
+export async function getChatNotificationSummary({
+  database,
+  userId,
+}: GetChatNotificationSummaryOptions) {
+  const [[unreadResult], conversations] = await Promise.all([
+    database
+      .select({ value: count() })
+      .from(orderMessage)
+      .innerJoin(order, eq(order.id, orderMessage.orderId))
+      .leftJoin(
+        chatReadCursor,
+        and(
+          eq(chatReadCursor.orderId, order.id),
+          eq(chatReadCursor.userId, userId)
+        )
+      )
+      .where(
+        and(
+          or(eq(order.buyerId, userId), eq(order.sellerId, userId)),
+          ne(orderMessage.senderId, userId),
+          or(
+            isNull(chatReadCursor.lastReadMessageId),
+            gt(orderMessage.id, chatReadCursor.lastReadMessageId)
+          )
+        )
+      ),
+    listConversations({
+      database,
+      limit: 3,
+      userId,
+    }),
+  ]);
+
+  return {
+    conversations,
+    unreadCount: Number(unreadResult?.value ?? 0),
+  };
 }
 
 async function resolveSenderRoleAndType({
@@ -874,9 +922,11 @@ export async function getNotificationRealtimeToken({
     role: userRole,
   } as MarketplaceSession["user"]);
 
+  const inboxRole = userRole === "SELLER" ? "seller" : "buyer";
+
   return {
     accessToken,
-    channel: `inbox:${userId}`,
+    channel: `inbox:${inboxRole}:${userId}`,
     expiresInSeconds: 600,
   };
 }

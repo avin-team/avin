@@ -18,6 +18,7 @@ import {
   createAttachment,
   getAttachmentUrl,
   getAfterMessages,
+  getChatNotificationSummary,
   getNotificationRealtimeToken,
   getRealtimeToken,
   getUnreadCount,
@@ -182,6 +183,13 @@ export const commerceRouter = {
       getNotificationRealtimeToken({
         userId: context.session.user.id,
         userRole: context.session.user.role,
+      })
+    ),
+
+    getNotificationSummary: protectedProcedure.handler(({ context }) =>
+      getChatNotificationSummary({
+        database: context.db,
+        userId: context.session.user.id,
       })
     ),
 

@@ -260,6 +260,9 @@ export const OrderChatPanel = ({
         void queryClient.invalidateQueries({
           queryKey: orpc.commerce.chat.listConversations.queryKey(),
         });
+        void queryClient.invalidateQueries({
+          queryKey: orpc.commerce.chat.getNotificationSummary.queryKey(),
+        });
       },
     })
   );
@@ -274,6 +277,49 @@ export const OrderChatPanel = ({
   const messagesQuery = useQuery(messagesQueryOptions);
   const rawMessages = messagesQuery.data?.messages;
   const latestMessageId = rawMessages?.[0]?.id;
+
+  const recoverMessagesAfter = React.useCallback(async () => {
+    const after = lastMessageIdRef.current;
+    if (!after) {
+      await queryClient.invalidateQueries({
+        queryKey: messagesQueryOptions.queryKey,
+      });
+      return;
+    }
+
+    const recoveredMessages = await queryClient.fetchQuery(
+      orpc.commerce.chat.getAfter.queryOptions({
+        input: { after, orderId },
+      })
+    );
+
+    queryClient.setQueryData(
+      messagesQueryOptions.queryKey,
+      (current: NonNullable<typeof messagesQuery.data> | undefined) => {
+        if (!current || recoveredMessages.length === 0) {
+          return current;
+        }
+
+        const knownMessageIds = new Set(
+          current.messages.map((message) => message.id)
+        );
+        const newMessages = recoveredMessages.filter(
+          (message) => !knownMessageIds.has(message.id)
+        );
+
+        if (newMessages.length === 0) {
+          return current;
+        }
+
+        return {
+          ...current,
+          messages: [...newMessages, ...current.messages].toSorted(
+            (left, right) => right.id.localeCompare(left.id)
+          ),
+        };
+      }
+    );
+  }, [messagesQueryOptions.queryKey, orderId, queryClient]);
 
   React.useEffect(() => {
     lastMessageIdRef.current = latestMessageId ?? null;
@@ -374,9 +420,7 @@ export const OrderChatPanel = ({
     const channel = supabasePublic
       .channel(channelName, { config: { private: true } })
       .on("broadcast", { event: "new_message" }, () => {
-        void queryClient.invalidateQueries({
-          queryKey: messagesQueryOptions.queryKey,
-        });
+        void recoverMessagesAfter();
       })
       .on("broadcast", { event: "typing" }, (payload) => {
         setIsOtherTyping(Boolean(payload.payload.typing));
@@ -396,23 +440,11 @@ export const OrderChatPanel = ({
       .subscribe((status) => {
         if (status === "SUBSCRIBED") {
           void channel.track({ typing: false });
-          const after = lastMessageIdRef.current;
-          if (after) {
-            void (async () => {
-              await queryClient.fetchQuery(
-                orpc.commerce.chat.getAfter.queryOptions({
-                  input: { after, orderId },
-                })
-              );
-              await queryClient.invalidateQueries({
-                queryKey: messagesQueryOptions.queryKey,
-              });
-            })();
-            return;
-          }
-          void queryClient.invalidateQueries({
-            queryKey: messagesQueryOptions.queryKey,
-          });
+          void recoverMessagesAfter();
+          return;
+        }
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          void refetchRealtimeToken();
         }
       });
     channelRef.current = channel;
@@ -432,6 +464,8 @@ export const OrderChatPanel = ({
     orderId,
     queryClient,
     messagesQueryOptions.queryKey,
+    recoverMessagesAfter,
+    refetchRealtimeToken,
     realtimeToken?.accessToken,
     realtimeToken?.channel,
   ]);

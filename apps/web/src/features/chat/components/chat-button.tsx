@@ -1,3 +1,5 @@
+/* eslint-disable react-doctor/effect-needs-cleanup */
+
 import {
   Avatar,
   AvatarFallback,
@@ -22,18 +24,15 @@ const RECENT_CONVERSATION_LIMIT = 3;
 
 export const ChatButton = () => {
   const queryClient = useQueryClient();
-  const conversationsQuery = useQuery(
-    orpc.commerce.chat.listConversations.queryOptions()
+  const notificationSummaryQuery = useQuery(
+    orpc.commerce.chat.getNotificationSummary.queryOptions()
   );
   const notificationTokenQuery = useQuery(
     orpc.commerce.chat.getNotificationRealtimeToken.queryOptions()
   );
   const { refetch: refetchNotificationToken } = notificationTokenQuery;
-  const conversations = conversationsQuery.data ?? [];
-  const unreadCount = conversations.reduce(
-    (total, conversation) => total + conversation.unreadCount,
-    0
-  );
+  const conversations = notificationSummaryQuery.data?.conversations ?? [];
+  const unreadCount = notificationSummaryQuery.data?.unreadCount ?? 0;
   const recentConversations = [...conversations]
     .toSorted((left, right) => {
       const leftTime = left.lastMessage?.createdAt ?? left.createdAt;
@@ -53,16 +52,26 @@ export const ChatButton = () => {
       .channel(notificationToken.channel, { config: { private: true } })
       .on("broadcast", { event: "new_message" }, () => {
         void queryClient.invalidateQueries({
-          queryKey: orpc.commerce.chat.listConversations.queryKey(),
+          queryKey: orpc.commerce.chat.getNotificationSummary.queryKey(),
         });
+      })
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          void queryClient.invalidateQueries({
+            queryKey: orpc.commerce.chat.getNotificationSummary.queryKey(),
+          });
+          return;
+        }
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          void refetchNotificationToken();
+        }
       });
-    channel.subscribe();
 
     return () => {
       void channel.unsubscribe();
       void supabasePublic.removeChannel(channel);
     };
-  }, [notificationToken, queryClient]);
+  }, [notificationToken, queryClient, refetchNotificationToken]);
 
   React.useEffect(() => {
     const expiresInSeconds = notificationToken?.expiresInSeconds;

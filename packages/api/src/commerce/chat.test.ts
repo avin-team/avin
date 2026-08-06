@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   getAfterMessages,
+  getChatNotificationSummary,
   getNotificationRealtimeToken,
   getRealtimeToken,
   getUnreadCount,
@@ -382,8 +383,31 @@ describe("Order Chat Logic", () => {
 
     expect(res).toEqual({
       accessToken: "realtime-access-token",
-      channel: `inbox:${buyerId}`,
+      channel: `inbox:buyer:${buyerId}`,
       expiresInSeconds: 600,
     });
+  });
+
+  it("returns a total unread count and only the latest notification previews", async () => {
+    const mockDb = createMockDb({
+      query: {
+        order: {
+          findMany: vi.fn().mockResolvedValue([]),
+        },
+      },
+    }) as unknown as MockDatabase;
+    mockDb.select = vi.fn().mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        innerJoin: vi.fn().mockReturnValue({
+          leftJoin: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([{ value: 4 }]),
+          }),
+        }),
+      }),
+    });
+
+    await expect(
+      getChatNotificationSummary({ database: mockDb, userId: buyerId })
+    ).resolves.toEqual({ conversations: [], unreadCount: 4 });
   });
 });
