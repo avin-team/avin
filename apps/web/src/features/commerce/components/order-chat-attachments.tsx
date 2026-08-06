@@ -64,22 +64,33 @@ const OrderChatImageAttachment = ({
     };
   }, [attachment.id, getAttachmentUrl]);
 
+  const imagePreview = url ? (
+    <img
+      alt={attachment.fileName}
+      className="size-full object-cover"
+      src={url}
+    />
+  ) : (
+    <ImageIcon aria-hidden="true" className="size-8 text-muted-foreground" />
+  );
+
   return (
-    <Attachment className="w-48" orientation="vertical" size="sm">
-      <AttachmentMedia className="w-full" variant="image">
-        {url ? (
-          <img alt={attachment.fileName} src={url} />
-        ) : (
-          <ImageIcon aria-hidden="true" />
-        )}
-      </AttachmentMedia>
+    <div className="size-48 shrink-0 overflow-hidden rounded-2xl border border-border/60 bg-muted">
       {url ? (
-        <AttachmentTrigger
+        <button
           aria-label={`Xem ảnh ${attachment.fileName}`}
+          className="block size-full cursor-zoom-in"
           onClick={() => onPreview(attachment)}
-        />
-      ) : null}
-    </Attachment>
+          type="button"
+        >
+          {imagePreview}
+        </button>
+      ) : (
+        <div className="flex size-full items-center justify-center">
+          {imagePreview}
+        </div>
+      )}
+    </div>
   );
 };
 
