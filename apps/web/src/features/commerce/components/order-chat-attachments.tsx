@@ -73,12 +73,6 @@ const OrderChatImageAttachment = ({
           <ImageIcon aria-hidden="true" />
         )}
       </AttachmentMedia>
-      <AttachmentContent>
-        <AttachmentTitle>{attachment.fileName}</AttachmentTitle>
-        <AttachmentDescription>
-          {formatOrderChatAttachmentSize(attachment.byteSize)}
-        </AttachmentDescription>
-      </AttachmentContent>
       {url ? (
         <AttachmentTrigger
           aria-label={`Xem ảnh ${attachment.fileName}`}
