@@ -18,7 +18,6 @@ import { Skeleton } from "@avin/ui/components/skeleton";
 import {
   SignOutIcon,
   ShieldCheckIcon,
-  ShoppingBagIcon,
   StorefrontIcon,
 } from "@phosphor-icons/react";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -113,28 +112,16 @@ export const UserMenu = () => {
               Mở gian hàng
             </DropdownMenuItem>
           ) : (
-            <>
-              <DropdownMenuItem
-                onClick={async () => {
-                  await navigate({
-                    to: "/orders",
-                  });
-                }}
-              >
-                <ShoppingBagIcon className="me-2 size-4" />
-                Đơn hàng
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={async () => {
-                  await navigate({
-                    to: "/seller/onboarding",
-                  });
-                }}
-              >
-                <StorefrontIcon className="me-2 size-4" />
-                Đăng ký Người bán
-              </DropdownMenuItem>
-            </>
+            <DropdownMenuItem
+              onClick={async () => {
+                await navigate({
+                  to: "/seller/onboarding",
+                });
+              }}
+            >
+              <StorefrontIcon className="me-2 size-4" />
+              Đăng ký Người bán
+            </DropdownMenuItem>
           )}
           <DropdownMenuItem
             onClick={async () => {

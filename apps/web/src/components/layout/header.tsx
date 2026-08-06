@@ -7,6 +7,7 @@ import { siteConfig } from "@/config/site";
 import { UserMenu } from "@/features/auth/components/user-menu";
 import { ChatButton } from "@/features/chat/components/chat-button";
 import { CartButton } from "@/features/commerce/components/cart-button";
+import { OrdersButton } from "@/features/commerce/components/orders-button";
 import { SellerStoreButton } from "@/features/seller/components/seller-store-button";
 import { WalletButton } from "@/features/wallet/components/wallet-button";
 
@@ -104,6 +105,8 @@ export const Header = () => {
               <WalletButton />
 
               <CartButton />
+
+              <OrdersButton />
 
               <SellerStoreButton />
 

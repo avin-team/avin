@@ -6,6 +6,7 @@ import {
   servicePackage,
   subCategory,
 } from "@avin/db/schema/catalog";
+import { orderItem } from "@avin/db/schema/commerce";
 import { ORPCError } from "@orpc/server";
 import {
   and,
@@ -382,6 +383,29 @@ export const listingDiscoveryRouter = {
         },
       });
 
+      const listingIds = items.map((i) => i.id);
+      let soldCountMap: Record<string, number> = {};
+
+      if (listingIds.length > 0) {
+        const soldCounts = await db
+          .select({
+            count: count(orderItem.id),
+            listingId: orderItem.listingId,
+          })
+          .from(orderItem)
+          .where(
+            and(
+              inArray(orderItem.listingId, listingIds),
+              inArray(orderItem.status, ["DELIVERED", "IN_WARRANTY", "CLOSED"])
+            )
+          )
+          .groupBy(orderItem.listingId);
+
+        soldCountMap = Object.fromEntries(
+          soldCounts.map((s) => [s.listingId, s.count])
+        );
+      }
+
       return {
         items: items.map((item) => {
           const { sellerProfile: prof, seller: sel, ...rest } = item;
@@ -392,6 +416,8 @@ export const listingDiscoveryRouter = {
               item.type === "SERVICE"
                 ? (getServicePackageSummaryPrice(item.servicePackages) ?? 0)
                 : (item.priceAmount ?? 0),
+            ratingCount: 0,
+            ratingScore: null,
             seller: {
               id: prof?.id ?? sel.id,
               image: prof?.avatarUrl ?? sel.image,
@@ -399,6 +425,7 @@ export const listingDiscoveryRouter = {
               storeSlug: prof?.storeSlug ?? null,
             },
             servicePackages: item.servicePackages,
+            soldCount: soldCountMap[item.id] ?? 0,
             title: item.title ?? "Untitled listing",
           };
         }),

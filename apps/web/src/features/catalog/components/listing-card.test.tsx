@@ -32,8 +32,17 @@ describe("ListingCard", () => {
     warrantyDurationHours: 168,
   };
 
-  it("renders listing title, VND formatted price, seller name, and badges", () => {
-    render(<ListingCard listing={mockListing} />);
+  it("renders listing title, VND formatted price, seller name, badges, rating ⭐ and sold count", () => {
+    render(
+      <ListingCard
+        listing={{
+          ...mockListing,
+          ratingCount: 12,
+          ratingScore: 4.8,
+          soldCount: 154,
+        }}
+      />
+    );
 
     expect(
       screen.getByText("Dịch vụ lấy lại nick FB bị hack")
@@ -42,6 +51,25 @@ describe("ListingCard", () => {
     expect(screen.getByText("Agency Viêt Nam")).toBeInTheDocument();
     expect(screen.getByText("Lấy lại tài khoản")).toBeInTheDocument();
     expect(screen.getByText("Bảo hành 168h")).toBeInTheDocument();
+    expect(screen.getByText("4.8")).toBeInTheDocument();
+    expect(screen.getByText("(12)")).toBeInTheDocument();
+    expect(screen.getByText("Đã xử lý 154")).toBeInTheDocument();
+  });
+
+  it("renders 'Chưa có đánh giá' when there are no reviews yet", () => {
+    render(
+      <ListingCard
+        listing={{
+          ...mockListing,
+          ratingCount: 0,
+          ratingScore: null,
+          soldCount: 5,
+        }}
+      />
+    );
+
+    expect(screen.getByText("Chưa có đánh giá")).toBeInTheDocument();
+    expect(screen.getByText("Đã xử lý 5")).toBeInTheDocument();
   });
 
   it("makes the entire listing card navigate to the listing detail page", () => {

@@ -3,6 +3,7 @@ import {
   BookOpenIcon,
   CheckCircleIcon,
   ShieldCheckIcon,
+  StarIcon,
   StorefrontIcon,
   UserIcon,
   WrenchIcon,
@@ -20,8 +21,11 @@ export interface ListingCardProps extends ComponentPropsWithoutRef<"div"> {
       name: string;
       slug: string;
     } | null;
+    completedOrdersCount?: number | null;
     id: string;
     priceAmount: number;
+    ratingCount?: number | null;
+    ratingScore?: number | null;
     seller?: {
       id: string;
       image?: string | null;
@@ -29,6 +33,7 @@ export interface ListingCardProps extends ComponentPropsWithoutRef<"div"> {
       storeSlug?: string | null;
     } | null;
     slug?: string;
+    soldCount?: number | null;
     thumbnailUrl?: string | null;
     title: string;
     type: "SERVICE" | "COURSE";
@@ -45,6 +50,12 @@ export const ListingCard = ({
 }: ListingCardProps) => {
   const isService = listing.type === "SERVICE";
   const sellerName = listing.seller?.name ?? "Cửa hàng dịch vụ";
+  const hasRating = Boolean(
+    listing.ratingCount && listing.ratingCount > 0 && listing.ratingScore
+  );
+  const ratingScore = listing.ratingScore ?? 0;
+  const ratingCount = listing.ratingCount ?? 0;
+  const soldCount = listing.soldCount ?? listing.completedOrdersCount ?? 0;
 
   if (variant === "list") {
     return (
@@ -127,13 +138,34 @@ export const ListingCard = ({
               </div>
             </div>
 
-            {/* Right Price & CTA */}
-            <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 sm:border-l border-border/40 pt-3 sm:pt-0 sm:pl-5 shrink-0 gap-3">
+            {/* Right Price, Rating & CTA */}
+            <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 sm:border-l border-border/40 pt-3 sm:pt-0 sm:pl-5 shrink-0 gap-2">
               <span className="text-lg font-black text-primary tracking-tight">
                 {formatVND(listing.priceAmount ?? 0)}
               </span>
 
-              <div className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground shadow-xs group-hover:opacity-90 transition-all">
+              {/* Rating ⭐ & Total Sold */}
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                {hasRating ? (
+                  <div className="flex items-center gap-1 font-semibold text-amber-500 dark:text-amber-400">
+                    <StarIcon className="h-3.5 w-3.5 fill-amber-400 text-amber-400 shrink-0" />
+                    <span>{ratingScore.toFixed(1)}</span>
+                    <span className="text-muted-foreground font-normal">
+                      ({ratingCount})
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-muted-foreground font-normal">
+                    Chưa có đánh giá
+                  </span>
+                )}
+                <span className="text-border">•</span>
+                <span className="font-medium text-muted-foreground">
+                  Đã xử lý {soldCount}
+                </span>
+              </div>
+
+              <div className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground shadow-xs group-hover:opacity-90 transition-all mt-1">
                 <span>Xem chi tiết</span>
                 <ArrowRightIcon className="h-3.5 w-3.5" />
               </div>
@@ -144,7 +176,7 @@ export const ListingCard = ({
     );
   }
 
-  // Default GridFourIcon Mode (Full Width Image Edge-to-Edge with Category Overlay)
+  // Default Grid Mode (Full Width Image Edge-to-Edge with Category Overlay)
   return (
     <Link
       className="block h-full"
@@ -217,20 +249,40 @@ export const ListingCard = ({
 
               {/* Warranty Badge */}
               {listing.warrantyDurationHours ? (
-                <div className="mt-2.5 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">
+                <div className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">
                   <ShieldCheckIcon className="h-3.5 w-3.5 text-emerald-500" />
                   <span>Bảo hành {listing.warrantyDurationHours}h</span>
                 </div>
               ) : null}
             </div>
 
-            {/* Price Footer */}
-            <div className="flex items-center justify-between border-t border-border/40 pt-3 mt-3">
-              <span className="text-base sm:text-lg font-black text-primary tracking-tight">
-                {formatVND(listing.priceAmount ?? 0)}
-              </span>
+            {/* Bottom Price & Rating Footer */}
+            <div className="flex items-center justify-between border-t border-border/40 pt-3 mt-3 gap-2">
+              <div className="min-w-0">
+                <span className="text-base sm:text-lg font-black text-primary tracking-tight block">
+                  {formatVND(listing.priceAmount ?? 0)}
+                </span>
+                {/* Rating ⭐ & Total Sold at bottom with price */}
+                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-0.5">
+                  {hasRating ? (
+                    <div className="flex items-center gap-0.5 font-semibold text-amber-500 dark:text-amber-400">
+                      <StarIcon className="h-3 w-3 fill-amber-400 text-amber-400 shrink-0" />
+                      <span>{ratingScore.toFixed(1)}</span>
+                      <span className="text-muted-foreground font-normal">
+                        ({ratingCount})
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground font-normal">
+                      Chưa có đánh giá
+                    </span>
+                  )}
+                  <span className="text-border">•</span>
+                  <span className="truncate">Đã xử lý {soldCount}</span>
+                </div>
+              </div>
 
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all shrink-0">
                 <ArrowRightIcon className="h-4 w-4" />
               </div>
             </div>

@@ -212,30 +212,32 @@ const OrderChatHeader = ({
               participantLabel
             )}
           </div>
-          {orderStatus ? (
-            <Badge
-              className={cn(
-                "text-[9px] px-1.5 py-0 font-normal shrink-0",
-                getOrderItemStatusColorClassName(orderStatus as OrderItemStatus)
-              )}
-              variant="outline"
-            >
-              {getOrderItemStatusLabel(orderStatus as OrderItemStatus)}
-            </Badge>
-          ) : null}
         </div>
       </div>
     </div>
-    {showOrderHeaderLink ? (
-      <Link
-        className="shrink-0 whitespace-nowrap text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
-        params={{ id: orderId }}
-        to="/orders/$id"
-      >
-        <span>Xem đơn hàng</span>
-        <ArrowUpRightIcon className="size-3 shrink-0" />
-      </Link>
-    ) : null}
+    <div className="flex items-center gap-2 shrink-0">
+      {orderStatus ? (
+        <Badge
+          className={cn(
+            "text-[9px] px-1.5 py-0 font-normal shrink-0",
+            getOrderItemStatusColorClassName(orderStatus as OrderItemStatus)
+          )}
+          variant="outline"
+        >
+          {getOrderItemStatusLabel(orderStatus as OrderItemStatus)}
+        </Badge>
+      ) : null}
+      {showOrderHeaderLink ? (
+        <Link
+          className="shrink-0 whitespace-nowrap text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+          params={{ id: orderId }}
+          to="/orders/$id"
+        >
+          <span>Xem đơn hàng</span>
+          <ArrowUpRightIcon className="size-3 shrink-0" />
+        </Link>
+      ) : null}
+    </div>
   </div>
 );
 

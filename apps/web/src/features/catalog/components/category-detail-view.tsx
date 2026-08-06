@@ -43,11 +43,14 @@ export interface CategoryDetailViewProps {
       category?: { id: string; name: string; slug: string } | null;
       id: string;
       priceAmount: number;
+      ratingCount?: number | null;
+      ratingScore?: number | null;
       seller?: {
         id: string;
         image?: string | null;
         name?: string | null;
       } | null;
+      soldCount?: number | null;
       thumbnailUrl?: string | null;
       title: string;
       type: "SERVICE" | "COURSE";
