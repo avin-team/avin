@@ -159,18 +159,8 @@ vi.mock("@avin/ui/components/textarea", () => ({
   ),
 }));
 
-vi.mock("@phosphor-icons/react", () => ({
-  ArrowClockwise: () => <span />,
-  CaretRight: () => <span />,
-  CheckCircle: () => <span />,
-  ClipboardText: () => <span />,
-  Clock: () => <span />,
-  Funnel: () => <span />,
-  MagnifyingGlass: () => <span />,
-  PaperPlaneRight: () => <span />,
-  Play: () => <span />,
-  WarningCircle: () => <span />,
-  XCircle: () => <span />,
+vi.mock("@phosphor-icons/react", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
 }));
 
 vi.mock("@/features/commerce/components/order-item-timeline", () => ({

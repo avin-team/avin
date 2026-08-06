@@ -77,9 +77,8 @@ vi.mock("@avin/ui/components/skeleton", () => ({
   Skeleton: () => <div />,
 }));
 
-vi.mock("lucide-react", () => ({
-  ArrowDownToLine: () => <span />,
-  ChevronDown: () => <span />,
+vi.mock("@phosphor-icons/react", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
 }));
 
 vi.mock("@/components/shell", () => ({

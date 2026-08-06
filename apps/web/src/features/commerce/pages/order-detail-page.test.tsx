@@ -49,6 +49,23 @@ vi.mock("@tanstack/react-query", () => ({
 vi.mock("@/utils/orpc", () => ({
   orpc: {
     commerce: {
+      chat: {
+        createAttachment: {
+          mutationOptions: () => ({}),
+        },
+        getAttachmentUrl: {
+          mutationOptions: () => ({}),
+        },
+        getRealtimeToken: {
+          queryOptions: () => ({ queryKey: ["realtime-token"] }),
+        },
+        listMessages: {
+          queryOptions: () => ({ queryKey: ["chat-messages"] }),
+        },
+        sendMessage: {
+          mutationOptions: () => ({}),
+        },
+      },
       orders: {
         item: {
           cancelByBuyer: { mutationOptions: () => ({}) },
@@ -164,15 +181,8 @@ vi.mock("@avin/ui/components/textarea", () => ({
   ),
 }));
 
-vi.mock("@phosphor-icons/react", () => ({
-  ArrowClockwise: () => <span />,
-  ArrowLeft: () => <span />,
-  Calendar: () => <span />,
-  CheckCircle: () => <span />,
-  Receipt: () => <span />,
-  Storefront: () => <span />,
-  WarningCircle: () => <span />,
-  XCircle: () => <span />,
+vi.mock("@phosphor-icons/react", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
 }));
 
 const listing = {
@@ -254,7 +264,7 @@ describe("OrderDetailPage", () => {
   it("renders full details of an OrderItem including seller, status, timeline and actions", () => {
     render(<OrderDetailPage />);
 
-    expect(screen.getByText(/Studio Avin/u)).toBeInTheDocument();
+    expect(screen.getAllByText(/Studio Avin/u)[0]).toBeInTheDocument();
     expect(screen.getByText("Tối ưu quảng cáo")).toBeInTheDocument();
     expect(screen.getAllByText("Đã bàn giao")[0]).toBeInTheDocument();
     expect(

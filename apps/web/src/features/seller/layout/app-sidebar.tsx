@@ -9,8 +9,8 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@avin/ui/components/sidebar";
+import { EyeIcon, StorefrontIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
-import { Eye, Store } from "lucide-react";
 
 import type { StoreSection } from "../data/store-types";
 import { SellerAppTitle } from "./app-title";
@@ -56,7 +56,7 @@ export const SellerAppSidebar = ({
             }
             tooltip="Xem trang gian hàng"
           >
-            <Eye />
+            <EyeIcon />
             <span>Xem trang gian hàng</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -64,7 +64,7 @@ export const SellerAppSidebar = ({
           <SidebarMenuButton
             render={<button aria-label="Trạng thái gian hàng" type="button" />}
           >
-            <Store />
+            <StorefrontIcon />
             <span>Trạng thái gian hàng</span>
           </SidebarMenuButton>
           <SidebarMenuBadge>

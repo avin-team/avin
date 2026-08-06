@@ -1,6 +1,6 @@
 import { ACCOUNT_ROLE } from "@avin/auth/permissions";
+import { ListIcon, XIcon } from "@phosphor-icons/react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Menu, X } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import * as m from "motion/react-m";
 import { toast } from "sonner";
@@ -51,7 +51,7 @@ export const MobileNavTrigger = ({
     onClick={onToggle}
     whileTap={{ scale: 0.95 }}
   >
-    {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+    {isOpen ? <XIcon className="h-6 w-6" /> : <ListIcon className="h-6 w-6" />}
   </m.button>
 );
 

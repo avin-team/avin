@@ -18,18 +18,18 @@ import {
   DropdownMenuTrigger,
 } from "@avin/ui/components/dropdown-menu";
 import { Skeleton } from "@avin/ui/components/skeleton";
+import {
+  WarningCircleIcon,
+  ArrowSquareOutIcon,
+  NotePencilIcon,
+  DotsThreeIcon,
+  PackageIcon,
+  PlusIcon,
+  ArrowClockwiseIcon,
+  TrashIcon,
+} from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import {
-  AlertCircle,
-  ExternalLink,
-  FileEdit,
-  MoreHorizontal,
-  Package,
-  Plus,
-  RefreshCw,
-  Trash2,
-} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -73,7 +73,7 @@ const ProductRow = ({
       to="/seller/listings/$id"
     />
     <div className="pointer-events-none flex size-11 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-      <Package className="size-4" />
+      <PackageIcon className="size-4" />
     </div>
     <div className="pointer-events-none min-w-0 flex-1">
       <div className="flex flex-wrap items-center gap-2">
@@ -94,7 +94,7 @@ const ProductRow = ({
     </div>
     <div className="relative z-10 flex items-center gap-2">
       <Button onClick={onOpen} size="sm" variant="outline">
-        <FileEdit />
+        <NotePencilIcon />
         {getSellerListingActionLabel(listing.status)}
       </Button>
       {listing.status === "PUBLISHED" && listing.slug ? (
@@ -103,7 +103,7 @@ const ProductRow = ({
           size="sm"
           variant="ghost"
         >
-          <ExternalLink />
+          <ArrowSquareOutIcon />
           Xem
         </Button>
       ) : null}
@@ -118,11 +118,11 @@ const ProductRow = ({
               />
             }
           >
-            <MoreHorizontal />
+            <DotsThreeIcon />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={onDelete} variant="destructive">
-              <Trash2 />
+              <TrashIcon />
               Xóa bản nháp
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -199,7 +199,7 @@ export const StoreProductsPanel = () => {
     return (
       <section className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6">
         <Alert variant="destructive">
-          <AlertCircle className="size-4" />
+          <WarningCircleIcon className="size-4" />
           <AlertTitle>Không thể tải sản phẩm</AlertTitle>
           <AlertDescription>
             Vui lòng thử lại để tải danh sách sản phẩm.
@@ -210,7 +210,7 @@ export const StoreProductsPanel = () => {
           onClick={() => void listingsQuery.refetch()}
           variant="outline"
         >
-          <RefreshCw />
+          <ArrowClockwiseIcon />
           Thử lại
         </Button>
       </section>
@@ -233,7 +233,7 @@ export const StoreProductsPanel = () => {
             </p>
           </div>
           <Button onClick={openNewEditor}>
-            <Plus />
+            <PlusIcon />
             Thêm sản phẩm
           </Button>
         </div>
@@ -252,7 +252,7 @@ export const StoreProductsPanel = () => {
         ) : (
           <div className="mt-6 flex flex-col items-center rounded-2xl border border-dashed border-border bg-muted/10 px-6 py-12 text-center">
             <span className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-              <Package className="size-6" />
+              <PackageIcon className="size-6" />
             </span>
             <h2 className="mt-4 font-semibold">Gian hàng chưa có sản phẩm</h2>
             <p className="mt-1 max-w-md text-sm leading-6 text-muted-foreground">
@@ -260,7 +260,7 @@ export const StoreProductsPanel = () => {
               hàng.
             </p>
             <Button className="mt-5" onClick={openNewEditor}>
-              <Plus />
+              <PlusIcon />
               Tạo sản phẩm đầu tiên
             </Button>
           </div>

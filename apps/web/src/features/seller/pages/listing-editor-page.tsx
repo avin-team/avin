@@ -35,25 +35,25 @@ import { SidebarTrigger } from "@avin/ui/components/sidebar";
 import { Skeleton } from "@avin/ui/components/skeleton";
 import { Textarea } from "@avin/ui/components/textarea";
 import { cn } from "@avin/ui/lib/utils";
+import {
+  WarningCircleIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  CheckIcon,
+  ClockIcon,
+  EyeIcon,
+  CheckCircleIcon,
+  GraduationCapIcon,
+  ListChecksIcon,
+  PackageIcon,
+  RocketIcon,
+  FloppyDiskIcon,
+  WrenchIcon,
+} from "@phosphor-icons/react";
 import { useForm, useStore } from "@tanstack/react-form";
 import type { AnyFieldApi } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
-import {
-  AlertCircle,
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  Clock3,
-  Eye,
-  FileCheck2,
-  GraduationCap,
-  ListChecks,
-  PackageCheck,
-  Rocket,
-  Save,
-  Wrench,
-} from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
@@ -503,7 +503,7 @@ const EditorStepContent = ({
                               : "bg-muted text-muted-foreground group-hover:bg-muted/80 group-hover:text-foreground"
                           )}
                         >
-                          <Wrench className="size-5" />
+                          <WrenchIcon className="size-5" />
                         </div>
                         <div>
                           <div className="font-semibold text-foreground">
@@ -522,7 +522,7 @@ const EditorStepContent = ({
                             : "border-muted-foreground/30 text-transparent"
                         )}
                       >
-                        <Check className="size-3 stroke-[3]" />
+                        <CheckIcon className="size-3 stroke-3" />
                       </div>
                     </div>
                     <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
@@ -558,7 +558,7 @@ const EditorStepContent = ({
                               : "bg-muted text-muted-foreground group-hover:bg-muted/80 group-hover:text-foreground"
                           )}
                         >
-                          <GraduationCap className="size-5" />
+                          <GraduationCapIcon className="size-5" />
                         </div>
                         <div>
                           <div className="font-semibold text-foreground">
@@ -577,7 +577,7 @@ const EditorStepContent = ({
                             : "border-muted-foreground/30 text-transparent"
                         )}
                       >
-                        <Check className="size-3 stroke-[3]" />
+                        <CheckIcon className="size-3 stroke-3" />
                       </div>
                     </div>
                     <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
@@ -687,9 +687,9 @@ const EditorStepContent = ({
             </editorForm.Field>
           </div>
           {form.type === "SERVICE" ? (
-            <div className="rounded-2xl border border-primary/20 bg-primary/[0.03] p-4 text-sm leading-6 text-muted-foreground">
+            <div className="rounded-2xl border border-primary/20 bg-primary/3 p-4 text-sm leading-6 text-muted-foreground">
               <div className="flex items-center gap-2 font-semibold text-foreground">
-                <PackageCheck className="size-4 text-primary" />
+                <PackageIcon className="size-4 text-primary" />
                 Giá và thời gian xử lý theo từng gói
               </div>
               <p className="mt-1">
@@ -758,7 +758,7 @@ const EditorStepContent = ({
               </div>
               <div className="rounded-2xl bg-muted/45 p-4 text-sm leading-6 text-muted-foreground sm:col-span-2">
                 <div className="flex items-center gap-2 font-semibold text-foreground">
-                  <PackageCheck className="size-4 text-primary" />
+                  <PackageIcon className="size-4 text-primary" />
                   Kiểm tra thông tin cho khách
                 </div>
                 <p className="mt-1">
@@ -773,9 +773,9 @@ const EditorStepContent = ({
     }
     case "packages": {
       return (
-        <div className="rounded-2xl border border-primary/20 bg-primary/[0.03] p-4 text-sm leading-6 text-muted-foreground">
+        <div className="rounded-2xl border border-primary/20 bg-primary/3 p-4 text-sm leading-6 text-muted-foreground">
           <div className="flex items-center gap-2 font-semibold text-foreground">
-            <PackageCheck className="size-4 text-primary" />
+            <PackageIcon className="size-4 text-primary" />
             Bán theo nhiều gói giá
           </div>
           <p className="mt-1">
@@ -812,9 +812,9 @@ const EditorStepContent = ({
     case "warranty": {
       if (form.type === "SERVICE") {
         return (
-          <div className="rounded-2xl border border-primary/20 bg-primary/[0.03] p-4 text-sm leading-6 text-muted-foreground">
+          <div className="rounded-2xl border border-primary/20 bg-primary/3 p-4 text-sm leading-6 text-muted-foreground">
             <div className="flex items-center gap-2 font-semibold text-foreground">
-              <PackageCheck className="size-4 text-primary" />
+              <PackageIcon className="size-4 text-primary" />
               Bảo hành được cấu hình theo từng gói
             </div>
             <p className="mt-1">
@@ -928,7 +928,7 @@ const ReadinessPanel = ({
                   : "border-border text-transparent"
               }`}
             >
-              <Check className="size-2.5" />
+              <CheckIcon className="size-2.5" />
             </span>
             <span
               className={
@@ -946,7 +946,7 @@ const ReadinessPanel = ({
   const progressNote =
     progress < 100 ? (
       <div className="mt-5 flex items-start gap-2 rounded-xl bg-muted/50 p-3 text-xs leading-5 text-muted-foreground">
-        <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-primary" />
+        <WarningCircleIcon className="mt-0.5 size-3.5 shrink-0 text-primary" />
         <span>Hoàn tất các mục còn thiếu để mở khóa đăng bán.</span>
       </div>
     ) : null;
@@ -956,7 +956,7 @@ const ReadinessPanel = ({
       <details className="rounded-2xl border border-primary/20 bg-card">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 outline-none focus-visible:ring-2 focus-visible:ring-primary">
           <span className="flex items-center gap-2 text-sm font-semibold">
-            <ListChecks className="size-4 text-primary" />
+            <ListChecksIcon className="size-4 text-primary" />
             Sẵn sàng đăng bán · {completedCount}/{items.length}
           </span>
           <Badge variant="secondary">{progress}%</Badge>
@@ -978,7 +978,7 @@ const ReadinessPanel = ({
         <div className="flex items-start justify-between gap-3">
           <div>
             <CardTitle className="flex items-center gap-2 text-base">
-              <ListChecks className="size-4 text-primary" />
+              <ListChecksIcon className="size-4 text-primary" />
               Sẵn sàng đăng bán
             </CardTitle>
             <CardDescription className="mt-1">
@@ -1010,7 +1010,7 @@ const ListingEditorLoading = ({
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-14 w-96 max-w-full" />
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
-          <Skeleton className="h-[560px] w-full" />
+          <Skeleton className="h-140 w-full" />
           <Skeleton className="h-96 w-full" />
         </div>
       </div>
@@ -1495,7 +1495,7 @@ const ListingEditorFormPage = ({
   return (
     <SellerLayout active="products" onChange={handleStoreNavigation}>
       <main className="min-w-0 px-4 pb-28 pt-6 sm:px-6 lg:px-8">
-        <div className="mx-auto w-full max-w-[1600px] space-y-6">
+        <div className="mx-auto w-full max-w-400 space-y-6">
           <header className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
@@ -1523,7 +1523,7 @@ const ListingEditorFormPage = ({
                   search={{ section: "products" }}
                   to="/seller/store"
                 >
-                  <ArrowLeft className="size-4" />
+                  <ArrowLeftIcon className="size-4" />
                   Sản phẩm
                 </Link>
               </div>
@@ -1582,7 +1582,11 @@ const ListingEditorFormPage = ({
                   <span
                     className={`flex size-7 shrink-0 items-center justify-center rounded-full border text-xs font-bold ${stepIndicatorClass}`}
                   >
-                    {isComplete ? <Check className="size-3.5" /> : index + 1}
+                    {isComplete ? (
+                      <CheckIcon className="size-3.5" />
+                    ) : (
+                      index + 1
+                    )}
                   </span>
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-semibold">
@@ -1605,7 +1609,7 @@ const ListingEditorFormPage = ({
 
           {isHidden ? (
             <Alert>
-              <AlertCircle className="size-4" />
+              <WarningCircleIcon className="size-4" />
               <AlertTitle>Sản phẩm này đang bị Avin ẩn</AlertTitle>
               <AlertDescription>
                 Bạn vẫn có thể cập nhật nội dung, nhưng việc đăng bán do đội ngũ
@@ -1615,7 +1619,7 @@ const ListingEditorFormPage = ({
           ) : null}
           {isArchived ? (
             <Alert>
-              <AlertCircle className="size-4" />
+              <WarningCircleIcon className="size-4" />
               <AlertTitle>Sản phẩm này đã được lưu trữ</AlertTitle>
               <AlertDescription>
                 Sản phẩm đã lưu trữ được giữ cho lịch sử đơn hàng và không thể
@@ -1625,7 +1629,7 @@ const ListingEditorFormPage = ({
           ) : null}
           {!isNew && saveStatus === "error" ? (
             <Alert variant="destructive">
-              <AlertCircle className="size-4" />
+              <WarningCircleIcon className="size-4" />
               <AlertTitle>Không thể lưu thay đổi mới nhất</AlertTitle>
               <AlertDescription>Kiểm tra kết nối rồi thử lại.</AlertDescription>
             </Alert>
@@ -1633,7 +1637,7 @@ const ListingEditorFormPage = ({
 
           {isNew && saveStatus === "error" ? (
             <Alert variant="destructive">
-              <AlertCircle className="size-4" />
+              <WarningCircleIcon className="size-4" />
               <AlertTitle>Chưa thể tạo bản nháp</AlertTitle>
               <AlertDescription className="flex flex-wrap items-center gap-3">
                 Dữ liệu bạn đã nhập vẫn còn trên màn hình.
@@ -1659,7 +1663,7 @@ const ListingEditorFormPage = ({
 
           <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
             <section>
-              <Card className="min-h-[560px]">
+              <Card className="min-h-140">
                 <CardHeader className="border-b border-border/60">
                   <div className="flex items-center justify-between gap-3">
                     <div>
@@ -1674,7 +1678,7 @@ const ListingEditorFormPage = ({
                       </CardDescription>
                     </div>
                     <div className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
-                      <Clock3 className="size-3.5 text-primary" />
+                      <ClockIcon className="size-3.5 text-primary" />
                       Lưu thủ công
                     </div>
                   </div>
@@ -1719,7 +1723,7 @@ const ListingEditorFormPage = ({
                     }
                     variant="ghost"
                   >
-                    <ArrowLeft />
+                    <ArrowLeftIcon />
                     Quay lại
                   </Button>
                   {currentStepIndex === editorSteps.length - 1 &&
@@ -1733,7 +1737,7 @@ const ListingEditorFormPage = ({
                       }
                       onClick={handlePrimaryAction}
                     >
-                      <Rocket />
+                      <RocketIcon />
                       {primaryActionLabel}
                     </Button>
                   ) : (
@@ -1742,7 +1746,7 @@ const ListingEditorFormPage = ({
                       onClick={() => void handleNextStep()}
                     >
                       Tiếp theo
-                      <ArrowRight />
+                      <ArrowRightIcon />
                     </Button>
                   )}
                 </CardFooter>
@@ -1757,7 +1761,7 @@ const ListingEditorFormPage = ({
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-sm">
-                    <Eye className="size-4 text-primary" />
+                    <EyeIcon className="size-4 text-primary" />
                     Tiếp theo là gì?
                   </CardTitle>
                 </CardHeader>
@@ -1767,7 +1771,7 @@ const ListingEditorFormPage = ({
                     hoàn tất.
                   </p>
                   <div className="flex items-center gap-2 rounded-xl bg-muted/50 p-3">
-                    <FileCheck2 className="size-4 shrink-0 text-primary" />
+                    <CheckCircleIcon className="size-4 shrink-0 text-primary" />
                     {isPublished
                       ? "Thay đổi chỉ được lưu khi bạn bấm Lưu thay đổi."
                       : "Bạn có thể quay lại bất kỳ bước nào sau."}
@@ -1779,7 +1783,7 @@ const ListingEditorFormPage = ({
 
           <div className="sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card/95 p-3 shadow-xl backdrop-blur">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Save className="size-3.5 text-primary" />
+              <FloppyDiskIcon className="size-3.5 text-primary" />
               {saveStatusLabel}
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
@@ -1788,7 +1792,7 @@ const ListingEditorFormPage = ({
                 onClick={() => void handleManualSave()}
                 variant="outline"
               >
-                <Save />
+                <FloppyDiskIcon />
                 {saveStatus === "saving" ? "Đang lưu…" : saveButtonLabel}
               </Button>
               <Button
@@ -1808,7 +1812,7 @@ const ListingEditorFormPage = ({
                   }
                   onClick={handlePrimaryAction}
                 >
-                  <Rocket />
+                  <RocketIcon />
                   {primaryActionLabel}
                 </Button>
               ) : null}
@@ -1882,7 +1886,7 @@ export const ListingEditorPage = () => {
           <main className="min-w-0 px-4 pb-16 pt-6 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-2xl py-12">
               <Alert variant="destructive">
-                <AlertCircle className="size-4" />
+                <WarningCircleIcon className="size-4" />
                 <AlertTitle>Không thể tải danh mục</AlertTitle>
                 <AlertDescription>
                   Vui lòng thử lại để tạo sản phẩm.
@@ -1909,7 +1913,7 @@ export const ListingEditorPage = () => {
         <main className="min-w-0 px-4 pb-16 pt-6 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-2xl py-12">
             <Alert variant="destructive">
-              <AlertCircle className="size-4" />
+              <WarningCircleIcon className="size-4" />
               <AlertTitle>Không thể mở sản phẩm</AlertTitle>
               <AlertDescription>
                 Sản phẩm có thể không còn khả dụng với tài khoản seller của bạn.
@@ -1924,7 +1928,7 @@ export const ListingEditorPage = () => {
                 })
               }
             >
-              <ArrowLeft />
+              <ArrowLeftIcon />
               Về danh sách sản phẩm
             </Button>
           </div>

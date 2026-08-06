@@ -6,9 +6,9 @@ import {
   FieldLabel,
 } from "@avin/ui/components/field";
 import { Input } from "@avin/ui/components/input";
+import { SpinnerIcon } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
 import { useNavigate, useRouter } from "@tanstack/react-router";
-import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -113,7 +113,7 @@ export const TwoFactorLoginForm = () => {
               form="two-factor-login-form"
               type="submit"
             >
-              {isSubmitting && <Loader2 className="animate-spin" />}
+              {isSubmitting && <SpinnerIcon className="animate-spin" />}
               Xác minh
             </Button>
           )}

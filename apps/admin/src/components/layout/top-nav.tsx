@@ -6,8 +6,8 @@ import {
   DropdownMenuTrigger,
 } from "@avin/ui/components/dropdown-menu";
 import { cn } from "@avin/ui/lib/utils";
+import { ListIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
-import { Menu } from "lucide-react";
 
 type TopNavProps = React.HTMLAttributes<HTMLElement> & {
   links: {
@@ -30,7 +30,7 @@ export const TopNav = ({ className, links, ...props }: TopNavProps) => (
           />
         }
       >
-        <Menu />
+        <ListIcon />
         <span className="sr-only">Toggle navigation menu</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent side="bottom" align="start">

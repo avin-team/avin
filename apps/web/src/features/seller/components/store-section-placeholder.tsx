@@ -1,14 +1,14 @@
 import { Badge } from "@avin/ui/components/badge";
 import { Button } from "@avin/ui/components/button";
-import { ArrowRight } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { ArrowRightIcon } from "@phosphor-icons/react";
+import type { Icon } from "@phosphor-icons/react";
 
 import type { StoreSection } from "../data/store-types";
 
 interface StoreSectionPlaceholderProps {
   active: StoreSection;
   description: string;
-  icon: LucideIcon;
+  icon: Icon;
   title: string;
 }
 
@@ -36,7 +36,7 @@ export const StoreSectionPlaceholder = ({
     </p>
     <Button className="mt-6" variant="outline">
       Thiết lập {title.toLowerCase()}
-      <ArrowRight />
+      <ArrowRightIcon />
     </Button>
   </section>
 );

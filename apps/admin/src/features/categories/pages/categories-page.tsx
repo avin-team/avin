@@ -6,8 +6,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
+import {
+  FolderPlusIcon,
+  StackIcon,
+  PercentIcon,
+  PlusIcon,
+  ShieldWarningIcon,
+} from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
-import { FolderPlus, Layers, Percent, Plus, ShieldAlert } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -237,7 +243,7 @@ export const CategoriesPage = () => {
             </p>
           </div>
           <Button onClick={() => setCreateParentOpen(true)}>
-            <Plus className="mr-2 size-4" />
+            <PlusIcon className="mr-2 size-4" />
             Thêm danh mục cha
           </Button>
         </div>
@@ -246,7 +252,7 @@ export const CategoriesPage = () => {
           <Card size="sm">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-sm">Danh mục cha</CardTitle>
-              <Layers className="size-4 text-muted-foreground" />
+              <StackIcon className="size-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-semibold">{categories.length}</p>
@@ -257,7 +263,7 @@ export const CategoriesPage = () => {
           <Card size="sm">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-sm">Danh mục con</CardTitle>
-              <FolderPlus className="size-4 text-muted-foreground" />
+              <FolderPlusIcon className="size-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-semibold">{totalSubCategories}</p>
@@ -268,7 +274,7 @@ export const CategoriesPage = () => {
           <Card size="sm">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-sm">Tỷ lệ chiết khấu sàn</CardTitle>
-              <Percent className="size-4 text-muted-foreground" />
+              <PercentIcon className="size-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-semibold">{commissionDisplay}</p>
@@ -331,7 +337,7 @@ export const CategoriesPage = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center gap-3">
-            <ShieldAlert className="size-5 text-amber-500" />
+            <ShieldWarningIcon className="size-5 text-amber-500" />
             <div>
               <CardTitle className="text-sm font-semibold">
                 Quy định hệ thống danh mục

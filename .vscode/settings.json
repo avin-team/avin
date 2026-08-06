@@ -57,7 +57,8 @@
     "editor.defaultFormatter": "oxc.oxc-vscode"
   },
   "editor.codeActionsOnSave": {
-    "source.fixAll.oxc": "explicit"
+    "source.fixAll.oxc": "explicit",
+    "source.fixAll.tailwindcss": "explicit"
   },
   "css.lint.unknownAtRules": "ignore"
 }

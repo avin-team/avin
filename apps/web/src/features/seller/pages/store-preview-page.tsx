@@ -1,9 +1,9 @@
 import { Badge } from "@avin/ui/components/badge";
 import { Button } from "@avin/ui/components/button";
 import { SidebarTrigger } from "@avin/ui/components/sidebar";
+import { ArrowLeftIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { orpc } from "@/utils/orpc";
@@ -84,7 +84,7 @@ export const StorePreviewPage = () => {
             type="button"
             variant="ghost"
           >
-            <ArrowLeft data-icon="inline-start" />
+            <ArrowLeftIcon data-icon="inline-start" />
             Quay lại chỉnh sửa
           </Button>
           <div className="mt-5">{renderPreview()}</div>

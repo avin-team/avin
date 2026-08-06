@@ -1,13 +1,13 @@
 import {
-  AlertCircle,
-  ClipboardCheck,
-  FolderTree,
-  Gavel,
-  Landmark,
-  LayoutDashboard,
-  Settings,
-  Store,
-} from "lucide-react";
+  WarningCircleIcon,
+  ClipboardTextIcon,
+  FolderIcon,
+  GavelIcon,
+  BankIcon,
+  SquaresFourIcon,
+  GearIcon,
+  StorefrontIcon,
+} from "@phosphor-icons/react";
 
 import type { SidebarData } from "../types";
 
@@ -15,9 +15,9 @@ export const sidebarData: SidebarData = {
   navGroups: [
     {
       items: [
-        { icon: LayoutDashboard, title: "Tổng quan", url: "/" },
+        { icon: SquaresFourIcon, title: "Tổng quan", url: "/" },
         {
-          icon: ClipboardCheck,
+          icon: ClipboardTextIcon,
           title: "Duyệt hồ sơ Seller",
           url: "/seller-applications",
         },
@@ -27,22 +27,22 @@ export const sidebarData: SidebarData = {
     {
       items: [
         {
-          icon: FolderTree,
+          icon: FolderIcon,
           title: "Danh mục & Chính sách",
           url: "/categories",
         },
         {
-          icon: Gavel,
+          icon: GavelIcon,
           title: "Moderation Listing",
           url: "/listings",
         },
         {
-          icon: Store,
+          icon: StorefrontIcon,
           title: "Quản lý Seller & Vi phạm",
           url: "/sellers",
         },
         {
-          icon: AlertCircle,
+          icon: WarningCircleIcon,
           title: "Hòa giải Tranh chấp",
           url: "/disputes",
         },
@@ -52,7 +52,7 @@ export const sidebarData: SidebarData = {
     {
       items: [
         {
-          icon: Landmark,
+          icon: BankIcon,
           title: "Yêu cầu Rút tiền",
           url: "/withdrawals",
         },
@@ -62,7 +62,7 @@ export const sidebarData: SidebarData = {
     {
       items: [
         {
-          icon: Settings,
+          icon: GearIcon,
           title: "Bảo mật & 2FA",
           url: "/settings",
         },

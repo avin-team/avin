@@ -8,7 +8,11 @@ import { Button } from "@avin/ui/components/button";
 import { FileDropzone } from "@avin/ui/components/file-dropzone";
 import type { FileDropzoneProps } from "@avin/ui/components/file-dropzone";
 import { useUploadFile } from "@better-upload/client";
-import { LoaderCircle, RefreshCw, Trash2 } from "lucide-react";
+import {
+  SpinnerIcon,
+  ArrowClockwiseIcon,
+  TrashIcon,
+} from "@phosphor-icons/react";
 import { useState } from "react";
 
 export interface SellerBannerValue {
@@ -141,7 +145,7 @@ export const SellerBannerUploader = ({
             />
             {upload.isPending ? (
               <div className="absolute inset-0 flex items-center justify-center bg-background/60">
-                <LoaderCircle
+                <SpinnerIcon
                   aria-label="Đang tải banner lên"
                   className="size-6 animate-spin text-primary"
                   data-icon="inline-start"
@@ -164,7 +168,7 @@ export const SellerBannerUploader = ({
                   type="button"
                   variant="secondary"
                 >
-                  <RefreshCw data-icon="inline-start" />
+                  <ArrowClockwiseIcon data-icon="inline-start" />
                 </Button>
                 <Button
                   aria-label="Xóa banner"
@@ -175,7 +179,7 @@ export const SellerBannerUploader = ({
                   type="button"
                   variant="secondary"
                 >
-                  <Trash2 data-icon="inline-start" />
+                  <TrashIcon data-icon="inline-start" />
                 </Button>
               </div>
             )}

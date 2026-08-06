@@ -17,9 +17,9 @@ import {
 } from "@avin/ui/components/field";
 import { Input } from "@avin/ui/components/input";
 import { Textarea } from "@avin/ui/components/textarea";
+import { EyeIcon, SpinnerIcon, StorefrontIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Eye, LoaderCircle, Store } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -262,7 +262,7 @@ const ProfileActions = ({
     </Button>
     <Button disabled={isSaving} onClick={onSave} type="button">
       {isSaving ? (
-        <LoaderCircle className="animate-spin" data-icon="inline-start" />
+        <SpinnerIcon className="animate-spin" data-icon="inline-start" />
       ) : null}
       {isSaving ? "Đang lưu..." : "Lưu thay đổi"}
     </Button>
@@ -279,7 +279,7 @@ export const StorefrontPreviewCard = ({
   <Card>
     <CardContent>
       <div className="overflow-hidden rounded-xl border border-border">
-        <div className="relative flex h-28 items-center justify-center overflow-hidden bg-gradient-to-br from-primary/30 via-primary/10 to-muted text-sm font-bold tracking-wide">
+        <div className="relative flex h-28 items-center justify-center overflow-hidden bg-linear-to-br from-primary/30 via-primary/10 to-muted text-sm font-bold tracking-wide">
           {bannerUrl ? (
             <img
               alt="Banner gian hàng"
@@ -300,7 +300,7 @@ export const StorefrontPreviewCard = ({
                 src={avatarUrl}
               />
             ) : (
-              <Store className="size-6" data-icon="inline-start" />
+              <StorefrontIcon className="size-6" data-icon="inline-start" />
             )}
           </div>
           <p className="mt-3 font-semibold">
@@ -486,7 +486,7 @@ const StoreProfileEditor = ({
             </p>
           </div>
           <Button onClick={onPreview} size="sm" type="button" variant="outline">
-            <Eye data-icon="inline-start" />
+            <EyeIcon data-icon="inline-start" />
             Xem trước gian hàng
           </Button>
         </div>

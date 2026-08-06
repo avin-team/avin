@@ -8,7 +8,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
-import { Check, Copy, Key, ShieldCheck } from "lucide-react";
+import {
+  CheckIcon,
+  CopyIcon,
+  KeyIcon,
+  ShieldCheckIcon,
+} from "@phosphor-icons/react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -71,7 +76,7 @@ export const TwoFactorSettingsCard = () => {
     <Card className="shadow-sm">
       <CardHeader>
         <div className="flex items-center gap-2">
-          <ShieldCheck className="size-5 text-primary" />
+          <ShieldCheckIcon className="size-5 text-primary" />
           <CardTitle>Xác thực hai lớp (2FA)</CardTitle>
         </div>
         <CardDescription>
@@ -83,7 +88,7 @@ export const TwoFactorSettingsCard = () => {
         <CardFooter className="flex flex-col items-start gap-3 border-t bg-muted/20 pt-4">
           <div className="flex w-full items-center justify-between">
             <div className="flex items-center gap-2 font-medium text-sm">
-              <Key className="size-4 text-amber-500" />
+              <KeyIcon className="size-4 text-amber-500" />
               <span>Mã khôi phục (Backup Codes)</span>
             </div>
             <Button
@@ -94,12 +99,12 @@ export const TwoFactorSettingsCard = () => {
             >
               {copiedBackup ? (
                 <>
-                  <Check className="size-3.5 text-emerald-500" />
+                  <CheckIcon className="size-3.5 text-emerald-500" />
                   Đã chép
                 </>
               ) : (
                 <>
-                  <Copy className="size-3.5" />
+                  <CopyIcon className="size-3.5" />
                   Sao chép mã
                 </>
               )}

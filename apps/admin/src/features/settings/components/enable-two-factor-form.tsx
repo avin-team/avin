@@ -7,8 +7,8 @@ import {
   FieldLabel,
 } from "@avin/ui/components/field";
 import { Input } from "@avin/ui/components/input";
+import { SpinnerIcon } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
-import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -110,7 +110,9 @@ export const EnableTwoFactorForm = ({ onSetup }: EnableTwoFactorFormProps) => {
               form="enable-two-factor-form"
               type="submit"
             >
-              {isSubmitting && <Loader2 className="me-2 size-4 animate-spin" />}
+              {isSubmitting && (
+                <SpinnerIcon className="me-2 size-4 animate-spin" />
+              )}
               Bắt đầu thiết lập 2FA
             </Button>
           )}

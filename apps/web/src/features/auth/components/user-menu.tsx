@@ -15,8 +15,13 @@ import {
   DropdownMenuTrigger,
 } from "@avin/ui/components/dropdown-menu";
 import { Skeleton } from "@avin/ui/components/skeleton";
+import {
+  SignOutIcon,
+  ShieldCheckIcon,
+  ShoppingBagIcon,
+  StorefrontIcon,
+} from "@phosphor-icons/react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { LogOut, ShieldCheck, ShoppingBag, Store } from "lucide-react";
 import { toast } from "sonner";
 
 import { authClient } from "@/features/auth/api/auth-client";
@@ -64,7 +69,7 @@ export const UserMenu = () => {
       <DropdownMenuTrigger
         render={
           <Button
-            aria-label="Menu tài khoản"
+            aria-label="ListIcon tài khoản"
             className="relative size-9 rounded-full border border-border/60 p-0 shadow-sm transition-transform hover:scale-105"
             variant="ghost"
           />
@@ -104,7 +109,7 @@ export const UserMenu = () => {
                 await navigate({ to: "/seller/store" });
               }}
             >
-              <Store className="me-2 size-4" />
+              <StorefrontIcon className="me-2 size-4" />
               Mở gian hàng
             </DropdownMenuItem>
           ) : (
@@ -116,7 +121,7 @@ export const UserMenu = () => {
                   });
                 }}
               >
-                <ShoppingBag className="me-2 size-4" />
+                <ShoppingBagIcon className="me-2 size-4" />
                 Đơn hàng
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -126,7 +131,7 @@ export const UserMenu = () => {
                   });
                 }}
               >
-                <Store className="me-2 size-4" />
+                <StorefrontIcon className="me-2 size-4" />
                 Đăng ký Người bán
               </DropdownMenuItem>
             </>
@@ -138,7 +143,7 @@ export const UserMenu = () => {
               });
             }}
           >
-            <ShieldCheck className="me-2 size-4" />
+            <ShieldCheckIcon className="me-2 size-4" />
             Bảo mật tài khoản
           </DropdownMenuItem>
           <DropdownMenuSeparator className="my-1" />
@@ -161,7 +166,7 @@ export const UserMenu = () => {
             }}
             variant="destructive"
           >
-            <LogOut className="me-2 size-4" />
+            <SignOutIcon className="me-2 size-4" />
             Đăng xuất
           </DropdownMenuItem>
         </DropdownMenuGroup>

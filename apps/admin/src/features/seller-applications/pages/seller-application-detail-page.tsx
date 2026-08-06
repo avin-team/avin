@@ -6,8 +6,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
+import {
+  ArrowLeftIcon,
+  EyeIcon,
+  EyeClosedIcon,
+  ShieldCheckIcon,
+} from "@phosphor-icons/react";
 import { Link, useParams } from "@tanstack/react-router";
-import { ArrowLeft, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -75,7 +80,7 @@ export const SellerApplicationDetailPage = () => {
           Không tìm thấy hồ sơ
         </h1>
         <Button render={<Link to="/seller-applications" />} variant="outline">
-          <ArrowLeft />
+          <ArrowLeftIcon />
           Quay lại hàng đợi
         </Button>
       </Main>
@@ -139,7 +144,7 @@ export const SellerApplicationDetailPage = () => {
       return (
         <>
           <Button onClick={() => handleDecision("APPROVED")}>
-            <ShieldCheck />
+            <ShieldCheckIcon />
             Phê duyệt hồ sơ
           </Button>
           <Button
@@ -187,7 +192,7 @@ export const SellerApplicationDetailPage = () => {
               size="icon"
               variant="outline"
             >
-              <ArrowLeft />
+              <ArrowLeftIcon />
             </Button>
             <div>
               <p className="text-sm font-medium text-primary">
@@ -272,7 +277,7 @@ export const SellerApplicationDetailPage = () => {
                       size="icon-xs"
                       variant="ghost"
                     >
-                      {showBankAccount ? <EyeOff /> : <Eye />}
+                      {showBankAccount ? <EyeClosedIcon /> : <EyeIcon />}
                     </Button>
                   </div>
                 </div>

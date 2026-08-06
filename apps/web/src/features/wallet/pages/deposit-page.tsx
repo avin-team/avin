@@ -16,10 +16,15 @@ import {
 } from "@avin/ui/components/field";
 import { Input } from "@avin/ui/components/input";
 import { Spinner } from "@avin/ui/components/spinner";
+import {
+  CheckCircleIcon,
+  ClockIcon,
+  CopyIcon,
+  BankIcon,
+} from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { CheckCircle2, Clock3, Copy, Landmark } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -83,7 +88,7 @@ const CopyRow = ({
         type="button"
         variant="ghost"
       >
-        <Copy />
+        <CopyIcon />
       </Button>
     ) : null}
   </div>
@@ -291,7 +296,7 @@ export const DepositPage = () => {
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-sm font-medium">
-                  <Clock3 className="size-4" />
+                  <ClockIcon className="size-4" />
                   {remainingLabel}
                 </div>
               </div>
@@ -336,7 +341,7 @@ export const DepositPage = () => {
                 </div>
               </div>
               <Alert>
-                <Landmark />
+                <BankIcon />
                 <AlertTitle>Luôn kiểm tra nội dung chuyển khoản</AlertTitle>
                 <AlertDescription>
                   Chuyển đúng số tiền và nội dung{" "}
@@ -356,7 +361,7 @@ export const DepositPage = () => {
         {visibleStep === "success" && request ? (
           <Card>
             <CardContent className="space-y-6 py-10 text-center">
-              <CheckCircle2 className="mx-auto size-14 text-emerald-500" />
+              <CheckCircleIcon className="mx-auto size-14 text-emerald-500" />
               <div>
                 <h2 className="text-2xl font-bold">Nạp tiền thành công</h2>
                 <p className="mt-2 text-muted-foreground">

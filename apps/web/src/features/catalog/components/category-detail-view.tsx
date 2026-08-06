@@ -6,18 +6,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@avin/ui/components/select";
-import { Link } from "@tanstack/react-router";
 import {
-  AlertCircle,
-  CheckCircle2,
-  ChevronRight,
-  Filter,
-  Grid3X3,
-  Home,
-  List,
-  RotateCcw,
-  Search,
-} from "lucide-react";
+  WarningCircleIcon,
+  CheckCircleIcon,
+  CaretRightIcon,
+  FunnelIcon,
+  GridNineIcon,
+  HouseIcon,
+  ListIcon,
+  ArrowCounterClockwiseIcon,
+  MagnifyingGlassIcon,
+} from "@phosphor-icons/react";
+import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { CategoryIcon } from "../utils/category-icons";
@@ -110,11 +110,11 @@ export const CategoryDetailView = ({
               className="flex items-center gap-1 hover:text-foreground transition-colors"
               to="/"
             >
-              <Home className="h-3.5 w-3.5" />
+              <HouseIcon className="h-3.5 w-3.5" />
               <span>Trang chủ</span>
             </Link>
           </li>
-          <ChevronRight className="h-3 w-3 shrink-0 opacity-50" />
+          <CaretRightIcon className="h-3 w-3 shrink-0 opacity-50" />
           <li>
             {parentCategory ? (
               <span className="font-semibold text-foreground">
@@ -128,7 +128,7 @@ export const CategoryDetailView = ({
           </li>
           {activeSub && (
             <>
-              <ChevronRight className="h-3 w-3 shrink-0 opacity-50" />
+              <CaretRightIcon className="h-3 w-3 shrink-0 opacity-50" />
               <li className="font-medium text-primary">{activeSub.name}</li>
             </>
           )}
@@ -136,7 +136,7 @@ export const CategoryDetailView = ({
       </nav>
 
       {/* Category Banner / Header */}
-      <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-gradient-to-r from-primary/10 via-card to-background p-6 md:p-8 shadow-sm backdrop-blur-md">
+      <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-linear-to-r from-primary/10 via-card to-background p-6 md:p-8 shadow-sm backdrop-blur-md">
         <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 h-64 w-64 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
@@ -182,7 +182,7 @@ export const CategoryDetailView = ({
           <div className="rounded-2xl border border-border/60 bg-card/60 p-5 shadow-xs backdrop-blur-md space-y-4">
             <div className="flex items-center justify-between border-b border-border/40 pb-3">
               <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-primary" />
+                <FunnelIcon className="h-4 w-4 text-primary" />
                 <h2 className="text-sm font-bold text-foreground">
                   Phân loại chi tiết
                 </h2>
@@ -193,7 +193,7 @@ export const CategoryDetailView = ({
                   onClick={() => onSubSelect()}
                   type="button"
                 >
-                  <RotateCcw className="h-3 w-3" />
+                  <ArrowCounterClockwiseIcon className="h-3 w-3" />
                   <span>Xóa lọc</span>
                 </button>
               )}
@@ -210,7 +210,9 @@ export const CategoryDetailView = ({
                 type="button"
               >
                 <span>Tất cả dịch vụ</span>
-                {!selectedSubSlug && <CheckCircle2 className="h-3.5 w-3.5" />}
+                {!selectedSubSlug && (
+                  <CheckCircleIcon className="h-3.5 w-3.5" />
+                )}
               </button>
 
               {parentCategory?.subCategories?.map((sub) => {
@@ -228,7 +230,7 @@ export const CategoryDetailView = ({
                   >
                     <span className="truncate text-left pr-2">{sub.name}</span>
                     {isSelected && (
-                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                      <CheckCircleIcon className="h-3.5 w-3.5 shrink-0" />
                     )}
                   </button>
                 );
@@ -243,7 +245,7 @@ export const CategoryDetailView = ({
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 rounded-2xl border border-border/60 bg-card/60 p-4 shadow-xs backdrop-blur-md">
             {/* Search Input */}
             <div className="relative flex-1">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
                 className="w-full rounded-xl border border-border/80 bg-background/80 pl-10 pr-4 py-2 text-xs font-medium text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-hidden focus:ring-1 focus:ring-primary transition-all"
                 onChange={(e) => onSearchChange(e.target.value)}
@@ -265,7 +267,7 @@ export const CategoryDetailView = ({
                   value={sortBy}
                   onValueChange={(val) => onSortChange(val as SortByOption)}
                 >
-                  <SelectTrigger className="h-9 w-[140px] text-xs font-medium rounded-xl border-border/80 bg-background/80">
+                  <SelectTrigger className="h-9 w-35 text-xs font-medium rounded-xl border-border/80 bg-background/80">
                     <SelectValue placeholder="Sắp xếp theo" />
                   </SelectTrigger>
                   <SelectContent align="end">
@@ -294,7 +296,7 @@ export const CategoryDetailView = ({
                     aria-label="Lưới 3 cột"
                     type="button"
                   >
-                    <Grid3X3 className="h-4 w-4" />
+                    <GridNineIcon className="h-4 w-4" />
                   </button>
                   <button
                     className={`rounded-lg p-1.5 transition-all ${
@@ -306,7 +308,7 @@ export const CategoryDetailView = ({
                     aria-label="Danh sách 1 cột"
                     type="button"
                   >
-                    <List className="h-4 w-4" />
+                    <ListIcon className="h-4 w-4" />
                   </button>
                 </div>
               </div>
@@ -318,7 +320,7 @@ export const CategoryDetailView = ({
 
           {isError && (
             <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-8 text-center">
-              <AlertCircle className="mx-auto h-8 w-8 text-destructive" />
+              <WarningCircleIcon className="mx-auto h-8 w-8 text-destructive" />
               <p className="mt-2 text-sm font-medium text-destructive">
                 Không thể tải sản phẩm. Vui lòng thử lại.
               </p>

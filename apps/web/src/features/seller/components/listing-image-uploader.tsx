@@ -9,7 +9,13 @@ import { Button } from "@avin/ui/components/button";
 import type { FileDropzoneProps } from "@avin/ui/components/file-dropzone";
 import { FileDropzone } from "@avin/ui/components/file-dropzone";
 import { useUploadFiles } from "@better-upload/client";
-import { ArrowLeft, ArrowRight, RefreshCw, Trash2, Undo2 } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  ArrowClockwiseIcon,
+  TrashIcon,
+  ArrowArcLeftIcon,
+} from "@phosphor-icons/react";
 import { useState } from "react";
 
 import { validateListingImage } from "./listing-image-validation";
@@ -353,7 +359,7 @@ export const ListingImageUploader = ({
                 draggable={false}
                 src={image}
               />
-              <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-2 bg-gradient-to-b from-black/75 to-transparent p-2 text-xs text-white">
+              <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-2 bg-linear-to-b from-black/75 to-transparent p-2 text-xs text-white">
                 <span className="font-medium">
                   {index === 0 ? "Ảnh đại diện" : `Ảnh ${index + 1}`}
                 </span>
@@ -370,7 +376,7 @@ export const ListingImageUploader = ({
                     type="button"
                     variant="ghost"
                   >
-                    <ArrowLeft />
+                    <ArrowLeftIcon />
                   </Button>
                   <Button
                     aria-label={`Đưa ảnh ${index + 1} xuống`}
@@ -381,7 +387,7 @@ export const ListingImageUploader = ({
                     type="button"
                     variant="ghost"
                   >
-                    <ArrowRight />
+                    <ArrowRightIcon />
                   </Button>
                 </div>
                 <Button
@@ -393,7 +399,7 @@ export const ListingImageUploader = ({
                   type="button"
                   variant="ghost"
                 >
-                  <Trash2 />
+                  <TrashIcon />
                 </Button>
               </div>
             </div>
@@ -429,7 +435,7 @@ export const ListingImageUploader = ({
             type="button"
             variant="outline"
           >
-            <Undo2 />
+            <ArrowArcLeftIcon />
             Hoàn tác
           </Button>
         </div>
@@ -458,7 +464,7 @@ export const ListingImageUploader = ({
                   type="button"
                   variant="outline"
                 >
-                  <RefreshCw />
+                  <ArrowClockwiseIcon />
                   Thử lại
                 </Button>
                 <Button

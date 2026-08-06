@@ -21,8 +21,8 @@ import {
   TableHeader,
   TableRow,
 } from "@avin/ui/components/table";
+import { MagnifyingGlassIcon, StorefrontIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
-import { Search, Store } from "lucide-react";
 import { useState } from "react";
 
 import { Header } from "@/components/layout/header";
@@ -70,7 +70,7 @@ export const SellerListPage = () => {
         <div>
           <p className="text-sm font-medium text-primary">SELLER GOVERNANCE</p>
           <h1 className="text-3xl font-semibold tracking-tight">
-            Storefront Governance
+            StorefrontIcon Governance
           </h1>
           <p className="text-muted-foreground">
             Quản lý trạng thái hoạt động gian hàng, chế tài vi phạm
@@ -81,7 +81,7 @@ export const SellerListPage = () => {
         <Card>
           <CardHeader className="gap-4 border-b sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="text-base flex items-center gap-2">
-              <Store className="size-4 text-primary" />
+              <StorefrontIcon className="size-4 text-primary" />
               Danh sách Gian Hàng Seller{" "}
               <span className="text-muted-foreground">
                 ({filteredSellers.length})
@@ -89,7 +89,7 @@ export const SellerListPage = () => {
             </CardTitle>
             <div className="flex flex-col gap-2 sm:flex-row">
               <div className="relative min-w-0 sm:w-64">
-                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   aria-label="Search sellers"
                   className="ps-9"
@@ -129,7 +129,7 @@ export const SellerListPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Storefront</TableHead>
+                    <TableHead>StorefrontIcon</TableHead>
                     <TableHead>Chủ tài khoản</TableHead>
                     <TableHead>Đánh giá / Đơn hàng</TableHead>
                     <TableHead>Số dư ví SellerWallet</TableHead>

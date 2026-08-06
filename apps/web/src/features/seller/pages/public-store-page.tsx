@@ -1,7 +1,12 @@
 import { Badge } from "@avin/ui/components/badge";
+import {
+  WarningCircleIcon,
+  ArrowLeftIcon,
+  PackageIcon,
+  StorefrontIcon,
+} from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "@tanstack/react-router";
-import { AlertCircle, ArrowLeft, Package, Store } from "lucide-react";
 
 import { Shell } from "@/components/shell";
 import { formatVND } from "@/utils/format";
@@ -35,7 +40,7 @@ export const PublicStorePage = () => {
       <Shell variant="default">
         <div className="py-16">
           <div className="mx-auto max-w-xl rounded-3xl border border-destructive/20 bg-destructive/5 p-12 text-center">
-            <AlertCircle className="mx-auto size-12 text-destructive" />
+            <WarningCircleIcon className="mx-auto size-12 text-destructive" />
             <h1 className="mt-4 text-xl font-bold">Không tìm thấy gian hàng</h1>
             <p className="mt-2 text-sm text-muted-foreground">
               Gian hàng này chưa public hoặc không còn khả dụng.
@@ -44,7 +49,7 @@ export const PublicStorePage = () => {
               className="mt-6 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground"
               to="/category"
             >
-              <ArrowLeft className="size-4" />
+              <ArrowLeftIcon className="size-4" />
               Quay lại Dịch vụ
             </Link>
           </div>
@@ -62,12 +67,12 @@ export const PublicStorePage = () => {
           className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
           to="/category"
         >
-          <ArrowLeft className="size-4" />
+          <ArrowLeftIcon className="size-4" />
           Dịch vụ
         </Link>
 
         <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
-          <div className="relative h-48 overflow-hidden bg-gradient-to-br from-primary/30 via-primary/10 to-muted sm:h-56">
+          <div className="relative h-48 overflow-hidden bg-linear-to-br from-primary/30 via-primary/10 to-muted sm:h-56">
             {profile.bannerUrl ? (
               <img
                 alt={`Ảnh bìa ${profile.storefrontName}`}
@@ -76,7 +81,7 @@ export const PublicStorePage = () => {
                 src={profile.bannerUrl}
               />
             ) : null}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/45 to-transparent" />
+            <div className="absolute inset-0 bg-linear-to-t from-black/45 to-transparent" />
           </div>
           <div className="relative px-6 pb-6 sm:px-8">
             <div className="-mt-12 flex size-24 items-center justify-center overflow-hidden rounded-3xl border-4 border-card bg-primary text-primary-foreground shadow-lg">
@@ -88,7 +93,7 @@ export const PublicStorePage = () => {
                   src={profile.avatarUrl}
                 />
               ) : (
-                <Store className="size-10" />
+                <StorefrontIcon className="size-10" />
               )}
             </div>
             <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
@@ -122,7 +127,7 @@ export const PublicStorePage = () => {
 
           {listings.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center">
-              <Package className="mx-auto size-10 text-muted-foreground" />
+              <PackageIcon className="mx-auto size-10 text-muted-foreground" />
               <h3 className="mt-4 font-semibold">Chưa có sản phẩm</h3>
               <p className="mt-1 text-sm text-muted-foreground">
                 Gian hàng đã public và sẽ hiển thị sản phẩm tại đây khi có sản
@@ -147,8 +152,8 @@ export const PublicStorePage = () => {
                         src={listing.thumbnailUrl}
                       />
                     ) : (
-                      <div className="flex size-full items-center justify-center bg-gradient-to-br from-primary/10 to-muted">
-                        <Package className="size-10 text-primary/50" />
+                      <div className="flex size-full items-center justify-center bg-linear-to-br from-primary/10 to-muted">
+                        <PackageIcon className="size-10 text-primary/50" />
                       </div>
                     )}
                   </div>

@@ -6,8 +6,8 @@ import {
   useSidebar,
 } from "@avin/ui/components/sidebar";
 import { cn } from "@avin/ui/lib/utils";
+import { ListIcon, XIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
-import { Menu, X } from "lucide-react";
 
 const ToggleSidebar = ({
   className,
@@ -29,8 +29,8 @@ const ToggleSidebar = ({
       }}
       {...props}
     >
-      <X className="md:hidden" />
-      <Menu className="max-md:hidden" />
+      <XIcon className="md:hidden" />
+      <ListIcon className="max-md:hidden" />
       <span className="sr-only">Toggle Sidebar</span>
     </Button>
   );

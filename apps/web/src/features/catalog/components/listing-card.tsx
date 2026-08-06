@@ -1,13 +1,13 @@
-import { Link } from "@tanstack/react-router";
 import {
-  ArrowRight,
-  BookOpen,
-  CheckCircle2,
-  ShieldCheck,
-  Store,
-  User,
-  Wrench,
-} from "lucide-react";
+  ArrowRightIcon,
+  BookOpenIcon,
+  CheckCircleIcon,
+  ShieldCheckIcon,
+  StorefrontIcon,
+  UserIcon,
+  WrenchIcon,
+} from "@phosphor-icons/react";
+import { Link } from "@tanstack/react-router";
 import * as m from "motion/react-m";
 import type { ComponentPropsWithoutRef } from "react";
 
@@ -68,11 +68,11 @@ export const ListingCard = ({
                   src={listing.thumbnailUrl}
                 />
               ) : (
-                <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-primary/10 via-muted/30 to-background p-4 text-center">
+                <div className="flex h-full w-full flex-col items-center justify-center bg-linear-to-br from-primary/10 via-muted/30 to-background p-4 text-center">
                   {isService ? (
-                    <Wrench className="h-7 w-7 text-primary/70" />
+                    <WrenchIcon className="h-7 w-7 text-primary/70" />
                   ) : (
-                    <BookOpen className="h-7 w-7 text-primary/70" />
+                    <BookOpenIcon className="h-7 w-7 text-primary/70" />
                   )}
                   <span className="mt-1 text-[11px] font-medium text-muted-foreground">
                     {isService ? "Dịch vụ số" : "Khóa học online"}
@@ -82,7 +82,7 @@ export const ListingCard = ({
 
               {/* Category Overlay (Gradient text overlay) */}
               {listing.category && (
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-2.5 pt-6 flex items-end">
+                <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/85 via-black/40 to-transparent p-2.5 pt-6 flex items-end">
                   <span className="text-[11px] font-semibold text-white/95 drop-shadow-xs truncate">
                     {listing.category.name}
                   </span>
@@ -96,7 +96,7 @@ export const ListingCard = ({
                 {listing.warrantyDurationHours ? (
                   <div className="mb-1.5">
                     <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">
-                      <ShieldCheck className="h-3 w-3" />
+                      <ShieldCheckIcon className="h-3 w-3" />
                       Bảo hành {listing.warrantyDurationHours}h
                     </span>
                   </div>
@@ -107,7 +107,7 @@ export const ListingCard = ({
                 </h3>
               </div>
 
-              {/* Store / Seller Info */}
+              {/* StorefrontIcon / Seller Info */}
               <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1 border-t border-border/30">
                 {listing.seller?.image ? (
                   <img
@@ -117,13 +117,13 @@ export const ListingCard = ({
                   />
                 ) : (
                   <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-primary shrink-0">
-                    <Store className="h-3 w-3" />
+                    <StorefrontIcon className="h-3 w-3" />
                   </div>
                 )}
-                <span className="font-semibold text-foreground/90 truncate max-w-[200px]">
+                <span className="font-semibold text-foreground/90 truncate max-w-50">
                   {sellerName}
                 </span>
-                <CheckCircle2 className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                <CheckCircleIcon className="h-3.5 w-3.5 text-blue-500 shrink-0" />
               </div>
             </div>
 
@@ -135,7 +135,7 @@ export const ListingCard = ({
 
               <div className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground shadow-xs group-hover:opacity-90 transition-all">
                 <span>Xem chi tiết</span>
-                <ArrowRight className="h-3.5 w-3.5" />
+                <ArrowRightIcon className="h-3.5 w-3.5" />
               </div>
             </div>
           </div>
@@ -144,7 +144,7 @@ export const ListingCard = ({
     );
   }
 
-  // Default Grid Mode (Full Width Image Edge-to-Edge with Category Overlay)
+  // Default GridFourIcon Mode (Full Width Image Edge-to-Edge with Category Overlay)
   return (
     <Link
       className="block h-full"
@@ -166,11 +166,11 @@ export const ListingCard = ({
                 src={listing.thumbnailUrl}
               />
             ) : (
-              <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-primary/10 via-muted/30 to-background p-4 text-center">
+              <div className="flex h-full w-full flex-col items-center justify-center bg-linear-to-br from-primary/10 via-muted/30 to-background p-4 text-center">
                 {isService ? (
-                  <Wrench className="h-8 w-8 text-primary/70" />
+                  <WrenchIcon className="h-8 w-8 text-primary/70" />
                 ) : (
-                  <BookOpen className="h-8 w-8 text-primary/70" />
+                  <BookOpenIcon className="h-8 w-8 text-primary/70" />
                 )}
                 <span className="mt-1 text-xs font-medium text-muted-foreground">
                   {isService ? "Dịch vụ số" : "Khóa học online"}
@@ -180,7 +180,7 @@ export const ListingCard = ({
 
             {/* Category Overlay Text (On top of thumbnail with gradient backdrop) */}
             {listing.category && (
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-2.5 pt-6 flex items-end">
+              <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/85 via-black/40 to-transparent p-2.5 pt-6 flex items-end">
                 <span className="text-[11px] font-semibold text-white/95 drop-shadow-xs truncate">
                   {listing.category.name}
                 </span>
@@ -191,7 +191,7 @@ export const ListingCard = ({
           {/* Card Body Content */}
           <div className="flex flex-1 flex-col justify-between p-3.5 sm:p-4 space-y-2.5">
             <div>
-              {/* Seller Store Header */}
+              {/* Seller StorefrontIcon Header */}
               <div className="flex items-center gap-2 mb-2 min-w-0">
                 {listing.seller?.image ? (
                   <img
@@ -201,13 +201,13 @@ export const ListingCard = ({
                   />
                 ) : (
                   <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-primary shrink-0">
-                    <User className="h-3 w-3" />
+                    <UserIcon className="h-3 w-3" />
                   </div>
                 )}
                 <span className="truncate text-xs font-semibold text-muted-foreground group-hover:text-foreground transition-colors">
                   {sellerName}
                 </span>
-                <CheckCircle2 className="h-3 w-3 text-blue-500 shrink-0" />
+                <CheckCircleIcon className="h-3 w-3 text-blue-500 shrink-0" />
               </div>
 
               {/* Title */}
@@ -218,7 +218,7 @@ export const ListingCard = ({
               {/* Warranty Badge */}
               {listing.warrantyDurationHours ? (
                 <div className="mt-2.5 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">
-                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+                  <ShieldCheckIcon className="h-3.5 w-3.5 text-emerald-500" />
                   <span>Bảo hành {listing.warrantyDurationHours}h</span>
                 </div>
               ) : null}
@@ -231,7 +231,7 @@ export const ListingCard = ({
               </span>
 
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all">
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRightIcon className="h-4 w-4" />
               </div>
             </div>
           </div>

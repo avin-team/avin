@@ -21,7 +21,12 @@ import {
   TableHeader,
   TableRow,
 } from "@avin/ui/components/table";
-import { CheckCircle2, Landmark, Search, XCircle } from "lucide-react";
+import {
+  CheckCircleIcon,
+  BankIcon,
+  MagnifyingGlassIcon,
+  XCircleIcon,
+} from "@phosphor-icons/react";
 import { useState } from "react";
 
 import { Header } from "@/components/layout/header";
@@ -97,7 +102,7 @@ export const WithdrawalQueuePage = () => {
         <Card>
           <CardHeader className="gap-4 border-b sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="text-base flex items-center gap-2">
-              <Landmark className="size-4 text-primary" />
+              <BankIcon className="size-4 text-primary" />
               Hàng đợi Rút tiền{" "}
               <span className="text-muted-foreground">
                 ({filteredWithdrawals.length})
@@ -105,7 +110,7 @@ export const WithdrawalQueuePage = () => {
             </CardTitle>
             <div className="flex flex-col gap-2 sm:flex-row">
               <div className="relative min-w-0 sm:w-64">
-                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   aria-label="Search withdrawal requests"
                   className="ps-9"
@@ -142,7 +147,7 @@ export const WithdrawalQueuePage = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Storefront</TableHead>
+                    <TableHead>StorefrontIcon</TableHead>
                     <TableHead>Ngân hàng nhận</TableHead>
                     <TableHead>Số tiền rút</TableHead>
                     <TableHead>Thời gian gửi</TableHead>
@@ -191,7 +196,7 @@ export const WithdrawalQueuePage = () => {
                                 size="sm"
                                 variant="outline"
                               >
-                                <CheckCircle2 className="size-3.5 text-blue-600" />{" "}
+                                <CheckCircleIcon className="size-3.5 text-blue-600" />{" "}
                                 Duyệt
                               </Button>
                               <Button
@@ -200,7 +205,7 @@ export const WithdrawalQueuePage = () => {
                                 size="sm"
                                 variant="destructive"
                               >
-                                <XCircle className="size-3.5" /> Từ chối
+                                <XCircleIcon className="size-3.5" /> Từ chối
                               </Button>
                             </>
                           )}
@@ -210,7 +215,7 @@ export const WithdrawalQueuePage = () => {
                               onClick={() => handleAction(wth, "PAID")}
                               size="sm"
                             >
-                              <Landmark className="size-3.5" /> Nhập mã đã CK
+                              <BankIcon className="size-3.5" /> Nhập mã đã CK
                               (Paid)
                             </Button>
                           )}

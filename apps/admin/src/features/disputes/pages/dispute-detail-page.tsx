@@ -8,15 +8,15 @@ import {
   CardTitle,
 } from "@avin/ui/components/card";
 import { Separator } from "@avin/ui/components/separator";
-import { Link, useParams } from "@tanstack/react-router";
 import {
-  ArrowLeft,
-  ExternalLink,
-  FileText,
-  MessageSquare,
-  RotateCcw,
-  ShieldCheck,
-} from "lucide-react";
+  ArrowLeftIcon,
+  ArrowSquareOutIcon,
+  FileTextIcon,
+  ChatIcon,
+  ArrowCounterClockwiseIcon,
+  ShieldCheckIcon,
+} from "@phosphor-icons/react";
+import { Link, useParams } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { Header } from "@/components/layout/header";
@@ -71,7 +71,7 @@ export const DisputeDetailPage = () => {
           Dispute not found
         </h1>
         <Button render={<Link to="/disputes" />} variant="outline">
-          <ArrowLeft /> Back to queue
+          <ArrowLeftIcon /> Back to queue
         </Button>
       </Main>
     );
@@ -100,7 +100,7 @@ export const DisputeDetailPage = () => {
               size="icon"
               variant="outline"
             >
-              <ArrowLeft />
+              <ArrowLeftIcon />
             </Button>
             <div>
               <p className="text-sm font-medium text-primary">
@@ -168,7 +168,7 @@ export const DisputeDetailPage = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <FileText className="size-5 text-primary" />
+                  <FileTextIcon className="size-5 text-primary" />
                   Chứng cứ hai bên cung cấp ({dispute.evidenceList.length})
                 </CardTitle>
               </CardHeader>
@@ -203,7 +203,7 @@ export const DisputeDetailPage = () => {
                       size="sm"
                       variant="ghost"
                     >
-                      <ExternalLink className="size-3.5" /> Xem chứng cứ
+                      <ArrowSquareOutIcon className="size-3.5" /> Xem chứng cứ
                     </Button>
                   </div>
                 ))}
@@ -218,8 +218,8 @@ export const DisputeDetailPage = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <MessageSquare className="size-5 text-primary" />
-                  Nhật ký Chat Đơn Hàng (Audited Order Chat)
+                  <ChatIcon className="size-5 text-primary" />
+                  Nhật ký ChatIcon Đơn Hàng (Audited Order ChatIcon)
                 </CardTitle>
                 <CardDescription>
                   Lịch sử trao đổi giữa Buyer và Seller trong đơn hàng.
@@ -262,13 +262,13 @@ export const DisputeDetailPage = () => {
                     onClick={() => handleResolve("RESOLVED_REFUNDED")}
                     variant="destructive"
                   >
-                    <RotateCcw /> Hoàn 100% cho Buyer (Refund)
+                    <ArrowCounterClockwiseIcon /> Hoàn 100% cho Buyer (Refund)
                   </Button>
                   <Button
                     onClick={() => handleResolve("RESOLVED_RELEASED")}
                     variant="default"
                   >
-                    <ShieldCheck /> Giải ngân 100% cho Seller (Release)
+                    <ShieldCheckIcon /> Giải ngân 100% cho Seller (Release)
                   </Button>
                 </>
               ) : (

@@ -1,13 +1,13 @@
 import {
-  BookOpen,
-  Code2,
-  Gamepad2,
-  Globe,
-  KeyRound,
-  LayoutGrid,
-  Megaphone,
-  Palette,
-} from "lucide-react";
+  BookOpenIcon,
+  CodeIcon,
+  GameControllerIcon,
+  GlobeIcon,
+  KeyIcon,
+  GridFourIcon,
+  MegaphoneIcon,
+  PaletteIcon,
+} from "@phosphor-icons/react";
 import type { ComponentType } from "react";
 
 import { FacebookIcon } from "@/components/icons/facebook";
@@ -21,25 +21,25 @@ export const CATEGORY_ICON_MAP: Record<
   string,
   ComponentType<{ className?: string }>
 > = {
-  "design-creative": Palette,
-  "development-tech": Code2,
+  "design-creative": PaletteIcon,
+  "development-tech": CodeIcon,
   "dich-vu-facebook": FacebookIcon,
   "dich-vu-google": GoogleIcon,
   "dich-vu-instagram": InstagramIcon,
   "dich-vu-tiktok": TikTokIcon,
   "dich-vu-x": XIcon,
   "dich-vu-youtube": YouTubeIcon,
-  "digital-services": Globe,
-  "education-courses": BookOpen,
-  "game-items": Gamepad2,
-  "marketing-seo": Megaphone,
-  "software-accounts": KeyRound,
+  "digital-services": GlobeIcon,
+  "education-courses": BookOpenIcon,
+  "game-items": GameControllerIcon,
+  "marketing-seo": MegaphoneIcon,
+  "software-accounts": KeyIcon,
 };
 
-export const DEFAULT_CATEGORY_ICON = LayoutGrid;
+export const DEFAULT_CATEGORY_ICON = GridFourIcon;
 
 /**
- * Returns a Lucide icon component matching the category slug, falling back to LayoutGrid.
+ * Returns a Phosphor icon component matching the category slug, falling back to GridFourIcon.
  */
 export const getCategoryIcon = (
   slug?: string | null

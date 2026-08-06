@@ -8,7 +8,11 @@ import {
   CardTitle,
 } from "@avin/ui/components/card";
 import { cn } from "@avin/ui/lib/utils";
-import { FileText, ShieldCheck, Timer } from "@phosphor-icons/react";
+import {
+  FileTextIcon,
+  ShieldCheckIcon,
+  TimerIcon,
+} from "@phosphor-icons/react";
 
 import {
   formatOrderDate,
@@ -91,7 +95,7 @@ const EvidenceFile = ({
   const href = getSafeEvidenceHref(file.storageKey);
   return (
     <li className="flex min-w-0 items-center gap-2 rounded-xl bg-muted/50 px-3 py-2 text-sm">
-      <FileText aria-hidden="true" />
+      <FileTextIcon aria-hidden="true" />
       {href ? (
         <a
           className="truncate text-primary underline-offset-4 hover:underline"
@@ -131,7 +135,7 @@ export const OrderItemTimeline = ({
       </div>
       <div className="rounded-2xl border border-border/60 bg-muted/20 p-3">
         <p className="flex items-center gap-1 text-xs text-muted-foreground">
-          <Timer aria-hidden="true" />
+          <TimerIcon aria-hidden="true" />
           Hạn xử lý
         </p>
         <p className="mt-2 text-sm font-medium">
@@ -140,7 +144,7 @@ export const OrderItemTimeline = ({
       </div>
       <div className="rounded-2xl border border-border/60 bg-muted/20 p-3">
         <p className="flex items-center gap-1 text-xs text-muted-foreground">
-          <ShieldCheck aria-hidden="true" />
+          <ShieldCheckIcon aria-hidden="true" />
           Hạn review / bảo hành
         </p>
         <p className="mt-2 text-sm font-medium">
@@ -232,7 +236,7 @@ export const OrderItemTimeline = ({
                   {index + 1}
                 </span>
                 {index < timeline.events.length - 1 ? (
-                  <div className="my-1.5 min-h-[20px] w-[2px] flex-1 bg-border/60" />
+                  <div className="my-1.5 min-h-5 w-0.5 flex-1 bg-border/60" />
                 ) : null}
               </div>
               <div className="min-w-0 flex-1 pb-1">

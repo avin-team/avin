@@ -2,9 +2,9 @@ import { useChat } from "@ai-sdk/react";
 import { env } from "@avin/env/web";
 import { Button } from "@avin/ui/components/button";
 import { Input } from "@avin/ui/components/input";
+import { PaperPlaneRightIcon } from "@phosphor-icons/react";
 import { createFileRoute } from "@tanstack/react-router";
 import { DefaultChatTransport } from "ai";
-import { Send } from "lucide-react";
 import { useRef, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Streamdown } from "streamdown";
@@ -91,7 +91,7 @@ const RouteComponent = () => {
             autoFocus
           />
           <Button type="submit" size="icon">
-            <Send size={18} />
+            <PaperPlaneRightIcon size={18} />
           </Button>
         </form>
       </div>

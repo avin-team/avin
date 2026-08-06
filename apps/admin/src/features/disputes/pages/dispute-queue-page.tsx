@@ -21,8 +21,8 @@ import {
   TableHeader,
   TableRow,
 } from "@avin/ui/components/table";
+import { WarningCircleIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
-import { AlertCircle, Search } from "lucide-react";
 import { useState } from "react";
 
 import { Header } from "@/components/layout/header";
@@ -83,7 +83,7 @@ export const DisputeQueuePage = () => {
         <Card>
           <CardHeader className="gap-4 border-b sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="text-base flex items-center gap-2">
-              <AlertCircle className="size-4 text-amber-500" />
+              <WarningCircleIcon className="size-4 text-amber-500" />
               Danh sách Khiếu nại & Tranh chấp{" "}
               <span className="text-muted-foreground">
                 ({filteredDisputes.length})
@@ -91,7 +91,7 @@ export const DisputeQueuePage = () => {
             </CardTitle>
             <div className="flex flex-col gap-2 sm:flex-row">
               <div className="relative min-w-0 sm:w-64">
-                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   aria-label="Search disputes"
                   className="ps-9"
@@ -136,7 +136,7 @@ export const DisputeQueuePage = () => {
                   <TableRow>
                     <TableHead>Mã Đơn / Sản Phẩm</TableHead>
                     <TableHead>Buyer (Người mua)</TableHead>
-                    <TableHead>Seller (Storefront)</TableHead>
+                    <TableHead>Seller (StorefrontIcon)</TableHead>
                     <TableHead>Giá trị Escrow</TableHead>
                     <TableHead>Trạng thái</TableHead>
                     <TableHead className="text-end">Phân giải</TableHead>

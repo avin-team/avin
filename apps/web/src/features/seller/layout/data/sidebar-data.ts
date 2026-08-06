@@ -1,25 +1,25 @@
 import {
-  BarChart3,
-  Code2,
-  Landmark,
-  LayoutDashboard,
-  Package,
-  ShoppingBag,
-  TicketPercent,
-  UserRound,
-} from "lucide-react";
+  ChartBarIcon,
+  CodeIcon,
+  BankIcon,
+  SquaresFourIcon,
+  PackageIcon,
+  ShoppingBagIcon,
+  TicketIcon,
+  UserCircleIcon,
+} from "@phosphor-icons/react";
 
 import type { SellerNavGroup } from "../types";
 
 export const SELLER_NAV_GROUPS: SellerNavGroup[] = [
   {
-    items: [{ icon: LayoutDashboard, label: "Tổng quan", value: "overview" }],
+    items: [{ icon: SquaresFourIcon, label: "Tổng quan", value: "overview" }],
     title: "Tổng quan",
   },
   {
     items: [
       {
-        icon: UserRound,
+        icon: UserCircleIcon,
         label: "Hồ sơ gian hàng",
         value: "profile",
       },
@@ -28,19 +28,19 @@ export const SELLER_NAV_GROUPS: SellerNavGroup[] = [
   },
   {
     items: [
-      { icon: Package, label: "Sản phẩm", value: "products" },
-      { icon: ShoppingBag, label: "Đơn hàng", value: "orders" },
-      { icon: BarChart3, label: "Khiếu nại", value: "complaints" },
-      { icon: TicketPercent, label: "Mã giảm giá", value: "discounts" },
+      { icon: PackageIcon, label: "Sản phẩm", value: "products" },
+      { icon: ShoppingBagIcon, label: "Đơn hàng", value: "orders" },
+      { icon: ChartBarIcon, label: "Khiếu nại", value: "complaints" },
+      { icon: TicketIcon, label: "Mã giảm giá", value: "discounts" },
     ],
     title: "Bán hàng",
   },
   {
-    items: [{ icon: Landmark, label: "Tài chính", value: "finance" }],
+    items: [{ icon: BankIcon, label: "Tài chính", value: "finance" }],
     title: "Tài chính",
   },
   {
-    items: [{ icon: Code2, label: "Nhà phát triển", value: "developer" }],
+    items: [{ icon: CodeIcon, label: "Nhà phát triển", value: "developer" }],
     title: "Công cụ",
   },
 ];

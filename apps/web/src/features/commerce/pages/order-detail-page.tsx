@@ -5,13 +5,13 @@ import { Card, CardContent } from "@avin/ui/components/card";
 import { Skeleton } from "@avin/ui/components/skeleton";
 import { cn } from "@avin/ui/lib/utils";
 import {
-  ArrowClockwise,
-  ArrowLeft,
-  Calendar,
-  ChatTeardropText,
-  Receipt,
-  Storefront,
-  WarningCircle,
+  ArrowClockwiseIcon,
+  ArrowLeftIcon,
+  CalendarIcon,
+  ChatTeardropTextIcon,
+  ReceiptIcon,
+  StorefrontIcon,
+  WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "@tanstack/react-router";
@@ -56,7 +56,7 @@ export const OrderDetailPage = () => {
       <Shell variant="default">
         <div className="py-16">
           <Alert variant="destructive">
-            <WarningCircle aria-hidden="true" />
+            <WarningCircleIcon aria-hidden="true" />
             <AlertTitle>Không thể tải chi tiết đơn hàng</AlertTitle>
             <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
               <span>Vui lòng thử lại sau.</span>
@@ -65,7 +65,7 @@ export const OrderDetailPage = () => {
                 size="sm"
                 variant="outline"
               >
-                <ArrowClockwise aria-hidden="true" />
+                <ArrowClockwiseIcon aria-hidden="true" />
                 Thử lại
               </Button>
             </AlertDescription>
@@ -95,13 +95,13 @@ export const OrderDetailPage = () => {
     return (
       <Shell variant="default">
         <div className="flex flex-col items-center gap-4 py-16 text-center">
-          <WarningCircle className="h-12 w-12 text-muted-foreground" />
+          <WarningCircleIcon className="h-12 w-12 text-muted-foreground" />
           <h2 className="text-xl font-bold">Không tìm thấy đơn hàng</h2>
           <p className="max-w-md text-sm text-muted-foreground">
             Đơn hàng #{id} không tồn tại hoặc bạn không có quyền truy cập.
           </p>
           <Button render={<Link to="/orders" />}>
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeftIcon className="h-4 w-4" />
             Quay lại danh sách đơn hàng
           </Button>
         </div>
@@ -116,7 +116,7 @@ export const OrderDetailPage = () => {
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/60 pb-4">
           <div className="flex items-center gap-3">
             <Button render={<Link to="/orders" />} size="sm" variant="outline">
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeftIcon className="h-4 w-4" />
               Quay lại danh sách
             </Button>
             <div className="h-4 w-px bg-border/60" />
@@ -151,7 +151,7 @@ export const OrderDetailPage = () => {
           <CardContent className="grid gap-4 p-5 sm:grid-cols-3">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <Storefront className="h-5 w-5" />
+                <StorefrontIcon className="h-5 w-5" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">
@@ -165,7 +165,7 @@ export const OrderDetailPage = () => {
 
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                <Receipt className="h-5 w-5" />
+                <ReceiptIcon className="h-5 w-5" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Tổng tiền Item</p>
@@ -177,7 +177,7 @@ export const OrderDetailPage = () => {
 
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                <Calendar className="h-5 w-5" />
+                <CalendarIcon className="h-5 w-5" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Ngày đặt hàng</p>
@@ -197,11 +197,11 @@ export const OrderDetailPage = () => {
           <div className="lg:col-span-5 sticky top-20">
             <div className="flex flex-col gap-2">
               <h2 className="text-base font-semibold flex items-center gap-2">
-                <ChatTeardropText className="h-4 w-4 text-primary" />
+                <ChatTeardropTextIcon className="h-4 w-4 text-primary" />
                 <span>Trao đổi với Người bán</span>
               </h2>
               <OrderChatPanel
-                heightClass="h-[520px]"
+                heightClass="h-130"
                 orderId={targetOrder.id}
                 sellerName={targetOrder.seller.name}
               />

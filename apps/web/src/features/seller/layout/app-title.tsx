@@ -4,9 +4,9 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@avin/ui/components/sidebar";
+import { StorefrontIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Store } from "lucide-react";
 
 import { orpc } from "@/utils/orpc";
 
@@ -36,7 +36,7 @@ export const SellerAppTitle = () => {
                 src={profile.avatarUrl}
               />
             ) : (
-              <Store className="size-5" />
+              <StorefrontIcon className="size-5" />
             )}
           </div>
           <Link

@@ -2,19 +2,19 @@ import type { StoreVisibilityReason } from "@avin/api/seller-store/profile";
 import { Badge } from "@avin/ui/components/badge";
 import { Button } from "@avin/ui/components/button";
 import { SidebarTrigger } from "@avin/ui/components/sidebar";
+import {
+  ArrowRightIcon,
+  QuestionIcon,
+  CodeIcon,
+  BankIcon,
+  PackageIcon,
+  ShieldCheckIcon,
+  StorefrontIcon,
+  TicketIcon,
+  UserCircleIcon,
+} from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useSearch } from "@tanstack/react-router";
-import {
-  ArrowRight,
-  CircleHelp,
-  Code2,
-  Landmark,
-  Package,
-  ShieldCheck,
-  Store,
-  TicketPercent,
-  UserRound,
-} from "lucide-react";
 import { useState } from "react";
 
 import { StoreOrdersPanel } from "@/features/seller/pages/store-orders-panel";
@@ -75,23 +75,23 @@ const PLACEHOLDER_SECTIONS = {
   complaints: {
     description:
       "Theo dõi phản hồi và các vấn đề cần xử lý sau khi khách mua hàng.",
-    icon: CircleHelp,
+    icon: QuestionIcon,
     title: "Khiếu nại",
   },
   developer: {
     description: "Các công cụ mở rộng và tích hợp dành cho gian hàng của bạn.",
-    icon: Code2,
+    icon: CodeIcon,
     title: "Nhà phát triển",
   },
   discounts: {
     description:
       "Tạo ưu đãi để thu hút khách hàng mới và chăm sóc khách hàng cũ.",
-    icon: TicketPercent,
+    icon: TicketIcon,
     title: "Mã giảm giá",
   },
   finance: {
     description: "Xem doanh thu, số dư có thể rút và lịch sử nhận tiền.",
-    icon: Landmark,
+    icon: BankIcon,
     title: "Tài chính",
   },
 } as const;
@@ -151,8 +151,8 @@ const StoreOverview = ({
 
   return (
     <div className="space-y-6">
-      {/* Store visibility */}
-      <div className="rounded-2xl border border-border bg-gradient-to-b from-card to-background p-6 shadow-sm">
+      {/* Storefront visibility */}
+      <div className="rounded-2xl border border-border bg-linear-to-b from-card to-background p-6 shadow-sm">
         <div className="flex items-center justify-between border-b border-border/60 pb-4">
           <div>
             <h3 className="text-lg font-bold">Trạng thái gian hàng</h3>
@@ -173,7 +173,7 @@ const StoreOverview = ({
 
         <div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-xl bg-muted/40 p-4">
           <div className="flex items-center gap-3">
-            <ShieldCheck className="size-5 text-emerald-400" />
+            <ShieldCheckIcon className="size-5 text-emerald-400" />
             <span className="text-sm font-medium">{statusMessage}</span>
           </div>
           <Button
@@ -181,7 +181,7 @@ const StoreOverview = ({
             variant="outline"
           >
             Xem trước gian hàng
-            <ArrowRight />
+            <ArrowRightIcon />
           </Button>
         </div>
       </div>
@@ -203,7 +203,7 @@ const StoreOverview = ({
                     Cập nhật logo, tên shop & giới thiệu
                   </p>
                 </div>
-                <UserRound className="size-5 text-primary" />
+                <UserCircleIcon className="size-5 text-primary" />
               </button>
 
               <button
@@ -217,7 +217,7 @@ const StoreOverview = ({
                     {productCountLabel}
                   </p>
                 </div>
-                <Package className="size-5 text-primary" />
+                <PackageIcon className="size-5 text-primary" />
               </button>
             </div>
           </div>
@@ -298,13 +298,13 @@ export const StorePage = () => {
   return (
     <SellerLayout active={active} onChange={setActive}>
       <div className="min-w-0 px-4 pb-16 pt-6 sm:px-6 lg:px-8">
-        <div className="mx-auto w-full max-w-[2048px]">
+        <div className="mx-auto w-full max-w-512">
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border/60 pb-5">
             <div className="flex items-start gap-2">
               <SidebarTrigger className="mt-0.5 shrink-0" />
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Store className="size-5 text-primary" />
+                  <StorefrontIcon className="size-5 text-primary" />
                   <p className="font-semibold">Kênh bán hàng</p>
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">

@@ -28,7 +28,7 @@ function Command({
 }
 
 function CommandDialog({
-  title = "Command Palette",
+  title = "Command PaletteIcon",
   description = "Search for a command to run...",
   children,
   className,

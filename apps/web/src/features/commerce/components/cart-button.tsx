@@ -1,9 +1,9 @@
 import { ACCOUNT_ROLE } from "@avin/auth/permissions";
 import { Badge } from "@avin/ui/components/badge";
 import { Button } from "@avin/ui/components/button";
+import { ShoppingCartIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ShoppingCart } from "lucide-react";
 
 import { authClient } from "@/features/auth/api/auth-client";
 import { orpc } from "@/utils/orpc";
@@ -36,7 +36,7 @@ export const CartButton = () => {
       size="icon"
       variant="ghost"
     >
-      <ShoppingCart data-icon="inline-start" />
+      <ShoppingCartIcon data-icon="inline-start" />
       {itemCount > 0 ? (
         <Badge
           aria-hidden="true"

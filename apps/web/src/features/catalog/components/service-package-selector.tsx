@@ -1,4 +1,4 @@
-import { Package } from "lucide-react";
+import { PackageIcon } from "@phosphor-icons/react";
 
 import { formatVND } from "@/utils/format";
 
@@ -47,7 +47,7 @@ export const ServicePackageSelector = ({
                     : "bg-muted text-muted-foreground"
                 }`}
               >
-                <Package className="h-5 w-5" />
+                <PackageIcon className="h-5 w-5" />
               </div>
               <div className="flex flex-1 flex-col justify-center">
                 <div className="flex items-center justify-between">

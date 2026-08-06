@@ -70,7 +70,7 @@ const INITIAL_SELLER_APPLICATIONS: readonly SellerApplication[] = [
     email: "quocanh@example.com",
     id: "app_1004",
     phone: "0933445566",
-    reviewReason: "Storefront nghi vấn bán tài khoản vi phạm bản quyền.",
+    reviewReason: "Store nghi vấn bán tài khoản vi phạm bản quyền.",
     revisionCount: 0,
     sellerAgreementVersion: "v1.2",
     status: "REJECTED",

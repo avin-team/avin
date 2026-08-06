@@ -1,5 +1,5 @@
+import { ArrowRightIcon, StackIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, Layers } from "lucide-react";
 import * as m from "motion/react-m";
 import type { ComponentPropsWithoutRef } from "react";
 
@@ -41,7 +41,7 @@ export const CategoryCard = ({ category, className }: CategoryCardProps) => {
               <CategoryIcon className="h-6 w-6" slug={category.slug} />
             </div>
             <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/60 px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-              <Layers className="h-3 w-3" />
+              <StackIcon className="h-3 w-3" />
               <span>{subs.length} dịch vụ</span>
             </span>
           </div>
@@ -77,7 +77,7 @@ export const CategoryCard = ({ category, className }: CategoryCardProps) => {
 
         <div className="mt-6 flex w-full items-center justify-between border-t border-border/40 pt-4 font-semibold text-sm text-primary transition-all duration-200 group-hover:translate-x-1">
           <span>Xem dịch vụ</span>
-          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+          <ArrowRightIcon className="h-4 w-4 transition-transform group-hover:translate-x-1" />
         </div>
       </Link>
     </m.div>

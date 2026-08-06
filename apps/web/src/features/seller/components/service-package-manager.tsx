@@ -33,9 +33,16 @@ import {
 } from "@avin/ui/components/table";
 import { Textarea } from "@avin/ui/components/textarea";
 import { cn } from "@avin/ui/lib/utils";
+import {
+  CheckIcon,
+  FileTextIcon,
+  PackageIcon,
+  PencilIcon,
+  TrashIcon,
+  XIcon,
+} from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, FileText, PackagePlus, Pencil, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -349,7 +356,10 @@ export const ServicePackageManager = ({
                       />
                     }
                   >
-                    <FileText aria-hidden="true" className="mr-1 size-3.5" />
+                    <FileTextIcon
+                      aria-hidden="true"
+                      className="mr-1 size-3.5"
+                    />
                     {field.state.value.trim() ? "Mô tả ✓" : "Mô tả"}
                   </PopoverTrigger>
                   <PopoverContent className="w-80 p-3">
@@ -592,7 +602,7 @@ export const ServicePackageManager = ({
             type="button"
             variant="ghost"
           >
-            <Check
+            <CheckIcon
               aria-hidden="true"
               className="size-4 text-emerald-600 dark:text-emerald-400"
             />
@@ -605,7 +615,7 @@ export const ServicePackageManager = ({
             type="button"
             variant="ghost"
           >
-            <X aria-hidden="true" className="size-4 text-destructive" />
+            <XIcon aria-hidden="true" className="size-4 text-destructive" />
           </Button>
         </div>
       </TableCell>
@@ -613,11 +623,11 @@ export const ServicePackageManager = ({
   );
 
   return (
-    <Card className="border-primary/20 bg-primary/[0.02]">
+    <Card className="border-primary/20 bg-primary/2">
       <CardHeader className="gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <CardTitle className="flex items-center gap-2 text-base">
-            <PackagePlus aria-hidden="true" className="size-4 text-primary" />
+            <PackageIcon aria-hidden="true" className="size-4 text-primary" />
             Gói giá dịch vụ
           </CardTitle>
           <CardDescription className="mt-1 max-w-2xl">
@@ -705,7 +715,7 @@ export const ServicePackageManager = ({
                           type="button"
                           variant="ghost"
                         >
-                          <Pencil aria-hidden="true" className="size-4" />
+                          <PencilIcon aria-hidden="true" className="size-4" />
                         </Button>
                         {packageItem.firstPublishedAt === null && (
                           <Button
@@ -718,7 +728,7 @@ export const ServicePackageManager = ({
                             type="button"
                             variant="ghost"
                           >
-                            <Trash2
+                            <TrashIcon
                               aria-hidden="true"
                               className="size-4 text-destructive"
                             />
@@ -757,7 +767,7 @@ export const ServicePackageManager = ({
             type="button"
             variant="outline"
           >
-            <PackagePlus aria-hidden="true" className="mr-1.5 size-4" />
+            <PackageIcon aria-hidden="true" className="mr-1.5 size-4" />
             Thêm gói giá
           </Button>
         )}

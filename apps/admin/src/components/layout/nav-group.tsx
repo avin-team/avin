@@ -24,8 +24,8 @@ import {
   SidebarMenuSubItem,
   useSidebar,
 } from "@avin/ui/components/sidebar";
+import { CaretRightIcon } from "@phosphor-icons/react";
 import { Link, useLocation } from "@tanstack/react-router";
-import { ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type {
@@ -84,7 +84,7 @@ const SidebarMenuCollapsible = ({
         {item.icon && <item.icon />}
         <span>{item.title}</span>
         {item.badge && <NavBadge>{item.badge}</NavBadge>}
-        <ChevronRight className="ms-auto transition-transform duration-200 group-data-panel-open:rotate-90 rtl:rotate-180" />
+        <CaretRightIcon className="ms-auto transition-transform duration-200 group-data-panel-open:rotate-90 rtl:rotate-180" />
       </CollapsibleTrigger>
       <CollapsibleContent className="h-(--collapsible-panel-height) overflow-hidden transition-all duration-300 ease-out data-ending-style:h-0 data-starting-style:h-0 [&[hidden]:not([hidden='until-found'])]:hidden">
         <SidebarMenuSub>
@@ -128,7 +128,7 @@ const SidebarMenuCollapsedDropdown = ({
         {item.icon && <item.icon />}
         <span>{item.title}</span>
         {item.badge && <NavBadge>{item.badge}</NavBadge>}
-        <ChevronRight className="ms-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+        <CaretRightIcon className="ms-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
       </DropdownMenuTrigger>
       <DropdownMenuContent side="right" align="start" sideOffset={4}>
         <DropdownMenuGroup>

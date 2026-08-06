@@ -14,16 +14,16 @@ import {
   SelectValue,
 } from "@avin/ui/components/select";
 import { Skeleton } from "@avin/ui/components/skeleton";
+import {
+  WarningCircleIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  LockKeyIcon,
+  TrashIcon,
+} from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import {
-  AlertCircle,
-  CheckCircle2,
-  Clock3,
-  LockKeyhole,
-  Trash2,
-} from "lucide-react";
 import type { ReactNode } from "react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -130,7 +130,7 @@ const CartItemPackageSelect = ({
       >
         <SelectTrigger
           aria-label={`Chọn gói dịch vụ cho ${listingId}`}
-          className="h-8 min-w-[130px] text-xs font-medium"
+          className="h-8 min-w-32.5 text-xs font-medium"
           size="sm"
         >
           <SelectValue placeholder="Chọn một gói" />
@@ -213,11 +213,11 @@ export const CartItemCard = ({
 
               <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                 <span className="inline-flex items-center gap-1">
-                  <Clock3 className="size-3.5 text-muted-foreground" />
+                  <ClockIcon className="size-3.5 text-muted-foreground" />
                   {item.listing.processingTimeHours ?? "—"} giờ xử lý
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <LockKeyhole className="size-3.5 text-primary" />
+                  <LockKeyIcon className="size-3.5 text-primary" />
                   Escrow bảo vệ
                 </span>
                 {item.available ? null : (
@@ -241,7 +241,7 @@ export const CartItemCard = ({
                   type="button"
                   variant="ghost"
                 >
-                  <Trash2 className="size-4" />
+                  <TrashIcon className="size-4" />
                 </Button>
               </div>
 
@@ -289,11 +289,11 @@ const CheckoutSummary = ({
       </div>
       <div className="space-y-2 text-xs text-muted-foreground">
         <p className="flex items-center gap-2">
-          <CheckCircle2 className="size-4 text-emerald-500" />
+          <CheckCircleIcon className="size-4 text-emerald-500" />
           Mỗi người bán có đơn hàng riêng
         </p>
         <p className="flex items-center gap-2">
-          <LockKeyhole className="size-4 text-primary" />
+          <LockKeyIcon className="size-4 text-primary" />
           Giữ tiền an toàn tới khi hoàn tất
         </p>
       </div>
@@ -544,7 +544,7 @@ export const CartPage = () => {
     return (
       <Shell variant="default">
         <div className="py-16 text-center">
-          <AlertCircle className="mx-auto size-10 text-destructive" />
+          <WarningCircleIcon className="mx-auto size-10 text-destructive" />
           <h1 className="mt-4 text-xl font-bold">Không thể tải Cart</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Vui lòng thử lại sau.

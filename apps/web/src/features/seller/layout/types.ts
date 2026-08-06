@@ -1,9 +1,9 @@
-import type { LucideIcon } from "lucide-react";
+import type { Icon } from "@phosphor-icons/react";
 
 import type { StoreSection } from "../data/store-types";
 
 export interface SellerNavItem {
-  icon: LucideIcon;
+  icon: Icon;
   label: string;
   needsAttention?: boolean;
   value: StoreSection;

@@ -29,10 +29,10 @@ import {
 import { Skeleton } from "@avin/ui/components/skeleton";
 import { Textarea } from "@avin/ui/components/textarea";
 import {
-  ArrowClockwise,
-  CheckCircle,
-  WarningCircle,
-  XCircle,
+  ArrowClockwiseIcon,
+  CheckCircleIcon,
+  WarningCircleIcon,
+  XCircleIcon,
 } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -172,7 +172,7 @@ export const BuyerOrderItemCard = ({
     if (timelineQuery.isError) {
       return (
         <Alert variant="destructive">
-          <WarningCircle aria-hidden="true" />
+          <WarningCircleIcon aria-hidden="true" />
           <AlertTitle>Không thể tải timeline</AlertTitle>
           <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
             <span>Vui lòng thử lại để xem bằng chứng bàn giao.</span>
@@ -181,7 +181,7 @@ export const BuyerOrderItemCard = ({
               size="sm"
               variant="outline"
             >
-              <ArrowClockwise aria-hidden="true" />
+              <ArrowClockwiseIcon aria-hidden="true" />
               Thử lại
             </Button>
           </AlertDescription>
@@ -267,7 +267,7 @@ export const BuyerOrderItemCard = ({
               disabled={confirmMutation.isPending}
               onClick={() => void handleConfirm()}
             >
-              <CheckCircle aria-hidden="true" />
+              <CheckCircleIcon aria-hidden="true" />
               {confirmMutation.isPending
                 ? "Đang xác nhận…"
                 : "Xác nhận đã nhận"}
@@ -279,7 +279,7 @@ export const BuyerOrderItemCard = ({
               onClick={() => setCancelOpen(true)}
               variant="outline"
             >
-              <XCircle aria-hidden="true" />
+              <XCircleIcon aria-hidden="true" />
               Hủy trước khi Seller bắt đầu
             </Button>
           ) : null}
@@ -288,7 +288,7 @@ export const BuyerOrderItemCard = ({
               onClick={() => setDisputeOpen((open) => !open)}
               variant="outline"
             >
-              <WarningCircle aria-hidden="true" />
+              <WarningCircleIcon aria-hidden="true" />
               {disputeOpen ? "Đóng Dispute" : "Mở Dispute"}
             </Button>
           ) : null}

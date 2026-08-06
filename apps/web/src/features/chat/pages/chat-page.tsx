@@ -23,16 +23,16 @@ import {
 } from "@avin/ui/components/message-scroller";
 import { cn } from "@avin/ui/lib/utils";
 import {
-  ArrowLeft,
-  ChatTeardropText,
-  DotsThreeVertical,
-  MagnifyingGlass,
-  NotePencil,
-  Paperclip,
-  PaperPlaneRight,
-  PhoneCall,
-  Plus,
-  VideoCamera,
+  ArrowLeftIcon,
+  ChatTeardropTextIcon,
+  DotsThreeVerticalIcon,
+  MagnifyingGlassIcon,
+  NotePencilIcon,
+  PaperclipIcon,
+  PaperPlaneRightIcon,
+  PhoneCallIcon,
+  PlusIcon,
+  VideoCameraIcon,
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
@@ -270,16 +270,16 @@ export const ChatPage = () => {
         <div className="flex items-center justify-between py-2">
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold">Inbox</h1>
-            <ChatTeardropText className="h-5 w-5 text-muted-foreground" />
+            <ChatTeardropTextIcon className="h-5 w-5 text-muted-foreground" />
           </div>
           <Button size="icon-xs" variant="ghost" aria-label="New Chat">
-            <NotePencil className="h-4 w-4 stroke-muted-foreground" />
+            <NotePencilIcon className="h-4 w-4 stroke-muted-foreground" />
           </Button>
         </div>
 
         {/* Search */}
         <div className="relative">
-          <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -374,7 +374,7 @@ export const ChatPage = () => {
             className="sm:hidden"
             onClick={() => setMobileContact(null)}
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeftIcon className="h-5 w-5" />
           </Button>
 
           <Avatar size="default" className="size-9">
@@ -416,13 +416,13 @@ export const ChatPage = () => {
 
         <div className="flex items-center gap-1">
           <Button size="icon-xs" variant="ghost" aria-label="Video Call">
-            <VideoCamera className="h-4 w-4" />
+            <VideoCameraIcon className="h-4 w-4" />
           </Button>
           <Button size="icon-xs" variant="ghost" aria-label="Phone Call">
-            <PhoneCall className="h-4 w-4" />
+            <PhoneCallIcon className="h-4 w-4" />
           </Button>
           <Button size="icon-xs" variant="ghost" aria-label="More Options">
-            <DotsThreeVertical className="h-4 w-4" />
+            <DotsThreeVerticalIcon className="h-4 w-4" />
           </Button>
         </div>
       </div>
@@ -490,7 +490,7 @@ export const ChatPage = () => {
             aria-label="Add"
             className="shrink-0"
           >
-            <Plus className="h-4 w-4" />
+            <PlusIcon className="h-4 w-4" />
           </Button>
           <Button
             type="button"
@@ -499,7 +499,7 @@ export const ChatPage = () => {
             aria-label="Attach file"
             className="shrink-0"
           >
-            <Paperclip className="h-4 w-4" />
+            <PaperclipIcon className="h-4 w-4" />
           </Button>
           <Input
             value={inputText}
@@ -514,7 +514,7 @@ export const ChatPage = () => {
             aria-label="Send"
             className="shrink-0 text-primary hover:bg-primary/10"
           >
-            <PaperPlaneRight className="h-4 w-4" />
+            <PaperPlaneRightIcon className="h-4 w-4" />
           </Button>
         </form>
       </div>

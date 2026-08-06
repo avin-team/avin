@@ -7,17 +7,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
+import {
+  WarningCircleIcon,
+  ArrowRightIcon,
+  ClipboardTextIcon,
+  FolderIcon,
+  BankIcon,
+  ShieldWarningIcon,
+  StorefrontIcon,
+} from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import {
-  AlertCircle,
-  ArrowRight,
-  ClipboardCheck,
-  FolderTree,
-  Landmark,
-  ShieldAlert,
-  Store,
-} from "lucide-react";
 
 import { Header } from "@/components/layout/header";
 import { Main } from "@/components/layout/main";
@@ -60,15 +60,15 @@ export const OverviewPage = () => {
     {
       badge: pendingAppsCount > 0 ? "Bắt buộc" : undefined,
       count: `${pendingAppsCount} chờ duyệt`,
-      description: "Duyệt hồ sơ gian hàng mới (KYC & Bank)",
-      icon: ClipboardCheck,
+      description: "Duyệt hồ sơ gian hàng mới (KYC & BankIcon)",
+      icon: ClipboardTextIcon,
       title: "Duyệt hồ sơ Seller",
       url: "/seller-applications",
     },
     {
       count: `${categories.length} Cha · ${totalSubCategories} Sub`,
       description: "Phân loại 2 cấp & tỷ lệ chiết khấu sàn",
-      icon: FolderTree,
+      icon: FolderIcon,
       title: "Danh mục & Chính sách",
       url: "/categories",
     },
@@ -76,7 +76,7 @@ export const OverviewPage = () => {
       badge: enforcementAlertsCount > 0 ? "Cảnh báo" : undefined,
       count: `${sellers.length} Sellers · ${enforcementAlertsCount} Vi phạm`,
       description: "Quản lý gian hàng & xử lý vi phạm",
-      icon: Store,
+      icon: StorefrontIcon,
       title: "Quản lý Seller & Vi phạm",
       url: "/sellers",
     },
@@ -84,7 +84,7 @@ export const OverviewPage = () => {
       badge: openDisputesCount > 0 ? "Ưu tiên" : undefined,
       count: `${openDisputesCount} Đang mở`,
       description: "Hòa giải tranh chấp & phán quyết Escrow",
-      icon: AlertCircle,
+      icon: WarningCircleIcon,
       title: "Hòa giải Tranh chấp",
       url: "/disputes",
     },
@@ -92,7 +92,7 @@ export const OverviewPage = () => {
       badge: pendingWithdrawalsCount > 0 ? "Cần xử lý" : undefined,
       count: `${pendingWithdrawalsCount} Yêu cầu`,
       description: "Duyệt yêu cầu rút tiền về ngân hàng",
-      icon: Landmark,
+      icon: BankIcon,
       title: "Yêu cầu Rút tiền",
       url: "/withdrawals",
     },
@@ -131,18 +131,20 @@ export const OverviewPage = () => {
           <Card size="sm">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-sm">Hồ sơ Seller chờ duyệt</CardTitle>
-              <ClipboardCheck className="size-4 text-muted-foreground" />
+              <ClipboardTextIcon className="size-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-semibold">{pendingAppsCount}</p>
-              <CardDescription>Cần Admin kiểm tra KYC & Bank</CardDescription>
+              <CardDescription>
+                Cần Admin kiểm tra KYC & BankIcon
+              </CardDescription>
             </CardContent>
           </Card>
 
           <Card size="sm">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-sm">Tranh chấp đang mở</CardTitle>
-              <AlertCircle className="size-4 text-amber-500" />
+              <WarningCircleIcon className="size-4 text-amber-500" />
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-semibold">{openDisputesCount}</p>
@@ -155,7 +157,7 @@ export const OverviewPage = () => {
               <CardTitle className="text-sm">
                 Yêu cầu rút tiền chờ duyệt
               </CardTitle>
-              <Landmark className="size-4 text-emerald-500" />
+              <BankIcon className="size-4 text-emerald-500" />
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-semibold">
@@ -170,7 +172,7 @@ export const OverviewPage = () => {
               <CardTitle className="text-sm">
                 Seller bị Tạm dừng / Cấm
               </CardTitle>
-              <ShieldAlert className="size-4 text-destructive" />
+              <ShieldWarningIcon className="size-4 text-destructive" />
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-semibold">{enforcementAlertsCount}</p>
@@ -209,7 +211,7 @@ export const OverviewPage = () => {
                       size="xs"
                       variant="ghost"
                     >
-                      Truy cập <ArrowRight className="size-3.5" />
+                      Truy cập <ArrowRightIcon className="size-3.5" />
                     </Button>
                   </CardContent>
                 </Card>
@@ -222,7 +224,7 @@ export const OverviewPage = () => {
           <CardHeader className="flex flex-row items-start justify-between gap-4">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <ClipboardCheck className="size-5 text-primary" />
+                <ClipboardTextIcon className="size-5 text-primary" />
                 Hồ sơ Seller mới nhất
               </CardTitle>
               <CardDescription>

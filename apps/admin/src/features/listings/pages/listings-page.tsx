@@ -23,13 +23,13 @@ import {
   TableRow,
 } from "@avin/ui/components/table";
 import {
-  Archive,
-  EyeOff,
-  History,
-  RotateCcw,
-  Search,
-  ShieldCheck,
-} from "lucide-react";
+  ArchiveIcon,
+  EyeClosedIcon,
+  ClockCounterClockwiseIcon,
+  ArrowCounterClockwiseIcon,
+  MagnifyingGlassIcon,
+  ShieldCheckIcon,
+} from "@phosphor-icons/react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -62,10 +62,10 @@ const STATUS_FILTER_ITEMS: { label: string; value: ListingFilterStatus }[] = [
   { label: "Đã lưu trữ", value: "ARCHIVED" },
 ];
 
-const ACTION_ICONS: Record<ModerationAction, typeof EyeOff> = {
-  ARCHIVE: Archive,
-  HIDE: EyeOff,
-  RESTORE: RotateCcw,
+const ACTION_ICONS: Record<ModerationAction, typeof EyeClosedIcon> = {
+  ARCHIVE: ArchiveIcon,
+  HIDE: EyeClosedIcon,
+  RESTORE: ArrowCounterClockwiseIcon,
 };
 
 const LISTING_DATE_FORMATTER = new Intl.DateTimeFormat("vi-VN", {
@@ -213,7 +213,7 @@ export const ListingsPage = () => {
           <Card size="sm">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-sm">Đang công khai</CardTitle>
-              <ShieldCheck className="size-4 text-emerald-600" />
+              <ShieldCheckIcon className="size-4 text-emerald-600" />
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-semibold">{statusCounts.PUBLISHED}</p>
@@ -223,7 +223,7 @@ export const ListingsPage = () => {
           <Card size="sm">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-sm">Cần xử lý</CardTitle>
-              <EyeOff className="size-4 text-amber-600" />
+              <EyeClosedIcon className="size-4 text-amber-600" />
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-semibold">{statusCounts.HIDDEN}</p>
@@ -233,7 +233,7 @@ export const ListingsPage = () => {
           <Card size="sm">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-sm">Đã lưu trữ</CardTitle>
-              <Archive className="size-4 text-muted-foreground" />
+              <ArchiveIcon className="size-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-semibold">{statusCounts.ARCHIVED}</p>
@@ -246,7 +246,7 @@ export const ListingsPage = () => {
           <CardHeader className="gap-4 border-b sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle className="flex items-center gap-2 text-base">
-                <Archive className="size-4 text-primary" />
+                <ArchiveIcon className="size-4 text-primary" />
                 Danh sách Listing ({listings.length})
               </CardTitle>
               <CardDescription>
@@ -256,7 +256,7 @@ export const ListingsPage = () => {
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
               <div className="relative min-w-0 sm:w-64">
-                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   aria-label="Search listings"
                   className="ps-9"
@@ -366,7 +366,7 @@ export const ListingsPage = () => {
                             size="sm"
                             variant="ghost"
                           >
-                            <History />
+                            <ClockCounterClockwiseIcon />
                             Nhật ký
                           </Button>
                         </div>

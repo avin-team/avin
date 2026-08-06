@@ -1,5 +1,5 @@
 import { Button } from "@avin/ui/components/button";
-import { Moon, Sun } from "lucide-react";
+import { MoonIcon, SunIcon } from "@phosphor-icons/react";
 
 import { useTheme } from "@/context/theme-provider";
 
@@ -14,7 +14,7 @@ export const ThemeSwitch = () => {
       size="icon"
       variant="ghost"
     >
-      {resolvedTheme === "dark" ? <Sun /> : <Moon />}
+      {resolvedTheme === "dark" ? <SunIcon /> : <MoonIcon />}
     </Button>
   );
 };

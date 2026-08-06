@@ -1,17 +1,17 @@
+import {
+  WarningCircleIcon,
+  BookOpenIcon,
+  CheckCircleIcon,
+  CaretRightIcon,
+  ClockIcon,
+  HouseIcon,
+  ShieldCheckIcon,
+  ShoppingCartIcon,
+  UserCheckIcon,
+  WrenchIcon,
+} from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
-import {
-  AlertCircle,
-  BookOpen,
-  CheckCircle2,
-  ChevronRight,
-  Clock,
-  Home,
-  ShieldCheck,
-  ShoppingCart,
-  UserCheck,
-  Wrench,
-} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -123,7 +123,7 @@ export const ListingDetailPage = () => {
         {/* Error / Not Found State */}
         {listingQuery.isError ? (
           <div className="rounded-3xl border border-destructive/20 bg-destructive/5 p-12 text-center">
-            <AlertCircle className="mx-auto h-12 w-12 text-destructive" />
+            <WarningCircleIcon className="mx-auto h-12 w-12 text-destructive" />
             <h2 className="mt-4 text-xl font-bold text-foreground">
               Không tìm thấy tin đăng
             </h2>
@@ -149,15 +149,15 @@ export const ListingDetailPage = () => {
               className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-muted-foreground"
             >
               <Link className="flex items-center hover:text-foreground" to="/">
-                <Home className="h-3.5 w-3.5" />
+                <HouseIcon className="h-3.5 w-3.5" />
               </Link>
-              <ChevronRight className="h-3.5 w-3.5 opacity-50" />
+              <CaretRightIcon className="h-3.5 w-3.5 opacity-50" />
               <Link className="hover:text-foreground" to="/category">
                 Dịch vụ
               </Link>
               {parentCategory ? (
                 <>
-                  <ChevronRight className="h-3.5 w-3.5 opacity-50" />
+                  <CaretRightIcon className="h-3.5 w-3.5 opacity-50" />
                   <Link
                     className="hover:text-foreground"
                     params={{ parentSlug: parentCategory.slug }}
@@ -169,22 +169,22 @@ export const ListingDetailPage = () => {
               ) : null}
               {subCategory ? (
                 <>
-                  <ChevronRight className="h-3.5 w-3.5 opacity-50" />
+                  <CaretRightIcon className="h-3.5 w-3.5 opacity-50" />
                   <span className="text-muted-foreground">
                     {subCategory.name}
                   </span>
                 </>
               ) : null}
-              <ChevronRight className="h-3.5 w-3.5 opacity-50" />
-              <span className="max-w-[200px] truncate font-semibold text-foreground">
+              <CaretRightIcon className="h-3.5 w-3.5 opacity-50" />
+              <span className="max-w-50 truncate font-semibold text-foreground">
                 {listing.title ?? "Untitled listing"}
               </span>
             </nav>
 
             {/* Main Content Layout */}
-            <div className="grid gap-8 lg:grid-cols-3">
+            <div className="mt-6 grid gap-8 lg:grid-cols-12">
               {/* Left Column: Info & Details */}
-              <div className="space-y-6 lg:col-span-2">
+              <div className="space-y-6 lg:col-span-8">
                 {/* Hero Card */}
                 <div className="overflow-hidden rounded-3xl border border-border bg-card p-6 shadow-xs backdrop-blur-md sm:p-8">
                   {/* Type Badge & Category Tag */}
@@ -198,11 +198,12 @@ export const ListingDetailPage = () => {
                     >
                       {isService ? (
                         <>
-                          <Wrench className="h-3.5 w-3.5" /> Dịch vụ số
+                          <WrenchIcon className="h-3.5 w-3.5" /> Dịch vụ số
                         </>
                       ) : (
                         <>
-                          <BookOpen className="h-3.5 w-3.5" /> Khóa học online
+                          <BookOpenIcon className="h-3.5 w-3.5" /> Khóa học
+                          online
                         </>
                       )}
                     </span>
@@ -228,11 +229,11 @@ export const ListingDetailPage = () => {
                       />
                     ) : (
                       <div className="aspect-video w-full overflow-hidden rounded-2xl border border-border/40 bg-muted/40">
-                        <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-primary/10 via-muted/30 to-background p-8 text-center">
+                        <div className="flex h-full w-full flex-col items-center justify-center bg-linear-to-br from-primary/10 via-muted/30 to-background p-8 text-center">
                           {isService ? (
-                            <Wrench className="h-16 w-16 text-primary/40" />
+                            <WrenchIcon className="h-16 w-16 text-primary/40" />
                           ) : (
-                            <BookOpen className="h-16 w-16 text-primary/40" />
+                            <BookOpenIcon className="h-16 w-16 text-primary/40" />
                           )}
                           <span className="mt-3 text-sm font-semibold text-muted-foreground">
                             {listing.title ?? "Untitled listing"}
@@ -256,7 +257,7 @@ export const ListingDetailPage = () => {
                   {isService && selectedNoWarranty ? (
                     <div className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5 space-y-2">
                       <div className="flex items-center gap-2 text-amber-600 font-bold text-sm">
-                        <ShieldCheck className="h-5 w-5" />
+                        <ShieldCheckIcon className="h-5 w-5" />
                         <span>Không có bảo hành</span>
                       </div>
                       <p className="text-xs text-muted-foreground">
@@ -269,7 +270,7 @@ export const ListingDetailPage = () => {
                     <div className="mt-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5 space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 text-emerald-500 font-bold text-sm">
-                          <ShieldCheck className="h-5 w-5" />
+                          <ShieldCheckIcon className="h-5 w-5" />
                           <span>Bảo hành bảo vệ người mua</span>
                         </div>
                         <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-500">
@@ -287,7 +288,7 @@ export const ListingDetailPage = () => {
                     <div className="mt-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5 space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 text-emerald-500 font-bold text-sm">
-                          <ShieldCheck className="h-5 w-5" />
+                          <ShieldCheckIcon className="h-5 w-5" />
                           <span>Bảo hành bảo vệ người mua</span>
                         </div>
                         <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-500">
@@ -368,7 +369,7 @@ export const ListingDetailPage = () => {
                       }}
                       type="button"
                     >
-                      <ShoppingCart className="h-4 w-4" />
+                      <ShoppingCartIcon className="h-4 w-4" />
                       <span>{addToCartLabel}</span>
                     </button>
                   </div>
@@ -384,7 +385,7 @@ export const ListingDetailPage = () => {
                         />
                       ) : (
                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                          <UserCheck className="h-5 w-5" />
+                          <UserCheckIcon className="h-5 w-5" />
                         </div>
                       )}
                       <div>
@@ -400,11 +401,11 @@ export const ListingDetailPage = () => {
                     {/* Trust badges */}
                     <div className="space-y-2 text-xs text-muted-foreground pt-2 border-t border-border/40">
                       <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                        <CheckCircleIcon className="h-4 w-4 text-emerald-500 shrink-0" />
                         <span>Thanh toán bảo vệ qua Escrow</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-primary shrink-0" />
+                        <ClockIcon className="h-4 w-4 text-primary shrink-0" />
                         <span>
                           {selectedProcessingTime
                             ? `${selectedProcessingTime} giờ xử lý`

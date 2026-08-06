@@ -23,15 +23,15 @@ import {
   TableRow,
 } from "@avin/ui/components/table";
 import {
-  ArrowDown,
-  ArrowUp,
-  Edit,
-  Eye,
-  EyeOff,
-  FolderPlus,
-  MoreHorizontal,
-  Trash2,
-} from "lucide-react";
+  ArrowDownIcon,
+  ArrowUpIcon,
+  PencilIcon,
+  EyeIcon,
+  EyeClosedIcon,
+  FolderPlusIcon,
+  DotsThreeIcon,
+  TrashIcon,
+} from "@phosphor-icons/react";
 
 import type { CategoryStatus, ParentCategory, SubCategory } from "../types";
 
@@ -134,7 +134,7 @@ export const ParentCategoryCard = ({
             size="icon"
             variant="ghost"
           >
-            <ArrowUp className="size-4" />
+            <ArrowUpIcon className="size-4" />
           </Button>
           <Button
             disabled={isLast || isReorderPending}
@@ -142,47 +142,47 @@ export const ParentCategoryCard = ({
             size="icon"
             variant="ghost"
           >
-            <ArrowDown className="size-4" />
+            <ArrowDownIcon className="size-4" />
           </Button>
         </div>
         <Button onClick={() => onAddSub(parent)} size="sm" variant="outline">
-          <FolderPlus className="size-4" />
+          <FolderPlusIcon className="size-4" />
           Thêm danh mục con
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
               <Button size="icon" variant="ghost">
-                <MoreHorizontal className="size-4" />
+                <DotsThreeIcon className="size-4" />
               </Button>
             }
           />
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => onEditParent(parent)}>
-              <Edit className="mr-2 size-4" /> Sửa
+              <PencilIcon className="mr-2 size-4" /> Sửa
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => onToggleStatus(parent.id, "parent", parent.status)}
             >
               {parent.status === "ACTIVE" ? (
                 <>
-                  <EyeOff className="mr-2 size-4" /> Ẩn
+                  <EyeClosedIcon className="mr-2 size-4" /> Ẩn
                 </>
               ) : (
                 <>
-                  <Eye className="mr-2 size-4" /> Hiện
+                  <EyeIcon className="mr-2 size-4" /> Hiện
                 </>
               )}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onArchive(parent.id, "parent")}>
-              <Eye className="mr-2 size-4" /> Lưu trữ
+              <EyeIcon className="mr-2 size-4" /> Lưu trữ
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
               onClick={() => onDelete(parent.id, "parent")}
             >
-              <Trash2 className="mr-2 size-4" /> Xóa
+              <TrashIcon className="mr-2 size-4" /> Xóa
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -216,7 +216,7 @@ export const ParentCategoryCard = ({
                       size="icon"
                       variant="ghost"
                     >
-                      <ArrowUp className="size-3" />
+                      <ArrowUpIcon className="size-3" />
                     </Button>
                     <Button
                       disabled={
@@ -229,7 +229,7 @@ export const ParentCategoryCard = ({
                       size="icon"
                       variant="ghost"
                     >
-                      <ArrowDown className="size-3" />
+                      <ArrowDownIcon className="size-3" />
                     </Button>
                   </div>
                 </TableCell>
@@ -259,13 +259,13 @@ export const ParentCategoryCard = ({
                     <DropdownMenuTrigger
                       render={
                         <Button size="icon" variant="ghost">
-                          <MoreHorizontal className="size-4" />
+                          <DotsThreeIcon className="size-4" />
                         </Button>
                       }
                     />
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => onEditSub(sub)}>
-                        <Edit className="mr-2 size-4" /> Sửa
+                        <PencilIcon className="mr-2 size-4" /> Sửa
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() =>
@@ -274,25 +274,25 @@ export const ParentCategoryCard = ({
                       >
                         {sub.status === "ACTIVE" ? (
                           <>
-                            <EyeOff className="mr-2 size-4" /> Ẩn
+                            <EyeClosedIcon className="mr-2 size-4" /> Ẩn
                           </>
                         ) : (
                           <>
-                            <Eye className="mr-2 size-4" /> Hiện
+                            <EyeIcon className="mr-2 size-4" /> Hiện
                           </>
                         )}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => onArchive(sub.id, "sub")}
                       >
-                        <Eye className="mr-2 size-4" /> Lưu trữ
+                        <EyeIcon className="mr-2 size-4" /> Lưu trữ
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         className="text-destructive focus:text-destructive"
                         onClick={() => onDelete(sub.id, "sub")}
                       >
-                        <Trash2 className="mr-2 size-4" /> Xóa
+                        <TrashIcon className="mr-2 size-4" /> Xóa
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

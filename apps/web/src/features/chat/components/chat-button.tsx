@@ -1,7 +1,7 @@
 import { Badge } from "@avin/ui/components/badge";
 import { Button } from "@avin/ui/components/button";
+import { ChatIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
-import { MessageSquare } from "lucide-react";
 
 export const ChatButton = () => {
   const unreadCount = 2;
@@ -16,7 +16,7 @@ export const ChatButton = () => {
       size="icon"
       variant="ghost"
     >
-      <MessageSquare className="h-5 w-5" />
+      <ChatIcon className="h-5 w-5" />
       {unreadCount > 0 ? (
         <Badge
           aria-hidden="true"

@@ -17,15 +17,15 @@ import {
 } from "@avin/ui/components/sheet";
 import { Skeleton } from "@avin/ui/components/skeleton";
 import {
-  ArrowClockwise,
-  CaretRight,
-  CheckCircle,
-  Clock,
-  Funnel,
-  MagnifyingGlass,
-  PaperPlaneRight,
-  Play,
-  WarningCircle,
+  ArrowClockwiseIcon,
+  CaretRightIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  FunnelIcon,
+  MagnifyingGlassIcon,
+  PaperPlaneRightIcon,
+  PlayIcon,
+  WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
@@ -235,7 +235,7 @@ export const StoreOrdersPanel = () => {
   if (ordersQuery.isError) {
     return (
       <Alert variant="destructive">
-        <WarningCircle aria-hidden="true" />
+        <WarningCircleIcon aria-hidden="true" />
         <AlertTitle>Không thể tải đơn hàng</AlertTitle>
         <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
           <span>Vui lòng thử lại để xem các đơn hàng cần xử lý.</span>
@@ -245,7 +245,7 @@ export const StoreOrdersPanel = () => {
             type="button"
             variant="outline"
           >
-            <ArrowClockwise aria-hidden="true" />
+            <ArrowClockwiseIcon aria-hidden="true" />
             Thử lại
           </Button>
         </AlertDescription>
@@ -263,7 +263,10 @@ export const StoreOrdersPanel = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
-          <CheckCircle aria-hidden="true" className="size-10 text-primary" />
+          <CheckCircleIcon
+            aria-hidden="true"
+            className="size-10 text-primary"
+          />
           <p className="font-medium">Chưa có đơn hàng nào cần xử lý.</p>
           <p className="max-w-md text-sm text-muted-foreground">
             Khi khách hàng mua sản phẩm của bạn, thông tin đơn hàng sẽ xuất hiện
@@ -333,7 +336,7 @@ export const StoreOrdersPanel = () => {
       {/* Toolbar: Search & Item count */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-3">
         <div className="flex flex-1 items-center gap-2.5 rounded-xl bg-muted/30 px-3.5 py-2 text-sm">
-          <MagnifyingGlass
+          <MagnifyingGlassIcon
             aria-hidden="true"
             className="size-4 text-muted-foreground"
           />
@@ -355,7 +358,7 @@ export const StoreOrdersPanel = () => {
         </div>
 
         <div className="flex items-center gap-2 text-xs text-muted-foreground px-2">
-          <Funnel aria-hidden="true" className="size-4" />
+          <FunnelIcon aria-hidden="true" className="size-4" />
           <span>Hiển thị {filteredItems.length} đơn hàng</span>
         </div>
       </div>
@@ -381,7 +384,7 @@ export const StoreOrdersPanel = () => {
                   key={item.id}
                   onClick={() => setSelectedItem(item)}
                 >
-                  <td className="p-4 max-w-[280px]">
+                  <td className="p-4 max-w-70">
                     <div className="font-bold text-foreground text-sm line-clamp-2">
                       {item.listing.title}
                     </div>
@@ -395,7 +398,7 @@ export const StoreOrdersPanel = () => {
                     </div>
                   </td>
 
-                  <td className="p-4 max-w-[320px]">
+                  <td className="p-4 max-w-80">
                     <div className="font-semibold text-foreground text-sm">
                       {getBuyerLabel(item.buyerId, item.buyer?.name)}
                     </div>
@@ -410,7 +413,7 @@ export const StoreOrdersPanel = () => {
                     <span
                       className={`inline-flex items-center gap-1.5 font-semibold rounded-lg px-2.5 py-1 ${getProcessingDeadlineClass(item.status)}`}
                     >
-                      <Clock aria-hidden="true" className="size-3.5" />
+                      <ClockIcon aria-hidden="true" className="size-3.5" />
                       {formatOrderDeadline(item.processingDeadlineAt)}
                     </span>
                   </td>
@@ -440,14 +443,14 @@ export const StoreOrdersPanel = () => {
                     <div className="flex items-center justify-end gap-2">
                       {item.status === "AWAITING_SELLER" ? (
                         <Button size="sm" onClick={() => setSelectedItem(item)}>
-                          <Play aria-hidden="true" />
+                          <PlayIcon aria-hidden="true" />
                           Bắt đầu
                         </Button>
                       ) : null}
 
                       {item.status === "IN_PROGRESS" ? (
                         <Button size="sm" onClick={() => setSelectedItem(item)}>
-                          <PaperPlaneRight aria-hidden="true" />
+                          <PaperPlaneRightIcon aria-hidden="true" />
                           Bàn giao
                         </Button>
                       ) : null}
@@ -460,7 +463,7 @@ export const StoreOrdersPanel = () => {
                           onClick={() => setSelectedItem(item)}
                         >
                           Chi tiết
-                          <CaretRight aria-hidden="true" />
+                          <CaretRightIcon aria-hidden="true" />
                         </Button>
                       ) : null}
                     </div>

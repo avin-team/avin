@@ -6,9 +6,9 @@ import {
   FieldLabel,
 } from "@avin/ui/components/field";
 import { Input } from "@avin/ui/components/input";
+import { SpinnerIcon, SignInIcon } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
 import { useNavigate, useRouter } from "@tanstack/react-router";
-import { Loader2, LogIn } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -163,9 +163,9 @@ export const UserAuthForm = ({
             type="submit"
           >
             {isSubmitting ? (
-              <Loader2 className="animate-spin" />
+              <SpinnerIcon className="animate-spin" />
             ) : (
-              <LogIn className="me-2 size-4" />
+              <SignInIcon className="me-2 size-4" />
             )}
             Đăng nhập Admin
           </Button>

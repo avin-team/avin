@@ -1,6 +1,6 @@
 import { Progress } from "@avin/ui/components/progress";
 import { cn } from "@avin/ui/lib/utils";
-import { FileUp, LoaderCircle } from "lucide-react";
+import { FileArrowUpIcon, SpinnerIcon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 import { useDropzone, type Accept, type FileRejection } from "react-dropzone";
 
@@ -90,12 +90,12 @@ export function FileDropzone({
       >
         <input {...getInputProps({ "aria-label": inputLabel })} />
         {isUploading ? (
-          <LoaderCircle
+          <SpinnerIcon
             aria-hidden="true"
             className="size-7 animate-spin text-primary"
           />
         ) : (
-          <FileUp aria-hidden="true" className="size-7 text-primary" />
+          <FileArrowUpIcon aria-hidden="true" className="size-7 text-primary" />
         )}
         <p className="font-semibold text-foreground">
           {isUploading ? uploadingLabel : label}

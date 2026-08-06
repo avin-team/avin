@@ -21,8 +21,8 @@ import {
   TableHeader,
   TableRow,
 } from "@avin/ui/components/table";
+import { ClipboardTextIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
-import { ClipboardCheck, Search } from "lucide-react";
 import { useState } from "react";
 
 import { Header } from "@/components/layout/header";
@@ -94,7 +94,7 @@ export const SellerApplicationQueuePage = () => {
         <Card>
           <CardHeader className="gap-4 border-b sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="text-base flex items-center gap-2">
-              <ClipboardCheck className="size-4 text-primary" />
+              <ClipboardTextIcon className="size-4 text-primary" />
               Danh sách Hồ sơ Đăng ký{" "}
               <span className="text-muted-foreground">
                 ({filteredApplications.length})
@@ -102,7 +102,7 @@ export const SellerApplicationQueuePage = () => {
             </CardTitle>
             <div className="flex flex-col gap-2 sm:flex-row">
               <div className="relative min-w-0 sm:w-64">
-                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   aria-label="Search applications"
                   className="ps-9"

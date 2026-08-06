@@ -29,12 +29,12 @@ import {
 import { Skeleton } from "@avin/ui/components/skeleton";
 import { Textarea } from "@avin/ui/components/textarea";
 import {
-  ArrowClockwise,
-  CheckCircle,
-  ClipboardText,
-  Play,
-  WarningCircle,
-  XCircle,
+  ArrowClockwiseIcon,
+  CheckCircleIcon,
+  ClipboardTextIcon,
+  PlayIcon,
+  WarningCircleIcon,
+  XCircleIcon,
 } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -151,7 +151,7 @@ const SellerDeliveryForm = ({
       }}
     >
       <div className="flex items-start gap-3">
-        <ClipboardText aria-hidden="true" className="mt-0.5 text-primary" />
+        <ClipboardTextIcon aria-hidden="true" className="mt-0.5 text-primary" />
         <div>
           <h4 className="font-semibold">Gửi kết quả cho Buyer</h4>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -231,7 +231,7 @@ const SellerDeliveryForm = ({
               form={`delivery-form-${itemId}`}
               type="submit"
             >
-              <CheckCircle aria-hidden="true" />
+              <CheckCircleIcon aria-hidden="true" />
               {isSubmitting || mutation.isPending
                 ? "Đang gửi…"
                 : "Gửi bàn giao"}
@@ -332,7 +332,7 @@ export const SellerOrderItemCard = ({
     if (timelineQuery.isError) {
       return (
         <Alert variant="destructive">
-          <WarningCircle aria-hidden="true" />
+          <WarningCircleIcon aria-hidden="true" />
           <AlertTitle>Không thể tải timeline</AlertTitle>
           <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
             <span>Vui lòng thử lại để xem bằng chứng và lịch sử.</span>
@@ -341,7 +341,7 @@ export const SellerOrderItemCard = ({
               size="sm"
               variant="outline"
             >
-              <ArrowClockwise aria-hidden="true" />
+              <ArrowClockwiseIcon aria-hidden="true" />
               Thử lại
             </Button>
           </AlertDescription>
@@ -445,7 +445,7 @@ export const SellerOrderItemCard = ({
               onClick={() => void handleStart()}
               type="button"
             >
-              <Play aria-hidden="true" />
+              <PlayIcon aria-hidden="true" />
               {startMutation.isPending ? "Đang bắt đầu…" : "Bắt đầu thực hiện"}
             </Button>
           ) : null}
@@ -456,7 +456,7 @@ export const SellerOrderItemCard = ({
               type="button"
               variant="destructive"
             >
-              <XCircle aria-hidden="true" />
+              <XCircleIcon aria-hidden="true" />
               Hủy đơn hàng
             </Button>
           ) : null}
@@ -481,7 +481,7 @@ export const SellerOrderItemCard = ({
           <AlertDialogHeader className="place-items-start text-left">
             <div className="flex items-center gap-3">
               <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
-                <WarningCircle aria-hidden="true" className="size-6" />
+                <WarningCircleIcon aria-hidden="true" className="size-6" />
               </div>
               <div>
                 <AlertDialogTitle className="text-base font-bold text-foreground">
@@ -516,7 +516,7 @@ export const SellerOrderItemCard = ({
                     </FieldLabel>
                     <Textarea
                       aria-invalid={isInvalid}
-                      className="mt-1.5 min-h-[100px] text-sm"
+                      className="mt-1.5 min-h-25 text-sm"
                       id={`cancel-reason-${item.id}`}
                       maxLength={5000}
                       name={field.name}

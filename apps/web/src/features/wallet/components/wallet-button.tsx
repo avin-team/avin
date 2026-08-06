@@ -1,9 +1,9 @@
 import { ACCOUNT_ROLE } from "@avin/auth/permissions";
 import { Button } from "@avin/ui/components/button";
 import { Skeleton } from "@avin/ui/components/skeleton";
+import { WalletIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Wallet } from "lucide-react";
 
 import { authClient } from "@/features/auth/api/auth-client";
 import { walletSummaryQueryOptions } from "@/features/wallet/api/wallet-api";
@@ -36,7 +36,7 @@ export const WalletButton = () => {
       render={<Link to="/wallet" />}
       variant="outline"
     >
-      <Wallet className="size-4 text-primary" />
+      <WalletIcon className="size-4 text-primary" />
       <span className="font-semibold text-foreground">
         {formatVND(balance)}
       </span>

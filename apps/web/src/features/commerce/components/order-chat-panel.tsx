@@ -22,7 +22,7 @@ import {
 } from "@avin/ui/components/message-scroller";
 import { cn } from "@avin/ui/lib/utils";
 import { useUploadFiles } from "@better-upload/client";
-import { PaperPlaneRight, Paperclip } from "@phosphor-icons/react";
+import { PaperPlaneRightIcon, PaperclipIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 import { toast } from "sonner";
@@ -58,7 +58,7 @@ const getBubbleVariant = (
 };
 
 export const OrderChatPanel = ({
-  heightClass = "h-[440px]",
+  heightClass = "h-110",
   orderId,
   sellerName,
 }: OrderChatPanelProps) => {
@@ -426,7 +426,7 @@ export const OrderChatPanel = ({
           onClick={() => attachmentInputRef.current?.click()}
           className="shrink-0 text-muted-foreground"
         >
-          <Paperclip className="h-3.5 w-3.5" />
+          <PaperclipIcon className="h-3.5 w-3.5" />
         </Button>
         <Input
           value={inputText}
@@ -447,7 +447,7 @@ export const OrderChatPanel = ({
           }
           className="shrink-0 text-primary hover:bg-primary/10"
         >
-          <PaperPlaneRight className="h-3.5 w-3.5" />
+          <PaperPlaneRightIcon className="h-3.5 w-3.5" />
         </Button>
       </form>
       {attachmentDrafts.length > 0 && (

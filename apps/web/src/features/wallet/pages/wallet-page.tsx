@@ -6,9 +6,9 @@ import {
   CardTitle,
 } from "@avin/ui/components/card";
 import { Skeleton } from "@avin/ui/components/skeleton";
+import { ArrowLineDownIcon, CaretDownIcon } from "@phosphor-icons/react";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ArrowDownToLine, ChevronDown } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
@@ -290,13 +290,13 @@ export const WalletPage = () => {
             </p>
           </div>
           <Button render={<Link to="/wallet/deposit" />}>
-            <ArrowDownToLine data-icon="inline-start" />
+            <ArrowLineDownIcon data-icon="inline-start" />
             Nạp tiền
           </Button>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <Card className="bg-gradient-to-br from-primary/15 via-card to-card">
+          <Card className="bg-linear-to-br from-primary/15 via-card to-card">
             <CardHeader>
               <CardTitle className="text-sm text-muted-foreground">
                 Số dư khả dụng
@@ -359,7 +359,7 @@ export const WalletPage = () => {
                 }}
                 variant="outline"
               >
-                <ChevronDown data-icon="inline-start" />
+                <CaretDownIcon data-icon="inline-start" />
                 {transactionsQuery?.isFetching ? "Đang tải…" : "Xem thêm"}
               </Button>
             ) : null}

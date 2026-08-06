@@ -1,5 +1,5 @@
+import { GridFourIcon, StackIcon, SparkleIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
-import { Grid, Layers, Sparkles } from "lucide-react";
 
 import { Shell } from "@/components/shell";
 import { orpc } from "@/utils/orpc";
@@ -15,12 +15,12 @@ export const CategoriesPage = () => {
     <Shell variant="default">
       <div className="space-y-8 py-6">
         {/* Header Hero Section */}
-        <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-gradient-to-br from-primary/10 via-background to-card p-8 sm:p-12 shadow-sm backdrop-blur-xl">
+        <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-linear-to-br from-primary/10 via-background to-card p-8 sm:p-12 shadow-sm backdrop-blur-xl">
           <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
 
           <div className="relative max-w-2xl space-y-4">
             <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3.5 py-1 text-xs font-semibold text-primary">
-              <Sparkles className="h-3.5 w-3.5" />
+              <SparkleIcon className="h-3.5 w-3.5" />
               <span>Dịch Vụ & Sản Phẩm Số</span>
             </div>
 
@@ -39,7 +39,7 @@ export const CategoriesPage = () => {
         <div>
           <div className="mb-6 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Grid className="h-5 w-5 text-primary" />
+              <GridFourIcon className="h-5 w-5 text-primary" />
               <h2 className="text-xl font-bold tracking-tight text-foreground">
                 Tất cả dịch vụ
               </h2>
@@ -79,7 +79,7 @@ export const CategoriesPage = () => {
             </div>
           ) : null}
 
-          {/* Categories Grid */}
+          {/* Categories GridFourIcon */}
           {categoriesQuery.data && categoriesQuery.data.length > 0 ? (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {categoriesQuery.data.map((cat) => (
@@ -91,7 +91,7 @@ export const CategoriesPage = () => {
           {/* Empty State */}
           {categoriesQuery.data && categoriesQuery.data.length === 0 ? (
             <div className="rounded-2xl border border-border bg-card p-12 text-center">
-              <Layers className="mx-auto h-12 w-12 text-muted-foreground" />
+              <StackIcon className="mx-auto h-12 w-12 text-muted-foreground" />
               <h3 className="mt-4 text-lg font-bold text-foreground">
                 Chưa có dịch vụ nào
               </h3>

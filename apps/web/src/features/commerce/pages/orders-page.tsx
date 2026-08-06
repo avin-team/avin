@@ -3,9 +3,9 @@ import { Button } from "@avin/ui/components/button";
 import { Card, CardContent } from "@avin/ui/components/card";
 import { Skeleton } from "@avin/ui/components/skeleton";
 import {
-  ArrowClockwise,
-  Handshake,
-  WarningCircle,
+  ArrowClockwiseIcon,
+  HandshakeIcon,
+  WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -37,7 +37,7 @@ export const OrdersPage = () => {
       <Shell variant="default">
         <div className="py-16">
           <Alert variant="destructive">
-            <WarningCircle aria-hidden="true" />
+            <WarningCircleIcon aria-hidden="true" />
             <AlertTitle>Không thể tải đơn hàng</AlertTitle>
             <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
               <span>Vui lòng thử lại sau.</span>
@@ -46,7 +46,7 @@ export const OrdersPage = () => {
                 size="sm"
                 variant="outline"
               >
-                <ArrowClockwise aria-hidden="true" />
+                <ArrowClockwiseIcon aria-hidden="true" />
                 Thử lại
               </Button>
             </AlertDescription>
@@ -75,7 +75,7 @@ export const OrdersPage = () => {
         {orders.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center gap-3 py-16 text-center">
-              <Handshake aria-hidden="true" className="text-primary" />
+              <HandshakeIcon aria-hidden="true" className="text-primary" />
               <h2 className="text-lg font-semibold">Chưa có đơn hàng</h2>
               <p className="max-w-md text-sm text-muted-foreground">
                 Sau khi Checkout thành công, các Order và OrderItem của bạn sẽ

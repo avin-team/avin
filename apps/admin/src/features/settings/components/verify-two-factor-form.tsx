@@ -6,8 +6,13 @@ import {
   FieldLabel,
 } from "@avin/ui/components/field";
 import { Input } from "@avin/ui/components/input";
+import {
+  CheckIcon,
+  CopyIcon,
+  SpinnerIcon,
+  QrCodeIcon,
+} from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
-import { Check, Copy, Loader2, QrCode } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -87,10 +92,10 @@ export const VerifyTwoFactorForm = ({
 
   return (
     <div className="flex flex-col gap-6">
-      {/* QR Code Container */}
+      {/* QR CodeIcon Container */}
       <div className="flex flex-col items-center justify-center gap-3 rounded-xl border bg-muted/30 p-6 text-center">
         <div className="flex items-center gap-2 font-medium text-sm">
-          <QrCode className="size-4 text-primary" />
+          <QrCodeIcon className="size-4 text-primary" />
           <span>Quét mã QR bằng ứng dụng Authenticator</span>
         </div>
         <div className="my-1 rounded-xl bg-white p-4 shadow-sm">
@@ -102,7 +107,7 @@ export const VerifyTwoFactorForm = ({
         </p>
       </div>
 
-      {/* Manual Secret Key */}
+      {/* Manual Secret KeyIcon */}
       {secret && (
         <div className="flex flex-col gap-2 rounded-lg border bg-card p-4">
           <span className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
@@ -120,12 +125,12 @@ export const VerifyTwoFactorForm = ({
             >
               {copied ? (
                 <>
-                  <Check className="size-3.5 text-emerald-500" />
+                  <CheckIcon className="size-3.5 text-emerald-500" />
                   Đã chép
                 </>
               ) : (
                 <>
-                  <Copy className="size-3.5" />
+                  <CopyIcon className="size-3.5" />
                   Sao chép
                 </>
               )}
@@ -134,7 +139,7 @@ export const VerifyTwoFactorForm = ({
         </div>
       )}
 
-      {/* Verification Code Input */}
+      {/* Verification CodeIcon Input */}
       <form
         className="flex flex-col gap-4"
         id="verify-two-factor-form"
@@ -188,7 +193,7 @@ export const VerifyTwoFactorForm = ({
                   type="submit"
                 >
                   {isSubmitting && (
-                    <Loader2 className="me-2 size-4 animate-spin" />
+                    <SpinnerIcon className="me-2 size-4 animate-spin" />
                   )}
                   Xác nhận và bật 2FA
                 </Button>

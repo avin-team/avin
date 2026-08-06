@@ -14,7 +14,7 @@ import {
   SidebarMenuSubItem,
   useSidebar,
 } from "@avin/ui/components/sidebar";
-import { ChevronRight, ShoppingBag } from "lucide-react";
+import { CaretRightIcon, ShoppingBagIcon } from "@phosphor-icons/react";
 
 import type { StoreSection } from "../data/store-types";
 import type { SellerNavGroup as SellerNavGroupData } from "./types";
@@ -82,9 +82,9 @@ export const SellerNavGroup = ({
             className="group w-full"
             render={
               <SidebarMenuButton tooltip={title}>
-                <ShoppingBag />
+                <ShoppingBagIcon />
                 <span>{title}</span>
-                <ChevronRight className="ms-auto transition-transform duration-200 group-data-panel-open:rotate-90 rtl:rotate-180" />
+                <CaretRightIcon className="ms-auto transition-transform duration-200 group-data-panel-open:rotate-90 rtl:rotate-180" />
               </SidebarMenuButton>
             }
           />

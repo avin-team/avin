@@ -7,15 +7,15 @@ import {
   CardTitle,
 } from "@avin/ui/components/card";
 import { Separator } from "@avin/ui/components/separator";
-import { Link, useParams } from "@tanstack/react-router";
 import {
-  AlertTriangle,
-  ArrowLeft,
-  Ban,
-  CheckCircle2,
-  Shield,
-  Wallet,
-} from "lucide-react";
+  WarningIcon,
+  ArrowLeftIcon,
+  ProhibitIcon,
+  CheckCircleIcon,
+  ShieldIcon,
+  WalletIcon,
+} from "@phosphor-icons/react";
+import { Link, useParams } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { Header } from "@/components/layout/header";
@@ -57,7 +57,7 @@ export const SellerDetailPage = () => {
           Seller not found
         </h1>
         <Button render={<Link to="/sellers" />} variant="outline">
-          <ArrowLeft /> Back to sellers
+          <ArrowLeftIcon /> Back to sellers
         </Button>
       </Main>
     );
@@ -84,7 +84,7 @@ export const SellerDetailPage = () => {
               size="icon"
               variant="outline"
             >
-              <ArrowLeft />
+              <ArrowLeftIcon />
             </Button>
             <div>
               <p className="text-sm font-medium text-primary">
@@ -134,7 +134,7 @@ export const SellerDetailPage = () => {
 
             <Card>
               <CardHeader className="flex flex-row items-center gap-2">
-                <Wallet className="size-5 text-primary" />
+                <WalletIcon className="size-5 text-primary" />
                 <div>
                   <CardTitle>Ví tiền Seller (SellerWallet)</CardTitle>
                   <CardDescription>
@@ -175,7 +175,7 @@ export const SellerDetailPage = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Shield className="size-5 text-primary" />
+                  <ShieldIcon className="size-5 text-primary" />
                   Nhật ký xử lý vi phạm (Enforcement Audit)
                 </CardTitle>
               </CardHeader>
@@ -218,7 +218,7 @@ export const SellerDetailPage = () => {
             <CardContent className="grid gap-3">
               {seller.enforcementStatus !== "ACTIVE" && (
                 <Button onClick={() => handleAction("ACTIVE")}>
-                  <CheckCircle2 /> Khôi phục Hoạt Động (Active)
+                  <CheckCircleIcon /> Khôi phục Hoạt Động (Active)
                 </Button>
               )}
               {seller.enforcementStatus !== "SUSPENDED" && (
@@ -226,7 +226,7 @@ export const SellerDetailPage = () => {
                   onClick={() => handleAction("SUSPENDED")}
                   variant="outline"
                 >
-                  <AlertTriangle /> Tạm dừng gian hàng (Suspend)
+                  <WarningIcon /> Tạm dừng gian hàng (Suspend)
                 </Button>
               )}
               {seller.enforcementStatus !== "BANNED" && (
@@ -234,7 +234,7 @@ export const SellerDetailPage = () => {
                   onClick={() => handleAction("BANNED")}
                   variant="destructive"
                 >
-                  <Ban /> Cấm vĩnh viễn (Ban)
+                  <ProhibitIcon /> Cấm vĩnh viễn (Ban)
                 </Button>
               )}
 

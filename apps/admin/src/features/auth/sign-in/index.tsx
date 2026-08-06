@@ -15,7 +15,7 @@ interface SignInProps {
 
 export const SignIn = ({ redirectTo }: SignInProps) => (
   <AuthLayout>
-    <Card className="w-full max-w-[480px] border shadow-sm sm:max-w-[540px]">
+    <Card className="w-full max-w-120 border shadow-sm sm:max-w-135">
       <CardHeader className="space-y-1.5 p-6 sm:p-8">
         <CardTitle className="font-bold text-2xl tracking-tight">
           Đăng nhập Admin

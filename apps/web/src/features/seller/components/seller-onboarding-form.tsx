@@ -13,16 +13,16 @@ import { Checkbox } from "@avin/ui/components/checkbox";
 import { Input } from "@avin/ui/components/input";
 import { Label } from "@avin/ui/components/label";
 import { Textarea } from "@avin/ui/components/textarea";
-import { useMutation, useQuery } from "@tanstack/react-query";
 import {
-  AlertCircle,
-  Building2,
-  CheckCircle2,
-  Clock,
-  FileText,
-  Loader2,
-  Store,
-} from "lucide-react";
+  WarningCircleIcon,
+  BuildingsIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  FileTextIcon,
+  SpinnerIcon,
+  StorefrontIcon,
+} from "@phosphor-icons/react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -107,7 +107,7 @@ const ApplicationStatusBanner = ({
       <CardContent className="space-y-2">
         {isPending && (
           <Alert className="bg-amber-500/10 text-amber-600 border-amber-500/20 dark:bg-amber-500/20 dark:text-amber-400">
-            <Clock className="w-4 h-4" />
+            <ClockIcon className="w-4 h-4" />
             <AlertTitle>
               Hồ sơ của bạn đang được Ban Quản Trị xem xét
             </AlertTitle>
@@ -120,7 +120,7 @@ const ApplicationStatusBanner = ({
 
         {application.status === "CHANGES_REQUESTED" && (
           <Alert variant="destructive">
-            <AlertCircle className="w-4 h-4" />
+            <WarningCircleIcon className="w-4 h-4" />
             <AlertTitle>Yêu cầu điều chỉnh thông tin</AlertTitle>
             <AlertDescription className="mt-1">
               <strong>Lý do từ Admin:</strong>{" "}
@@ -135,7 +135,7 @@ const ApplicationStatusBanner = ({
 
         {isApproved && (
           <Alert className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:bg-emerald-500/20 dark:text-emerald-400">
-            <CheckCircle2 className="w-4 h-4" />
+            <CheckCircleIcon className="w-4 h-4" />
             <AlertTitle>Hồ sơ người bán đã được duyệt thành công!</AlertTitle>
             <AlertDescription>
               Tài khoản của bạn đã kích hoạt tính năng Seller. Bạn hiện có thể
@@ -173,6 +173,8 @@ const SellerOnboardingFormContent = ({
   const [phoneInput, setPhoneInput] = useState(profile?.phone ?? "");
 
   // Bank details state
+
+  // Step 1: Save Draft Store Profile
   const [bankName, setBankName] = useState(
     profile?.bankAccount?.bankName ?? ""
   );
@@ -265,10 +267,10 @@ const SellerOnboardingFormContent = ({
   return (
     <div className="max-w-4xl mx-auto space-y-8 py-6">
       {/* Banner / Header */}
-      <div className="rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6 border border-primary/20">
+      <div className="rounded-xl bg-linear-to-r from-primary/10 via-primary/5 to-transparent p-6 border border-primary/20">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-primary/10 text-primary rounded-lg">
-            <Store className="w-6 h-6" />
+            <StorefrontIcon className="w-6 h-6" />
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">
@@ -285,14 +287,14 @@ const SellerOnboardingFormContent = ({
       {/* Application Status Banner */}
       {application && <ApplicationStatusBanner application={application} />}
 
-      {/* Step 1: Draft Storefront Profile */}
+      {/* Step 1: Draft Store Profile */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-xl flex items-center gap-2">
-                <Store className="w-5 h-5 text-primary" /> 1. Thông tin Gian
-                hàng Nháp
+                <StorefrontIcon className="w-5 h-5 text-primary" /> 1. Thông tin
+                Gian hàng Nháp
               </CardTitle>
               <CardDescription>
                 Thiết lập tên gian hàng, số điện thoại liên hệ, hình đại diện và
@@ -304,7 +306,8 @@ const SellerOnboardingFormContent = ({
                 variant="outline"
                 className="text-emerald-600 border-emerald-500/30"
               >
-                <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Đã lưu thông tin
+                <CheckCircleIcon className="w-3.5 h-3.5 mr-1" /> Đã lưu thông
+                tin
               </Badge>
             ) : (
               <Badge variant="secondary">Chưa khởi tạo</Badge>
@@ -317,7 +320,7 @@ const SellerOnboardingFormContent = ({
               {/* Left Column: Avatar Uploader */}
               <div className="flex flex-col items-center text-center space-y-2">
                 <Label>Ảnh đại diện</Label>
-                <div className="w-full max-w-[140px]">
+                <div className="w-full max-w-35">
                   <SellerLogoUploader
                     disabled={isPending || updateDraftMutation.isPending}
                     fileName={avatarName}
@@ -334,7 +337,7 @@ const SellerOnboardingFormContent = ({
                 </p>
               </div>
 
-              {/* Right Column: Storefront Name, Phone, Bio */}
+              {/* Right Column: Store Name, Phone, Bio */}
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -392,7 +395,7 @@ const SellerOnboardingFormContent = ({
             }
           >
             {updateDraftMutation.isPending && (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              <SpinnerIcon className="w-4 h-4 mr-2 animate-spin" />
             )}
             Lưu gian hàng nháp
           </Button>
@@ -403,7 +406,7 @@ const SellerOnboardingFormContent = ({
       <Card>
         <CardHeader>
           <CardTitle className="text-xl flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-primary" /> 2. Thông tin Ngân
+            <BuildingsIcon className="w-5 h-5 text-primary" /> 2. Thông tin Ngân
             hàng & Điều khoản
           </CardTitle>
           <CardDescription>
@@ -465,8 +468,8 @@ const SellerOnboardingFormContent = ({
             <div className="space-y-3 pt-2">
               <div className="flex items-center justify-between">
                 <Label className="flex items-center gap-2 text-base font-semibold">
-                  <FileText className="w-4 h-4 text-primary" /> Thỏa thuận Người
-                  bán (Seller Agreement v1.0)
+                  <FileTextIcon className="w-4 h-4 text-primary" /> Thỏa thuận
+                  Người bán (Seller Agreement v1.0)
                 </Label>
                 <Badge variant="outline">Phiên bản v1.0</Badge>
               </div>
@@ -533,7 +536,7 @@ const SellerOnboardingFormContent = ({
             className="bg-primary hover:bg-primary/90"
           >
             {submitAppMutation.isPending && (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              <SpinnerIcon className="w-4 h-4 mr-2 animate-spin" />
             )}
             {application?.status === "CHANGES_REQUESTED"
               ? "Nộp lại hồ sơ"
@@ -556,7 +559,7 @@ export const SellerOnboardingForm = () => {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center p-12 space-y-4">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <SpinnerIcon className="w-8 h-8 animate-spin text-primary" />
         <p className="text-sm text-muted-foreground">
           Đang tải thông tin người bán...
         </p>

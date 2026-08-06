@@ -22,16 +22,16 @@ import {
 } from "@avin/ui/components/select";
 import { cn } from "@avin/ui/lib/utils";
 import {
-  Calendar,
-  CaretLeft,
-  CaretRight,
-  CheckCircle,
-  MagnifyingGlass,
-  Receipt,
-  Truck,
-  Wallet,
-  X,
-  XCircle,
+  CalendarIcon,
+  CaretLeftIcon,
+  CaretRightIcon,
+  CheckCircleIcon,
+  MagnifyingGlassIcon,
+  ReceiptIcon,
+  TruckIcon,
+  WalletIcon,
+  XIcon,
+  XCircleIcon,
 } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
@@ -99,7 +99,7 @@ const DatePicker = ({
         )}
       >
         <div className="flex items-center gap-2">
-          <Calendar
+          <CalendarIcon
             aria-hidden="true"
             className="size-4 shrink-0 text-muted-foreground"
           />
@@ -115,7 +115,7 @@ const DatePicker = ({
             }}
             type="button"
           >
-            <X aria-hidden="true" className="size-3" />
+            <XIcon aria-hidden="true" className="size-3" />
           </button>
         ) : null}
       </PopoverTrigger>
@@ -178,7 +178,7 @@ export const BuyerOrdersTable = ({ orders }: BuyerOrdersTableProps) => {
     .filter((i) => i.status === "REFUNDED")
     .reduce((sum, item) => sum + (item.priceAmount ?? 0), 0);
 
-  // Filtered List
+  // Filtered ListIcon
   const filteredItems = useMemo(
     () =>
       allItems.filter((item) => {
@@ -241,7 +241,7 @@ export const BuyerOrdersTable = ({ orders }: BuyerOrdersTableProps) => {
         <Card className="border-border/60 bg-card shadow-xs transition-shadow hover:shadow-sm">
           <CardContent className="flex items-center gap-3 p-4">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-pink-500/10 text-pink-600 dark:text-pink-400">
-              <Receipt className="h-5 w-5" />
+              <ReceiptIcon className="h-5 w-5" />
             </div>
             <div className="min-w-0">
               <p className="truncate text-xs font-medium text-muted-foreground">
@@ -258,7 +258,7 @@ export const BuyerOrdersTable = ({ orders }: BuyerOrdersTableProps) => {
         <Card className="border-border/60 bg-card shadow-xs transition-shadow hover:shadow-sm">
           <CardContent className="flex items-center gap-3 p-4">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
-              <Wallet className="h-5 w-5" />
+              <WalletIcon className="h-5 w-5" />
             </div>
             <div className="min-w-0">
               <p className="truncate text-xs font-medium text-muted-foreground">
@@ -275,7 +275,7 @@ export const BuyerOrdersTable = ({ orders }: BuyerOrdersTableProps) => {
         <Card className="border-border/60 bg-card shadow-xs transition-shadow hover:shadow-sm">
           <CardContent className="flex items-center gap-3 p-4">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
-              <Truck className="h-5 w-5" />
+              <TruckIcon className="h-5 w-5" />
             </div>
             <div className="min-w-0">
               <p className="truncate text-xs font-medium text-muted-foreground">
@@ -292,7 +292,7 @@ export const BuyerOrdersTable = ({ orders }: BuyerOrdersTableProps) => {
         <Card className="border-border/60 bg-card shadow-xs transition-shadow hover:shadow-sm">
           <CardContent className="flex items-center gap-3 p-4">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-              <CheckCircle className="h-5 w-5" />
+              <CheckCircleIcon className="h-5 w-5" />
             </div>
             <div className="min-w-0">
               <p className="truncate text-xs font-medium text-muted-foreground">
@@ -309,7 +309,7 @@ export const BuyerOrdersTable = ({ orders }: BuyerOrdersTableProps) => {
         <Card className="border-border/60 bg-card shadow-xs transition-shadow hover:shadow-sm">
           <CardContent className="flex items-center gap-3 p-4">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-500/10 text-slate-600 dark:text-slate-400">
-              <XCircle className="h-5 w-5" />
+              <XCircleIcon className="h-5 w-5" />
             </div>
             <div className="min-w-0">
               <p className="truncate text-xs font-medium text-muted-foreground">
@@ -326,7 +326,7 @@ export const BuyerOrdersTable = ({ orders }: BuyerOrdersTableProps) => {
         <Card className="border-border/60 bg-card shadow-xs transition-shadow hover:shadow-sm">
           <CardContent className="flex items-center gap-3 p-4">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400">
-              <Receipt className="h-5 w-5" />
+              <ReceiptIcon className="h-5 w-5" />
             </div>
             <div className="min-w-0">
               <p className="truncate text-xs font-medium text-muted-foreground">
@@ -347,7 +347,7 @@ export const BuyerOrdersTable = ({ orders }: BuyerOrdersTableProps) => {
       <Card className="border-border/60 bg-card">
         <CardContent className="flex flex-wrap items-center gap-3 p-4">
           {/* Search Input */}
-          <InputGroup className="min-w-[240px] flex-1">
+          <InputGroup className="min-w-60 flex-1">
             <InputGroupInput
               onChange={(e) => {
                 setSearchTerm(e.target.value);
@@ -358,7 +358,7 @@ export const BuyerOrdersTable = ({ orders }: BuyerOrdersTableProps) => {
               value={searchTerm}
             />
             <InputGroupAddon align="inline-end">
-              <MagnifyingGlass aria-hidden="true" className="size-4" />
+              <MagnifyingGlassIcon aria-hidden="true" className="size-4" />
             </InputGroupAddon>
           </InputGroup>
 
@@ -373,10 +373,7 @@ export const BuyerOrdersTable = ({ orders }: BuyerOrdersTableProps) => {
             }}
             value={statusFilter}
           >
-            <SelectTrigger
-              aria-label="Lọc theo trạng thái"
-              className="w-[190px]"
-            >
+            <SelectTrigger aria-label="Lọc theo trạng thái" className="w-47.5">
               <SelectValue placeholder="Tất cả trạng thái" />
             </SelectTrigger>
             <SelectContent>
@@ -412,7 +409,7 @@ export const BuyerOrdersTable = ({ orders }: BuyerOrdersTableProps) => {
 
           {/* Search Button */}
           <Button className="gap-1.5" size="sm" type="button">
-            <MagnifyingGlass aria-hidden="true" className="size-4" />
+            <MagnifyingGlassIcon aria-hidden="true" className="size-4" />
             Tìm kiếm
           </Button>
         </CardContent>
@@ -474,7 +471,7 @@ export const BuyerOrdersTable = ({ orders }: BuyerOrdersTableProps) => {
 
                       {/* Sản phẩm */}
                       <td aria-label="Sản phẩm" className="py-4 px-4 align-top">
-                        <div className="flex items-start gap-3 min-w-[200px]">
+                        <div className="flex items-start gap-3 min-w-50">
                           {item.listing.thumbnailUrl ? (
                             <img
                               alt={item.listing.title}
@@ -502,11 +499,11 @@ export const BuyerOrdersTable = ({ orders }: BuyerOrdersTableProps) => {
                         aria-label="Người bán"
                         className="py-4 px-4 align-top"
                       >
-                        <div className="flex items-center gap-2 min-w-[120px]">
+                        <div className="flex items-center gap-2 min-w-30">
                           <div className="flex h-6 w-6 items-center justify-center rounded-full bg-rose-500/15 text-[10px] font-bold text-rose-600 dark:text-rose-400">
                             {initial}
                           </div>
-                          <span className="font-medium text-foreground truncate max-w-[110px]">
+                          <span className="font-medium text-foreground truncate max-w-27.5">
                             {item.order.seller.name}
                           </span>
                         </div>
@@ -596,10 +593,10 @@ export const BuyerOrdersTable = ({ orders }: BuyerOrdersTableProps) => {
               size="sm"
               variant="outline"
             >
-              <CaretLeft className="h-3.5 w-3.5" />
+              <CaretLeftIcon className="h-3.5 w-3.5" />
               Trước
             </Button>
-            <span className="flex h-8 min-w-[32px] items-center justify-center rounded-lg bg-primary px-2 font-bold text-primary-foreground">
+            <span className="flex h-8 min-w-8 items-center justify-center rounded-lg bg-primary px-2 font-bold text-primary-foreground">
               {currentPage}
             </span>
             <Button
@@ -610,7 +607,7 @@ export const BuyerOrdersTable = ({ orders }: BuyerOrdersTableProps) => {
               variant="outline"
             >
               Tiếp
-              <CaretRight className="h-3.5 w-3.5" />
+              <CaretRightIcon className="h-3.5 w-3.5" />
             </Button>
           </div>
         </div>
