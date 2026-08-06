@@ -148,12 +148,14 @@ describe("Order Chat Logic", () => {
         callback: (transaction: MockDatabase) => Promise<Result>
       ) => Promise<Result>;
     };
-    mockDb.transaction = vi.fn(function transaction<Result>(
-      callback: (transaction: MockDatabase) => Promise<Result>
+    const transaction = vi.fn(function transaction(
+      this: typeof mockDb,
+      callback: (transaction: MockDatabase) => Promise<unknown>
     ) {
       expect(this).toBe(mockDb);
       return callback(mockDb);
     });
+    mockDb.transaction = transaction as never;
 
     await expect(
       sendMessage({

@@ -33,6 +33,7 @@ import { supabasePublic } from "@/utils/supabase";
 interface OrderChatPanelProps {
   heightClass?: string;
   orderId: string;
+  participantLabel?: string;
   sellerName: string;
 }
 
@@ -60,6 +61,7 @@ const getBubbleVariant = (
 export const OrderChatPanel = ({
   heightClass = "h-110",
   orderId,
+  participantLabel = "Người bán",
   sellerName,
 }: OrderChatPanelProps) => {
   const attachmentInputRef = React.useRef<HTMLInputElement>(null);
@@ -315,7 +317,7 @@ export const OrderChatPanel = ({
         <div>
           <p className="text-xs font-semibold text-foreground">{sellerName}</p>
           <p className="text-[10px] text-muted-foreground">
-            {isOtherParticipantPresent ? "Đang hoạt động" : "Người bán"}
+            {isOtherParticipantPresent ? "Đang hoạt động" : participantLabel}
           </p>
         </div>
       </div>

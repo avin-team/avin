@@ -40,7 +40,7 @@ export const CartButton = () => {
       {itemCount > 0 ? (
         <Badge
           aria-hidden="true"
-          className="pointer-events-none absolute -top-1.5 -right-1.5 min-w-5 justify-center px-1 text-[10px] leading-none"
+          className="pointer-events-none absolute -top-1 -right-1 h-4 min-w-4 justify-center rounded-full px-1 text-[10px] leading-none"
           variant="destructive"
         >
           {formatCartCount(itemCount)}

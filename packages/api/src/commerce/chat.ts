@@ -16,7 +16,7 @@ import {
   orderMessage,
 } from "@avin/db/schema/commerce";
 import { ORPCError } from "@orpc/server";
-import { and, asc, count, desc, eq, gt, inArray, lt } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, inArray, lt, or } from "drizzle-orm";
 
 import { createSupabaseAccessToken } from "../access/supabase-access-token";
 import type { MarketplaceSession } from "../runtime/context";
@@ -113,6 +113,11 @@ export interface GetAttachmentUrlOptions {
   userRole?: string | null;
 }
 
+export interface ListConversationsOptions {
+  database: typeof db;
+  userId: string;
+}
+
 async function assertCanReadChat({
   database,
   orderRecord,
@@ -139,6 +144,39 @@ async function assertCanReadChat({
   }
 
   return { isAdmin };
+}
+
+export async function listConversations({
+  database,
+  userId,
+}: ListConversationsOptions) {
+  const orders = await database.query.order.findMany({
+    orderBy: [desc(order.createdAt)],
+    where: or(eq(order.buyerId, userId), eq(order.sellerId, userId)),
+    with: {
+      buyer: {
+        columns: { id: true, image: true, name: true },
+      },
+      seller: {
+        columns: { id: true, image: true, name: true },
+      },
+    },
+  });
+
+  return orders.map((orderRecord) => {
+    const isBuyer = orderRecord.buyerId === userId;
+    const participant = isBuyer ? orderRecord.seller : orderRecord.buyer;
+    return {
+      createdAt: orderRecord.createdAt,
+      orderId: orderRecord.id,
+      participant: {
+        id: participant.id,
+        image: participant.image,
+        name: participant.name,
+      },
+      participantRole: isBuyer ? "seller" : "buyer",
+    };
+  });
 }
 
 async function resolveSenderRoleAndType({

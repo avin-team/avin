@@ -20,6 +20,7 @@ import {
   getAfterMessages,
   getRealtimeToken,
   getUnreadCount,
+  listConversations,
   listMessages,
   markChatRead,
   redactMessage,
@@ -196,6 +197,13 @@ export const commerceRouter = {
           userId: context.session.user.id,
         })
       ),
+
+    listConversations: protectedProcedure.handler(({ context }) =>
+      listConversations({
+        database: context.db,
+        userId: context.session.user.id,
+      })
+    ),
 
     listMessages: protectedProcedure
       .input(listMessagesInputSchema)

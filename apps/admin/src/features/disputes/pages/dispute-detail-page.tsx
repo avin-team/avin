@@ -12,7 +12,7 @@ import {
   ArrowLeftIcon,
   ArrowSquareOutIcon,
   FileTextIcon,
-  ChatIcon,
+  ChatCircleIcon,
   ArrowCounterClockwiseIcon,
   ShieldCheckIcon,
 } from "@phosphor-icons/react";
@@ -218,7 +218,7 @@ export const DisputeDetailPage = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <ChatIcon className="size-5 text-primary" />
+                  <ChatCircleIcon className="size-5 text-primary" />
                   Nhật ký ChatIcon Đơn Hàng (Audited Order ChatIcon)
                 </CardTitle>
                 <CardDescription>

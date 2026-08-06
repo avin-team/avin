@@ -30,6 +30,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
+import { OrderChatPanel } from "@/features/commerce/components/order-chat-panel";
 import {
   formatOrderDeadline,
   getOrderItemStatusLabel,
@@ -507,6 +508,20 @@ export const StoreOrdersPanel = () => {
             </SheetHeader>
             <div className="p-6 pt-0">
               <SellerOrderItemCard item={selectedItem} />
+              <div className="mt-6">
+                <h3 className="mb-3 text-sm font-semibold">
+                  Trao đổi với khách hàng
+                </h3>
+                <OrderChatPanel
+                  heightClass="h-130"
+                  orderId={selectedItem.orderId}
+                  participantLabel="Người mua"
+                  sellerName={getBuyerLabel(
+                    selectedItem.buyerId,
+                    selectedItem.buyer?.name
+                  )}
+                />
+              </div>
             </div>
           </SheetContent>
         </Sheet>
