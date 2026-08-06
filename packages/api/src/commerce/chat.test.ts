@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   getAfterMessages,
+  getAttachmentUrl,
   getChatNotificationSummary,
   getNotificationRealtimeToken,
   getRealtimeToken,
@@ -211,6 +212,43 @@ describe("Order Chat Logic", () => {
         user: { id: buyerId, role: "BUYER" } as never,
       })
     ).rejects.toThrow("Order chat attachments must be 20 MB or smaller");
+  });
+
+  it("returns signed attachment URLs through the Storage API path", async () => {
+    const mockDb = createMockDb({
+      query: {
+        order: {
+          findFirst: vi.fn().mockResolvedValue({
+            buyerId,
+            id: orderId,
+            sellerId,
+          }),
+        },
+        orderFile: {
+          findFirst: vi.fn().mockResolvedValue({
+            id: "018f3b4c-9f88-7777-8000-000000000103",
+            orderId,
+            storageKey: `orders/${orderId}/chat/${buyerId}/attachment_123`,
+          }),
+        },
+      },
+    }) as unknown as MockDatabase;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({
+        signedURL: "/object/sign/order-files/orders/example/file.png",
+      })
+    );
+
+    const result = await getAttachmentUrl({
+      database: mockDb,
+      input: { attachmentId: "018f3b4c-9f88-7777-8000-000000000103" },
+      userId: buyerId,
+    });
+
+    expect(result.url).toContain(
+      "/storage/v1/object/sign/order-files/orders/example/file.png"
+    );
+    fetchMock.mockRestore();
   });
 
   it("allows Buyer of order to send message", async () => {

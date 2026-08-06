@@ -795,7 +795,11 @@ export async function getAttachmentUrl({
     });
   }
 
-  return { url: new URL(result.signedURL, env.SUPABASE_URL).toString() };
+  const signedPath = result.signedURL.startsWith("/storage/v1/")
+    ? result.signedURL
+    : `/storage/v1${result.signedURL}`;
+
+  return { url: new URL(signedPath, env.SUPABASE_URL).toString() };
 }
 
 export async function listMessages({
