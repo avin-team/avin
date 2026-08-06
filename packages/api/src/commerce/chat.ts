@@ -300,17 +300,19 @@ export async function sendMessage({
       attachments,
     };
   };
-  const transactionRunner = (
-    database as typeof database & {
-      transaction?: <Result>(
-        callback: (transaction: typeof db) => Promise<Result>
-      ) => Promise<Result>;
-    }
-  ).transaction;
+  const transactionCapableDatabase = database as typeof database & {
+    transaction?: <Result>(
+      callback: (transaction: typeof db) => Promise<Result>
+    ) => Promise<Result>;
+  };
 
-  return transactionRunner
-    ? await transactionRunner(insertMessageAndAttachments)
-    : await insertMessageAndAttachments(database);
+  if (transactionCapableDatabase.transaction) {
+    return await transactionCapableDatabase.transaction(
+      insertMessageAndAttachments
+    );
+  }
+
+  return await insertMessageAndAttachments(database);
 }
 
 export async function createAttachment({

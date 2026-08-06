@@ -141,6 +141,30 @@ describe("Order Chat Logic", () => {
     });
   });
 
+  /* eslint-disable promise/prefer-await-to-callbacks */
+  it("preserves the database receiver when using a transaction", async () => {
+    const mockDb = createMockDb() as unknown as MockDatabase & {
+      transaction: <Result>(
+        callback: (transaction: MockDatabase) => Promise<Result>
+      ) => Promise<Result>;
+    };
+    mockDb.transaction = vi.fn(function transaction<Result>(
+      callback: (transaction: MockDatabase) => Promise<Result>
+    ) {
+      expect(this).toBe(mockDb);
+      return callback(mockDb);
+    });
+
+    await expect(
+      sendMessage({
+        database: mockDb,
+        input: { content: "Hello seller", orderId },
+        userId: buyerId,
+      })
+    ).resolves.toMatchObject({ content: "Hello", senderRole: "buyer" });
+  });
+  /* eslint-enable promise/prefer-await-to-callbacks */
+
   it("rejects Banned seller from sending messages", async () => {
     const mockDb = createMockDb({
       query: {
