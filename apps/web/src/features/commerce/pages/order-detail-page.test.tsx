@@ -53,6 +53,9 @@ vi.mock("@/utils/orpc", () => ({
         createAttachment: {
           mutationOptions: () => ({}),
         },
+        discardAttachment: {
+          mutationOptions: () => ({}),
+        },
         getAttachmentUrl: {
           mutationOptions: () => ({}),
         },

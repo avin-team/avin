@@ -2,6 +2,7 @@
   "name": "@avin/api",
   "type": "module",
   "exports": {
+    "./commerce/chat": "./src/commerce/chat.ts",
     "./commerce/fulfillment": "./src/commerce/fulfillment.ts",
     "./commerce/orders": "./src/commerce/orders.ts",
     "./context": "./src/runtime/context.ts",

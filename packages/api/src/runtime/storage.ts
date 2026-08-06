@@ -29,8 +29,32 @@ export const SELLER_LOGO_CONTENT_TYPES = LISTING_IMAGE_CONTENT_TYPES;
 export const SELLER_BANNER_MAX_BYTES = SELLER_BRANDING_MAX_BYTES;
 export const SELLER_BANNER_CONTENT_TYPES = LISTING_IMAGE_CONTENT_TYPES;
 
-export const ORDER_CHAT_ATTACHMENT_MAX_BYTES = 50 * 1024 * 1024;
+export const ORDER_CHAT_ATTACHMENT_MAX_BYTES = 20 * 1024 * 1024;
 export const ORDER_CHAT_ATTACHMENT_MAX_COUNT = 5;
+export const ORDER_CHAT_ATTACHMENT_MAX_TOTAL_BYTES = 50 * 1024 * 1024;
+
+export const ORDER_CHAT_ATTACHMENT_CONTENT_TYPES = [
+  "application/msword",
+  "application/pdf",
+  "application/vnd.ms-excel",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/zip",
+  "image/gif",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "text/plain",
+] as const;
+
+export const isOrderChatAttachmentContentType = (
+  contentType: string
+): contentType is (typeof ORDER_CHAT_ATTACHMENT_CONTENT_TYPES)[number] =>
+  ORDER_CHAT_ATTACHMENT_CONTENT_TYPES.includes(
+    contentType as (typeof ORDER_CHAT_ATTACHMENT_CONTENT_TYPES)[number]
+  );
 
 type ListingImageContentType = (typeof LISTING_IMAGE_CONTENT_TYPES)[number];
 

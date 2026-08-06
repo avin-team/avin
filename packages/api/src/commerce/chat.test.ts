@@ -11,6 +11,7 @@ import {
   markChatRead,
   redactMessage,
   sendMessage,
+  createAttachment,
 } from "./chat";
 
 describe("Order Chat Logic", () => {
@@ -126,6 +127,90 @@ describe("Order Chat Logic", () => {
         userId: buyerId,
       })
     ).rejects.toThrow(ORPCError);
+  });
+
+  it("rejects messages whose attachment total exceeds 50 MB", async () => {
+    const mockDb = createMockDb({
+      query: {
+        dispute: { findFirst: vi.fn().mockResolvedValue(null) },
+        order: {
+          findFirst: vi.fn().mockResolvedValue({
+            buyerId,
+            id: orderId,
+            sellerId,
+          }),
+        },
+        orderFile: {
+          findMany: vi.fn().mockResolvedValue([
+            {
+              byteSize: 30 * 1024 * 1024,
+              id: "018f3b4c-9f88-7777-8000-000000000101",
+              orderId,
+              orderMessageId: null,
+              uploadedByUserId: buyerId,
+            },
+            {
+              byteSize: 21 * 1024 * 1024,
+              id: "018f3b4c-9f88-7777-8000-000000000102",
+              orderId,
+              orderMessageId: null,
+              uploadedByUserId: buyerId,
+            },
+          ]),
+        },
+        user: {
+          findFirst: vi.fn().mockResolvedValue({ banned: false, id: sellerId }),
+        },
+      },
+    }) as unknown as MockDatabase;
+
+    await expect(
+      sendMessage({
+        database: mockDb,
+        input: {
+          attachmentFileIds: [
+            "018f3b4c-9f88-7777-8000-000000000101",
+            "018f3b4c-9f88-7777-8000-000000000102",
+          ],
+          content: "",
+          orderId,
+        },
+        userId: buyerId,
+      })
+    ).rejects.toThrow("Message attachments must not exceed 50 MB in total");
+  });
+
+  it("rejects unsupported or oversized chat attachment metadata", async () => {
+    const mockDb = createMockDb() as unknown as MockDatabase;
+    const storageKey = `orders/${orderId}/chat/${buyerId}/attachment_123`;
+
+    await expect(
+      createAttachment({
+        database: mockDb,
+        input: {
+          byteSize: 100,
+          contentType: "application/x-msdownload",
+          fileName: "dangerous.exe",
+          orderId,
+          storageKey,
+        },
+        user: { id: buyerId, role: "BUYER" } as never,
+      })
+    ).rejects.toThrow("Unsupported order chat attachment type");
+
+    await expect(
+      createAttachment({
+        database: mockDb,
+        input: {
+          byteSize: 20 * 1024 * 1024 + 1,
+          contentType: "application/pdf",
+          fileName: "too-large.pdf",
+          orderId,
+          storageKey,
+        },
+        user: { id: buyerId, role: "BUYER" } as never,
+      })
+    ).rejects.toThrow("Order chat attachments must be 20 MB or smaller");
   });
 
   it("allows Buyer of order to send message", async () => {

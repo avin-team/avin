@@ -41,6 +41,7 @@ vi.mock("@/utils/orpc", () => ({
     commerce: {
       chat: {
         createAttachment: { mutationOptions: () => ({}) },
+        discardAttachment: { mutationOptions: () => ({}) },
         getAttachmentUrl: { mutationOptions: () => ({}) },
         getRealtimeToken: {
           queryOptions: () => ({ queryKey: ["realtime-token"] }),

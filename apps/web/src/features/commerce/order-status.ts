@@ -1,3 +1,5 @@
+import type { OrderItemStatus } from "@avin/api/commerce/orders";
+
 export type { OrderItemStatus } from "@avin/api/commerce/orders";
 
 export interface OrderWarrantyPolicy {

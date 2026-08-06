@@ -16,6 +16,7 @@ import {
 } from "./cart";
 import {
   createAttachment,
+  discardAttachment,
   getAttachmentUrl,
   getAfterMessages,
   getChatNotificationSummary,
@@ -55,7 +56,7 @@ const sendMessageInputSchema = z.object({
   orderId: z.uuid(),
 });
 const createAttachmentInputSchema = z.object({
-  byteSize: z.number().int().nonnegative().nullable().optional(),
+  byteSize: z.number().int().nonnegative(),
   contentType: z.string().trim().min(1).max(255),
   fileName: z.string().trim().min(1).max(255),
   orderId: z.uuid(),
@@ -151,6 +152,16 @@ export const commerceRouter = {
       .input(createAttachmentInputSchema)
       .handler(({ context, input }) =>
         createAttachment({
+          database: context.db,
+          input,
+          user: context.session.user,
+        })
+      ),
+
+    discardAttachment: protectedProcedure
+      .input(attachmentIdInputSchema)
+      .handler(({ context, input }) =>
+        discardAttachment({
           database: context.db,
           input,
           user: context.session.user,

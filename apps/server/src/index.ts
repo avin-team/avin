@@ -17,6 +17,7 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 
 import { startFulfillmentMaintenanceSchedule } from "./jobs/fulfillment-maintenance";
+import { startOrderChatAttachmentMaintenanceSchedule } from "./jobs/order-chat-attachment-maintenance";
 import { startSePayReconciliationSchedule } from "./jobs/sepay-reconciliation";
 import {
   createOrderChatAttachmentUploadRouter,
@@ -152,3 +153,4 @@ export default app;
 
 startSePayReconciliationSchedule();
 startFulfillmentMaintenanceSchedule();
+startOrderChatAttachmentMaintenanceSchedule();

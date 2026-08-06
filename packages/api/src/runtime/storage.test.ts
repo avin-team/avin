@@ -9,6 +9,9 @@ import {
   getManagedListingImageKeysToDelete,
   isOrderChatAttachmentKey,
   LISTING_IMAGE_MAX_BYTES,
+  ORDER_CHAT_ATTACHMENT_CONTENT_TYPES,
+  ORDER_CHAT_ATTACHMENT_MAX_BYTES,
+  ORDER_CHAT_ATTACHMENT_MAX_TOTAL_BYTES,
   SELLER_BANNER_MAX_BYTES,
   SELLER_LOGO_MAX_BYTES,
   PUBLIC_MEDIA_BUCKET,
@@ -23,6 +26,8 @@ const NEW_OBJECT_ID = "33333333-3333-4333-8333-333333333333";
 const BYTES_PER_MEGABYTE = 1024 * 1024;
 const EXPECTED_LISTING_IMAGE_MAX_BYTES = 10 * BYTES_PER_MEGABYTE;
 const EXPECTED_SELLER_BRANDING_MAX_BYTES = 5 * BYTES_PER_MEGABYTE;
+const EXPECTED_ORDER_CHAT_ATTACHMENT_MAX_BYTES = 20 * BYTES_PER_MEGABYTE;
+const EXPECTED_ORDER_CHAT_ATTACHMENT_MAX_TOTAL_BYTES = 50 * BYTES_PER_MEGABYTE;
 
 describe("listing image storage helpers", () => {
   it("allows larger listing images without changing seller branding limits", () => {
@@ -131,6 +136,29 @@ describe("seller banner storage helpers", () => {
 });
 
 describe("order chat attachment storage helpers", () => {
+  it("supports the agreed private chat media and document formats", () => {
+    expect(ORDER_CHAT_ATTACHMENT_CONTENT_TYPES).toEqual(
+      expect.arrayContaining([
+        "application/msword",
+        "application/pdf",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "image/gif",
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+      ])
+    );
+  });
+
+  it("limits each upload to 20 MB and each message to 50 MB", () => {
+    expect(ORDER_CHAT_ATTACHMENT_MAX_BYTES).toBe(
+      EXPECTED_ORDER_CHAT_ATTACHMENT_MAX_BYTES
+    );
+    expect(ORDER_CHAT_ATTACHMENT_MAX_TOTAL_BYTES).toBe(
+      EXPECTED_ORDER_CHAT_ATTACHMENT_MAX_TOTAL_BYTES
+    );
+  });
+
   it("creates and validates a key scoped to the Order participant", () => {
     const key = createOrderChatAttachmentKey(
       LISTING_ID,

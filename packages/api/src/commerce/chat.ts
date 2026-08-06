@@ -2,6 +2,9 @@
 
 import {
   isOrderChatAttachmentKey,
+  isOrderChatAttachmentContentType,
+  ORDER_CHAT_ATTACHMENT_MAX_BYTES,
+  ORDER_CHAT_ATTACHMENT_MAX_TOTAL_BYTES,
   ORDER_FILES_BUCKET,
 } from "@avin/api/storage";
 import { generateUuidV7 } from "@avin/db";
@@ -26,6 +29,8 @@ import {
   gt,
   inArray,
   isNull,
+  like,
+  lte,
   lt,
   ne,
   or,
@@ -112,7 +117,7 @@ export interface GetNotificationRealtimeTokenOptions {
 }
 
 export interface CreateAttachmentInput {
-  byteSize?: number | null;
+  byteSize: number;
   contentType: string;
   fileName: string;
   orderId: string;
@@ -130,6 +135,18 @@ export interface GetAttachmentUrlOptions {
   input: { attachmentId: string };
   userId: string;
   userRole?: string | null;
+}
+
+export interface DiscardAttachmentOptions {
+  database: typeof db;
+  input: { attachmentId: string };
+  user: MarketplaceSession["user"];
+}
+
+export interface CleanupOrderChatDraftAttachmentsOptions {
+  database: typeof db;
+  deleteObject?: (storageKey: string) => Promise<void>;
+  now?: Date;
 }
 
 export interface ListConversationsOptions {
@@ -459,13 +476,24 @@ export async function sendMessage({
       where: and(
         inArray(orderFile.id, attachmentFileIds),
         eq(orderFile.orderId, input.orderId),
-        eq(orderFile.uploadedByUserId, userId)
+        eq(orderFile.uploadedByUserId, userId),
+        isNull(orderFile.orderMessageId)
       ),
     });
 
     if (files.length !== attachmentFileIds.length) {
       throw new ORPCError("BAD_REQUEST", {
         message: "One or more attachment files are invalid or unauthorized",
+      });
+    }
+
+    const attachmentTotalBytes = files.reduce(
+      (total, file) => total + (file.byteSize ?? 0),
+      0
+    );
+    if (attachmentTotalBytes > ORDER_CHAT_ATTACHMENT_MAX_TOTAL_BYTES) {
+      throw new ORPCError("BAD_REQUEST", {
+        message: "Message attachments must not exceed 50 MB in total",
       });
     }
   }
@@ -491,10 +519,21 @@ export async function sendMessage({
     }
 
     if (attachmentFileIds.length > 0) {
-      await transaction
+      const linkedAttachments = await transaction
         .update(orderFile)
         .set({ orderMessageId: messageId })
-        .where(inArray(orderFile.id, attachmentFileIds));
+        .where(
+          and(
+            inArray(orderFile.id, attachmentFileIds),
+            isNull(orderFile.orderMessageId)
+          )
+        )
+        .returning({ id: orderFile.id });
+      if (linkedAttachments.length !== attachmentFileIds.length) {
+        throw new ORPCError("CONFLICT", {
+          message: "One or more attachments were already sent or removed",
+        });
+      }
     }
 
     const attachments = attachmentFileIds.length
@@ -551,10 +590,22 @@ export async function createAttachment({
     });
   }
 
+  if (!isOrderChatAttachmentContentType(input.contentType)) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Unsupported order chat attachment type",
+    });
+  }
+
+  if (input.byteSize > ORDER_CHAT_ATTACHMENT_MAX_BYTES) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Order chat attachments must be 20 MB or smaller",
+    });
+  }
+
   const [attachment] = await database
     .insert(orderFile)
     .values({
-      byteSize: input.byteSize ?? null,
+      byteSize: input.byteSize,
       contentType: input.contentType,
       fileName: input.fileName,
       orderId: input.orderId,
@@ -570,6 +621,119 @@ export async function createAttachment({
   }
 
   return attachment;
+}
+
+const deleteOrderChatAttachmentObject = async (
+  storageKey: string
+): Promise<void> => {
+  const { env } = await import("@avin/env/server");
+  const response = await fetch(
+    new URL(`/storage/v1/object/${ORDER_FILES_BUCKET}`, env.SUPABASE_URL),
+    {
+      body: JSON.stringify({ prefixes: [storageKey] }),
+      headers: {
+        Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
+        "Content-Type": "application/json",
+        apikey: env.SUPABASE_SECRET_KEY,
+      },
+      method: "DELETE",
+    }
+  );
+
+  if (!response.ok) {
+    throw new ORPCError("INTERNAL_SERVER_ERROR", {
+      message: "Unable to delete attachment upload",
+    });
+  }
+};
+
+export async function discardAttachment({
+  database,
+  input,
+  user: actor,
+}: DiscardAttachmentOptions): Promise<void> {
+  const attachment = await database.query.orderFile.findFirst({
+    where: eq(orderFile.id, input.attachmentId),
+  });
+  if (!attachment) {
+    throw new ORPCError("NOT_FOUND", { message: "Attachment not found" });
+  }
+
+  const existingOrder = await database.query.order.findFirst({
+    where: eq(order.id, attachment.orderId),
+  });
+  if (!existingOrder) {
+    throw new ORPCError("NOT_FOUND", { message: "Order not found" });
+  }
+
+  await resolveSenderRoleAndType({
+    buyerId: existingOrder.buyerId,
+    database,
+    orderId: attachment.orderId,
+    sellerId: existingOrder.sellerId,
+    userId: actor.id,
+    userRole: actor.role,
+  });
+
+  if (attachment.uploadedByUserId !== actor.id || attachment.orderMessageId) {
+    throw new ORPCError("FORBIDDEN", {
+      message: "Only your unsent attachment can be removed",
+    });
+  }
+
+  const [discardedAttachment] = await database
+    .delete(orderFile)
+    .where(
+      and(eq(orderFile.id, attachment.id), isNull(orderFile.orderMessageId))
+    )
+    .returning();
+  if (!discardedAttachment) {
+    throw new ORPCError("CONFLICT", {
+      message: "Attachment was sent before it could be removed",
+    });
+  }
+
+  await deleteOrderChatAttachmentObject(discardedAttachment.storageKey);
+}
+
+const ORDER_CHAT_DRAFT_ATTACHMENT_RETENTION_MS = 24 * 60 * 60 * 1000;
+const ORDER_CHAT_DRAFT_ATTACHMENT_CLEANUP_LIMIT = 100;
+
+export async function cleanupOrderChatDraftAttachments({
+  database,
+  deleteObject = deleteOrderChatAttachmentObject,
+  now = new Date(),
+}: CleanupOrderChatDraftAttachmentsOptions): Promise<number> {
+  const expiry = new Date(
+    now.getTime() - ORDER_CHAT_DRAFT_ATTACHMENT_RETENTION_MS
+  );
+  const attachments = await database.query.orderFile.findMany({
+    limit: ORDER_CHAT_DRAFT_ATTACHMENT_CLEANUP_LIMIT,
+    where: and(
+      isNull(orderFile.orderMessageId),
+      lte(orderFile.createdAt, expiry),
+      like(orderFile.storageKey, "orders/%/chat/%")
+    ),
+  });
+
+  const deletedAttachments = await Promise.all(
+    attachments.map(async (attachment) => {
+      const [deletedAttachment] = await database
+        .delete(orderFile)
+        .where(
+          and(eq(orderFile.id, attachment.id), isNull(orderFile.orderMessageId))
+        )
+        .returning();
+      if (!deletedAttachment) {
+        return false;
+      }
+
+      await deleteObject(deletedAttachment.storageKey);
+      return true;
+    })
+  );
+
+  return deletedAttachments.filter(Boolean).length;
 }
 
 export async function getAttachmentUrl({

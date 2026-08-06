@@ -1,7 +1,14 @@
 /* eslint-disable react-doctor/effect-needs-cleanup */
 
 import type { OrderItemStatus } from "@avin/api/commerce/orders";
-import { ORDER_CHAT_ATTACHMENT_UPLOAD_ROUTE } from "@avin/api/storage";
+import {
+  isOrderChatAttachmentContentType,
+  ORDER_CHAT_ATTACHMENT_CONTENT_TYPES,
+  ORDER_CHAT_ATTACHMENT_MAX_BYTES,
+  ORDER_CHAT_ATTACHMENT_MAX_COUNT,
+  ORDER_CHAT_ATTACHMENT_MAX_TOTAL_BYTES,
+  ORDER_CHAT_ATTACHMENT_UPLOAD_ROUTE,
+} from "@avin/api/storage";
 import { env } from "@avin/env/web";
 import {
   Avatar,
@@ -30,8 +37,10 @@ import { cn } from "@avin/ui/lib/utils";
 import { useUploadFiles } from "@better-upload/client";
 import {
   ArrowUpRightIcon,
+  FileIcon,
   PaperclipIcon,
   PaperPlaneRightIcon,
+  TrashIcon,
 } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -44,6 +53,9 @@ import {
 } from "@/features/commerce/order-status";
 import { orpc } from "@/utils/orpc";
 import { supabasePublic } from "@/utils/supabase";
+
+import { formatOrderChatAttachmentSize } from "../order-chat-attachment-utils";
+import { OrderChatMessageAttachments } from "./order-chat-attachments";
 
 interface OrderChatPanelProps {
   heightClass?: string;
@@ -58,8 +70,14 @@ interface OrderChatPanelProps {
 }
 
 interface AttachmentDraft {
+  byteSize: number;
   id: string;
   name: string;
+}
+
+interface FailedAttachmentDraft {
+  file: File;
+  message: string;
 }
 
 const TYPING_BROADCAST_INTERVAL_MS = 500;
@@ -221,6 +239,8 @@ const OrderChatHeader = ({
   </div>
 );
 
+// Attachment upload and realtime chat state intentionally share this component.
+// eslint-disable-next-line complexity
 export const OrderChatPanel = ({
   heightClass = "h-110",
   orderId,
@@ -245,6 +265,9 @@ export const OrderChatPanel = ({
   > | null>(null);
   const [attachmentDrafts, setAttachmentDrafts] = React.useState<
     AttachmentDraft[]
+  >([]);
+  const [failedAttachmentDrafts, setFailedAttachmentDrafts] = React.useState<
+    FailedAttachmentDraft[]
   >([]);
   const [isOtherParticipantPresent, setIsOtherParticipantPresent] =
     React.useState(false);
@@ -371,6 +394,7 @@ export const OrderChatPanel = ({
       onSuccess: () => {
         setInputText("");
         setAttachmentDrafts([]);
+        setFailedAttachmentDrafts([]);
         void messagesQuery.refetch();
       },
     })
@@ -378,8 +402,13 @@ export const OrderChatPanel = ({
   const createAttachmentMutation = useMutation(
     orpc.commerce.chat.createAttachment.mutationOptions()
   );
-  const attachmentUrlMutation = useMutation(
-    orpc.commerce.chat.getAttachmentUrl.mutationOptions()
+  const discardAttachmentMutation = useMutation(
+    orpc.commerce.chat.discardAttachment.mutationOptions()
+  );
+  const { mutateAsync: getAttachmentUrl } = useMutation(
+    orpc.commerce.chat.getAttachmentUrl.mutationOptions({
+      onError: () => toast.error("Không thể mở tệp đính kèm"),
+    })
   );
   const realtimeTokenQuery = useQuery(
     orpc.commerce.chat.getRealtimeToken.queryOptions({ input: { orderId } })
@@ -507,6 +536,26 @@ export const OrderChatPanel = ({
     broadcastTyping(Boolean(nextValue.trim()));
   };
 
+  const createAttachmentDrafts = (
+    uploadedFiles: { objectInfo: { key: string }; raw: File }[]
+  ): Promise<AttachmentDraft[]> =>
+    Promise.all(
+      uploadedFiles.map(async (uploadedFile) => {
+        const attachment = await createAttachmentMutation.mutateAsync({
+          byteSize: uploadedFile.raw.size,
+          contentType: uploadedFile.raw.type || "application/octet-stream",
+          fileName: uploadedFile.raw.name,
+          orderId,
+          storageKey: uploadedFile.objectInfo.key,
+        });
+        return {
+          byteSize: uploadedFile.raw.size,
+          id: attachment.id,
+          name: uploadedFile.raw.name,
+        };
+      })
+    );
+
   const handleFilesSelected = async (
     event: React.ChangeEvent<HTMLInputElement>
   ): Promise<void> => {
@@ -516,27 +565,51 @@ export const OrderChatPanel = ({
       return;
     }
 
+    if (
+      attachmentDrafts.length + files.length >
+      ORDER_CHAT_ATTACHMENT_MAX_COUNT
+    ) {
+      toast.error("Mỗi tin nhắn chỉ được đính kèm tối đa 5 tệp");
+      return;
+    }
+
+    const invalidFile = files.find(
+      (file) =>
+        !isOrderChatAttachmentContentType(file.type) ||
+        file.size > ORDER_CHAT_ATTACHMENT_MAX_BYTES
+    );
+    if (invalidFile) {
+      toast.error(`Tệp không hợp lệ hoặc quá 20 MB: ${invalidFile.name}`);
+      return;
+    }
+
+    const totalSize =
+      attachmentDrafts.reduce(
+        (total, attachment) => total + attachment.byteSize,
+        0
+      ) + files.reduce((total, file) => total + file.size, 0);
+    if (totalSize > ORDER_CHAT_ATTACHMENT_MAX_TOTAL_BYTES) {
+      toast.error("Tổng tệp đính kèm không được quá 50 MB");
+      return;
+    }
+
     try {
       const result = await attachmentUpload.uploadAsync(files, {
         metadata: { orderId },
       });
-      const attachments = await Promise.all(
-        result.files.map(async (uploadedFile) => {
-          const attachment = await createAttachmentMutation.mutateAsync({
-            byteSize: uploadedFile.raw.size,
-            contentType: uploadedFile.raw.type || "application/octet-stream",
-            fileName: uploadedFile.raw.name,
-            orderId,
-            storageKey: uploadedFile.objectInfo.key,
-          });
-          return { id: attachment.id, name: uploadedFile.raw.name };
-        })
-      );
+      const attachments = await createAttachmentDrafts(result.files);
       setAttachmentDrafts((currentAttachments) => [
         ...currentAttachments,
         ...attachments,
       ]);
       if (result.failedFiles.length > 0) {
+        setFailedAttachmentDrafts((current) => [
+          ...current,
+          ...result.failedFiles.map((file) => ({
+            file: file.raw,
+            message: file.error.message,
+          })),
+        ]);
         toast.error("Một số tệp đính kèm chưa tải lên được");
       }
     } catch {
@@ -544,14 +617,59 @@ export const OrderChatPanel = ({
     }
   };
 
-  const handleAttachmentOpen = async (attachmentId: string): Promise<void> => {
+  const removeAttachmentDraft = async (
+    attachment: AttachmentDraft
+  ): Promise<void> => {
     try {
-      const { url } = await attachmentUrlMutation.mutateAsync({ attachmentId });
-      window.open(url, "_blank", "noopener,noreferrer");
+      await discardAttachmentMutation.mutateAsync({
+        attachmentId: attachment.id,
+      });
+      setAttachmentDrafts((current) =>
+        current.filter((draft) => draft.id !== attachment.id)
+      );
     } catch {
-      toast.error("Không thể mở tệp đính kèm");
+      toast.error("Không thể xoá tệp đính kèm");
     }
   };
+
+  const retryFailedAttachment = async (
+    failedAttachment: FailedAttachmentDraft
+  ): Promise<void> => {
+    setFailedAttachmentDrafts((current) =>
+      current.filter((draft) => draft !== failedAttachment)
+    );
+
+    try {
+      const result = await attachmentUpload.uploadAsync(
+        [failedAttachment.file],
+        {
+          metadata: { orderId },
+        }
+      );
+      const attachments = await createAttachmentDrafts(result.files);
+      setAttachmentDrafts((current) => [...current, ...attachments]);
+
+      if (result.failedFiles.length > 0) {
+        setFailedAttachmentDrafts((current) => [
+          ...current,
+          ...result.failedFiles.map((file) => ({
+            file: file.raw,
+            message: file.error.message,
+          })),
+        ]);
+      }
+    } catch {
+      setFailedAttachmentDrafts((current) => [...current, failedAttachment]);
+    }
+  };
+
+  const loadAttachmentUrl = React.useCallback(
+    async (attachmentId: string): Promise<string> => {
+      const { url } = await getAttachmentUrl({ attachmentId });
+      return url;
+    },
+    [getAttachmentUrl]
+  );
 
   const displayMessages = React.useMemo(() => {
     if (!rawMessages) {
@@ -623,28 +741,19 @@ export const OrderChatPanel = ({
                         </MessageAvatar>
                       )}
                       <MessageContent>
-                        <Bubble
-                          variant={getBubbleVariant(msg.senderRole)}
-                          align={isBuyer ? "end" : "start"}
-                        >
-                          <BubbleContent>{msg.content}</BubbleContent>
-                        </Bubble>
+                        {msg.content ? (
+                          <Bubble
+                            variant={getBubbleVariant(msg.senderRole)}
+                            align={isBuyer ? "end" : "start"}
+                          >
+                            <BubbleContent>{msg.content}</BubbleContent>
+                          </Bubble>
+                        ) : null}
                         {msg.attachments.length > 0 && (
-                          <ul className="mt-1 space-y-1 text-xs text-muted-foreground">
-                            {msg.attachments.map((attachment) => (
-                              <li key={attachment.id}>
-                                <button
-                                  className="hover:underline"
-                                  onClick={() =>
-                                    void handleAttachmentOpen(attachment.id)
-                                  }
-                                  type="button"
-                                >
-                                  {attachment.fileName}
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
+                          <OrderChatMessageAttachments
+                            attachments={msg.attachments}
+                            getAttachmentUrl={loadAttachmentUrl}
+                          />
                         )}
                         <MessageFooter className="text-[10px] text-muted-foreground">
                           {new Date(msg.createdAt).toLocaleTimeString([], {
@@ -692,6 +801,7 @@ export const OrderChatPanel = ({
         className="flex items-center gap-2 px-3 py-2.5 border-t border-border/60 bg-background/50 shrink-0"
       >
         <input
+          accept={ORDER_CHAT_ATTACHMENT_CONTENT_TYPES.join(",")}
           aria-label="Chọn tệp đính kèm"
           className="sr-only"
           multiple
@@ -705,7 +815,9 @@ export const OrderChatPanel = ({
           variant="ghost"
           aria-label="Attach file"
           disabled={
-            attachmentUpload.isPending || createAttachmentMutation.isPending
+            attachmentUpload.isPending ||
+            createAttachmentMutation.isPending ||
+            discardAttachmentMutation.isPending
           }
           onClick={() => attachmentInputRef.current?.click()}
           className="shrink-0 text-muted-foreground"
@@ -727,6 +839,8 @@ export const OrderChatPanel = ({
           aria-label="Send"
           disabled={
             sendMessageMutation.isPending ||
+            attachmentUpload.isPending ||
+            createAttachmentMutation.isPending ||
             (!inputText.trim() && attachmentDrafts.length === 0)
           }
           className="shrink-0 text-primary hover:bg-primary/10"
@@ -734,11 +848,72 @@ export const OrderChatPanel = ({
           <PaperPlaneRightIcon className="h-3.5 w-3.5" />
         </Button>
       </form>
-      {attachmentDrafts.length > 0 && (
-        <p className="px-3 pb-2 text-xs text-muted-foreground">
-          Đính kèm:{" "}
-          {attachmentDrafts.map((attachment) => attachment.name).join(", ")}
-        </p>
+      {(attachmentUpload.isPending ||
+        attachmentDrafts.length > 0 ||
+        failedAttachmentDrafts.length > 0) && (
+        <div className="border-t border-border/40 px-3 py-2">
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {attachmentUpload.isPending &&
+              attachmentUpload.progresses.map((upload) => (
+                <div
+                  className="w-36 shrink-0 rounded-xl border border-border/60 bg-muted/30 px-2 py-1.5 text-xs"
+                  key={upload.objectInfo.key}
+                >
+                  <p className="truncate font-medium">{upload.name}</p>
+                  <p className="text-muted-foreground">
+                    Đang tải {Math.round(upload.progress * 100)}%
+                  </p>
+                </div>
+              ))}
+            {attachmentDrafts.map((attachment) => (
+              <div
+                className="flex w-44 shrink-0 items-center gap-2 rounded-xl border border-border/60 bg-muted/30 px-2 py-1.5 text-xs"
+                key={attachment.id}
+              >
+                <FileIcon aria-hidden="true" className="size-4 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{attachment.name}</p>
+                  <p className="text-muted-foreground">
+                    {formatOrderChatAttachmentSize(attachment.byteSize)}
+                  </p>
+                </div>
+                <Button
+                  aria-label={`Xoá tệp ${attachment.name}`}
+                  disabled={discardAttachmentMutation.isPending}
+                  onClick={() => void removeAttachmentDraft(attachment)}
+                  size="icon-xs"
+                  type="button"
+                  variant="ghost"
+                >
+                  <TrashIcon aria-hidden="true" />
+                </Button>
+              </div>
+            ))}
+            {failedAttachmentDrafts.map((failedAttachment) => (
+              <div
+                className="flex w-52 shrink-0 items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-2 py-1.5 text-xs"
+                key={`${failedAttachment.file.name}-${failedAttachment.file.lastModified}`}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">
+                    {failedAttachment.file.name}
+                  </p>
+                  <p className="truncate text-destructive">
+                    {failedAttachment.message}
+                  </p>
+                </div>
+                <Button
+                  onClick={() => void retryFailedAttachment(failedAttachment)}
+                  size="xs"
+                  type="button"
+                  variant="ghost"
+                >
+                  Thử lại
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );

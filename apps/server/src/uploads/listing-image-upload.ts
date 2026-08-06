@@ -13,6 +13,7 @@ import {
   LISTING_IMAGE_UPLOAD_ROUTE,
   ORDER_CHAT_ATTACHMENT_MAX_BYTES,
   ORDER_CHAT_ATTACHMENT_MAX_COUNT,
+  ORDER_CHAT_ATTACHMENT_CONTENT_TYPES,
   ORDER_CHAT_ATTACHMENT_UPLOAD_ROUTE,
   ORDER_FILES_BUCKET,
   PUBLIC_MEDIA_BUCKET,
@@ -36,15 +37,6 @@ const listingImageClientMetadataSchema = z.object({
 const sellerLogoClientMetadataSchema = z.object({});
 const sellerBannerClientMetadataSchema = z.object({});
 const orderChatAttachmentClientMetadataSchema = z.object({ orderId: z.uuid() });
-
-const ORDER_CHAT_ATTACHMENT_CONTENT_TYPES = [
-  "application/pdf",
-  "application/zip",
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "text/plain",
-] as const;
 
 export const createListingImageUploadRouter = (
   client: Router["client"]
