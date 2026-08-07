@@ -225,7 +225,10 @@ export const ChatPage = () => {
                         variant="outline"
                       >
                         {getOrderItemStatusLabel(
-                          conversation.orderStatus as OrderItemStatus
+                          conversation.orderStatus as OrderItemStatus,
+                          conversation.participantRole === "seller"
+                            ? "buyer"
+                            : "seller"
                         )}
                       </Badge>
                       {conversation.lastMessage ? (
@@ -301,6 +304,11 @@ export const ChatPage = () => {
                 }
                 serviceTitle={selectedConversation.service.title}
                 showOrderHeaderLink
+                viewerRole={
+                  selectedConversation.participantRole === "seller"
+                    ? "buyer"
+                    : "seller"
+                }
               />
             </div>
           ) : (

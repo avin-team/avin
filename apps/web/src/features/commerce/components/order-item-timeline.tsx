@@ -35,30 +35,31 @@ const ACTOR_LABELS: Record<
   OrderItemTimelineView["events"][number]["actorType"],
   string
 > = {
-  ADMIN: "Admin",
+  ADMIN: "Quản trị viên",
   BUYER: "Người mua",
   SELLER: "Người bán",
   SYSTEM: "Hệ thống",
 };
 
 const getTimelineEventTitle = (
-  event: OrderItemTimelineView["events"][number]
+  event: OrderItemTimelineView["events"][number],
+  viewerRole?: "buyer" | "seller"
 ): string => {
   if (event.artifactType === "DISPUTE_EVIDENCE") {
-    return "Bổ sung bằng chứng Dispute";
+    return "Bổ sung bằng chứng khiếu nại";
   }
   if (event.reason === "Seller response deadline expired") {
-    return "Hết hạn phản hồi Dispute";
+    return "Người bán quá hạn phản hồi khiếu nại";
   }
   if (event.reason === "Admin decision deadline expired") {
-    return "Dispute quá hạn xử lý Admin";
+    return "Quá hạn xử lý từ Quản trị viên";
   }
   if (
     event.oldStatus === "DISPUTED" &&
     event.actorType === "BUYER" &&
     event.newStatus !== "DISPUTED"
   ) {
-    return "Buyer hủy Dispute";
+    return "Người mua hủy khiếu nại";
   }
 
   switch (event.newStatus) {
@@ -92,20 +93,33 @@ const getTimelineEventTitle = (
       return "Đã hoàn tiền";
     }
     case "DISPUTED": {
-      return "Mở tranh chấp (Dispute)";
+      return "Mở khiếu nại";
     }
     default: {
-      return getOrderItemStatusLabel(event.newStatus);
+      return getOrderItemStatusLabel(event.newStatus, viewerRole);
     }
   }
 };
 
-const formatEventReason = (reason: string): string => {
-  if (reason === "Checkout created OrderItem") {
-    return "Đơn hàng được khởi tạo thành công qua Checkout.";
-  }
-  return reason;
+const EVENT_REASON_LABELS: Record<string, string> = {
+  "Admin decision deadline expired":
+    "Hết thời hạn xử lý khiếu nại của Quản trị viên.",
+  "Buyer cancelled before Seller fulfillment":
+    "Người mua đã hủy đơn hàng trước khi người bán thực hiện.",
+  "Buyer confirmed delivery": "Người mua đã xác nhận nhận hàng thành công.",
+  "Buyer review window expired": "Hết hạn thời gian nghiệm thu bàn giao.",
+  "Checkout created OrderItem": "Đơn hàng đã được khởi tạo thành công.",
+  "Seller account is banned": "Đơn hàng bị hủy do tài khoản người bán bị khóa.",
+  "Seller response deadline expired":
+    "Người bán đã quá hạn gửi phản hồi khiếu nại.",
+  "Seller started fulfillment": "Người bán đã bắt đầu xử lý đơn hàng.",
+  "Seller submitted delivery": "Người bán đã gửi thông tin bàn giao.",
+  "Seller submitted dispute evidence": "Người bán đã gửi bổ sung bằng chứng.",
+  "Warranty period expired": "Thời hạn bảo hành đã kết thúc.",
 };
+
+const formatEventReason = (reason: string): string =>
+  EVENT_REASON_LABELS[reason] ?? reason;
 
 const EvidenceFile = ({
   file,
@@ -166,7 +180,8 @@ const DisputeEvidenceFile = ({
   return (
     <li className="flex min-w-0 items-center justify-between gap-2 rounded-xl bg-muted/50 px-3 py-2 text-sm">
       <span className="min-w-0 truncate">
-        {file.fileName} · {file.submitterRole === "BUYER" ? "Buyer" : "Seller"}
+        {file.fileName} ·{" "}
+        {file.submitterRole === "BUYER" ? "Người mua" : "Người bán"}
         {file.submittedLate ? " · Nộp trễ" : ""}
       </span>
       <Button
@@ -184,8 +199,10 @@ const DisputeEvidenceFile = ({
 
 export const OrderItemTimeline = ({
   timeline,
+  viewerRole,
 }: {
   timeline: OrderItemTimelineView;
+  viewerRole?: "buyer" | "seller";
 }) => (
   <div className="flex flex-col gap-4">
     <div className="grid gap-3 sm:grid-cols-3">
@@ -198,7 +215,7 @@ export const OrderItemTimeline = ({
           )}
           variant={getOrderItemStatusVariant(timeline.current.status)}
         >
-          {getOrderItemStatusLabel(timeline.current.status)}
+          {getOrderItemStatusLabel(timeline.current.status, viewerRole)}
         </Badge>
       </div>
       <div className="rounded-2xl border border-border/60 bg-muted/20 p-3">
@@ -213,12 +230,18 @@ export const OrderItemTimeline = ({
       <div className="rounded-2xl border border-border/60 bg-muted/20 p-3">
         <p className="flex items-center gap-1 text-xs text-muted-foreground">
           <ShieldCheckIcon aria-hidden="true" />
-          Hạn review / bảo hành
+          Hạn kiểm tra & bảo hành
         </p>
         <p className="mt-2 text-sm font-medium">
           {timeline.current.status === "DELIVERED"
-            ? formatOrderDeadline(timeline.current.deliveryReviewDeadlineAt)
-            : formatOrderDeadline(timeline.current.warrantyExpiresAt)}
+            ? formatOrderDeadline(
+                timeline.current.deliveryReviewDeadlineAt,
+                "Chờ bàn giao"
+              )
+            : formatOrderDeadline(
+                timeline.current.warrantyExpiresAt,
+                "Chờ kích hoạt"
+              )}
         </p>
       </div>
     </div>
@@ -228,7 +251,7 @@ export const OrderItemTimeline = ({
         <CardTitle className="text-base">Chính sách bảo hành</CardTitle>
         <CardDescription>
           {isNoWarrantyPolicy(timeline.current.warrantyPolicy)
-            ? "Không có bảo hành. Buyer vẫn có 48 giờ review sau bàn giao."
+            ? "Không có bảo hành. Người mua có 48 giờ kiểm tra sau khi nhận bàn giao."
             : `${getWarrantyPolicyLabel(timeline.current.warrantyPolicy)} kể từ khi kích hoạt bảo hành.`}
         </CardDescription>
       </CardHeader>
@@ -284,7 +307,7 @@ export const OrderItemTimeline = ({
             </ul>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Không có file hoặc liên kết đính kèm.
+              Không có tệp đính kèm.
             </p>
           )}
         </CardContent>
@@ -294,9 +317,9 @@ export const OrderItemTimeline = ({
     {timeline.dispute ? (
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Bằng chứng Dispute</CardTitle>
+          <CardTitle className="text-base">Bằng chứng khiếu nại</CardTitle>
           <CardDescription>
-            Hạn Seller phản hồi:{" "}
+            Hạn người bán phản hồi:{" "}
             {formatOrderDeadline(timeline.dispute.responseDeadlineAt)}
           </CardDescription>
         </CardHeader>
@@ -325,7 +348,7 @@ export const OrderItemTimeline = ({
 
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Nhật ký tiến độ (Timeline)</CardTitle>
+        <CardTitle className="text-base">Lịch sử tiến độ đơn hàng</CardTitle>
       </CardHeader>
       <CardContent>
         <ol className="flex flex-col gap-4">
@@ -342,7 +365,7 @@ export const OrderItemTimeline = ({
               <div className="min-w-0 flex-1 pb-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-semibold text-foreground">
-                    {getTimelineEventTitle(event)}
+                    {getTimelineEventTitle(event, viewerRole)}
                   </p>
                   <Badge
                     className={getOrderItemStatusColorClassName(
@@ -350,7 +373,7 @@ export const OrderItemTimeline = ({
                     )}
                     variant={getOrderItemStatusVariant(event.newStatus)}
                   >
-                    {getOrderItemStatusLabel(event.newStatus)}
+                    {getOrderItemStatusLabel(event.newStatus, viewerRole)}
                   </Badge>
                   <span className="text-xs text-muted-foreground">
                     • {ACTOR_LABELS[event.actorType]}

@@ -66,6 +66,7 @@ const FILE_NAME_MAX_LENGTH = 255;
 const MAX_ADMIN_NOTIFICATION_RECIPIENTS = 100;
 const MAX_BANNED_SELLER_CANCELLATIONS = 100;
 const MAX_DUE_DELIVERY_REVIEWS = 100;
+const MAX_DUE_WARRANTY_EXPIRIES = 100;
 const REASON_MAX_LENGTH = 5000;
 const STORAGE_KEY_MAX_LENGTH = 512;
 const TRANSACTION_REFERENCE_SUFFIX_LENGTH = 12;
@@ -1308,6 +1309,51 @@ export const expireDeliveryReviews = async ({
         actorType: "SYSTEM",
         command: { type: "EXPIRE_DELIVERY_REVIEW" },
         commandKey: `delivery-review-timeout:${item.id}`,
+        database,
+        itemId: item.id,
+        now,
+      });
+      expiredItemIds.push(item.id);
+    } catch (error) {
+      if (error instanceof ORPCError && error.code === "CONFLICT") {
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  return { expiredItemIds };
+};
+
+export const expireWarranties = async ({
+  database = db,
+  limit = MAX_DUE_WARRANTY_EXPIRIES,
+  now = new Date(),
+}: {
+  database?: typeof db;
+  limit?: number;
+  now?: Date;
+}): Promise<{ expiredItemIds: string[] }> => {
+  const dueItems = await database
+    .select({ id: orderItem.id })
+    .from(orderItem)
+    .where(
+      and(
+        eq(orderItem.status, "IN_WARRANTY"),
+        lte(orderItem.warrantyExpiresAt, now)
+      )
+    )
+    .orderBy(asc(orderItem.warrantyExpiresAt), asc(orderItem.id))
+    .limit(limit);
+
+  const expiredItemIds: string[] = [];
+  for (const item of dueItems) {
+    try {
+      await executeTransition({
+        actorId: null,
+        actorType: "SYSTEM",
+        command: { type: "EXPIRE_WARRANTY" },
+        commandKey: `warranty-timeout:${item.id}`,
         database,
         itemId: item.id,
         now,

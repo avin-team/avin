@@ -287,7 +287,7 @@ export const BuyerOrderItemCard = ({
               {item.listing.title}
             </CardTitle>
             <CardDescription className="mt-1">
-              OrderItem {item.id.slice(0, 8)} · {formatVND(item.priceAmount)}
+              Mã chi tiết {item.id.slice(0, 8)} · {formatVND(item.priceAmount)}
             </CardDescription>
           </div>
           <Badge
@@ -301,21 +301,21 @@ export const BuyerOrderItemCard = ({
       <CardContent className="flex flex-col gap-4">
         <div className="grid gap-3 text-sm sm:grid-cols-3">
           <div>
-            <p className="text-xs text-muted-foreground">Hạn xử lý</p>
+            <p className="text-xs text-muted-foreground">Hạn xử lý đơn</p>
             <p className="mt-1 font-medium">
               {formatOrderDeadline(processingDeadlineAt)}
             </p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Review bàn giao</p>
+            <p className="text-xs text-muted-foreground">Hạn nghiệm thu</p>
             <p className="mt-1 font-medium">
-              {formatOrderDeadline(deliveryReviewDeadlineAt)}
+              {formatOrderDeadline(deliveryReviewDeadlineAt, "Chờ bàn giao")}
             </p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Warranty</p>
+            <p className="text-xs text-muted-foreground">Bảo hành</p>
             <p className="mt-1 font-medium">
-              {getWarrantyPolicyLabel(item.warrantyPolicy)} · Escrow{" "}
+              {getWarrantyPolicyLabel(item.warrantyPolicy)} · Tiền bảo đảm{" "}
               {formatVND(item.escrowHold.amount)}
             </p>
           </div>
@@ -330,7 +330,7 @@ export const BuyerOrderItemCard = ({
               <CheckCircleIcon aria-hidden="true" />
               {confirmMutation.isPending
                 ? "Đang xác nhận…"
-                : "Xác nhận đã nhận"}
+                : "Xác nhận đã nhận hàng"}
             </Button>
           ) : null}
           {canCancel ? (
@@ -340,7 +340,7 @@ export const BuyerOrderItemCard = ({
               variant="outline"
             >
               <XCircleIcon aria-hidden="true" />
-              Hủy trước khi Seller bắt đầu
+              Hủy đơn (Chưa xử lý)
             </Button>
           ) : null}
           {canDispute ? (
@@ -349,7 +349,7 @@ export const BuyerOrderItemCard = ({
               variant="outline"
             >
               <WarningCircleIcon aria-hidden="true" />
-              {disputeOpen ? "Đóng Dispute" : "Mở Dispute"}
+              {disputeOpen ? "Thu gọn khiếu nại" : "Mở khiếu nại"}
             </Button>
           ) : null}
           {canCancelDispute ? (
@@ -358,7 +358,7 @@ export const BuyerOrderItemCard = ({
               onClick={() => setDisputeCancelOpen(true)}
               variant="ghost"
             >
-              Hủy Dispute
+              Hủy khiếu nại
             </Button>
           ) : null}
         </div>
@@ -382,7 +382,7 @@ export const BuyerOrderItemCard = ({
                   return (
                     <Field data-invalid={isInvalid}>
                       <FieldLabel htmlFor={`dispute-reason-${item.id}`}>
-                        Lý do Dispute
+                        Lý do khiếu nại
                       </FieldLabel>
                       <Textarea
                         aria-describedby={`dispute-help-${item.id}`}
@@ -394,12 +394,12 @@ export const BuyerOrderItemCard = ({
                         onChange={(event) =>
                           field.handleChange(event.target.value)
                         }
-                        placeholder="Mô tả vấn đề với OrderItem..."
+                        placeholder="Mô tả chi tiết vấn đề bạn gặp phải với đơn hàng..."
                         value={field.state.value}
                       />
                       <FieldDescription id={`dispute-help-${item.id}`}>
-                        Dispute sẽ dừng các bước tự động và chuyển item cho
-                        Admin xử lý.
+                        Khiếu nại sẽ tạm dừng các tiến trình tự động và gửi tới
+                        Admin hỗ trợ xử lý.
                       </FieldDescription>
                       {isInvalid ? (
                         <FieldError errors={field.state.meta.errors} />
@@ -429,8 +429,8 @@ export const BuyerOrderItemCard = ({
                     variant="destructive"
                   >
                     {isSubmitting || disputeMutation.isPending
-                      ? "Đang mở…"
-                      : "Xác nhận mở Dispute"}
+                      ? "Đang gửi…"
+                      : "Xác nhận gửi khiếu nại"}
                   </Button>
                 )}
               </disputeForm.Subscribe>
@@ -451,10 +451,10 @@ export const BuyerOrderItemCard = ({
       >
         <AlertDialogContent size="sm">
           <AlertDialogHeader>
-            <AlertDialogTitle>Hủy OrderItem?</AlertDialogTitle>
+            <AlertDialogTitle>Hủy đơn hàng?</AlertDialogTitle>
             <AlertDialogDescription>
-              Bạn chỉ có thể hủy khi Seller chưa bắt đầu. Escrow của item này sẽ
-              được hoàn lại; các item khác không bị ảnh hưởng.
+              Bạn chỉ có thể hủy khi người bán chưa bắt đầu xử lý. Tiền tạm giữ
+              sẽ được hoàn lại ví của bạn; các mục khác không bị ảnh hưởng.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -482,17 +482,17 @@ export const BuyerOrderItemCard = ({
       >
         <AlertDialogContent size="sm">
           <AlertDialogHeader>
-            <AlertDialogTitle>Hủy Dispute?</AlertDialogTitle>
+            <AlertDialogTitle>Hủy khiếu nại?</AlertDialogTitle>
             <AlertDialogDescription>
-              Escrow vẫn được giữ và OrderItem quay lại trạng thái trước khi mở
-              Dispute. Bạn không thể mở lại Dispute này.
+              Khoản tiền bảo đảm vẫn được giữ an toàn và đơn hàng quay lại trạng
+              thái trước khi mở khiếu nại. Bạn không thể mở lại khiếu nại này.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Textarea
-            aria-label="Lý do hủy Dispute"
+            aria-label="Lý do hủy khiếu nại"
             disabled={cancelDisputeMutation.isPending}
             onChange={(event) => setDisputeCancelReason(event.target.value)}
-            placeholder="Nhập lý do hủy Dispute…"
+            placeholder="Nhập lý do hủy khiếu nại…"
             value={disputeCancelReason}
           />
           <AlertDialogFooter>

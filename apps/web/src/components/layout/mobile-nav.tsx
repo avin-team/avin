@@ -131,7 +131,7 @@ export const MobileNav = ({ isOpen, items, onToggle }: MobileNavProps) => {
                         onClick={onToggle}
                         to="/seller/store"
                       >
-                        Mở gian hàng
+                        Quản lý gian hàng
                       </Link>
                     ) : (
                       <Link

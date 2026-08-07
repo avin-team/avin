@@ -46,7 +46,7 @@ import { formatVND } from "@/utils/format";
 
 const STATUS_FILTER_ITEMS = [
   { label: "Tất cả trạng thái", value: "ALL" },
-  { label: "Chờ Seller tiếp nhận", value: "AWAITING_SELLER" },
+  { label: "Chờ người bán tiếp nhận", value: "AWAITING_SELLER" },
   { label: "Đang thực hiện", value: "PROCESSING" },
   { label: "Đã bàn giao", value: "DELIVERED" },
   { label: "Đang bảo hành", value: "WARRANTY_ACTIVE" },
@@ -466,7 +466,7 @@ export const BuyerOrdersTable = ({ orders }: BuyerOrdersTableProps) => {
                             #ORD-{item.order.id.slice(0, 8).toUpperCase()}
                           </span>
                           <span className="text-[11px] text-muted-foreground">
-                            Item {item.id.slice(0, 8)}
+                            Mã chi tiết {item.id.slice(0, 8)}
                           </span>
                         </div>
                       </td>

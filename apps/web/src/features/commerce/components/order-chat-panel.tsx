@@ -67,6 +67,7 @@ interface OrderChatPanelProps {
   sellerStoreSlug?: string | null;
   serviceTitle?: string;
   showOrderHeaderLink?: boolean;
+  viewerRole?: "buyer" | "seller";
 }
 
 interface AttachmentDraft {
@@ -107,6 +108,7 @@ interface OrderChatHeaderProps {
   sellerStoreSlug?: string | null;
   serviceTitle?: string;
   showOrderHeaderLink: boolean;
+  viewerRole?: "buyer" | "seller";
 }
 
 const renderHeaderStatus = (
@@ -161,6 +163,7 @@ const OrderChatHeader = ({
   sellerStoreSlug,
   serviceTitle,
   showOrderHeaderLink,
+  viewerRole,
 }: OrderChatHeaderProps) => (
   <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-border/60 bg-muted/30 shrink-0">
     <div className="flex items-center gap-2.5 min-w-0">
@@ -224,7 +227,7 @@ const OrderChatHeader = ({
           )}
           variant="outline"
         >
-          {getOrderItemStatusLabel(orderStatus as OrderItemStatus)}
+          {getOrderItemStatusLabel(orderStatus as OrderItemStatus, viewerRole)}
         </Badge>
       ) : null}
       {showOrderHeaderLink ? (
@@ -253,6 +256,7 @@ export const OrderChatPanel = ({
   sellerStoreSlug,
   serviceTitle,
   showOrderHeaderLink = false,
+  viewerRole,
 }: OrderChatPanelProps) => {
   const attachmentInputRef = React.useRef<HTMLInputElement>(null);
   const channelRef = React.useRef<ReturnType<
@@ -698,6 +702,7 @@ export const OrderChatPanel = ({
         sellerStoreSlug={sellerStoreSlug}
         serviceTitle={serviceTitle}
         showOrderHeaderLink={showOrderHeaderLink}
+        viewerRole={viewerRole}
       />
 
       <MessageScrollerProvider>

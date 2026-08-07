@@ -2,6 +2,7 @@ import { notifyDisputeResponseDeadlines } from "@avin/api/commerce/disputes";
 import {
   cancelBannedSellerItems,
   expireDeliveryReviews,
+  expireWarranties,
 } from "@avin/api/commerce/fulfillment";
 import { db } from "@avin/db";
 
@@ -13,6 +14,9 @@ const getMaintenanceTaskName = (index: number): string => {
       return "delivery review expiry";
     }
     case 1: {
+      return "warranty expiry";
+    }
+    case 2: {
       return "banned Seller cancellation";
     }
     default: {
@@ -26,6 +30,7 @@ export const runFulfillmentMaintenance = async (
 ): Promise<void> => {
   const results = await Promise.allSettled([
     expireDeliveryReviews({ database: db, now }),
+    expireWarranties({ database: db, now }),
     cancelBannedSellerItems({ database: db, now }),
     notifyDisputeResponseDeadlines({ database: db, now }),
   ]);

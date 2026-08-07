@@ -120,7 +120,7 @@ const SellerDeliveryForm = ({
       },
       onSuccess: async () => {
         await onCompleted();
-        toast.success("Đã bàn giao OrderItem cho Buyer.");
+        toast.success("Đã bàn giao đơn hàng cho người mua.");
       },
     })
   );
@@ -155,7 +155,7 @@ const SellerDeliveryForm = ({
       <div className="flex items-start gap-3">
         <ClipboardTextIcon aria-hidden="true" className="mt-0.5 text-primary" />
         <div>
-          <h4 className="font-semibold">Gửi kết quả cho Buyer</h4>
+          <h4 className="font-semibold">Bàn giao cho người mua</h4>
           <p className="mt-1 text-sm text-muted-foreground">
             Ghi chú và ít nhất một liên kết HTTP hoặc HTTPS là bắt buộc.
           </p>
@@ -282,23 +282,25 @@ export const SellerOrderItemCard = ({
   const startMutation = useMutation(
     orpc.commerce.orders.item.startFulfillment.mutationOptions({
       onError: (error) => {
-        toast.error(getErrorMessage(error, "Không thể bắt đầu fulfillment."));
+        toast.error(
+          getErrorMessage(error, "Không thể bắt đầu xử lý đơn hàng.")
+        );
       },
       onSuccess: async () => {
         await invalidateItem();
-        toast.success("Đã bắt đầu thực hiện OrderItem.");
+        toast.success("Đã bắt đầu thực hiện đơn hàng.");
       },
     })
   );
   const cancelMutation = useMutation(
     orpc.commerce.orders.item.cancelBySeller.mutationOptions({
       onError: (error) => {
-        toast.error(getErrorMessage(error, "Không thể hủy OrderItem."));
+        toast.error(getErrorMessage(error, "Không thể hủy đơn hàng."));
       },
       onSuccess: async () => {
         setCancelOpen(false);
         await invalidateItem();
-        toast.success("Đã hủy OrderItem và hoàn tiền cho Buyer.");
+        toast.success("Đã hủy đơn hàng và hoàn tiền cho người mua.");
       },
     })
   );
@@ -322,14 +324,14 @@ export const SellerOrderItemCard = ({
     orpc.commerce.disputes.submitSellerEvidence.mutationOptions({
       onError: (error) => {
         toast.error(
-          getErrorMessage(error, "Không thể gửi bằng chứng Dispute.")
+          getErrorMessage(error, "Không thể gửi bằng chứng khiếu nại.")
         );
       },
       onSuccess: async () => {
         setSellerEvidence([]);
         setSellerEvidenceOpen(false);
         await invalidateItem();
-        toast.success("Đã gửi bằng chứng cho Buyer và Admin.");
+        toast.success("Đã gửi bằng chứng cho người mua và ban quản trị.");
       },
     })
   );
@@ -378,10 +380,13 @@ export const SellerOrderItemCard = ({
       return (
         <details className="group rounded-2xl border border-border/60 p-4">
           <summary className="cursor-pointer list-none font-semibold outline-none focus-visible:ring-2 focus-visible:ring-primary">
-            Xem timeline và bằng chứng
+            Xem tiến trình & bằng chứng
           </summary>
           <div className="mt-4">
-            <OrderItemTimeline timeline={timelineQuery.data} />
+            <OrderItemTimeline
+              timeline={timelineQuery.data}
+              viewerRole="seller"
+            />
           </div>
         </details>
       );
@@ -403,7 +408,7 @@ export const SellerOrderItemCard = ({
 
   const handleSubmitSellerEvidence = async (): Promise<void> => {
     if (!currentDispute?.id) {
-      toast.error("Không tìm thấy Dispute đang mở.");
+      toast.error("Không tìm thấy khiếu nại đang mở.");
       return;
     }
     if (sellerEvidence.length === 0) {
@@ -437,7 +442,7 @@ export const SellerOrderItemCard = ({
             className={getOrderItemStatusColorClassName(status)}
             variant={getOrderItemStatusVariant(status)}
           >
-            {getOrderItemStatusLabel(status)}
+            {getOrderItemStatusLabel(status, "seller")}
           </Badge>
         </div>
       </CardHeader>
@@ -458,9 +463,7 @@ export const SellerOrderItemCard = ({
             </p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">
-              Tiền tạm giữ (Escrow)
-            </p>
+            <p className="text-xs text-muted-foreground">Tiền tạm giữ</p>
             <p className="mt-1 font-medium">
               {formatVND(item.escrowHold.amount)} ·{" "}
               {getEscrowHoldStatusLabel(item.escrowHold.status)}
@@ -515,11 +518,11 @@ export const SellerOrderItemCard = ({
           <div className="rounded-2xl border border-amber-300/40 bg-amber-50/60 p-4 dark:bg-amber-950/20">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h4 className="font-semibold">Phản hồi Dispute</h4>
+                <h4 className="font-semibold">Phản hồi khiếu nại</h4>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Gửi bằng chứng riêng tư trong vòng 48 giờ kể từ khi Buyer mở
-                  Dispute. Nếu gửi trễ trước khi Admin quyết định, hệ thống sẽ
-                  đánh dấu &quot;nộp trễ&quot;.
+                  Cung cấp bằng chứng phản hồi trong vòng 48 giờ kể từ khi người
+                  mua mở khiếu nại. Nếu gửi trễ trước khi ban quản trị đưa ra
+                  quyết định, hệ thống sẽ đánh dấu &quot;nộp quá hạn&quot;.
                 </p>
                 <p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-300">
                   Hạn phản hồi:{" "}
@@ -552,7 +555,7 @@ export const SellerOrderItemCard = ({
                   >
                     {sellerEvidenceMutation.isPending
                       ? "Đang gửi…"
-                      : "Gửi phản hồi Dispute"}
+                      : "Gửi phản hồi khiếu nại"}
                   </Button>
                 </div>
               </div>

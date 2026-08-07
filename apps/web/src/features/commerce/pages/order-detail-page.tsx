@@ -102,7 +102,7 @@ export const OrderDetailPage = () => {
           </p>
           <Button render={<Link to="/orders" />}>
             <ArrowLeftIcon className="h-4 w-4" />
-            Quay lại danh sách đơn hàng
+            Quay lại
           </Button>
         </div>
       </Shell>
@@ -117,11 +117,11 @@ export const OrderDetailPage = () => {
           <div className="flex items-center gap-3">
             <Button render={<Link to="/orders" />} size="sm" variant="outline">
               <ArrowLeftIcon className="h-4 w-4" />
-              Quay lại danh sách
+              Quay lại
             </Button>
             <div className="h-4 w-px bg-border/60" />
             <span className="text-xs text-muted-foreground">
-              Trang mua hàng / Đơn hàng #{targetOrder.id.slice(0, 8)}
+              Đơn hàng của tôi / Mã #{targetOrder.id.slice(0, 8)}
             </span>
           </div>
           <Badge
@@ -141,8 +141,10 @@ export const OrderDetailPage = () => {
             Chi tiết đơn hàng #{targetOrder.id.slice(0, 8).toUpperCase()}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Mã OrderItem:{" "}
-            <strong className="text-foreground">{targetItem.id}</strong>
+            Mã dịch vụ / sản phẩm:{" "}
+            <strong className="font-mono text-foreground">
+              {targetItem.id}
+            </strong>
           </p>
         </div>
 
@@ -154,9 +156,7 @@ export const OrderDetailPage = () => {
                 <StorefrontIcon className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">
-                  Cửa hàng (Store)
-                </p>
+                <p className="text-xs text-muted-foreground">Cửa hàng</p>
                 {targetOrder.seller.storeSlug ? (
                   <Link
                     to="/store/$slug"
@@ -180,7 +180,7 @@ export const OrderDetailPage = () => {
                 <ReceiptIcon className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Tổng tiền Item</p>
+                <p className="text-xs text-muted-foreground">Tổng tiền</p>
                 <p className="font-semibold text-foreground">
                   {formatVND(targetItem.priceAmount)}
                 </p>

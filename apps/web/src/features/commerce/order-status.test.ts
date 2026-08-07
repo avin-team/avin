@@ -13,7 +13,7 @@ const now = new Date("2026-08-03T00:00:00.000Z");
 describe("order status UI rules", () => {
   it("exposes the status labels and visual variants used by both workspaces", () => {
     expect(getOrderItemStatusLabel("AWAITING_SELLER")).toBe(
-      "Chờ Seller tiếp nhận"
+      "Chờ người bán tiếp nhận"
     );
     expect(getOrderItemStatusLabel("IN_WARRANTY")).toBe("Đang bảo hành");
     expect(getOrderItemStatusVariant("DISPUTED")).toBe("destructive");

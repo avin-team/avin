@@ -20,14 +20,22 @@ import {
   ShieldCheckIcon,
   StorefrontIcon,
 } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 
 import { authClient } from "@/features/auth/api/auth-client";
+import { orpc } from "@/utils/orpc";
 
 export const UserMenu = () => {
   const navigate = useNavigate();
   const { data: session, isPending } = authClient.useSession();
+  const isSeller = session?.user.role === ACCOUNT_ROLE.SELLER;
+
+  const profileQuery = useQuery({
+    ...orpc.sellerStore.getProfile.queryOptions(),
+    enabled: Boolean(isSeller),
+  });
 
   if (isPending) {
     return <Skeleton className="size-9 rounded-full" />;
@@ -37,7 +45,7 @@ export const UserMenu = () => {
     return (
       <div className="flex items-center space-x-3">
         <Link
-          className="px-4 py-2 text-foreground/80 font-medium text-sm transition-colors duration-200 hover:text-foreground"
+          className="px-4 py-2 font-medium text-foreground/80 text-sm transition-colors duration-200 hover:text-foreground"
           to="/login"
         >
           Đăng nhập
@@ -52,7 +60,11 @@ export const UserMenu = () => {
     );
   }
 
-  const isSeller = session.user.role === ACCOUNT_ROLE.SELLER;
+  const profile = profileQuery.data?.profile;
+  const storeUrl = profile?.storeSlug
+    ? `/store/${profile.storeSlug}`
+    : "/seller/store-preview";
+
   const name = session.user.name ?? "User";
   const initials = name
     .trim()
@@ -105,11 +117,11 @@ export const UserMenu = () => {
           {isSeller ? (
             <DropdownMenuItem
               onClick={async () => {
-                await navigate({ to: "/seller/store" });
+                await navigate({ to: storeUrl });
               }}
             >
               <StorefrontIcon className="me-2 size-4" />
-              Mở gian hàng
+              Xem gian hàng
             </DropdownMenuItem>
           ) : (
             <DropdownMenuItem

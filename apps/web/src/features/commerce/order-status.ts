@@ -26,9 +26,9 @@ export const getWarrantyPolicyTerms = (policy: OrderWarrantyPolicy): string => {
 };
 
 export const ORDER_ITEM_STATUS_LABELS: Record<OrderItemStatus, string> = {
-  AWAITING_SELLER: "Chờ Seller tiếp nhận",
+  AWAITING_SELLER: "Chờ người bán tiếp nhận",
   CANCELLED: "Đã hủy",
-  CLOSED: "Đã hoàn tất",
+  CLOSED: "Hoàn thành",
   DELIVERED: "Đã bàn giao",
   DISPUTED: "Đang tranh chấp",
   IN_PROGRESS: "Đang thực hiện",
@@ -36,8 +36,15 @@ export const ORDER_ITEM_STATUS_LABELS: Record<OrderItemStatus, string> = {
   REFUNDED: "Đã hoàn tiền",
 };
 
-export const getOrderItemStatusLabel = (status: OrderItemStatus): string =>
-  ORDER_ITEM_STATUS_LABELS[status];
+export const getOrderItemStatusLabel = (
+  status: OrderItemStatus,
+  viewerRole?: "buyer" | "seller"
+): string => {
+  if (status === "AWAITING_SELLER" && viewerRole === "seller") {
+    return "Chờ bạn tiếp nhận";
+  }
+  return ORDER_ITEM_STATUS_LABELS[status];
+};
 
 export const getOrderItemStatusVariant = (
   status: OrderItemStatus
@@ -96,8 +103,10 @@ export const ORDER_TIMELINE_REFRESH_INTERVAL_MS = 30_000;
 export const formatOrderDate = (value: string): string =>
   orderDateFormatter.format(new Date(value));
 
-export const formatOrderDeadline = (value: string | null): string =>
-  value ? formatOrderDate(value) : "Chưa xác định";
+export const formatOrderDeadline = (
+  value: string | null,
+  fallback = "Chưa xác định"
+): string => (value ? formatOrderDate(value) : fallback);
 
 const isAtOrBefore = (value: string | null, now: Date): boolean => {
   if (!value) {

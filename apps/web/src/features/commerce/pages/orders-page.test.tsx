@@ -300,7 +300,9 @@ describe("OrdersPage", () => {
     render(<OrdersPage />);
 
     expect(screen.getAllByText(/Studio Avin/u)[0]).toBeInTheDocument();
-    expect(screen.getAllByText("Chờ Seller tiếp nhận")[0]).toBeInTheDocument();
+    expect(
+      screen.getAllByText("Chờ người bán tiếp nhận")[0]
+    ).toBeInTheDocument();
     expect(screen.getAllByText("Đã bàn giao")[0]).toBeInTheDocument();
     expect(screen.getAllByRole("row")).toHaveLength(3);
   });

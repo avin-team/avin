@@ -433,7 +433,7 @@ export const StoreOrdersPanel = () => {
                       className={getOrderItemStatusColorClassName(item.status)}
                       variant={getOrderItemStatusVariant(item.status)}
                     >
-                      {getOrderItemStatusLabel(item.status)}
+                      {getOrderItemStatusLabel(item.status, "seller")}
                     </Badge>
                   </td>
 
@@ -520,6 +520,7 @@ export const StoreOrdersPanel = () => {
                     selectedItem.buyerId,
                     selectedItem.buyer?.name
                   )}
+                  viewerRole="seller"
                 />
               </div>
             </div>
