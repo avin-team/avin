@@ -14,6 +14,7 @@ import {
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 
 import { user } from "./auth";
+import type { BankAccount } from "./seller";
 
 export const ledgerAccountType = pgEnum("ledger_account_type", [
   "PLATFORM_BANK_CLEARING",
@@ -21,6 +22,7 @@ export const ledgerAccountType = pgEnum("ledger_account_type", [
   "USER_WALLET_HELD",
   "SELLER_WALLET_PENDING",
   "SELLER_WALLET_AVAILABLE",
+  "SELLER_WALLET_HELD",
   "ESCROW",
   "PLATFORM_COMMISSION",
 ]);
@@ -39,12 +41,23 @@ export const ledgerTransactionType = pgEnum("ledger_transaction_type", [
   "WITHDRAWAL_REQUEST",
   "WITHDRAWAL_PAID",
   "REVERSAL",
+  "SELLER_WALLET_MIGRATION",
 ]);
 
 export const depositRequestStatus = pgEnum("deposit_request_status", [
   "PENDING",
   "CREDITED",
 ]);
+
+export const withdrawalRequestStatus = pgEnum("withdrawal_request_status", [
+  "REQUESTED",
+  "APPROVED",
+  "REJECTED",
+  "PAID",
+  "CANCELLED",
+]);
+
+export const SELLER_WITHDRAWAL_MINIMUM_AMOUNT = 5000;
 
 export const sepayEventSource = pgEnum("sepay_event_source", [
   "WEBHOOK",
@@ -202,6 +215,81 @@ export const depositRequest = pgTable(
   ]
 );
 
+export const withdrawalRequest = pgTable(
+  "withdrawal_request",
+  {
+    amount: integer("amount").notNull(),
+    approvedAt: timestamp("approved_at"),
+    approvedByUserId: text("approved_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    bankAccount: jsonb("bank_account").$type<BankAccount>().notNull(),
+    cancelledAt: timestamp("cancelled_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    paidAt: timestamp("paid_at"),
+    paidByUserId: text("paid_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    paidTransactionId: uuid("paid_transaction_id").references(
+      () => ledgerTransaction.id,
+      { onDelete: "restrict" }
+    ),
+    paymentReference: text("payment_reference"),
+    rejectedAt: timestamp("rejected_at"),
+    rejectedByUserId: text("rejected_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    rejectionReason: text("rejection_reason"),
+    requestTransactionId: uuid("request_transaction_id")
+      .notNull()
+      .references(() => ledgerTransaction.id, { onDelete: "restrict" }),
+    reversalTransactionId: uuid("reversal_transaction_id").references(
+      () => ledgerTransaction.id,
+      { onDelete: "restrict" }
+    ),
+    sellerId: text("seller_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    status: withdrawalRequestStatus("status").default("REQUESTED").notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("withdrawal_request_seller_idempotency_unique_idx").on(
+      table.sellerId,
+      table.idempotencyKey
+    ),
+    uniqueIndex("withdrawal_request_request_transaction_unique_idx").on(
+      table.requestTransactionId
+    ),
+    uniqueIndex("withdrawal_request_paid_transaction_unique_idx").on(
+      table.paidTransactionId
+    ),
+    uniqueIndex("withdrawal_request_reversal_transaction_unique_idx").on(
+      table.reversalTransactionId
+    ),
+    uniqueIndex("withdrawal_request_payment_reference_unique_idx").on(
+      table.paymentReference
+    ),
+    index("withdrawal_request_seller_created_at_idx").on(
+      table.sellerId,
+      table.createdAt
+    ),
+    index("withdrawal_request_status_created_at_idx").on(
+      table.status,
+      table.createdAt
+    ),
+    check(
+      "withdrawal_request_amount_minimum_check",
+      sql`${table.amount} >= ${sql.raw(String(SELLER_WITHDRAWAL_MINIMUM_AMOUNT))}`
+    ),
+  ]
+);
+
 export const sepayPaymentEvent = pgTable(
   "sepay_payment_event",
   {
@@ -335,6 +423,32 @@ export const depositRequestRelations = relations(
     user: one(user, {
       fields: [depositRequest.userId],
       references: [user.id],
+    }),
+  })
+);
+
+export const withdrawalRequestRelations = relations(
+  withdrawalRequest,
+  ({ one }) => ({
+    paidTransaction: one(ledgerTransaction, {
+      fields: [withdrawalRequest.paidTransactionId],
+      references: [ledgerTransaction.id],
+      relationName: "withdrawalPaidTransaction",
+    }),
+    requestTransaction: one(ledgerTransaction, {
+      fields: [withdrawalRequest.requestTransactionId],
+      references: [ledgerTransaction.id],
+      relationName: "withdrawalRequestTransaction",
+    }),
+    reversalTransaction: one(ledgerTransaction, {
+      fields: [withdrawalRequest.reversalTransactionId],
+      references: [ledgerTransaction.id],
+      relationName: "withdrawalReversalTransaction",
+    }),
+    seller: one(user, {
+      fields: [withdrawalRequest.sellerId],
+      references: [user.id],
+      relationName: "withdrawalSeller",
     }),
   })
 );

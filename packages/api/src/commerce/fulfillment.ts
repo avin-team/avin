@@ -38,7 +38,10 @@ import { z } from "zod";
 
 import { isDisputeEvidenceKey } from "../runtime/storage";
 import { recordBalancedLedgerTransaction } from "../wallet/ledger";
-import { ensureWalletAccounts } from "../wallet/service";
+import {
+  ensureSellerWalletAccounts,
+  ensureWalletAccounts,
+} from "../wallet/service";
 import type { CommerceExecutor } from "./cart";
 import { calculateEscrowReleaseAmounts } from "./commission";
 import {
@@ -627,29 +630,19 @@ export const releaseEscrow = async (
   }
 
   const buyerAccounts = await ensureWalletAccounts(executor, item.buyerId);
-  const sellerAccounts = await ensureWalletAccounts(executor, item.sellerId);
+  const sellerAccounts = await ensureSellerWalletAccounts(
+    executor,
+    item.sellerId
+  );
   const [buyerWallet] = await executor
     .select()
     .from(userWallet)
     .where(eq(userWallet.id, buyerAccounts.wallet.id))
     .for("update")
     .limit(1);
-  // Keep wallet locks in buyer-then-seller order to avoid cross-account lock inversions.
-  // eslint-disable-next-line react-doctor/server-sequential-independent-await
-  const [sellerWallet] = await executor
-    .select()
-    .from(userWallet)
-    .where(eq(userWallet.id, sellerAccounts.wallet.id))
-    .for("update")
-    .limit(1);
   if (!buyerWallet || buyerWallet.heldBalance < item.escrowAmount) {
     throw new ORPCError("CONFLICT", {
       message: "Held Balance của Buyer không đủ để giải ngân.",
-    });
-  }
-  if (!sellerWallet) {
-    throw new ORPCError("CONFLICT", {
-      message: "Wallet của Seller không khả dụng để giải ngân.",
     });
   }
 
@@ -718,19 +711,6 @@ export const releaseEscrow = async (
     .returning({ heldBalance: userWallet.heldBalance });
   if (!updatedBuyerWallet) {
     throwConflict("Held Balance của Buyer vừa thay đổi. Vui lòng thử lại.");
-  }
-
-  // eslint-disable-next-line react-doctor/server-sequential-independent-await
-  const [updatedSellerWallet] = await executor
-    .update(userWallet)
-    .set({
-      availableBalance: sellerWallet.availableBalance + sellerProceeds,
-      updatedAt: now,
-    })
-    .where(eq(userWallet.id, sellerAccounts.wallet.id))
-    .returning({ availableBalance: userWallet.availableBalance });
-  if (!updatedSellerWallet) {
-    throwConflict("Wallet của Seller vừa thay đổi. Vui lòng thử lại.");
   }
 
   const [updatedHold] = await executor

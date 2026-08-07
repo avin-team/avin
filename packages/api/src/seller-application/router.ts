@@ -7,6 +7,7 @@ import { adminProcedure, protectedProcedure } from "../access/procedures";
 import type { Context } from "../runtime/context";
 import { createStoreSlug } from "../seller-store/profile";
 import { isStoreSlugLocked } from "../seller-store/public-visibility";
+import { ensureSellerWalletAccounts } from "../wallet/service";
 import {
   adminDecideApplicationInputSchema,
   adminGetApplicationInputSchema,
@@ -66,15 +67,40 @@ export const sellerApplicationRouter = {
         });
       }
 
-      const [updatedApp] = await context.db
-        .update(sellerApplication)
-        .set({
-          reviewReason: input.decision === "APPROVED" ? null : normalizedReason,
-          status: input.decision,
-          updatedAt: new Date(),
-        })
-        .where(eq(sellerApplication.id, input.id))
-        .returning();
+      const [updatedApp] = await context.db.transaction(async (transaction) => {
+        const [updated] = await transaction
+          .update(sellerApplication)
+          .set({
+            reviewReason:
+              input.decision === "APPROVED" ? null : normalizedReason,
+            status: input.decision,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(sellerApplication.id, input.id),
+              eq(sellerApplication.status, "PENDING_REVIEW")
+            )
+          )
+          .returning();
+
+        if (!updated) {
+          throw new ORPCError("CONFLICT", {
+            message: "Hồ sơ đăng ký người bán vừa được xử lý bởi Admin khác",
+          });
+        }
+
+        if (input.decision === "APPROVED") {
+          await transaction
+            .update(user)
+            .set({ role: "SELLER" })
+            .where(eq(user.id, app.userId));
+
+          await ensureSellerWalletAccounts(transaction, app.userId);
+        }
+
+        return [updated] as const;
+      });
 
       if (!updatedApp) {
         throw new ORPCError("NOT_FOUND", {
@@ -83,11 +109,6 @@ export const sellerApplicationRouter = {
       }
 
       if (input.decision === "APPROVED") {
-        await context.db
-          .update(user)
-          .set({ role: "SELLER" })
-          .where(eq(user.id, app.userId));
-
         const profile = await context.db.query.sellerProfile.findFirst({
           where: eq(sellerProfile.id, app.sellerProfileId),
         });

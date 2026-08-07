@@ -102,11 +102,16 @@ interface WalletHistoryCandidate {
   item: WalletTransactionView;
 }
 
-const PLATFORM_BANK_CLEARING_ACCOUNT_KEY = "PLATFORM_BANK_CLEARING";
+export const PLATFORM_BANK_CLEARING_ACCOUNT_KEY = "PLATFORM_BANK_CLEARING";
 export const PLATFORM_COMMISSION_ACCOUNT_KEY = "PLATFORM_COMMISSION";
 
 const accountKeyForUser = (type: "AVAILABLE" | "HELD", userId: string) =>
   `USER_WALLET_${type}:${userId}`;
+
+export const accountKeyForSeller = (
+  type: "AVAILABLE" | "HELD" | "PENDING",
+  sellerId: string
+) => `SELLER_WALLET_${type}:${sellerId}`;
 
 const requireBankConfiguration = (
   configuration: WalletBankConfiguration
@@ -224,6 +229,109 @@ export const ensureWalletAccounts = async (
     platformAccount,
     platformCommissionAccount,
     wallet,
+  };
+};
+
+export const ensureSellerWalletAccounts = async (
+  executor: WalletExecutor,
+  sellerId: string
+): Promise<{
+  availableAccount: typeof ledgerAccount.$inferSelect;
+  heldAccount: typeof ledgerAccount.$inferSelect;
+  pendingAccount: typeof ledgerAccount.$inferSelect;
+  platformAccount: typeof ledgerAccount.$inferSelect;
+  platformCommissionAccount: typeof ledgerAccount.$inferSelect;
+}> => {
+  const accountValues = [
+    {
+      accountKey: accountKeyForSeller("PENDING", sellerId),
+      accountType: "SELLER_WALLET_PENDING" as const,
+      balanceSide: "CREDIT" as const,
+      userId: sellerId,
+    },
+    {
+      accountKey: accountKeyForSeller("AVAILABLE", sellerId),
+      accountType: "SELLER_WALLET_AVAILABLE" as const,
+      balanceSide: "CREDIT" as const,
+      userId: sellerId,
+    },
+    {
+      accountKey: accountKeyForSeller("HELD", sellerId),
+      accountType: "SELLER_WALLET_HELD" as const,
+      balanceSide: "CREDIT" as const,
+      userId: sellerId,
+    },
+    {
+      accountKey: PLATFORM_BANK_CLEARING_ACCOUNT_KEY,
+      accountType: "PLATFORM_BANK_CLEARING" as const,
+      balanceSide: "DEBIT" as const,
+      userId: null,
+    },
+    {
+      accountKey: PLATFORM_COMMISSION_ACCOUNT_KEY,
+      accountType: "PLATFORM_COMMISSION" as const,
+      balanceSide: "CREDIT" as const,
+      userId: null,
+    },
+  ];
+
+  await Promise.all(
+    accountValues.map((account) =>
+      executor
+        .insert(ledgerAccount)
+        .values(account)
+        .onConflictDoNothing({ target: ledgerAccount.accountKey })
+    )
+  );
+
+  const accounts = await executor
+    .select()
+    .from(ledgerAccount)
+    .where(
+      or(
+        eq(ledgerAccount.accountKey, accountKeyForSeller("PENDING", sellerId)),
+        eq(
+          ledgerAccount.accountKey,
+          accountKeyForSeller("AVAILABLE", sellerId)
+        ),
+        eq(ledgerAccount.accountKey, accountKeyForSeller("HELD", sellerId)),
+        eq(ledgerAccount.accountKey, PLATFORM_BANK_CLEARING_ACCOUNT_KEY),
+        eq(ledgerAccount.accountKey, PLATFORM_COMMISSION_ACCOUNT_KEY)
+      )
+    );
+  const pendingAccount = accounts.find(
+    (account) => account.accountKey === accountKeyForSeller("PENDING", sellerId)
+  );
+  const availableAccount = accounts.find(
+    (account) =>
+      account.accountKey === accountKeyForSeller("AVAILABLE", sellerId)
+  );
+  const heldAccount = accounts.find(
+    (account) => account.accountKey === accountKeyForSeller("HELD", sellerId)
+  );
+  const platformAccount = accounts.find(
+    (account) => account.accountKey === PLATFORM_BANK_CLEARING_ACCOUNT_KEY
+  );
+  const platformCommissionAccount = accounts.find(
+    (account) => account.accountKey === PLATFORM_COMMISSION_ACCOUNT_KEY
+  );
+
+  if (
+    !availableAccount ||
+    !heldAccount ||
+    !pendingAccount ||
+    !platformAccount ||
+    !platformCommissionAccount
+  ) {
+    throw new Error("Seller wallet ledger accounts were not created");
+  }
+
+  return {
+    availableAccount,
+    heldAccount,
+    pendingAccount,
+    platformAccount,
+    platformCommissionAccount,
   };
 };
 
@@ -467,6 +575,7 @@ const transactionTypeLabels: Record<string, string> = {
   PURCHASE_HOLD: "Thanh toán đơn hàng",
   REFUND: "Hoàn tiền",
   REVERSAL: "Đảo giao dịch",
+  SELLER_WALLET_MIGRATION: "Điều chỉnh SellerWallet",
   WITHDRAWAL_PAID: "Chi trả rút tiền",
   WITHDRAWAL_REQUEST: "Yêu cầu rút tiền",
 };
@@ -801,6 +910,141 @@ export const creditDepositForEvent = async (
   };
 };
 
+export const reverseLedgerTransactionInTransaction = async (
+  transaction: WalletExecutor,
+  {
+    reason,
+    transactionId,
+  }: {
+    reason: string;
+    transactionId: string;
+  }
+): Promise<{ reversalId: string; reversalReference: string }> => {
+  const [original] = await transaction
+    .select()
+    .from(ledgerTransaction)
+    .where(eq(ledgerTransaction.id, transactionId))
+    .for("update")
+    .limit(1);
+
+  if (!original) {
+    throw new ORPCError("NOT_FOUND", {
+      message: "Giao dịch cần đảo không tồn tại.",
+    });
+  }
+  if (original.type === "REVERSAL") {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Không thể đảo một giao dịch đảo.",
+    });
+  }
+
+  const [existingReversal] = await transaction
+    .select({ id: ledgerTransaction.id })
+    .from(ledgerTransaction)
+    .where(eq(ledgerTransaction.reversalOfId, transactionId))
+    .limit(1);
+  if (existingReversal) {
+    throw new ORPCError("CONFLICT", {
+      message: "Giao dịch này đã được đảo trước đó.",
+    });
+  }
+
+  const originalPostings = await transaction
+    .select({
+      accountId: ledgerPosting.ledgerAccountId,
+      accountType: ledgerAccount.accountType,
+      creditAmount: ledgerPosting.creditAmount,
+      debitAmount: ledgerPosting.debitAmount,
+      userId: ledgerAccount.userId,
+    })
+    .from(ledgerPosting)
+    .innerJoin(
+      ledgerAccount,
+      eq(ledgerPosting.ledgerAccountId, ledgerAccount.id)
+    )
+    .where(eq(ledgerPosting.transactionId, transactionId));
+
+  if (originalPostings.length < 2) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Giao dịch không có đủ bút toán để đảo.",
+    });
+  }
+
+  const walletDeltas = new Map<string, { available: number; held: number }>();
+  for (const posting of originalPostings) {
+    if (
+      !posting.userId ||
+      (posting.accountType !== "USER_WALLET_AVAILABLE" &&
+        posting.accountType !== "USER_WALLET_HELD")
+    ) {
+      continue;
+    }
+    const delta = posting.debitAmount - posting.creditAmount;
+    const current = walletDeltas.get(posting.userId) ?? {
+      available: 0,
+      held: 0,
+    };
+    if (posting.accountType === "USER_WALLET_AVAILABLE") {
+      current.available += delta;
+    } else {
+      current.held += delta;
+    }
+    walletDeltas.set(posting.userId, current);
+  }
+
+  const walletEntries = [...walletDeltas.entries()].toSorted(
+    ([left], [right]) => left.localeCompare(right)
+  );
+
+  for (const [userId, delta] of walletEntries) {
+    const [wallet] = await transaction
+      .select()
+      .from(userWallet)
+      .where(eq(userWallet.userId, userId))
+      .for("update")
+      .limit(1);
+    if (
+      !wallet ||
+      wallet.availableBalance + delta.available < 0 ||
+      wallet.heldBalance + delta.held < 0
+    ) {
+      throw new ORPCError("CONFLICT", {
+        message:
+          "Không thể tự động đảo giao dịch vì số dư ví hiện tại không đủ. Cần xử lý vận hành riêng.",
+      });
+    }
+  }
+
+  const reversal = await recordBalancedLedgerTransaction(transaction, {
+    amount: original.amount,
+    description: `REVERSAL ${original.reference}: ${reason.trim()}`,
+    postings: originalPostings.map((posting) => ({
+      accountId: posting.accountId,
+      creditAmount: posting.debitAmount,
+      debitAmount: posting.creditAmount,
+    })),
+    reference: createTransactionReference(),
+    reversalOfId: original.id,
+    type: "REVERSAL",
+  });
+
+  for (const [userId, delta] of walletEntries) {
+    await transaction
+      .update(userWallet)
+      .set({
+        availableBalance: sql`${userWallet.availableBalance} + ${delta.available}`,
+        heldBalance: sql`${userWallet.heldBalance} + ${delta.held}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(userWallet.userId, userId));
+  }
+
+  return {
+    reversalId: reversal.id,
+    reversalReference: reversal.reference,
+  };
+};
+
 export const reverseLedgerTransaction = ({
   database = db,
   reason,
@@ -810,128 +1054,9 @@ export const reverseLedgerTransaction = ({
   reason: string;
   transactionId: string;
 }): Promise<{ reversalId: string; reversalReference: string }> =>
-  database.transaction(async (transaction) => {
-    const [original] = await transaction
-      .select()
-      .from(ledgerTransaction)
-      .where(eq(ledgerTransaction.id, transactionId))
-      .for("update")
-      .limit(1);
-
-    if (!original) {
-      throw new ORPCError("NOT_FOUND", {
-        message: "Giao dịch cần đảo không tồn tại.",
-      });
-    }
-    if (original.type === "REVERSAL") {
-      throw new ORPCError("BAD_REQUEST", {
-        message: "Không thể đảo một giao dịch đảo.",
-      });
-    }
-
-    const [existingReversal] = await transaction
-      .select({ id: ledgerTransaction.id })
-      .from(ledgerTransaction)
-      .where(eq(ledgerTransaction.reversalOfId, transactionId))
-      .limit(1);
-    if (existingReversal) {
-      throw new ORPCError("CONFLICT", {
-        message: "Giao dịch này đã được đảo trước đó.",
-      });
-    }
-
-    const originalPostings = await transaction
-      .select({
-        accountId: ledgerPosting.ledgerAccountId,
-        accountType: ledgerAccount.accountType,
-        creditAmount: ledgerPosting.creditAmount,
-        debitAmount: ledgerPosting.debitAmount,
-        userId: ledgerAccount.userId,
-      })
-      .from(ledgerPosting)
-      .innerJoin(
-        ledgerAccount,
-        eq(ledgerPosting.ledgerAccountId, ledgerAccount.id)
-      )
-      .where(eq(ledgerPosting.transactionId, transactionId));
-
-    if (originalPostings.length < 2) {
-      throw new ORPCError("BAD_REQUEST", {
-        message: "Giao dịch không có đủ bút toán để đảo.",
-      });
-    }
-
-    const walletDeltas = new Map<string, { available: number; held: number }>();
-    for (const posting of originalPostings) {
-      if (
-        !posting.userId ||
-        (posting.accountType !== "USER_WALLET_AVAILABLE" &&
-          posting.accountType !== "USER_WALLET_HELD")
-      ) {
-        continue;
-      }
-      const delta = posting.debitAmount - posting.creditAmount;
-      const current = walletDeltas.get(posting.userId) ?? {
-        available: 0,
-        held: 0,
-      };
-      if (posting.accountType === "USER_WALLET_AVAILABLE") {
-        current.available += delta;
-      } else {
-        current.held += delta;
-      }
-      walletDeltas.set(posting.userId, current);
-    }
-
-    const walletEntries = [...walletDeltas.entries()].toSorted(
-      ([left], [right]) => left.localeCompare(right)
-    );
-
-    for (const [userId, delta] of walletEntries) {
-      const [wallet] = await transaction
-        .select()
-        .from(userWallet)
-        .where(eq(userWallet.userId, userId))
-        .for("update")
-        .limit(1);
-      if (
-        !wallet ||
-        wallet.availableBalance + delta.available < 0 ||
-        wallet.heldBalance + delta.held < 0
-      ) {
-        throw new ORPCError("CONFLICT", {
-          message:
-            "Không thể tự động đảo giao dịch vì số dư ví hiện tại không đủ. Cần xử lý vận hành riêng.",
-        });
-      }
-    }
-
-    const reversal = await recordBalancedLedgerTransaction(transaction, {
-      amount: original.amount,
-      description: `REVERSAL ${original.reference}: ${reason.trim()}`,
-      postings: originalPostings.map((posting) => ({
-        accountId: posting.accountId,
-        creditAmount: posting.debitAmount,
-        debitAmount: posting.creditAmount,
-      })),
-      reference: createTransactionReference(),
-      reversalOfId: original.id,
-      type: "REVERSAL",
-    });
-
-    for (const [userId, delta] of walletEntries) {
-      await transaction
-        .update(userWallet)
-        .set({
-          availableBalance: sql`${userWallet.availableBalance} + ${delta.available}`,
-          heldBalance: sql`${userWallet.heldBalance} + ${delta.held}`,
-          updatedAt: new Date(),
-        })
-        .where(eq(userWallet.userId, userId));
-    }
-
-    return {
-      reversalId: reversal.id,
-      reversalReference: reversal.reference,
-    };
-  });
+  database.transaction((transaction) =>
+    reverseLedgerTransactionInTransaction(transaction, {
+      reason,
+      transactionId,
+    })
+  );

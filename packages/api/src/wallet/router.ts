@@ -1,4 +1,7 @@
-import { sepayPaymentEvent } from "@avin/db/schema/wallet";
+import {
+  sepayPaymentEvent,
+  withdrawalRequestStatus,
+} from "@avin/db/schema/wallet";
 import { env } from "@avin/env/server";
 import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
@@ -7,6 +10,7 @@ import {
   adminProcedure,
   auditedAdminProcedure,
   buyerProcedure,
+  sellerProcedure,
 } from "../access/procedures";
 import { reconcileSePayEvent } from "./processor";
 import {
@@ -18,6 +22,21 @@ import {
   reverseLedgerTransaction,
 } from "./service";
 import type { WalletBankConfiguration } from "./service";
+import {
+  approveWithdrawalRequest,
+  cancelWithdrawalRequest,
+  getSellerWalletSummary,
+  getWithdrawalRequest,
+  listAdminWithdrawalRequests,
+  listSellerWithdrawalRequests,
+  markWithdrawalRequestPaid,
+  rejectWithdrawalRequest,
+  requestWithdrawal,
+  WITHDRAWAL_IDEMPOTENCY_KEY_MAX_LENGTH,
+  WITHDRAWAL_MINIMUM_AMOUNT,
+  WITHDRAWAL_PAYMENT_REFERENCE_MAX_LENGTH,
+  WITHDRAWAL_REJECTION_REASON_MAX_LENGTH,
+} from "./withdrawal";
 
 const walletBankConfiguration: WalletBankConfiguration = {
   accountName: env.SEPAY_BANK_ACCOUNT_NAME ?? "",
@@ -48,6 +67,31 @@ const reconciliationInput = z.object({
   eventId: z.uuid(),
 });
 
+const withdrawalRequestInput = z.object({
+  amount: z.number().int().min(WITHDRAWAL_MINIMUM_AMOUNT),
+  idempotencyKey: z
+    .string()
+    .trim()
+    .min(1)
+    .max(WITHDRAWAL_IDEMPOTENCY_KEY_MAX_LENGTH),
+});
+
+const withdrawalRequestIdInput = z.object({
+  withdrawalRequestId: z.uuid(),
+});
+
+const withdrawalRejectInput = withdrawalRequestIdInput.extend({
+  reason: z.string().trim().min(1).max(WITHDRAWAL_REJECTION_REASON_MAX_LENGTH),
+});
+
+const withdrawalPaymentInput = withdrawalRequestIdInput.extend({
+  paymentReference: z
+    .string()
+    .trim()
+    .min(1)
+    .max(WITHDRAWAL_PAYMENT_REFERENCE_MAX_LENGTH),
+});
+
 const mapReconciliationEvent = (
   event: typeof sepayPaymentEvent.$inferSelect
 ) => ({
@@ -74,6 +118,25 @@ const mapReconciliationEvent = (
 
 export const walletRouter = {
   admin: {
+    approveWithdrawal: auditedAdminProcedure("wallet.withdrawal.approve")
+      .input(withdrawalRequestIdInput)
+      .handler(({ context, input }) =>
+        approveWithdrawalRequest({
+          adminUserId: context.session.user.id,
+          database: context.db,
+          withdrawalRequestId: input.withdrawalRequestId,
+        })
+      ),
+
+    getWithdrawal: adminProcedure
+      .input(withdrawalRequestIdInput)
+      .handler(({ context, input }) =>
+        getWithdrawalRequest({
+          database: context.db,
+          withdrawalRequestId: input.withdrawalRequestId,
+        })
+      ),
+
     listReconciliation: adminProcedure
       .input(reconciliationListInput)
       .handler(async ({ context, input }) => {
@@ -91,6 +154,32 @@ export const walletRouter = {
         return events.map(mapReconciliationEvent);
       }),
 
+    listWithdrawals: adminProcedure
+      .input(
+        z
+          .object({
+            status: z.enum(withdrawalRequestStatus.enumValues).optional(),
+          })
+          .optional()
+      )
+      .handler(({ context, input }) =>
+        listAdminWithdrawalRequests({
+          database: context.db,
+          status: input?.status,
+        })
+      ),
+
+    markWithdrawalPaid: auditedAdminProcedure("wallet.withdrawal.markPaid")
+      .input(withdrawalPaymentInput)
+      .handler(({ context, input }) =>
+        markWithdrawalRequestPaid({
+          adminUserId: context.session.user.id,
+          database: context.db,
+          paymentReference: input.paymentReference,
+          withdrawalRequestId: input.withdrawalRequestId,
+        })
+      ),
+
     reconcile: auditedAdminProcedure("wallet.deposit.reconcile")
       .input(reconciliationInput)
       .handler(({ context, input }) =>
@@ -100,6 +189,17 @@ export const walletRouter = {
           depositRequestId: input.depositRequestId,
           eventId: input.eventId,
           receivingAccountNumber: env.SEPAY_BANK_ACCOUNT ?? "",
+        })
+      ),
+
+    rejectWithdrawal: auditedAdminProcedure("wallet.withdrawal.reject")
+      .input(withdrawalRejectInput)
+      .handler(({ context, input }) =>
+        rejectWithdrawalRequest({
+          adminUserId: context.session.user.id,
+          database: context.db,
+          reason: input.reason,
+          withdrawalRequestId: input.withdrawalRequestId,
         })
       ),
 
@@ -145,4 +245,45 @@ export const walletRouter = {
     .handler(({ context, input }) =>
       getWalletTransactions(context.db, context.session.user.id, input.cursor)
     ),
+
+  seller: {
+    cancelWithdrawal: sellerProcedure
+      .input(withdrawalRequestIdInput)
+      .handler(({ context, input }) =>
+        cancelWithdrawalRequest({
+          database: context.db,
+          sellerId: context.session.user.id,
+          withdrawalRequestId: input.withdrawalRequestId,
+        })
+      ),
+
+    getSummary: sellerProcedure.handler(({ context }) =>
+      getSellerWalletSummary(context.db, context.session.user.id)
+    ),
+
+    getWithdrawal: sellerProcedure
+      .input(withdrawalRequestIdInput)
+      .handler(({ context, input }) =>
+        getWithdrawalRequest({
+          database: context.db,
+          sellerId: context.session.user.id,
+          withdrawalRequestId: input.withdrawalRequestId,
+        })
+      ),
+
+    listWithdrawals: sellerProcedure.handler(({ context }) =>
+      listSellerWithdrawalRequests(context.db, context.session.user.id)
+    ),
+
+    requestWithdrawal: sellerProcedure
+      .input(withdrawalRequestInput)
+      .handler(({ context, input }) =>
+        requestWithdrawal({
+          amount: input.amount,
+          database: context.db,
+          idempotencyKey: input.idempotencyKey,
+          sellerId: context.session.user.id,
+        })
+      ),
+  },
 };
