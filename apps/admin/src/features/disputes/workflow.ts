@@ -30,6 +30,7 @@ export const resolveDispute = (
 
   if (adminMessage && adminMessage.trim().length > 0) {
     newChatMessages.push({
+      attachments: [],
       content: adminMessage.trim(),
       id: `msg_admin_${Date.now()}`,
       senderName: adminName,

@@ -25,6 +25,7 @@ import { Main } from "@/components/layout/main";
 import { ThemeSwitch } from "@/components/theme-switch";
 
 import { useAdminDispute, useDisputeEvidenceUrl } from "../api/disputes-api";
+import { DisputeChatAttachment } from "../components/dispute-chat-attachment";
 import { DisputeResolutionDialog } from "../components/dispute-resolution-dialog";
 import { DisputeStatusBadge } from "../components/dispute-status-badge";
 import type { DisputeResolutionOutcome } from "../types";
@@ -314,7 +315,20 @@ export const DisputeDetailPage = () => {
                         {new Date(msg.sentAt).toLocaleTimeString("vi-VN")}
                       </span>
                     </div>
-                    <p className="text-sm leading-relaxed">{msg.content}</p>
+                    {msg.content !== "[Tin nhắn không có nội dung]" ||
+                    msg.attachments.length === 0 ? (
+                      <p className="text-sm leading-relaxed">{msg.content}</p>
+                    ) : null}
+                    {msg.attachments.length > 0 ? (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {msg.attachments.map((attachment) => (
+                          <DisputeChatAttachment
+                            attachment={attachment}
+                            key={attachment.id}
+                          />
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 ))}
               </CardContent>

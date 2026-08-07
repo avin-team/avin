@@ -10,6 +10,7 @@ import {
   escrowHold,
   notification,
   order,
+  orderFile,
   orderItem,
   orderItemLifecycleEvent,
   orderMessage,
@@ -138,12 +139,20 @@ export interface DisputeEvidenceView {
   fileUrl?: string;
 }
 
+export interface DisputeChatAttachmentView {
+  byteSize: number;
+  contentType: string;
+  fileName: string;
+  id: string;
+}
+
 export interface DisputeChatMessageView {
   content: string;
   id: string;
   senderName: string;
   senderRole: "BUYER" | "SELLER" | "ADMIN";
   sentAt: string;
+  attachments: DisputeChatAttachmentView[];
 }
 
 export interface DisputeView {
@@ -370,7 +379,7 @@ const toDisputeChatSenderRole = (
   }
 };
 
-const getChatMessagesForOrders = async (
+export const getChatMessagesForOrders = async (
   executor: CommerceExecutor,
   orderIds: string[]
 ): Promise<Map<string, DisputeChatMessageView[]>> => {
@@ -380,6 +389,10 @@ const getChatMessagesForOrders = async (
 
   const rows = await executor
     .select({
+      attachmentByteSize: orderFile.byteSize,
+      attachmentContentType: orderFile.contentType,
+      attachmentFileName: orderFile.fileName,
+      attachmentId: orderFile.id,
       content: orderMessage.content,
       id: orderMessage.id,
       orderId: orderMessage.orderId,
@@ -392,19 +405,45 @@ const getChatMessagesForOrders = async (
       messageSenderUser,
       eq(messageSenderUser.id, orderMessage.senderId)
     )
+    .leftJoin(orderFile, eq(orderFile.orderMessageId, orderMessage.id))
     .where(inArray(orderMessage.orderId, orderIds))
-    .orderBy(asc(orderMessage.createdAt), asc(orderMessage.id));
+    .orderBy(
+      asc(orderMessage.createdAt),
+      asc(orderMessage.id),
+      asc(orderFile.createdAt),
+      asc(orderFile.id)
+    );
 
   const messagesByOrder = new Map<string, DisputeChatMessageView[]>();
+  const messagesById = new Map<string, DisputeChatMessageView>();
   for (const row of rows) {
     const current = messagesByOrder.get(row.orderId) ?? [];
-    current.push({
+    const attachment = row.attachmentId
+      ? {
+          byteSize: row.attachmentByteSize ?? 0,
+          contentType: row.attachmentContentType ?? "application/octet-stream",
+          fileName: row.attachmentFileName ?? "Tệp đính kèm",
+          id: row.attachmentId,
+        }
+      : null;
+    const message = messagesById.get(row.id);
+    if (message) {
+      if (attachment) {
+        message.attachments.push(attachment);
+      }
+      continue;
+    }
+
+    const newMessage: DisputeChatMessageView = {
+      attachments: attachment ? [attachment] : [],
       content: row.content ?? "[Tin nhắn không có nội dung]",
       id: row.id,
       senderName: row.senderName,
       senderRole: toDisputeChatSenderRole(row.senderRole),
       sentAt: row.sentAt.toISOString(),
-    });
+    };
+    current.push(newMessage);
+    messagesById.set(row.id, newMessage);
     messagesByOrder.set(row.orderId, current);
   }
   return messagesByOrder;

@@ -9,6 +9,7 @@ const INITIAL_DISPUTES: readonly Dispute[] = [
     buyerName: "Lê Thị Thu",
     chatMessages: [
       {
+        attachments: [],
         content:
           "Chào shop, link mời vào nhóm báo expired rồi ạ, shop check giúp em với.",
         id: "msg_1",
@@ -17,6 +18,7 @@ const INITIAL_DISPUTES: readonly Dispute[] = [
         sentAt: "2026-07-28T16:00:00Z",
       },
       {
+        attachments: [],
         content:
           "Shop ơi em chờ từ hôm qua đến giờ chưa thấy hồi âm nên em mở Dispute ạ.",
         id: "msg_2",
@@ -74,6 +76,7 @@ const INITIAL_DISPUTES: readonly Dispute[] = [
     buyerName: "Đỗ Hoàng Nam",
     chatMessages: [
       {
+        attachments: [],
         content: "Khóa học thiếu mất phần 2 từ bài 10-15 rồi anh ơi.",
         id: "msg_10",
         senderName: "Đỗ Hoàng Nam",
@@ -81,6 +84,7 @@ const INITIAL_DISPUTES: readonly Dispute[] = [
         sentAt: "2026-07-25T09:00:00Z",
       },
       {
+        attachments: [],
         content: "À do Drive bên mình bị gỡ file. Đã đồng ý refund cho bạn.",
         id: "msg_11",
         senderName: "DevTools Vietnam Store",
@@ -88,6 +92,7 @@ const INITIAL_DISPUTES: readonly Dispute[] = [
         sentAt: "2026-07-25T10:30:00Z",
       },
       {
+        attachments: [],
         content: "Admin xác nhận refund 100% (500,000 đ) về ví Buyer.",
         id: "msg_12",
         senderName: "Avin Admin Mediation",

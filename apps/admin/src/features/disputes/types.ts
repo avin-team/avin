@@ -26,12 +26,20 @@ export interface DisputeEvidence {
 }
 
 export interface DisputeChatMessage {
+  readonly attachments: readonly DisputeChatAttachment[];
   readonly id: string;
   readonly senderRole: "BUYER" | "SELLER" | "ADMIN";
   readonly senderName: string;
   readonly content: string;
   readonly sentAt: string;
   readonly isRedacted?: boolean;
+}
+
+export interface DisputeChatAttachment {
+  readonly byteSize: number;
+  readonly contentType: string;
+  readonly fileName: string;
+  readonly id: string;
 }
 
 export interface DisputeOrderItemSnapshot {
