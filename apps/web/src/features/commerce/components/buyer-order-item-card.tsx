@@ -55,6 +55,7 @@ import {
   isNoWarrantyPolicy,
 } from "@/features/commerce/order-status";
 import { buyerDisputeSchema } from "@/features/commerce/schemas/order-action-schemas";
+import { walletSummaryQueryOptions } from "@/features/wallet/api/wallet-api";
 import { formatVND } from "@/utils/format";
 import { getErrorMessage } from "@/utils/get-error-message";
 import { orpc } from "@/utils/orpc";
@@ -91,6 +92,9 @@ export const BuyerOrderItemCard = ({
         queryKey: orpc.commerce.orders.item.timeline.queryOptions({
           input: { itemId: item.id },
         }).queryKey,
+      }),
+      queryClient.invalidateQueries({
+        queryKey: walletSummaryQueryOptions().queryKey,
       }),
     ]);
   };

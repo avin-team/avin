@@ -90,6 +90,11 @@ vi.mock("@/utils/orpc", () => ({
           queryOptions: () => ({ queryKey: ["buyer-orders"] }),
         },
       },
+      wallet: {
+        getSummary: {
+          queryOptions: () => ({ queryKey: ["wallet-summary"] }),
+        },
+      },
     },
   },
 }));
@@ -277,10 +282,10 @@ describe("OrderDetailPage", () => {
     expect(screen.getByText("Tối ưu quảng cáo")).toBeInTheDocument();
     expect(screen.getAllByText("Đã bàn giao")[0]).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Xác nhận đã nhận" })
+      screen.getByRole("button", { name: "Xác nhận đã nhận hàng" })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Mở Dispute" })
+      screen.getByRole("button", { name: "Mở khiếu nại" })
     ).toBeInTheDocument();
     expect(screen.getByTestId("timeline-item-delivered")).toBeInTheDocument();
   });
