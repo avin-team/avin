@@ -29,24 +29,29 @@ import { Header } from "@/components/layout/header";
 import { Main } from "@/components/layout/main";
 import { ThemeSwitch } from "@/components/theme-switch";
 
-import { useDisputes } from "../api/mock-disputes";
+import { useAdminDisputes } from "../api/disputes-api";
 import { DisputeStatusBadge } from "../components/dispute-status-badge";
 import type { DisputeStatus } from "../types";
 
-type StatusFilter = "ALL" | DisputeStatus;
+type StatusFilter = "ALL" | Exclude<DisputeStatus, "UNDER_REVIEW">;
 
 const STATUS_FILTER_ITEMS: { label: string; value: StatusFilter }[] = [
   { label: "Tất cả trạng thái", value: "ALL" },
   { label: "Open (Đang mở)", value: "OPEN" },
-  { label: "Under Review (Admin xem xét)", value: "UNDER_REVIEW" },
+  { label: "Đã hủy bởi Buyer", value: "CANCELLED" },
   { label: "Resolved (Refunded)", value: "RESOLVED_REFUNDED" },
   { label: "Resolved (Released)", value: "RESOLVED_RELEASED" },
 ];
 
 export const DisputeQueuePage = () => {
-  const disputes = useDisputes();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
+  const {
+    data: disputes = [],
+    isError,
+    isLoading,
+    refetch,
+  } = useAdminDisputes(statusFilter);
 
   const q = query.trim().toLowerCase();
   const filteredDisputes = disputes.filter((dispute) => {
@@ -116,9 +121,7 @@ export const DisputeQueuePage = () => {
                 <SelectContent>
                   <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
                   <SelectItem value="OPEN">Open (Đang mở)</SelectItem>
-                  <SelectItem value="UNDER_REVIEW">
-                    Under Review (Admin xem xét)
-                  </SelectItem>
+                  <SelectItem value="CANCELLED">Đã hủy bởi Buyer</SelectItem>
                   <SelectItem value="RESOLVED_REFUNDED">
                     Resolved (Refunded)
                   </SelectItem>
@@ -143,64 +146,91 @@ export const DisputeQueuePage = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredDisputes.map((dispute) => (
-                    <TableRow key={dispute.id}>
-                      <TableCell>
-                        <div>
-                          <p className="font-mono text-xs font-semibold text-primary">
-                            #{dispute.itemSnapshot.orderId}
-                          </p>
-                          <p className="font-medium text-sm line-clamp-1">
-                            {dispute.itemSnapshot.listingTitle}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="text-sm font-medium">
-                            {dispute.buyerName}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {dispute.buyerEmail}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="text-sm font-medium">
-                            {dispute.sellerStorefrontName}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {dispute.sellerEmail}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-mono text-sm font-semibold">
-                        {dispute.itemSnapshot.totalAmountVnd.toLocaleString(
-                          "vi-VN"
-                        )}{" "}
-                        đ
-                      </TableCell>
-                      <TableCell>
-                        <DisputeStatusBadge status={dispute.status} />
-                      </TableCell>
-                      <TableCell className="text-end">
-                        <Button
-                          render={
-                            <Link
-                              params={{ disputeId: dispute.id }}
-                              to="/disputes/$disputeId"
-                            />
-                          }
-                          size="sm"
-                          variant="outline"
-                        >
-                          Xem & Phân giải
-                        </Button>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell
+                        className="h-28 text-center text-muted-foreground"
+                        colSpan={6}
+                      >
+                        Đang tải danh sách tranh chấp…
                       </TableCell>
                     </TableRow>
-                  ))}
-                  {filteredDisputes.length === 0 && (
+                  ) : null}
+                  {isError ? (
+                    <TableRow>
+                      <TableCell
+                        className="h-28 text-center text-destructive"
+                        colSpan={6}
+                      >
+                        <div className="grid justify-items-center gap-2">
+                          <span>Không thể tải danh sách tranh chấp.</span>
+                          <Button onClick={() => void refetch()} size="sm">
+                            Thử lại
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : null}
+                  {!isLoading &&
+                    !isError &&
+                    filteredDisputes.map((dispute) => (
+                      <TableRow key={dispute.id}>
+                        <TableCell>
+                          <div>
+                            <p className="font-mono text-xs font-semibold text-primary">
+                              #{dispute.itemSnapshot.orderId}
+                            </p>
+                            <p className="font-medium text-sm line-clamp-1">
+                              {dispute.itemSnapshot.listingTitle}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <p className="text-sm font-medium">
+                              {dispute.buyerName}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {dispute.buyerEmail}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <p className="text-sm font-medium">
+                              {dispute.sellerStorefrontName}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {dispute.sellerEmail}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-mono text-sm font-semibold">
+                          {dispute.itemSnapshot.totalAmountVnd.toLocaleString(
+                            "vi-VN"
+                          )}{" "}
+                          đ
+                        </TableCell>
+                        <TableCell>
+                          <DisputeStatusBadge status={dispute.status} />
+                        </TableCell>
+                        <TableCell className="text-end">
+                          <Button
+                            render={
+                              <Link
+                                params={{ disputeId: dispute.id }}
+                                to="/disputes/$disputeId"
+                              />
+                            }
+                            size="sm"
+                            variant="outline"
+                          >
+                            Xem & Phân giải
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  {!isLoading && !isError && filteredDisputes.length === 0 && (
                     <TableRow>
                       <TableCell
                         className="h-28 text-center text-muted-foreground"

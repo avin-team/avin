@@ -1,0 +1,1 @@
+ALTER TABLE "dispute_evidence" ADD COLUMN "submitted_late" boolean DEFAULT false NOT NULL;

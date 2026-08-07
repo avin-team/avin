@@ -1,3 +1,4 @@
+import type { DisputeEvidenceInput } from "@avin/api/commerce/dispute-contracts";
 import type { BuyerOrderView } from "@avin/api/commerce/orders";
 import { Alert, AlertDescription, AlertTitle } from "@avin/ui/components/alert";
 import {
@@ -39,6 +40,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { DisputeEvidenceUploader } from "@/features/commerce/components/dispute-evidence-uploader";
 import { OrderItemTimeline } from "@/features/commerce/components/order-item-timeline";
 import {
   ORDER_TIMELINE_REFRESH_INTERVAL_MS,
@@ -57,6 +59,7 @@ import { formatVND } from "@/utils/format";
 import { getErrorMessage } from "@/utils/get-error-message";
 import { orpc } from "@/utils/orpc";
 
+// oxlint-disable-next-line complexity
 export const BuyerOrderItemCard = ({
   item,
 }: {
@@ -64,6 +67,11 @@ export const BuyerOrderItemCard = ({
 }) => {
   const queryClient = useQueryClient();
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [disputeCancelOpen, setDisputeCancelOpen] = useState(false);
+  const [disputeCancelReason, setDisputeCancelReason] = useState("");
+  const [disputeEvidence, setDisputeEvidence] = useState<
+    DisputeEvidenceInput[]
+  >([]);
   const [disputeOpen, setDisputeOpen] = useState(false);
   const timelineQuery = useQuery(
     orpc.commerce.orders.item.timeline.queryOptions({
@@ -121,8 +129,24 @@ export const BuyerOrderItemCard = ({
       },
       onSuccess: async () => {
         setDisputeOpen(false);
+        setDisputeEvidence([]);
         await invalidateItem();
         toast.success("Đã mở Dispute cho OrderItem.");
+      },
+    })
+  );
+  const cancelDisputeMutation = useMutation(
+    orpc.commerce.disputes.cancel.mutationOptions({
+      onError: (error) => {
+        toast.error(getErrorMessage(error, "Không thể hủy Dispute."));
+      },
+      onSuccess: async () => {
+        setDisputeCancelOpen(false);
+        setDisputeCancelReason("");
+        await invalidateItem();
+        toast.success(
+          "Đã hủy Dispute. Escrow vẫn được giữ để xử lý bình thường."
+        );
       },
     })
   );
@@ -130,8 +154,15 @@ export const BuyerOrderItemCard = ({
     defaultValues: { reason: "" },
     onSubmit: async ({ value }) => {
       try {
+        if (disputeEvidence.length === 0) {
+          toast.error(
+            "Hãy tải ít nhất một tệp bằng chứng trước khi mở Dispute."
+          );
+          return;
+        }
         await disputeMutation.mutateAsync({
           commandKey: crypto.randomUUID(),
+          evidence: disputeEvidence,
           itemId: item.id,
           reason: value.reason,
         });
@@ -153,12 +184,15 @@ export const BuyerOrderItemCard = ({
     current?.warrantyExpiresAt ?? item.warrantyExpiresAt;
   const canConfirm = canBuyerConfirmDelivery(status, deliveryReviewDeadlineAt);
   const canCancel = canBuyerCancel(status);
-  const canDispute = canBuyerOpenDispute({
-    deliveryReviewDeadlineAt,
-    processingDeadlineAt,
-    status,
-    warrantyExpiresAt,
-  });
+  const canDispute =
+    canBuyerOpenDispute({
+      deliveryReviewDeadlineAt,
+      processingDeadlineAt,
+      status,
+      warrantyExpiresAt,
+    }) && !timelineQuery.data?.dispute;
+  const canCancelDispute =
+    status === "DISPUTED" && timelineQuery.data?.dispute?.status === "OPEN";
   const timelineContent = (() => {
     if (timelineQuery.isPending) {
       return (
@@ -212,6 +246,28 @@ export const BuyerOrderItemCard = ({
       await cancelMutation.mutateAsync({
         commandKey: crypto.randomUUID(),
         itemId: item.id,
+      });
+    } catch {
+      // The mutation error handler already shows the failure to the Buyer.
+    }
+  };
+
+  const handleCancelDispute = async (): Promise<void> => {
+    const reason = disputeCancelReason.trim();
+    if (!reason) {
+      toast.error("Hãy nhập lý do hủy Dispute.");
+      return;
+    }
+    try {
+      const disputeId = timelineQuery.data?.dispute?.id;
+      if (!disputeId) {
+        toast.error("Không tìm thấy Dispute đang mở.");
+        return;
+      }
+      await cancelDisputeMutation.mutateAsync({
+        commandKey: crypto.randomUUID(),
+        disputeId,
+        reason,
       });
     } catch {
       // The mutation error handler already shows the failure to the Buyer.
@@ -292,6 +348,15 @@ export const BuyerOrderItemCard = ({
               {disputeOpen ? "Đóng Dispute" : "Mở Dispute"}
             </Button>
           ) : null}
+          {canCancelDispute ? (
+            <Button
+              disabled={cancelDisputeMutation.isPending}
+              onClick={() => setDisputeCancelOpen(true)}
+              variant="ghost"
+            >
+              Hủy Dispute
+            </Button>
+          ) : null}
         </div>
 
         {disputeOpen ? (
@@ -339,6 +404,10 @@ export const BuyerOrderItemCard = ({
                   );
                 }}
               </disputeForm.Field>
+              <DisputeEvidenceUploader
+                itemId={item.id}
+                onEvidenceChange={setDisputeEvidence}
+              />
             </FieldGroup>
             <div className="mt-4 flex justify-end">
               <disputeForm.Subscribe
@@ -394,6 +463,44 @@ export const BuyerOrderItemCard = ({
               variant="destructive"
             >
               {cancelMutation.isPending ? "Đang hủy…" : "Xác nhận hủy"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        onOpenChange={(open) => {
+          if (!open && !cancelDisputeMutation.isPending) {
+            setDisputeCancelOpen(false);
+          }
+        }}
+        open={disputeCancelOpen}
+      >
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hủy Dispute?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Escrow vẫn được giữ và OrderItem quay lại trạng thái trước khi mở
+              Dispute. Bạn không thể mở lại Dispute này.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Textarea
+            aria-label="Lý do hủy Dispute"
+            disabled={cancelDisputeMutation.isPending}
+            onChange={(event) => setDisputeCancelReason(event.target.value)}
+            placeholder="Nhập lý do hủy Dispute…"
+            value={disputeCancelReason}
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelDisputeMutation.isPending}>
+              Quay lại
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={cancelDisputeMutation.isPending}
+              onClick={() => void handleCancelDispute()}
+              variant="destructive"
+            >
+              {cancelDisputeMutation.isPending ? "Đang hủy…" : "Xác nhận hủy"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

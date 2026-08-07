@@ -50,6 +50,9 @@ vi.mock("@/utils/orpc", () => ({
         markRead: { mutationOptions: () => ({}) },
         sendMessage: { mutationOptions: () => ({}) },
       },
+      disputes: {
+        submitSellerEvidence: { mutationOptions: () => ({}) },
+      },
       orders: {
         item: {
           cancelBySeller: { mutationOptions: () => ({}) },

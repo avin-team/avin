@@ -3,6 +3,8 @@ import type {
   WarrantyPolicySnapshot,
 } from "@avin/db/schema/commerce";
 
+import type { DisputeEvidenceInput } from "./dispute-contracts";
+
 const MILLISECONDS_PER_MINUTE = 60_000;
 const MILLISECONDS_PER_HOUR = 60 * MILLISECONDS_PER_MINUTE;
 
@@ -18,7 +20,11 @@ export type OrderItemTransitionCommand =
   | { type: "CONFIRM_DELIVERY" }
   | { type: "EXPIRE_DELIVERY_REVIEW" }
   | { type: "EXPIRE_WARRANTY" }
-  | { reason: string; type: "OPEN_DISPUTE" }
+  | {
+      evidence?: DisputeEvidenceInput[];
+      reason: string;
+      type: "OPEN_DISPUTE";
+    }
   | { deliveryNote: string; type: "SUBMIT_DELIVERY" }
   | { type: "START_FULFILLMENT" };
 

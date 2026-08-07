@@ -5,6 +5,7 @@ export const LISTING_IMAGE_UPLOAD_ROUTE = "listing-image";
 export const SELLER_LOGO_UPLOAD_ROUTE = "seller-logo";
 export const SELLER_BANNER_UPLOAD_ROUTE = "seller-banner";
 export const ORDER_CHAT_ATTACHMENT_UPLOAD_ROUTE = "order-chat-attachment";
+export const DISPUTE_EVIDENCE_UPLOAD_ROUTE = "dispute-evidence";
 
 export interface ManagedObjectStore {
   deleteObject: (key: string) => Promise<void>;
@@ -43,6 +44,16 @@ export const ORDER_CHAT_ATTACHMENT_CONTENT_TYPES = [
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/zip",
   "image/gif",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "text/plain",
+] as const;
+
+export const DISPUTE_EVIDENCE_MAX_BYTES = 10 * 1024 * 1024;
+export const DISPUTE_EVIDENCE_MAX_COUNT = 5;
+export const DISPUTE_EVIDENCE_CONTENT_TYPES = [
+  "application/pdf",
   "image/jpeg",
   "image/png",
   "image/webp",
@@ -139,6 +150,55 @@ export const createOrderChatAttachmentKey = (
   }
 
   return `orders/${orderId}/chat/${userId}/${objectId}`;
+};
+
+const DISPUTE_EVIDENCE_EXTENSIONS: Record<
+  (typeof DISPUTE_EVIDENCE_CONTENT_TYPES)[number],
+  string
+> = {
+  "application/pdf": "pdf",
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "text/plain": "txt",
+};
+
+export const createDisputeEvidenceKey = (
+  orderItemId: string,
+  userId: string,
+  contentType: string,
+  objectId = crypto.randomUUID()
+): string => {
+  const extension =
+    DISPUTE_EVIDENCE_EXTENSIONS[
+      contentType as (typeof DISPUTE_EVIDENCE_CONTENT_TYPES)[number]
+    ];
+  if (!extension) {
+    throw new Error(`Unsupported dispute evidence type: ${contentType}`);
+  }
+  if (
+    !SAFE_PATH_SEGMENT.test(orderItemId) ||
+    !SAFE_PATH_SEGMENT.test(userId) ||
+    !SAFE_PATH_SEGMENT.test(objectId)
+  ) {
+    throw new Error("Invalid dispute evidence path segment");
+  }
+  return `orders/${orderItemId}/disputes/${userId}/${objectId}.${extension}`;
+};
+
+export const isDisputeEvidenceKey = (
+  key: string,
+  orderItemId: string,
+  userId: string
+): boolean => {
+  if (!SAFE_PATH_SEGMENT.test(orderItemId) || !SAFE_PATH_SEGMENT.test(userId)) {
+    return false;
+  }
+  const prefix = `orders/${orderItemId}/disputes/${userId}/`;
+  return new RegExp(
+    `^${prefix.replaceAll("/", "\\/")}[a-f0-9-]{36}\\.(?:pdf|jpg|png|webp|txt)$`,
+    "iu"
+  ).test(key);
 };
 
 export const isOrderChatAttachmentKey = (

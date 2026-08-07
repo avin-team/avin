@@ -21,7 +21,8 @@ import { startOrderChatAttachmentMaintenanceSchedule } from "./jobs/order-chat-a
 import { startSePayReconciliationSchedule } from "./jobs/sepay-reconciliation";
 import {
   createOrderChatAttachmentUploadRouter,
-  handleListingImageUpload,
+  createDisputeEvidenceUploadRouter,
+  handleUploadRequest,
   createListingImageUploadRouter,
 } from "./uploads/listing-image-upload";
 import { createListingImageStorage } from "./uploads/storage";
@@ -33,6 +34,9 @@ const listingImageUploadRouter = listingImageStorage
   : null;
 const orderChatAttachmentUploadRouter = listingImageStorage
   ? createOrderChatAttachmentUploadRouter(listingImageStorage.client)
+  : null;
+const disputeEvidenceUploadRouter = listingImageStorage
+  ? createDisputeEvidenceUploadRouter(listingImageStorage.client)
   : null;
 
 const sePayWebhookConfiguration = {
@@ -62,7 +66,7 @@ app.post("/api/upload", (c) => {
     return c.json({ error: "Media uploads are not configured" }, 503);
   }
 
-  return handleListingImageUpload(c.req.raw, listingImageUploadRouter);
+  return handleUploadRequest(c.req.raw, listingImageUploadRouter);
 });
 
 app.post("/api/order-chat-upload", (c) => {
@@ -73,7 +77,18 @@ app.post("/api/order-chat-upload", (c) => {
     );
   }
 
-  return handleListingImageUpload(c.req.raw, orderChatAttachmentUploadRouter);
+  return handleUploadRequest(c.req.raw, orderChatAttachmentUploadRouter);
+});
+
+app.post("/api/dispute-evidence-upload", (c) => {
+  if (!disputeEvidenceUploadRouter) {
+    return c.json(
+      { error: "Dispute evidence uploads are not configured" },
+      503
+    );
+  }
+
+  return handleUploadRequest(c.req.raw, disputeEvidenceUploadRouter);
 });
 
 const sePayWebhook = (c: { req: { raw: Request } }) =>

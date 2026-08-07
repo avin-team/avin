@@ -72,6 +72,9 @@ vi.mock("@/utils/orpc", () => ({
           mutationOptions: () => ({}),
         },
       },
+      disputes: {
+        cancel: { mutationOptions: () => ({}) },
+      },
       orders: {
         item: {
           cancelByBuyer: { mutationOptions: () => ({}) },

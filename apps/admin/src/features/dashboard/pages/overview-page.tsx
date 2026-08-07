@@ -25,7 +25,7 @@ import { ThemeSwitch } from "@/components/theme-switch";
 import { categoriesQueryOptions } from "@/features/categories/api/categories-api";
 import type { ParentCategory } from "@/features/categories/types";
 import { countTotalSubCategories } from "@/features/categories/workflow";
-import { useDisputes } from "@/features/disputes/api/mock-disputes";
+import { useAdminDisputes } from "@/features/disputes/api/disputes-api";
 import { useSellerApplications } from "@/features/seller-applications/api/mock-seller-applications";
 import { ApplicationStatusBadge } from "@/features/seller-applications/components/application-status-badge";
 import { formatApplicationDate } from "@/features/seller-applications/utils";
@@ -36,15 +36,13 @@ export const OverviewPage = () => {
   const applications = useSellerApplications();
   const { data: categories = [] } = useQuery(categoriesQueryOptions());
   const sellers = useSellers();
-  const disputes = useDisputes();
+  const { data: disputes = [] } = useAdminDisputes("OPEN");
   const withdrawals = useWithdrawals();
 
   const pendingAppsCount = applications.filter(
     (a) => a.status === "PENDING_REVIEW"
   ).length;
-  const openDisputesCount = disputes.filter(
-    (d) => d.status === "OPEN" || d.status === "UNDER_REVIEW"
-  ).length;
+  const openDisputesCount = disputes.length;
   const pendingWithdrawalsCount = withdrawals.filter(
     (w) => w.status === "PENDING"
   ).length;

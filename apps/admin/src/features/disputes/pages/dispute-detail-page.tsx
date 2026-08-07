@@ -18,12 +18,13 @@ import {
 } from "@phosphor-icons/react";
 import { Link, useParams } from "@tanstack/react-router";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { Header } from "@/components/layout/header";
 import { Main } from "@/components/layout/main";
 import { ThemeSwitch } from "@/components/theme-switch";
 
-import { getDispute, useDisputes } from "../api/mock-disputes";
+import { useAdminDispute, useDisputeEvidenceUrl } from "../api/disputes-api";
 import { DisputeResolutionDialog } from "../components/dispute-resolution-dialog";
 import { DisputeStatusBadge } from "../components/dispute-status-badge";
 import type { DisputeResolutionOutcome } from "../types";
@@ -52,18 +53,39 @@ const getChatMessageStyle = (senderRole: string): string => {
   return "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900";
 };
 
+const getResolutionLabel = (status: string): string => {
+  switch (status) {
+    case "RESOLVED_REFUNDED": {
+      return "Đã hoàn 100% tiền về ví Buyer";
+    }
+    case "RESOLVED_RELEASED": {
+      return "Đã giải ngân 100% tiền về ví Seller";
+    }
+    default: {
+      return "Buyer đã hủy Dispute; Escrow vẫn được giữ";
+    }
+  }
+};
+
 export const DisputeDetailPage = () => {
   const { disputeId } = useParams({
     from: "/_authenticated/disputes/$disputeId",
   });
-  const disputes = useDisputes();
-  const dispute =
-    disputes.find((d) => d.id === disputeId) ?? getDispute(disputeId);
+  const { data: dispute, isError, isLoading } = useAdminDispute(disputeId);
+  const evidenceUrlMutation = useDisputeEvidenceUrl();
 
   const [outcome, setOutcome] = useState<DisputeResolutionOutcome | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  if (!dispute) {
+  if (isLoading) {
+    return (
+      <Main className="flex flex-1 items-center justify-center">
+        <p className="text-muted-foreground">Đang tải tranh chấp…</p>
+      </Main>
+    );
+  }
+
+  if (isError || !dispute) {
     return (
       <Main className="flex flex-1 flex-col items-start justify-center gap-4">
         <p className="text-sm font-medium text-primary">DISPUTE MEDIATION</p>
@@ -82,6 +104,23 @@ export const DisputeDetailPage = () => {
   const handleResolve = (chosenOutcome: DisputeResolutionOutcome) => {
     setOutcome(chosenOutcome);
     setDialogOpen(true);
+  };
+
+  const handleEvidenceOpen = async (evidenceId: string, fileUrl?: string) => {
+    try {
+      let url = fileUrl;
+      if (!url) {
+        const signedEvidence = await evidenceUrlMutation.mutateAsync({
+          disputeId: dispute.id,
+          evidenceId,
+        });
+        const { url: signedUrl } = signedEvidence;
+        url = signedUrl;
+      }
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch {
+      toast.error("Không thể mở tệp bằng chứng.");
+    }
   };
 
   return (
@@ -135,6 +174,22 @@ export const DisputeDetailPage = () => {
                   label="Phân loại"
                   value={dispute.itemSnapshot.categoryName}
                 />
+                {dispute.itemSnapshot.servicePackageName ? (
+                  <DetailField
+                    label="Gói dịch vụ"
+                    value={`${dispute.itemSnapshot.servicePackageName}${
+                      dispute.itemSnapshot.servicePackageScope
+                        ? ` · ${dispute.itemSnapshot.servicePackageScope}`
+                        : ""
+                    }`}
+                  />
+                ) : null}
+                {dispute.itemSnapshot.servicePackageDescription ? (
+                  <DetailField
+                    label="Mô tả gói"
+                    value={dispute.itemSnapshot.servicePackageDescription}
+                  />
+                ) : null}
                 <DetailField
                   label="Số lượng"
                   value={`${dispute.itemSnapshot.quantity} item`}
@@ -151,6 +206,20 @@ export const DisputeDetailPage = () => {
                   label="Thời hạn bảo hành"
                   value={`${dispute.itemSnapshot.warrantyDurationHours} giờ`}
                 />
+                <DetailField
+                  label="Hạn Seller phản hồi"
+                  value={new Date(dispute.responseDeadlineAt).toLocaleString(
+                    "vi-VN"
+                  )}
+                />
+                {dispute.adminDecisionDeadlineAt ? (
+                  <DetailField
+                    label="SLA Admin"
+                    value={new Date(
+                      dispute.adminDecisionDeadlineAt
+                    ).toLocaleString("vi-VN")}
+                  />
+                ) : null}
               </CardContent>
             </Card>
 
@@ -192,6 +261,9 @@ export const DisputeDetailPage = () => {
                         <span className="font-medium text-sm">
                           {evidence.fileName}
                         </span>
+                        {evidence.submittedLate ? (
+                          <Badge variant="destructive">Nộp trễ</Badge>
+                        ) : null}
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {evidence.description}
@@ -199,7 +271,10 @@ export const DisputeDetailPage = () => {
                     </div>
                     <Button
                       className="gap-1 text-xs"
-                      onClick={() => window.open(evidence.fileUrl, "_blank")}
+                      disabled={evidenceUrlMutation.isPending}
+                      onClick={() =>
+                        void handleEvidenceOpen(evidence.id, evidence.fileUrl)
+                      }
                       size="sm"
                       variant="ghost"
                     >
@@ -277,9 +352,7 @@ export const DisputeDetailPage = () => {
                     Kết quả phân giải
                   </p>
                   <p className="font-semibold text-sm">
-                    {dispute.status === "RESOLVED_REFUNDED"
-                      ? "Đã hoàn 100% tiền về ví Buyer"
-                      : "Đã giải ngân 100% tiền về ví Seller"}
+                    {getResolutionLabel(dispute.status)}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Ghi chú: {dispute.resolutionNote}

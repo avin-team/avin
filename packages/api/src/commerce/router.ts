@@ -1,7 +1,9 @@
+import { adminRequiresTwoFactor } from "@avin/auth/permissions";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 
 import {
+  adminProcedure,
   auditedAdminProcedure,
   buyerProcedure,
   protectedProcedure,
@@ -30,6 +32,20 @@ import {
   sendMessage,
 } from "./chat";
 import { checkoutInputSchema, createCheckout } from "./checkout";
+import {
+  cancelDispute,
+  disputeCancelInputSchema,
+  disputeGetInputSchema,
+  disputeListInputSchema,
+  disputeResolveInputSchema,
+  getDisputeEvidenceUrl,
+  getDisputeEvidenceUrlForUser,
+  getDispute,
+  listDisputes,
+  resolveDispute,
+  sellerDisputeEvidenceInputSchema,
+  submitSellerEvidence,
+} from "./disputes";
 import {
   cancelByBuyer,
   cancelBySeller,
@@ -283,6 +299,97 @@ export const commerceRouter = {
       ),
   },
 
+  disputes: {
+    adminEvidenceUrl: adminProcedure
+      .input(z.object({ disputeId: z.uuid(), evidenceId: z.uuid() }))
+      .handler(({ context, input }) =>
+        getDisputeEvidenceUrl({
+          database: context.db,
+          disputeId: input.disputeId,
+          evidenceId: input.evidenceId,
+        })
+      ),
+
+    adminGet: adminProcedure
+      .input(disputeGetInputSchema)
+      .handler(({ context, input }) =>
+        getDispute({
+          adminUserId: context.session.user.id,
+          database: context.db,
+          disputeId: input.disputeId,
+        })
+      ),
+
+    adminList: adminProcedure
+      .input(disputeListInputSchema)
+      .handler(({ context, input }) =>
+        listDisputes({ database: context.db, status: input?.status })
+      ),
+
+    adminResolve: adminProcedure
+      .input(disputeResolveInputSchema)
+      .handler(({ context, input }) =>
+        resolveDispute({
+          adminMessage: input.adminMessage,
+          adminUserId: context.session.user.id,
+          commandKey: input.commandKey,
+          database: context.db,
+          disputeId: input.disputeId,
+          note: input.note,
+          outcome: input.outcome,
+        })
+      ),
+
+    cancel: buyerProcedure
+      .input(disputeCancelInputSchema)
+      .handler(({ context, input }) =>
+        cancelDispute({
+          buyerId: context.session.user.id,
+          commandKey: input.commandKey,
+          database: context.db,
+          disputeId: input.disputeId,
+          reason: input.reason,
+        })
+      ),
+
+    getEvidenceUrl: protectedProcedure
+      .input(z.object({ disputeId: z.uuid(), evidenceId: z.uuid() }))
+      .handler(({ context, input }) => {
+        if (
+          context.session.user.role === "ADMIN" &&
+          adminRequiresTwoFactor(context.session.user)
+        ) {
+          throw new ORPCError("FORBIDDEN", {
+            message: "Two-factor authentication is required for Admin access.",
+          });
+        }
+        return getDisputeEvidenceUrlForUser({
+          database: context.db,
+          disputeId: input.disputeId,
+          evidenceId: input.evidenceId,
+          userId: context.session.user.id,
+          userRole: getFulfillmentActorRole(context.session.user.role),
+        });
+      }),
+
+    submitSellerEvidence: sellerProcedure
+      .input(
+        z.object({
+          disputeId: z.uuid(),
+          ...sellerDisputeEvidenceInputSchema.shape,
+        })
+      )
+      .handler(({ context, input }) =>
+        submitSellerEvidence({
+          commandKey: input.commandKey,
+          database: context.db,
+          disputeId: input.disputeId,
+          evidence: input.evidence,
+          sellerId: context.session.user.id,
+        })
+      ),
+  },
+
   orders: {
     item: {
       cancelByBuyer: buyerProcedure
@@ -329,6 +436,7 @@ export const commerceRouter = {
             database: context.db,
             input: {
               commandKey: input.commandKey,
+              evidence: input.evidence,
               reason: input.reason,
             },
             itemId: input.itemId,
@@ -363,14 +471,23 @@ export const commerceRouter = {
 
       timeline: protectedProcedure
         .input(orderItemIdInput)
-        .handler(({ context, input }) =>
-          getOrderItemTimeline({
+        .handler(({ context, input }) => {
+          if (
+            context.session.user.role === "ADMIN" &&
+            adminRequiresTwoFactor(context.session.user)
+          ) {
+            throw new ORPCError("FORBIDDEN", {
+              message:
+                "Two-factor authentication is required for Admin access.",
+            });
+          }
+          return getOrderItemTimeline({
             actorId: context.session.user.id,
             actorRole: getFulfillmentActorRole(context.session.user.role),
             database: context.db,
             itemId: input.itemId,
-          })
-        ),
+          });
+        }),
     },
 
     listMine: sellerProcedure.handler(({ context }) =>

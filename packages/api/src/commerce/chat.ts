@@ -39,6 +39,8 @@ import {
 import { createSupabaseAccessToken } from "../access/supabase-access-token";
 import type { MarketplaceSession } from "../runtime/context";
 
+export const ORDER_MESSAGE_MAX_LENGTH = 2000;
+
 export interface SendMessageInput {
   attachmentFileIds?: string[];
   content?: string | null;
@@ -442,9 +444,9 @@ export async function sendMessage({
     });
   }
 
-  if (content && content.length > 2000) {
+  if (content && content.length > ORDER_MESSAGE_MAX_LENGTH) {
     throw new ORPCError("BAD_REQUEST", {
-      message: "Message content exceeds maximum length of 2000 characters",
+      message: `Message content exceeds maximum length of ${ORDER_MESSAGE_MAX_LENGTH} characters`,
     });
   }
 

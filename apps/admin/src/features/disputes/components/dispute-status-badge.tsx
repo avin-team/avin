@@ -21,6 +21,9 @@ export const DisputeStatusBadge = ({
     case "UNDER_REVIEW": {
       return <Badge className="bg-blue-600 text-white">Admin xem xét</Badge>;
     }
+    case "CANCELLED": {
+      return <Badge variant="outline">Buyer đã hủy</Badge>;
+    }
     case "RESOLVED_REFUNDED": {
       return <Badge className="bg-purple-600 text-white">Đã hoàn tiền</Badge>;
     }

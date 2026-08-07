@@ -1,5 +1,6 @@
 import type { OrderItemTimelineView } from "@avin/api/commerce/fulfillment";
 import { Badge } from "@avin/ui/components/badge";
+import { Button } from "@avin/ui/components/button";
 import {
   Card,
   CardContent,
@@ -13,6 +14,8 @@ import {
   ShieldCheckIcon,
   TimerIcon,
 } from "@phosphor-icons/react";
+import { useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import {
   formatOrderDate,
@@ -24,7 +27,9 @@ import {
   getWarrantyPolicyTerms,
   isNoWarrantyPolicy,
 } from "@/features/commerce/order-status";
+import { getErrorMessage } from "@/utils/get-error-message";
 import { getSafeEvidenceHref } from "@/utils/get-safe-evidence-href";
+import { orpc } from "@/utils/orpc";
 
 const ACTOR_LABELS: Record<
   OrderItemTimelineView["events"][number]["actorType"],
@@ -39,6 +44,23 @@ const ACTOR_LABELS: Record<
 const getTimelineEventTitle = (
   event: OrderItemTimelineView["events"][number]
 ): string => {
+  if (event.artifactType === "DISPUTE_EVIDENCE") {
+    return "Bổ sung bằng chứng Dispute";
+  }
+  if (event.reason === "Seller response deadline expired") {
+    return "Hết hạn phản hồi Dispute";
+  }
+  if (event.reason === "Admin decision deadline expired") {
+    return "Dispute quá hạn xử lý Admin";
+  }
+  if (
+    event.oldStatus === "DISPUTED" &&
+    event.actorType === "BUYER" &&
+    event.newStatus !== "DISPUTED"
+  ) {
+    return "Buyer hủy Dispute";
+  }
+
   switch (event.newStatus) {
     case "AWAITING_SELLER": {
       return "Khởi tạo đơn hàng";
@@ -110,6 +132,52 @@ const EvidenceFile = ({
           {file.fileName} · {file.storageKey}
         </span>
       )}
+    </li>
+  );
+};
+
+const DisputeEvidenceFile = ({
+  disputeId,
+  file,
+}: {
+  disputeId: string;
+  file: NonNullable<OrderItemTimelineView["dispute"]>["evidence"][number];
+}) => {
+  const mutation = useMutation(
+    orpc.commerce.disputes.getEvidenceUrl.mutationOptions({
+      onError: (error) => {
+        toast.error(getErrorMessage(error, "Không thể mở tệp bằng chứng."));
+      },
+    })
+  );
+
+  const handleOpen = async (): Promise<void> => {
+    try {
+      const result = await mutation.mutateAsync({
+        disputeId,
+        evidenceId: file.id,
+      });
+      window.open(result.url, "_blank", "noopener,noreferrer");
+    } catch {
+      // The mutation error handler already shows the failure to the participant.
+    }
+  };
+
+  return (
+    <li className="flex min-w-0 items-center justify-between gap-2 rounded-xl bg-muted/50 px-3 py-2 text-sm">
+      <span className="min-w-0 truncate">
+        {file.fileName} · {file.submitterRole === "BUYER" ? "Buyer" : "Seller"}
+        {file.submittedLate ? " · Nộp trễ" : ""}
+      </span>
+      <Button
+        disabled={mutation.isPending}
+        onClick={() => void handleOpen()}
+        size="sm"
+        type="button"
+        variant="ghost"
+      >
+        {mutation.isPending ? "Đang mở…" : "Mở"}
+      </Button>
     </li>
   );
 };
@@ -217,6 +285,38 @@ export const OrderItemTimeline = ({
           ) : (
             <p className="text-sm text-muted-foreground">
               Không có file hoặc liên kết đính kèm.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    ) : null}
+
+    {timeline.dispute ? (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Bằng chứng Dispute</CardTitle>
+          <CardDescription>
+            Hạn Seller phản hồi:{" "}
+            {formatOrderDeadline(timeline.dispute.responseDeadlineAt)}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <p className="whitespace-pre-wrap text-sm">
+            {timeline.dispute.reason}
+          </p>
+          {timeline.dispute.evidence.length > 0 ? (
+            <ul className="flex flex-col gap-2">
+              {timeline.dispute.evidence.map((file) => (
+                <DisputeEvidenceFile
+                  disputeId={timeline.dispute?.id ?? ""}
+                  file={file}
+                  key={file.id}
+                />
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Chưa có tệp bằng chứng nào.
             </p>
           )}
         </CardContent>

@@ -1,0 +1,1 @@
+ALTER TABLE "dispute" ADD COLUMN "admin_decision_deadline_at" timestamp;

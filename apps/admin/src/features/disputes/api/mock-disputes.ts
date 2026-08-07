@@ -28,10 +28,15 @@ const INITIAL_DISPUTES: readonly Dispute[] = [
     createdAt: "2026-07-29T14:20:00Z",
     evidenceList: [
       {
+        byteSize: 48_000,
+        contentType: "image/png",
         description: "Ảnh chụp thông báo lời mời nhóm đã hết hạn từ Canva.",
         fileName: "screenshot_error.png",
         fileUrl: "https://placehold.co/600x400?text=Canva+Invitation+Expired",
         id: "evid_01",
+        storageKey: "orders/item_canva_88/disputes/buyer/evid_01.png",
+        submittedAt: "2026-07-29T14:22:00Z",
+        submittedLate: false,
         submitterRole: "BUYER",
         uploadedAt: "2026-07-29T14:22:00Z",
       },
@@ -47,6 +52,9 @@ const INITIAL_DISPUTES: readonly Dispute[] = [
       listingTitle: "Kích Hoạt Nâng Cấp Canva Pro Chính Chủ 1 Năm",
       orderId: "ord_88192",
       quantity: 1,
+      servicePackageDescription: null,
+      servicePackageName: null,
+      servicePackageScope: null,
       totalAmountVnd: 250_000,
       unitPriceVnd: 250_000,
       warrantyDurationHours: 72,
@@ -56,6 +64,7 @@ const INITIAL_DISPUTES: readonly Dispute[] = [
     orderItemId: "item_canva_88",
     reason:
       "Không kích hoạt được tài khoản Canva Pro, seller quá 24h chưa phản hồi tin nhắn.",
+    responseDeadlineAt: "2026-07-31T14:20:00Z",
     sellerEmail: "hung.le@gamekey.vn",
     sellerStorefrontName: "GameKey Studio",
     status: "OPEN",
@@ -89,11 +98,16 @@ const INITIAL_DISPUTES: readonly Dispute[] = [
     createdAt: "2026-07-25T09:10:00Z",
     evidenceList: [
       {
+        byteSize: 52_000,
+        contentType: "image/png",
         description: "Ảnh chụp thư mục Drive chỉ có 9 video.",
         fileName: "folder_structure.png",
         fileUrl:
           "https://placehold.co/600x400?text=Drive+Folder+Missing+Lessons",
         id: "evid_02",
+        storageKey: "orders/item_course_12/disputes/buyer/evid_02.png",
+        submittedAt: "2026-07-25T09:15:00Z",
+        submittedLate: false,
         submitterRole: "BUYER",
         uploadedAt: "2026-07-25T09:15:00Z",
       },
@@ -108,6 +122,9 @@ const INITIAL_DISPUTES: readonly Dispute[] = [
       listingTitle: "Khóa học Next.js 15 & Monorepo Architecture Complete",
       orderId: "ord_77102",
       quantity: 1,
+      servicePackageDescription: null,
+      servicePackageName: null,
+      servicePackageScope: null,
       totalAmountVnd: 500_000,
       unitPriceVnd: 500_000,
       warrantyDurationHours: 72,
@@ -119,6 +136,7 @@ const INITIAL_DISPUTES: readonly Dispute[] = [
     resolutionNote:
       "Seller thừa nhận link Drive bị thiếu file và đồng ý refund cho buyer.",
     resolvedAt: "2026-07-26T11:00:00Z",
+    responseDeadlineAt: "2026-07-27T09:10:00Z",
     sellerEmail: "tmquang@dev-vietnam.io",
     sellerStorefrontName: "DevTools Vietnam Store",
     status: "RESOLVED_REFUNDED",

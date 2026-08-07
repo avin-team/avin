@@ -12,7 +12,7 @@ import { Textarea } from "@avin/ui/components/textarea";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { resolveDisputeAction } from "../api/mock-disputes";
+import { useResolveDispute } from "../api/disputes-api";
 import type { Dispute, DisputeResolutionOutcome } from "../types";
 
 interface Props {
@@ -30,6 +30,7 @@ export const DisputeResolutionDialog = ({
 }: Props) => {
   const [note, setNote] = useState("");
   const [chatMsg, setChatMsg] = useState("");
+  const resolveMutation = useResolveDispute();
 
   if (!dispute || !outcome) {
     return null;
@@ -37,9 +38,15 @@ export const DisputeResolutionDialog = ({
 
   const isRefund = outcome === "RESOLVED_REFUNDED";
 
-  const handleConfirm = () => {
+  const handleConfirm = async (): Promise<void> => {
     try {
-      resolveDisputeAction(dispute.id, outcome, note, chatMsg);
+      await resolveMutation.mutateAsync({
+        adminMessage: chatMsg,
+        commandKey: crypto.randomUUID(),
+        disputeId: dispute.id,
+        note,
+        outcome,
+      });
       toast.success(
         isRefund
           ? "Đã đưa ra quyết định Hoàn tiền 100% cho Buyer"
@@ -109,10 +116,13 @@ export const DisputeResolutionDialog = ({
             Hủy
           </Button>
           <Button
-            onClick={handleConfirm}
+            disabled={resolveMutation.isPending || !note.trim()}
+            onClick={() => void handleConfirm()}
             variant={isRefund ? "destructive" : "default"}
           >
-            Xác nhận {isRefund ? "Hoàn Tiền" : "Giải Ngân"}
+            {resolveMutation.isPending
+              ? "Đang xử lý…"
+              : `Xác nhận ${isRefund ? "Hoàn Tiền" : "Giải Ngân"}`}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -73,7 +73,20 @@ export const orderItemActorType = pgEnum("order_item_actor_type", [
   "SYSTEM",
 ]);
 
-export const disputeStatus = pgEnum("dispute_status", ["OPEN"]);
+export const disputeStatusValues = [
+  "OPEN",
+  "CANCELLED",
+  "RESOLVED_REFUNDED",
+  "RESOLVED_RELEASED",
+] as const;
+
+export const disputeStatus = pgEnum("dispute_status", disputeStatusValues);
+export type DisputeStatus = (typeof disputeStatusValues)[number];
+
+export const disputeEvidenceSubmitterRole = pgEnum(
+  "dispute_evidence_submitter_role",
+  ["BUYER", "SELLER"]
+);
 
 export const escrowHoldStatus = pgEnum("escrow_hold_status", [
   "HELD",
@@ -404,6 +417,7 @@ export const orderItemLifecycleEvent = pgTable(
 export const dispute = pgTable(
   "dispute",
   {
+    adminDecisionDeadlineAt: timestamp("admin_decision_deadline_at"),
     buyerId: text("buyer_id")
       .notNull()
       .references(() => user.id, { onDelete: "restrict" }),
@@ -414,7 +428,16 @@ export const dispute = pgTable(
     orderItemId: uuid("order_item_id")
       .notNull()
       .references(() => orderItem.id, { onDelete: "restrict" }),
+    previousOrderItemStatus: orderItemStatus(
+      "previous_order_item_status"
+    ).notNull(),
     reason: text("reason").notNull(),
+    resolutionNote: text("resolution_note"),
+    resolvedAt: timestamp("resolved_at"),
+    resolvedByUserId: text("resolved_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    responseDeadlineAt: timestamp("response_deadline_at").notNull(),
     status: disputeStatus("status").default("OPEN").notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
@@ -428,6 +451,35 @@ export const dispute = pgTable(
       table.commandKey
     ),
     index("dispute_status_opened_idx").on(table.status, table.openedAt),
+  ]
+);
+
+export const disputeEvidence = pgTable(
+  "dispute_evidence",
+  {
+    byteSize: integer("byte_size"),
+    contentType: text("content_type").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    description: text("description").notNull(),
+    disputeId: uuid("dispute_id")
+      .notNull()
+      .references(() => dispute.id, { onDelete: "restrict" }),
+    fileName: text("file_name").notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    storageKey: text("storage_key").notNull(),
+    submittedAt: timestamp("submitted_at").defaultNow().notNull(),
+    submittedByUserId: text("submitted_by_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    submittedLate: boolean("submitted_late").default(false).notNull(),
+    submitterRole: disputeEvidenceSubmitterRole("submitter_role").notNull(),
+  },
+  (table) => [
+    index("dispute_evidence_dispute_submitted_idx").on(
+      table.disputeId,
+      table.submittedAt
+    ),
+    uniqueIndex("dispute_evidence_storage_key_unique_idx").on(table.storageKey),
   ]
 );
 
@@ -611,16 +663,35 @@ export const orderItemLifecycleEventRelations = relations(
   })
 );
 
-export const disputeRelations = relations(dispute, ({ one }) => ({
+export const disputeRelations = relations(dispute, ({ many, one }) => ({
   buyer: one(user, {
     fields: [dispute.buyerId],
     references: [user.id],
   }),
+  evidence: many(disputeEvidence),
   orderItem: one(orderItem, {
     fields: [dispute.orderItemId],
     references: [orderItem.id],
   }),
+  resolvedBy: one(user, {
+    fields: [dispute.resolvedByUserId],
+    references: [user.id],
+  }),
 }));
+
+export const disputeEvidenceRelations = relations(
+  disputeEvidence,
+  ({ one }) => ({
+    dispute: one(dispute, {
+      fields: [disputeEvidence.disputeId],
+      references: [dispute.id],
+    }),
+    submittedBy: one(user, {
+      fields: [disputeEvidence.submittedByUserId],
+      references: [user.id],
+    }),
+  })
+);
 
 export const notificationRelations = relations(notification, ({ one }) => ({
   lifecycleEvent: one(orderItemLifecycleEvent, {

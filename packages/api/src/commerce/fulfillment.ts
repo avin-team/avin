@@ -6,6 +6,7 @@ import { user } from "@avin/db/schema/auth";
 import {
   deliverySubmission,
   dispute,
+  disputeEvidence,
   escrowHold,
   notification,
   order,
@@ -14,6 +15,7 @@ import {
   orderItemLifecycleEvent,
 } from "@avin/db/schema/commerce";
 import type {
+  DisputeStatus,
   OrderItemStatus,
   ServicePackageSnapshot,
   WarrantyPolicySnapshot,
@@ -34,10 +36,16 @@ import {
 } from "drizzle-orm";
 import { z } from "zod";
 
+import { isDisputeEvidenceKey } from "../runtime/storage";
 import { recordBalancedLedgerTransaction } from "../wallet/ledger";
 import { ensureWalletAccounts } from "../wallet/service";
 import type { CommerceExecutor } from "./cart";
 import { calculateEscrowReleaseAmounts } from "./commission";
+import {
+  disputeEvidenceListSchema,
+  getDisputeResponseDeadline,
+} from "./dispute-contracts";
+import type { DisputeEvidenceInput } from "./dispute-contracts";
 import { decideOrderItemTransition } from "./fulfillment-state";
 import type {
   OrderItemTransitionCommand,
@@ -102,6 +110,7 @@ export const sellerCancellationInputSchema =
   });
 
 export const disputeInputSchema = fulfillmentCommandInputSchema.extend({
+  evidence: disputeEvidenceListSchema,
   reason: z.string().trim().min(1).max(REASON_MAX_LENGTH),
 });
 
@@ -120,7 +129,7 @@ export type DeliverySubmissionInput = z.infer<
 
 type FulfillmentExecutor = CommerceExecutor;
 
-interface OrderItemContext {
+export interface OrderItemContext {
   buyerId: string;
   commissionRatePercent: string;
   deliveredAt: Date | null;
@@ -140,6 +149,17 @@ interface OrderItemContext {
   warrantyPolicy: WarrantyPolicySnapshot;
   warrantyStartedAt: Date | null;
 }
+
+export type EscrowResolutionContext = Pick<
+  OrderItemContext,
+  | "buyerId"
+  | "commissionRatePercent"
+  | "escrowAmount"
+  | "escrowHoldId"
+  | "escrowHoldStatus"
+  | "id"
+  | "sellerId"
+>;
 
 interface ExistingLifecycleEvent {
   artifactId: string | null;
@@ -186,10 +206,22 @@ export interface OrderItemTimelineView {
   } | null;
   dispute: {
     buyerId: string;
+    evidence: {
+      byteSize: number;
+      contentType: string;
+      description: string;
+      fileName: string;
+      id: string;
+      storageKey: string;
+      submittedLate: boolean;
+      submittedAt: string;
+      submitterRole: "BUYER" | "SELLER";
+    }[];
     id: string;
     openedAt: string;
     reason: string;
-    status: "OPEN";
+    responseDeadlineAt: string;
+    status: DisputeStatus;
   } | null;
   events: {
     actorType: "ADMIN" | "BUYER" | "SELLER" | "SYSTEM";
@@ -506,9 +538,9 @@ const insertNotifications = async (
     });
 };
 
-const refundEscrow = async (
+export const refundEscrow = async (
   executor: FulfillmentExecutor,
-  item: OrderItemContext,
+  item: EscrowResolutionContext,
   now: Date
 ): Promise<string> => {
   if (item.escrowHoldStatus !== "HELD") {
@@ -584,9 +616,9 @@ const refundEscrow = async (
   return refundTransaction.id;
 };
 
-const releaseEscrow = async (
+export const releaseEscrow = async (
   executor: FulfillmentExecutor,
-  item: OrderItemContext,
+  item: EscrowResolutionContext,
   now: Date
 ): Promise<string> => {
   if (item.escrowHoldStatus !== "HELD") {
@@ -797,9 +829,23 @@ const insertDispute = async (
   item: OrderItemContext,
   commandKey: string,
   buyerId: string,
+  evidence: DisputeEvidenceInput[],
   reason: string,
   openedAt: Date
 ): Promise<string> => {
+  if (evidence.length === 0) {
+    throwConflict("Dispute requires at least one evidence file.");
+  }
+  if (
+    evidence.some(
+      (file) => !isDisputeEvidenceKey(file.storageKey, item.id, buyerId)
+    )
+  ) {
+    throwConflict(
+      "Dispute evidence must be uploaded through the evidence route."
+    );
+  }
+
   const [createdDispute] = await executor
     .insert(dispute)
     .values({
@@ -807,13 +853,30 @@ const insertDispute = async (
       commandKey,
       openedAt,
       orderItemId: item.id,
+      previousOrderItemStatus: item.status,
       reason: reason.trim(),
+      responseDeadlineAt: getDisputeResponseDeadline(openedAt),
       status: "OPEN",
     })
     .returning({ id: dispute.id });
   if (!createdDispute) {
     throw new Error("Dispute was not created");
   }
+
+  await executor.insert(disputeEvidence).values(
+    evidence.map((file) => ({
+      byteSize: file.byteSize,
+      contentType: file.contentType,
+      description: file.description.trim(),
+      disputeId: createdDispute.id,
+      fileName: file.fileName.trim(),
+      storageKey: file.storageKey.trim(),
+      submittedAt: openedAt,
+      submittedByUserId: buyerId,
+      submittedLate: false,
+      submitterRole: "BUYER" as const,
+    }))
+  );
 
   return createdDispute.id;
 };
@@ -866,6 +929,7 @@ const createTransitionArtifact = async ({
       item,
       commandKey,
       actorId,
+      command.evidence ?? [],
       command.reason,
       transition.effectiveAt
     );
@@ -976,6 +1040,17 @@ const executeTransition = ({
     );
     if (existingEvent) {
       return toCommandResult(item.id, existingEvent, false);
+    }
+
+    if (command.type === "OPEN_DISPUTE") {
+      const [existingDispute] = await transaction
+        .select({ id: dispute.id })
+        .from(dispute)
+        .where(eq(dispute.orderItemId, item.id))
+        .limit(1);
+      if (existingDispute) {
+        throwConflict("OrderItem này đã có Dispute và không thể mở lại.");
+      }
     }
 
     if (
@@ -1192,7 +1267,11 @@ export const openDispute = ({
   return executeTransition({
     actorId: buyerId,
     actorType: "BUYER",
-    command: { reason: parsedInput.reason, type: "OPEN_DISPUTE" },
+    command: {
+      evidence: parsedInput.evidence,
+      reason: parsedInput.reason,
+      type: "OPEN_DISPUTE",
+    },
     commandKey: commandKeyFor("OPEN_DISPUTE", parsedInput.commandKey),
     database,
     itemId,
@@ -1381,11 +1460,30 @@ export const getOrderItemTimeline = async ({
       id: dispute.id,
       openedAt: dispute.openedAt,
       reason: dispute.reason,
+      responseDeadlineAt: dispute.responseDeadlineAt,
       status: dispute.status,
     })
     .from(dispute)
     .where(eq(dispute.orderItemId, item.id))
     .limit(1);
+
+  const disputeEvidenceRows = itemDispute
+    ? await database
+        .select({
+          byteSize: disputeEvidence.byteSize,
+          contentType: disputeEvidence.contentType,
+          description: disputeEvidence.description,
+          fileName: disputeEvidence.fileName,
+          id: disputeEvidence.id,
+          storageKey: disputeEvidence.storageKey,
+          submittedAt: disputeEvidence.submittedAt,
+          submittedLate: disputeEvidence.submittedLate,
+          submitterRole: disputeEvidence.submitterRole,
+        })
+        .from(disputeEvidence)
+        .where(eq(disputeEvidence.disputeId, itemDispute.id))
+        .orderBy(asc(disputeEvidence.submittedAt), asc(disputeEvidence.id))
+    : [];
 
   return {
     current: {
@@ -1411,9 +1509,21 @@ export const getOrderItemTimeline = async ({
     dispute: itemDispute
       ? {
           buyerId: itemDispute.buyerId,
+          evidence: disputeEvidenceRows.map((evidence) => ({
+            byteSize: evidence.byteSize ?? 0,
+            contentType: evidence.contentType,
+            description: evidence.description,
+            fileName: evidence.fileName,
+            id: evidence.id,
+            storageKey: evidence.storageKey,
+            submittedAt: evidence.submittedAt.toISOString(),
+            submittedLate: evidence.submittedLate,
+            submitterRole: evidence.submitterRole,
+          })),
           id: itemDispute.id,
           openedAt: itemDispute.openedAt.toISOString(),
           reason: itemDispute.reason,
+          responseDeadlineAt: itemDispute.responseDeadlineAt.toISOString(),
           status: itemDispute.status,
         }
       : null,

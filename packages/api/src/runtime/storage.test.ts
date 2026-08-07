@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import {
   createListingImageKey,
+  createDisputeEvidenceKey,
   createOrderChatAttachmentKey,
   createSellerLogoKey,
   createSellerBannerKey,
   createPublicMediaUrl,
   getManagedListingImageKeysToDelete,
+  isDisputeEvidenceKey,
   isOrderChatAttachmentKey,
   LISTING_IMAGE_MAX_BYTES,
   ORDER_CHAT_ATTACHMENT_CONTENT_TYPES,
@@ -169,5 +171,28 @@ describe("order chat attachment storage helpers", () => {
     expect(key).toBe(`orders/${LISTING_ID}/chat/${BUYER_ID}/${NEW_OBJECT_ID}`);
     expect(isOrderChatAttachmentKey(key, LISTING_ID, BUYER_ID)).toBe(true);
     expect(isOrderChatAttachmentKey(key, LISTING_ID, SELLER_ID)).toBe(false);
+  });
+});
+
+describe("dispute evidence storage helpers", () => {
+  it("creates and validates a private key scoped to the OrderItem participant", () => {
+    const key = createDisputeEvidenceKey(
+      LISTING_ID,
+      BUYER_ID,
+      "application/pdf",
+      NEW_OBJECT_ID
+    );
+
+    expect(key).toBe(
+      `orders/${LISTING_ID}/disputes/${BUYER_ID}/${NEW_OBJECT_ID}.pdf`
+    );
+    expect(isDisputeEvidenceKey(key, LISTING_ID, BUYER_ID)).toBe(true);
+    expect(isDisputeEvidenceKey(key, LISTING_ID, SELLER_ID)).toBe(false);
+  });
+
+  it("rejects unsupported evidence formats", () => {
+    expect(() =>
+      createDisputeEvidenceKey(LISTING_ID, BUYER_ID, "image/gif", NEW_OBJECT_ID)
+    ).toThrow("Unsupported dispute evidence type");
   });
 });

@@ -1,3 +1,4 @@
+import type { DisputeEvidenceInput } from "@avin/api/commerce/dispute-contracts";
 import type { SellerOrderView } from "@avin/api/commerce/orders";
 import { Alert, AlertDescription, AlertTitle } from "@avin/ui/components/alert";
 import {
@@ -41,6 +42,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { DisputeEvidenceUploader } from "@/features/commerce/components/dispute-evidence-uploader";
 import { OrderItemTimeline } from "@/features/commerce/components/order-item-timeline";
 import {
   ORDER_TIMELINE_REFRESH_INTERVAL_MS,
@@ -243,6 +245,7 @@ const SellerDeliveryForm = ({
   );
 };
 
+// oxlint-disable-next-line complexity
 export const SellerOrderItemCard = ({
   item,
 }: {
@@ -250,6 +253,10 @@ export const SellerOrderItemCard = ({
 }) => {
   const queryClient = useQueryClient();
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [sellerEvidence, setSellerEvidence] = useState<DisputeEvidenceInput[]>(
+    []
+  );
+  const [sellerEvidenceOpen, setSellerEvidenceOpen] = useState(false);
   const timelineQuery = useQuery(
     orpc.commerce.orders.item.timeline.queryOptions({
       input: { itemId: item.id },
@@ -311,6 +318,21 @@ export const SellerOrderItemCard = ({
     },
     validators: { onSubmit: sellerCancellationSchema },
   });
+  const sellerEvidenceMutation = useMutation(
+    orpc.commerce.disputes.submitSellerEvidence.mutationOptions({
+      onError: (error) => {
+        toast.error(
+          getErrorMessage(error, "Không thể gửi bằng chứng Dispute.")
+        );
+      },
+      onSuccess: async () => {
+        setSellerEvidence([]);
+        setSellerEvidenceOpen(false);
+        await invalidateItem();
+        toast.success("Đã gửi bằng chứng cho Buyer và Admin.");
+      },
+    })
+  );
 
   const current = timelineQuery.data?.current;
   const status = current?.status ?? item.status;
@@ -319,6 +341,9 @@ export const SellerOrderItemCard = ({
   const deliveryReviewDeadlineAt =
     current?.deliveryReviewDeadlineAt ?? item.deliveryReviewDeadlineAt;
   const canCancel = status === "AWAITING_SELLER" || status === "IN_PROGRESS";
+  const currentDispute = timelineQuery.data?.dispute;
+  const canSubmitSellerEvidence =
+    status === "DISPUTED" && currentDispute?.status === "OPEN";
   const timelineContent = (() => {
     if (timelineQuery.isPending) {
       return (
@@ -370,6 +395,26 @@ export const SellerOrderItemCard = ({
       await startMutation.mutateAsync({
         commandKey: crypto.randomUUID(),
         itemId: item.id,
+      });
+    } catch {
+      // The mutation error handler already shows the failure to the Seller.
+    }
+  };
+
+  const handleSubmitSellerEvidence = async (): Promise<void> => {
+    if (!currentDispute?.id) {
+      toast.error("Không tìm thấy Dispute đang mở.");
+      return;
+    }
+    if (sellerEvidence.length === 0) {
+      toast.error("Hãy tải ít nhất một tệp bằng chứng.");
+      return;
+    }
+    try {
+      await sellerEvidenceMutation.mutateAsync({
+        commandKey: crypto.randomUUID(),
+        disputeId: currentDispute.id,
+        evidence: sellerEvidence,
       });
     } catch {
       // The mutation error handler already shows the failure to the Seller.
@@ -464,6 +509,55 @@ export const SellerOrderItemCard = ({
 
         {status === "IN_PROGRESS" ? (
           <SellerDeliveryForm itemId={item.id} onCompleted={invalidateItem} />
+        ) : null}
+
+        {canSubmitSellerEvidence ? (
+          <div className="rounded-2xl border border-amber-300/40 bg-amber-50/60 p-4 dark:bg-amber-950/20">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h4 className="font-semibold">Phản hồi Dispute</h4>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Gửi bằng chứng riêng tư trong vòng 48 giờ kể từ khi Buyer mở
+                  Dispute. Nếu gửi trễ trước khi Admin quyết định, hệ thống sẽ
+                  đánh dấu &quot;nộp trễ&quot;.
+                </p>
+                <p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+                  Hạn phản hồi:{" "}
+                  {formatOrderDate(currentDispute.responseDeadlineAt)}
+                </p>
+              </div>
+              <Button
+                onClick={() => setSellerEvidenceOpen((open) => !open)}
+                type="button"
+                variant="outline"
+              >
+                {sellerEvidenceOpen ? "Đóng biểu mẫu" : "Gửi bằng chứng"}
+              </Button>
+            </div>
+            {sellerEvidenceOpen ? (
+              <div className="mt-4 grid gap-3">
+                <DisputeEvidenceUploader
+                  existingEvidenceCount={currentDispute.evidence.length}
+                  itemId={item.id}
+                  onEvidenceChange={setSellerEvidence}
+                />
+                <div className="flex justify-end">
+                  <Button
+                    disabled={
+                      sellerEvidence.length === 0 ||
+                      sellerEvidenceMutation.isPending
+                    }
+                    onClick={() => void handleSubmitSellerEvidence()}
+                    type="button"
+                  >
+                    {sellerEvidenceMutation.isPending
+                      ? "Đang gửi…"
+                      : "Gửi phản hồi Dispute"}
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+          </div>
         ) : null}
 
         {timelineContent}
