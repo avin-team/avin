@@ -30,21 +30,21 @@ import { useSellerApplications } from "@/features/seller-applications/api/mock-s
 import { ApplicationStatusBadge } from "@/features/seller-applications/components/application-status-badge";
 import { formatApplicationDate } from "@/features/seller-applications/utils";
 import { useSellers } from "@/features/sellers/api/mock-sellers";
-import { useWithdrawals } from "@/features/withdrawals/api/mock-withdrawals";
+import { useAdminWithdrawals } from "@/features/withdrawals/api/withdrawals-api";
 
 export const OverviewPage = () => {
   const applications = useSellerApplications();
   const { data: categories = [] } = useQuery(categoriesQueryOptions());
   const sellers = useSellers();
   const { data: disputes = [] } = useAdminDisputes("OPEN");
-  const withdrawals = useWithdrawals();
+  const { data: withdrawals = [] } = useAdminWithdrawals();
 
   const pendingAppsCount = applications.filter(
     (a) => a.status === "PENDING_REVIEW"
   ).length;
   const openDisputesCount = disputes.length;
   const pendingWithdrawalsCount = withdrawals.filter(
-    (w) => w.status === "PENDING"
+    (w) => w.status === "REQUESTED"
   ).length;
   const enforcementAlertsCount = sellers.filter(
     (s) => s.enforcementStatus !== "ACTIVE"

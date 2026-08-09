@@ -20,6 +20,7 @@ import { useState } from "react";
 import { StoreOrdersPanel } from "@/features/seller/pages/store-orders-panel";
 import { orpc } from "@/utils/orpc";
 
+import { SellerWalletPanel } from "../components/seller-wallet-panel";
 import { StoreProfilePanel } from "../components/store-profile-panel";
 import { StoreSectionPlaceholder } from "../components/store-section-placeholder";
 import type { StoreSection } from "../data/store-types";
@@ -276,6 +277,10 @@ const StoreContent = ({
 
   if (active === "orders") {
     return <StoreOrdersPanel />;
+  }
+
+  if (active === "finance") {
+    return <SellerWalletPanel />;
   }
 
   const section = PLACEHOLDER_SECTIONS[active];

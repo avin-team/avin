@@ -7,106 +7,107 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@avin/ui/components/dialog";
+import { Field, FieldGroup, FieldLabel } from "@avin/ui/components/field";
 import { Input } from "@avin/ui/components/input";
-import { Label } from "@avin/ui/components/label";
 import { Textarea } from "@avin/ui/components/textarea";
 import { useState } from "react";
-import { toast } from "sonner";
 
-import { processWithdrawalAction } from "../api/mock-withdrawals";
-import type { WithdrawalRequest, WithdrawalStatus } from "../types";
+import type { AdminWithdrawal, WithdrawalAction } from "../types";
 
-interface Props {
-  readonly request: WithdrawalRequest | null;
-  readonly targetStatus: WithdrawalStatus | null;
-  readonly open: boolean;
-  readonly onOpenChange: (open: boolean) => void;
-}
+const ACTION_COPY: Record<
+  WithdrawalAction,
+  { description: string; title: string }
+> = {
+  APPROVE: {
+    description:
+      "Xác nhận thông tin tài khoản đã chụp tại thời điểm Seller gửi yêu cầu.",
+    title: "Duyệt yêu cầu rút tiền?",
+  },
+  MARK_PAID: {
+    description:
+      "Chỉ xác nhận sau khi đã chuyển khoản cho tài khoản ngân hàng được chụp bên dưới.",
+    title: "Xác nhận đã chuyển khoản?",
+  },
+  REJECT: {
+    description:
+      "Lý do sẽ được gửi cho Seller và số dư sẽ được trả lại Available Balance.",
+    title: "Từ chối yêu cầu rút tiền?",
+  },
+};
 
 export const WithdrawalActionDialog = ({
-  request,
-  targetStatus,
-  open,
+  action,
+  onConfirm,
   onOpenChange,
-}: Props) => {
-  const [bankRef, setBankRef] = useState("");
-  const [note, setNote] = useState("");
-
-  if (!request || !targetStatus) {
+  open,
+  pending,
+  request,
+}: {
+  action: WithdrawalAction | null;
+  onConfirm: (value?: string) => void;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+  pending: boolean;
+  request: AdminWithdrawal | null;
+}) => {
+  const [value, setValue] = useState("");
+  if (!action || !request) {
     return null;
   }
-
-  const handleConfirm = () => {
-    try {
-      processWithdrawalAction(request.id, targetStatus, bankRef, note);
-      toast.success(`Cập nhật thành công yêu cầu rút tiền (${targetStatus})`, {
-        description: `Thực hiện cho storefront ${request.storefrontName}`,
-      });
-      onOpenChange(false);
-      setBankRef("");
-      setNote("");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Thao tác thất bại");
-    }
-  };
-
-  const renderTitle = () => {
-    if (targetStatus === "APPROVED") {
-      return "Duyệt Yêu Cầu Rút Tiền";
-    }
-    if (targetStatus === "PAID") {
-      return "Xác Nhận Đã Chuyển Khoản (Paid)";
-    }
-    return "Từ Chối Yêu Cầu Rút Tiền";
-  };
-
+  const isReason = action === "REJECT";
+  const isPaymentReference = action === "MARK_PAID";
+  const copy = ACTION_COPY[action];
+  const valid = (!isReason && !isPaymentReference) || value.trim().length > 0;
   return (
-    <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="max-w-md">
+    <Dialog
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) {
+          setValue("");
+        }
+        onOpenChange(nextOpen);
+      }}
+      open={open}
+    >
+      <DialogContent>
         <DialogHeader>
-          <DialogTitle>{renderTitle()}</DialogTitle>
-          <DialogDescription>
-            Rút tiền số lượng:{" "}
-            <strong>{request.amountVnd.toLocaleString("vi-VN")} đ</strong> về
-            tài khoản ngân hàng của <strong>{request.storefrontName}</strong> (
-            {request.bankAccount.bankName} - {request.bankAccount.accountNumber}
-            ).
-          </DialogDescription>
+          <DialogTitle>{copy.title}</DialogTitle>
+          <DialogDescription>{copy.description}</DialogDescription>
         </DialogHeader>
-
-        <div className="grid gap-4 py-4">
-          {targetStatus === "PAID" && (
-            <div className="grid gap-2">
-              <Label htmlFor="bank-ref">
-                Mã giao dịch ngân hàng / VietQR Ref (Bắt buộc)
-              </Label>
-              <Input
-                id="bank-ref"
-                onChange={(e) => setBankRef(e.target.value)}
-                placeholder="VD: FT26219901"
-                required
-                value={bankRef}
-              />
-            </div>
-          )}
-
-          <div className="grid gap-2">
-            <Label htmlFor="wth-note">
-              Ghi chú nội bộ / Lý do từ chối{" "}
-              {targetStatus === "REJECTED" ? "(Bắt buộc)" : "(Tùy chọn)"}
-            </Label>
-            <Textarea
-              id="wth-note"
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Nhập chi tiết ghi chú hoặc lý do..."
-              rows={3}
-              value={note}
-            />
-          </div>
+        <div className="rounded-lg bg-muted p-3 text-sm">
+          <p className="font-semibold">
+            {request.amount.toLocaleString("vi-VN")} ₫ ·{" "}
+            {request.bankAccount.bankName}
+          </p>
+          <p className="mt-1 text-muted-foreground">
+            {request.bankAccount.accountNumber} ·{" "}
+            {request.bankAccount.accountName}
+          </p>
         </div>
-
+        {isReason || isPaymentReference ? (
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="withdrawal-action-value">
+                {isReason ? "Lý do từ chối" : "Mã giao dịch ngân hàng"}
+              </FieldLabel>
+              {isReason ? (
+                <Textarea
+                  id="withdrawal-action-value"
+                  onChange={(event) => setValue(event.target.value)}
+                  value={value}
+                />
+              ) : (
+                <Input
+                  id="withdrawal-action-value"
+                  onChange={(event) => setValue(event.target.value)}
+                  value={value}
+                />
+              )}
+            </Field>
+          </FieldGroup>
+        ) : null}
         <DialogFooter>
           <Button
+            disabled={pending}
             onClick={() => onOpenChange(false)}
             type="button"
             variant="outline"
@@ -114,10 +115,12 @@ export const WithdrawalActionDialog = ({
             Hủy
           </Button>
           <Button
-            onClick={handleConfirm}
-            variant={targetStatus === "REJECTED" ? "destructive" : "default"}
+            disabled={pending || !valid}
+            onClick={() => onConfirm(value.trim() || undefined)}
+            type="button"
+            variant={isReason ? "destructive" : "default"}
           >
-            Xác nhận {targetStatus}
+            {pending ? "Đang xử lý..." : "Xác nhận"}
           </Button>
         </DialogFooter>
       </DialogContent>

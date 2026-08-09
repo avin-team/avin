@@ -1,21 +1,22 @@
-export type WithdrawalStatus = "PENDING" | "APPROVED" | "PAID" | "REJECTED";
+export type WithdrawalStatus =
+  | "APPROVED"
+  | "CANCELLED"
+  | "PAID"
+  | "REJECTED"
+  | "REQUESTED";
 
-export interface WithdrawalBankAccountSnapshot {
-  readonly bankName: string;
-  readonly accountName: string;
-  readonly accountNumber: string;
-}
-
-export interface WithdrawalRequest {
+export interface AdminWithdrawal {
+  readonly amount: number;
+  readonly bankAccount: {
+    readonly accountName: string;
+    readonly accountNumber: string;
+    readonly bankName: string;
+  };
+  readonly createdAt: string;
   readonly id: string;
+  readonly paymentReference: string | null;
   readonly sellerId: string;
-  readonly storefrontName: string;
-  readonly applicantName: string;
-  readonly amountVnd: number;
   readonly status: WithdrawalStatus;
-  readonly requestedAt: string;
-  readonly bankAccount: WithdrawalBankAccountSnapshot;
-  readonly processedAt?: string;
-  readonly bankTransactionRef?: string;
-  readonly note?: string;
 }
+
+export type WithdrawalAction = "APPROVE" | "MARK_PAID" | "REJECT";

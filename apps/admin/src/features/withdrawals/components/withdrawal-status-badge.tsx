@@ -2,33 +2,24 @@ import { Badge } from "@avin/ui/components/badge";
 
 import type { WithdrawalStatus } from "../types";
 
+const STATUS_LABELS: Record<WithdrawalStatus, string> = {
+  APPROVED: "Đã duyệt",
+  CANCELLED: "Đã hủy",
+  PAID: "Đã chuyển khoản",
+  REJECTED: "Đã từ chối",
+  REQUESTED: "Chờ duyệt",
+};
+
 export const WithdrawalStatusBadge = ({
   status,
 }: {
-  readonly status: WithdrawalStatus;
+  status: WithdrawalStatus;
 }) => {
-  switch (status) {
-    case "PENDING": {
-      return (
-        <Badge
-          className="bg-amber-100 text-amber-900 border-amber-300"
-          variant="secondary"
-        >
-          Chờ duyệt
-        </Badge>
-      );
-    }
-    case "APPROVED": {
-      return <Badge className="bg-blue-600 text-white">Đã duyệt</Badge>;
-    }
-    case "PAID": {
-      return <Badge className="bg-emerald-600 text-white">Đã CK</Badge>;
-    }
-    case "REJECTED": {
-      return <Badge variant="destructive">Từ chối</Badge>;
-    }
-    default: {
-      return null;
-    }
+  let variant: "default" | "destructive" | "secondary" = "secondary";
+  if (status === "REJECTED") {
+    variant = "destructive";
+  } else if (status === "PAID") {
+    variant = "default";
   }
+  return <Badge variant={variant}>{STATUS_LABELS[status]}</Badge>;
 };
