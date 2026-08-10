@@ -1,6 +1,5 @@
 import {
   ChartBarIcon,
-  CodeIcon,
   BankIcon,
   SquaresFourIcon,
   PackageIcon,
@@ -36,11 +35,7 @@ export const SELLER_NAV_GROUPS: SellerNavGroup[] = [
     title: "Bán hàng",
   },
   {
-    items: [{ icon: BankIcon, label: "Tài chính", value: "finance" }],
-    title: "Tài chính",
-  },
-  {
-    items: [{ icon: CodeIcon, label: "Nhà phát triển", value: "developer" }],
-    title: "Công cụ",
+    items: [{ icon: BankIcon, label: "Rút Tiền", value: "finance" }],
+    title: "Rút Tiền",
   },
 ];

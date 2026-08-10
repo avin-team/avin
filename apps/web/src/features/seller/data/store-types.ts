@@ -5,5 +5,4 @@ export type StoreSection =
   | "orders"
   | "complaints"
   | "discounts"
-  | "finance"
-  | "developer";
+  | "finance";

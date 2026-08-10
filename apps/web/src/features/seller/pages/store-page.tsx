@@ -5,7 +5,6 @@ import { SidebarTrigger } from "@avin/ui/components/sidebar";
 import {
   ArrowRightIcon,
   QuestionIcon,
-  CodeIcon,
   BankIcon,
   PackageIcon,
   ShieldCheckIcon,
@@ -31,9 +30,8 @@ import { StoreProductsPanel } from "./store-products-panel";
 const getSectionLabel = (section: StoreSection): string => {
   const labels: Record<StoreSection, string> = {
     complaints: "Khiếu nại",
-    developer: "Nhà phát triển",
     discounts: "Mã giảm giá",
-    finance: "Tài chính",
+    finance: "Rút Tiền",
     orders: "Đơn hàng",
     overview: "Tổng quan",
     products: "Sản phẩm",
@@ -79,11 +77,6 @@ const PLACEHOLDER_SECTIONS = {
     icon: QuestionIcon,
     title: "Khiếu nại",
   },
-  developer: {
-    description: "Các công cụ mở rộng và tích hợp dành cho gian hàng của bạn.",
-    icon: CodeIcon,
-    title: "Nhà phát triển",
-  },
   discounts: {
     description:
       "Tạo ưu đãi để thu hút khách hàng mới và chăm sóc khách hàng cũ.",
@@ -93,7 +86,7 @@ const PLACEHOLDER_SECTIONS = {
   finance: {
     description: "Xem doanh thu, số dư có thể rút và lịch sử nhận tiền.",
     icon: BankIcon,
-    title: "Tài chính",
+    title: "Rút Tiền",
   },
 } as const;
 
@@ -296,9 +289,11 @@ const StoreContent = ({
 
 export const StorePage = () => {
   const search = useSearch({ from: "/_authenticated/seller/store" });
-  const [active, setActive] = useState<StoreSection>(
-    search.section ?? "overview"
-  );
+  const initialSection: StoreSection =
+    search.section === "developer" || search.section === undefined
+      ? "overview"
+      : search.section;
+  const [active, setActive] = useState<StoreSection>(initialSection);
 
   return (
     <SellerLayout active={active} onChange={setActive}>

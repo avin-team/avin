@@ -183,7 +183,7 @@ export const SellerWalletPanel = () => {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h2 className="text-xl font-semibold">Tài chính</h2>
+        <h2 className="text-xl font-semibold">Rút Tiền</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Theo dõi doanh thu đã giải ngân và gửi yêu cầu rút tiền về tài khoản
           ngân hàng đã xác minh.

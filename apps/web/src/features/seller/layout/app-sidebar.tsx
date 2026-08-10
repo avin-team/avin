@@ -4,12 +4,11 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
 } from "@avin/ui/components/sidebar";
-import { EyeIcon, StorefrontIcon } from "@phosphor-icons/react";
+import { EyeIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 
 import type { StoreSection } from "../data/store-types";
@@ -59,17 +58,6 @@ export const SellerAppSidebar = ({
             <EyeIcon />
             <span>Xem trang gian hàng</span>
           </SidebarMenuButton>
-        </SidebarMenuItem>
-        <SidebarMenuItem>
-          <SidebarMenuButton
-            render={<button aria-label="Trạng thái gian hàng" type="button" />}
-          >
-            <StorefrontIcon />
-            <span>Trạng thái gian hàng</span>
-          </SidebarMenuButton>
-          <SidebarMenuBadge>
-            <span className="text-[10px] text-amber-300">Nháp</span>
-          </SidebarMenuBadge>
         </SidebarMenuItem>
       </SidebarMenu>
     </SidebarFooter>
