@@ -193,7 +193,7 @@ An entity initiated by a `User` when an `OrderItem` cannot be resolved directly 
 
 ### Review
 
-A rating (1–5 stars) and optional feedback comment submitted once by a `User` for an `OrderItem` in `CLOSED` within 30 days of reaching that state; `REFUNDED` and `CANCELLED` items are not reviewable. For a `SERVICE`, the review is displayed with the purchased `ServicePackage` name while remaining part of the Listing's shared review context. The reviewer is identified publicly by a masked name (e.g., "Ngọc L.").
+A rating (1–5 stars) and optional feedback comment submitted once by a `User` for an `OrderItem` in `IN_WARRANTY` or `CLOSED` status within 30 days of the Buyer confirming delivery (or transitioning to `IN_WARRANTY`/`CLOSED`); `AWAITING_SELLER`, `IN_PROGRESS`, `DELIVERED`, `DISPUTED`, `REFUNDED`, and `CANCELLED` items are not reviewable. If a Review is submitted during `IN_WARRANTY` and the item is later refunded via a Dispute resolution, the Review remains intact. For a `SERVICE`, the review is displayed with the purchased `ServicePackage` name while remaining part of the Listing's shared review context. The reviewer is identified publicly by a masked name (e.g., "Ngọc L.").
 
 A submitted Review is immediately public and immutable: the Buyer cannot edit or delete it. An Admin may hide a review with a required reason and an audit record (actor, action, review, timestamp, reason, prior/new visibility state); a hidden review is excluded from Listing and Seller aggregate metrics, which are recalculated on hide and restore. Reviews attached to hidden or archived Listings remain in the Seller-level aggregate. Seller responses to reviews are out of scope in P0.
 

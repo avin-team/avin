@@ -43,10 +43,11 @@ export const canReviewOrderItem = ({
   orderItemStatus,
   requesterUserId,
 }: CanReviewInput): CanReviewResult => {
-  if (orderItemStatus !== "CLOSED") {
+  if (orderItemStatus !== "IN_WARRANTY" && orderItemStatus !== "CLOSED") {
     return {
       eligible: false,
-      reason: "Đơn hàng chưa ở trạng thái hoàn thành (CLOSED).",
+      reason:
+        "Đơn hàng chưa ở trạng thái bảo hành (IN_WARRANTY) hoặc hoàn thành (CLOSED).",
     };
   }
 
@@ -69,7 +70,7 @@ export const canReviewOrderItem = ({
     if (elapsed > THIRTY_DAYS_MS) {
       return {
         eligible: false,
-        reason: "Hạn gửi đánh giá (30 days) kể từ khi hoàn tất đã hết.",
+        reason: "Hạn gửi đánh giá (30 ngày) kể từ khi xác nhận đã hết.",
       };
     }
   }

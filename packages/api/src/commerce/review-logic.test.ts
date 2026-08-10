@@ -30,21 +30,8 @@ describe("Review domain logic", () => {
     // > 30 days ago
     const closedOld = new Date("2026-07-01T12:00:00.000Z");
 
-    it("allows review for CLOSED item within 30 days by buyer without existing review", () => {
-      const result = canReviewOrderItem({
-        buyerId: "user-123",
-        closedAt: closedRecently,
-        hasExistingReview: false,
-        now,
-        orderItemStatus: "CLOSED",
-        requesterUserId: "user-123",
-      });
-
-      expect(result.eligible).toBe(true);
-    });
-
-    it("rejects review if item is not CLOSED", () => {
-      const result = canReviewOrderItem({
+    it("allows review for IN_WARRANTY or CLOSED item within 30 days by buyer without existing review", () => {
+      const resultInWarranty = canReviewOrderItem({
         buyerId: "user-123",
         closedAt: closedRecently,
         hasExistingReview: false,
@@ -53,8 +40,31 @@ describe("Review domain logic", () => {
         requesterUserId: "user-123",
       });
 
+      const resultClosed = canReviewOrderItem({
+        buyerId: "user-123",
+        closedAt: closedRecently,
+        hasExistingReview: false,
+        now,
+        orderItemStatus: "CLOSED",
+        requesterUserId: "user-123",
+      });
+
+      expect(resultInWarranty.eligible).toBe(true);
+      expect(resultClosed.eligible).toBe(true);
+    });
+
+    it("rejects review if item is in unconfirmed status (DELIVERED/IN_PROGRESS)", () => {
+      const result = canReviewOrderItem({
+        buyerId: "user-123",
+        closedAt: closedRecently,
+        hasExistingReview: false,
+        now,
+        orderItemStatus: "DELIVERED",
+        requesterUserId: "user-123",
+      });
+
       expect(result.eligible).toBe(false);
-      expect(result.reason).toContain("CLOSED");
+      expect(result.reason).toContain("IN_WARRANTY");
     });
 
     it("rejects review if requester is not the buyer", () => {
@@ -82,7 +92,7 @@ describe("Review domain logic", () => {
       });
 
       expect(result.eligible).toBe(false);
-      expect(result.reason).toContain("30 days");
+      expect(result.reason).toContain("30 ngày");
     });
 
     it("rejects review if review already exists", () => {

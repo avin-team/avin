@@ -439,11 +439,12 @@ export const BuyerOrderItemCard = ({
           </form>
         ) : null}
 
-        {status === "CLOSED" && (
+        {(status === "IN_WARRANTY" || status === "CLOSED") && (
           <OrderItemReviewSection
             closedAt={
-              timelineQuery.data?.events.find((e) => e.newStatus === "CLOSED")
-                ?.effectiveAt
+              timelineQuery.data?.events.find(
+                (e) => e.newStatus === "IN_WARRANTY" || e.newStatus === "CLOSED"
+              )?.effectiveAt
             }
             orderItemId={item.id}
           />
