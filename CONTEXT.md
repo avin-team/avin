@@ -56,7 +56,7 @@ A versioned agreement that a prospective or active `Seller` must accept. It reco
 
 ### Seller Enforcement
 
-An Admin may place a `Seller` in one of two enforcement states. `SUSPENDED` Sellers have their Store profile and Listings hidden and cannot accept new sales, request withdrawals, or manage Listings, but retain access to active Orders and buyer chat so existing OrderItems can be fulfilled or disputed. `BANNED` Sellers permanently lose Seller access and have their Store profile hidden; Avin cancels and refunds affected unfulfilled OrderItems, freezes payout pending Admin review, and provides a documented appeal route, while already-delivered items continue through Buyer review, Warranty, and Dispute handling.
+An Admin may place a `Seller` in one of two enforcement states. `SUSPENDED` Sellers have their Store profile and Listings hidden and cannot accept new sales, request withdrawals, or manage Listings, but retain access to active Orders and buyer chat so existing OrderItems can be fulfilled or disputed. `BANNED` Sellers permanently lose Seller access and have their Store profile hidden; Avin cancels and refunds affected unfulfilled OrderItems, freezes payout pending Admin review, and provides a documented appeal route, while already-delivered items continue through Buyer review, Warranty, and Dispute handling. _Avoid_: strike, internal strike.
 
 ### Listing
 
@@ -149,12 +149,25 @@ An Admin review of a SePay payment notification whose reference, currency, or am
 
 ### SellerWallet
 
-The financial account belonging to a `Seller`. Tracks:
+The financial account belonging to a `Seller`, created when a `SellerApplication` is approved. Tracks:
 
-- **Pending Escrow Balance**: Funds locked in active orders pending completion and warranty expiration.
-- **Available Balance**: Earned revenue cleared for bank payout withdrawal.
+- **Pending Escrow Balance**: Funds locked in active `EscrowHold`s pending completion and warranty expiration. The Seller cannot spend or withdraw these funds.
+- **Available Balance**: Earned revenue cleared for withdrawal. Increases when an `EscrowHold` is released (after commission); decreases when the Seller creates a `WithdrawalRequest`.
+- **Held for Withdrawal Balance**: Funds committed to active `WithdrawalRequest`s that have not yet been paid, rejected, or cancelled. Visible to the Seller but unavailable for new withdrawal requests.
 
-At Checkout, each active `EscrowHold` contributes to Pending Escrow Balance, which the Seller cannot spend or withdraw. When that hold is released, Pending decreases and Available increases by the amount after commission; a refund decreases Pending without crediting the Seller. In P0, a `Seller` requests withdrawal of at least `5,000 VND` from Available Balance to their verified bank account; an Admin approves and pays the request manually.
+The balances are the current summary of the SellerWallet and must always reconcile with the immutable `Posting`s in its `LedgerAccount`s. At Checkout, each `EscrowHold` increments Pending Escrow Balance. When that hold is released, Pending decreases and Available increases by the amount after commission; a refund decreases Pending without crediting the Seller. A `WithdrawalRequest` atomically decrements Available and increments Held for Withdrawal; rejection, cancellation, or payment resolves the hold. In P0, a `Seller` requests withdrawal of at least `5,000 VND` from Available Balance to their verified bank account; an Admin approves and pays the request manually.
+
+### WithdrawalRequest
+
+A Seller-initiated request to withdraw a specified integer VND amount (minimum 5,000 VND) from `SellerWallet` Available Balance to the Seller's verified bank account. Creating the request atomically decrements Available Balance and increments Held for Withdrawal Balance, preventing over-withdrawal from concurrent requests. The request snapshots the Seller's bank account details at creation time; Admin verifies and pays against this snapshot, not the Seller's current profile.
+
+- **Lifecycle**: `REQUESTED` → `APPROVED` → `PAID`, with `REJECTED` (from `REQUESTED` or `APPROVED`) and `CANCELLED` (Seller-initiated, from `REQUESTED` only). `PAID`, `REJECTED`, and `CANCELLED` are terminal.
+- **Ledger**: `REQUESTED` records a `WITHDRAWAL_REQUEST` Transaction (debit `SELLER_WALLET_AVAILABLE`, credit `SELLER_WALLET_HELD`). `PAID` records a `WITHDRAWAL_PAID` Transaction (debit `SELLER_WALLET_HELD`, credit `PLATFORM_BANK_CLEARING`). Rejection or cancellation records a `REVERSAL` of the original `WITHDRAWAL_REQUEST`. `APPROVED` is a workflow checkpoint with no financial Transaction.
+- **Admin actions**: Approve requires no reason. Reject requires a reason visible to the Seller. Mark paid requires a bank transfer reference.
+- **Enforcement**: When a Seller is suspended or banned, existing `REQUESTED` and `APPROVED` requests are frozen — Admin decides each one manually as part of the enforcement review. New requests are blocked.
+- **Multiple concurrent requests**: Allowed. Each holds its portion of Available Balance independently.
+
+_Avoid_: Payout, cash-out.
 
 ### EscrowHold
 
@@ -164,7 +177,7 @@ For an `OrderItem` with `NO_WARRANTY`, the EscrowHold releases when the `DELIVER
 
 ### LedgerAccount
 
-An account in Avin's financial ledger representing where monetary value is held or owed, including platform bank clearing, UserWallet Available and Held balances, SellerWallet Pending and Available balances, escrow, and platform commission.
+An account in Avin's financial ledger representing where monetary value is held or owed, including platform bank clearing, UserWallet Available and Held balances, SellerWallet Pending, Available, and Held for Withdrawal balances, escrow, and platform commission.
 
 ### Posting
 
@@ -180,7 +193,13 @@ An entity initiated by a `User` when an `OrderItem` cannot be resolved directly 
 
 ### Review
 
-A rating (1–5 stars) and feedback comment submitted once by a `User` for an `OrderItem` in `CLOSED`; `REFUNDED` and `CANCELLED` items are not reviewable. For a `SERVICE`, the review is displayed with the purchased `ServicePackage` name while remaining part of the Listing's shared review context.
+A rating (1–5 stars) and optional feedback comment submitted once by a `User` for an `OrderItem` in `CLOSED` within 30 days of reaching that state; `REFUNDED` and `CANCELLED` items are not reviewable. For a `SERVICE`, the review is displayed with the purchased `ServicePackage` name while remaining part of the Listing's shared review context. The reviewer is identified publicly by a masked name (e.g., "Ngọc L.").
+
+A submitted Review is immediately public and immutable: the Buyer cannot edit or delete it. An Admin may hide a review with a required reason and an audit record (actor, action, review, timestamp, reason, prior/new visibility state); a hidden review is excluded from Listing and Seller aggregate metrics, which are recalculated on hide and restore. Reviews attached to hidden or archived Listings remain in the Seller-level aggregate. Seller responses to reviews are out of scope in P0.
+
+Aggregate metrics displayed on each Listing include the simple arithmetic mean rating, rating count, star distribution, and per-Listing completed-order count (CLOSED OrderItems for that Listing). Each Seller profile displays an aggregate rating, rating count, and completed-order count (CLOSED OrderItems across all the Seller's Listings). All review and aggregate data is accessible to unauthenticated visitors.
+
+_Avoid_: Feedback, testimonial.
 
 ### Message
 
@@ -231,10 +250,11 @@ A key-value snapshot of the buyer's submitted form responses attached to an `Ord
 ## 3. Aggregate Boundaries
 
 1. **`UserAggregate`**: `User` + `UserWallet`
-2. **`SellerAggregate`**: `Seller` + `SellerWallet` + Bank Details
+2. **`SellerAggregate`**: `Seller` + `SellerWallet` + `WithdrawalRequest`s + Bank Details
 3. **`ListingAggregate`**: `Listing` + `ServicePackage`s for `SERVICE` Listings (including their `ServiceInputField` definitions and `WarrantyPolicy`) + `Category`
 4. **`OrderAggregate`**: `Order` + `OrderItem`s + `OrderCustomInput` + per-item `EscrowHold`s + `DeliverySubmission`s + `OrderChat` (Messages)
 5. **`DisputeAggregate`**: `Dispute` + `DisputeEvidence`
+6. **`ReviewAggregate`**: `Review` + review moderation audit record
 
 ---
 

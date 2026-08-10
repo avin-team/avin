@@ -569,6 +569,81 @@ export const escrowHold = pgTable(
   ]
 );
 
+export const reviewModerationAction = pgEnum("review_moderation_action", [
+  "HIDE",
+  "RESTORE",
+]);
+
+export const review = pgTable(
+  "review",
+  {
+    buyerId: text("buyer_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    comment: text("comment"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    hiddenAt: timestamp("hidden_at"),
+    hiddenByUserId: text("hidden_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    hiddenReason: text("hidden_reason"),
+    id: uuid("id").defaultRandom().primaryKey(),
+    isHidden: boolean("is_hidden").default(false).notNull(),
+    listingId: uuid("listing_id")
+      .notNull()
+      .references(() => listing.id, { onDelete: "restrict" }),
+    orderItemId: uuid("order_item_id")
+      .notNull()
+      .references(() => orderItem.id, { onDelete: "restrict" }),
+    rating: integer("rating").notNull(),
+    reviewerMaskedName: text("reviewer_masked_name").notNull(),
+    sellerId: text("seller_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    servicePackageName: text("service_package_name"),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("review_order_item_unique_idx").on(table.orderItemId),
+    index("review_listing_id_idx").on(table.listingId),
+    index("review_seller_id_idx").on(table.sellerId),
+    index("review_buyer_id_idx").on(table.buyerId),
+    index("review_is_hidden_idx").on(table.isHidden),
+    index("review_listing_created_idx").on(
+      table.listingId,
+      table.isHidden,
+      table.createdAt
+    ),
+    check(
+      "review_rating_range_check",
+      sql`${table.rating} >= 1 AND ${table.rating} <= 5`
+    ),
+  ]
+);
+
+export const reviewModerationAudit = pgTable(
+  "review_moderation_audit",
+  {
+    action: reviewModerationAction("action").notNull(),
+    actorUserId: text("actor_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    reason: text("reason").notNull(),
+    reviewId: uuid("review_id")
+      .notNull()
+      .references(() => review.id, { onDelete: "cascade" }),
+  },
+  (table) => [
+    index("review_moderation_audit_review_idx").on(table.reviewId),
+    index("review_moderation_audit_actor_idx").on(table.actorUserId),
+  ]
+);
+
 export const cartRelations = relations(cart, ({ many, one }) => ({
   items: many(cartItem),
   user: one(user, {
@@ -649,6 +724,7 @@ export const orderItemRelations = relations(orderItem, ({ many, one }) => ({
     fields: [orderItem.orderId],
     references: [order.id],
   }),
+  review: one(review),
   servicePackage: one(servicePackage, {
     fields: [orderItem.servicePackageId],
     references: [servicePackage.id],
@@ -796,3 +872,37 @@ export const chatReadCursorRelations = relations(chatReadCursor, ({ one }) => ({
     references: [user.id],
   }),
 }));
+
+export const reviewRelations = relations(review, ({ many, one }) => ({
+  buyer: one(user, {
+    fields: [review.buyerId],
+    references: [user.id],
+  }),
+  listing: one(listing, {
+    fields: [review.listingId],
+    references: [listing.id],
+  }),
+  moderationAudits: many(reviewModerationAudit),
+  orderItem: one(orderItem, {
+    fields: [review.orderItemId],
+    references: [orderItem.id],
+  }),
+  seller: one(user, {
+    fields: [review.sellerId],
+    references: [user.id],
+  }),
+}));
+
+export const reviewModerationAuditRelations = relations(
+  reviewModerationAudit,
+  ({ one }) => ({
+    actor: one(user, {
+      fields: [reviewModerationAudit.actorUserId],
+      references: [user.id],
+    }),
+    review: one(review, {
+      fields: [reviewModerationAudit.reviewId],
+      references: [review.id],
+    }),
+  })
+);

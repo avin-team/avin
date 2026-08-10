@@ -196,7 +196,7 @@ export const SellerWalletPanel = () => {
       ) : null}
       <div className="grid gap-4 lg:grid-cols-3">
         <SellerBalanceCard
-          description="Đơn hàng đang trong escrow"
+          description="Đơn hàng đang được tạm giữ tiền"
           title="Chờ giải ngân"
           value={summaryQuery.data?.pendingBalance}
         />

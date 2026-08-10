@@ -491,8 +491,8 @@ const SellerOnboardingFormContent = ({
                 </p>
                 <p>
                   3. <strong>Bảo hành & Khiếu nại:</strong> Tiền hàng sẽ được
-                  giữ ký quỹ (Escrow) trong suốt thời gian giao hàng và thời
-                  gian bảo hành quy định của sản phẩm.
+                  giữ ký quỹ trong suốt thời gian giao hàng và thời gian bảo
+                  hành quy định của sản phẩm.
                 </p>
                 <p>
                   4. <strong>Chính sách tuân thủ:</strong> Người bán cam kết

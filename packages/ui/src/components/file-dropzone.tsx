@@ -37,9 +37,9 @@ export function FileDropzone({
   disabled = false,
   error,
   helperText,
-  inputLabel = "Choose a file",
+  inputLabel = "Chọn một tệp",
   isUploading = false,
-  label = "Upload a file",
+  label = "Tải tệp lên",
   maxFiles = 1,
   maxSize,
   multiple = false,
@@ -47,11 +47,11 @@ export function FileDropzone({
   onFilesSelected,
   progress,
   renderTrigger,
-  browseHelperText = "Drag and drop or click to browse",
-  progressLabel = "Upload progress",
-  progressSuffix = "uploaded",
-  uploadingHelperText = "Please wait while the file is uploaded.",
-  uploadingLabel = "Uploading file…",
+  browseHelperText = "Kéo thả hoặc nhấp để duyệt",
+  progressLabel = "Tiến trình tải lên",
+  progressSuffix = "đã tải lên",
+  uploadingHelperText = "Vui lòng đợi trong khi tải tệp lên.",
+  uploadingLabel = "Đang tải tệp lên…",
 }: FileDropzoneProps) {
   const isDisabled = disabled || isUploading;
   const { getInputProps, getRootProps, isDragActive, isDragReject, open } =

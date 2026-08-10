@@ -4,6 +4,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgEnum,
   pgTable,
   text,
@@ -37,10 +38,15 @@ export const sellerProfile = pgTable(
     bankAccount: jsonb("bank_account").$type<BankAccount>(),
     bannerUrl: text("banner_url"),
     bio: text("bio"),
+    completedOrderCount: integer("completed_order_count").default(0).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     id: uuid("id").defaultRandom().primaryKey(),
     phone: text("phone"),
     phoneVerified: boolean("phone_verified").default(false).notNull(),
+    ratingCount: integer("rating_count").default(0).notNull(),
+    ratingScore: numeric("rating_score", { precision: 3, scale: 2 })
+      .default("0")
+      .notNull(),
     storeSlug: text("store_slug").notNull(),
     storeSlugLockedAt: timestamp("store_slug_locked_at"),
     storefrontName: text("storefront_name").notNull(),

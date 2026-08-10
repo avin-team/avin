@@ -21,6 +21,7 @@ import {
   ClockIcon,
   LockKeyIcon,
   TrashIcon,
+  CaretDownIcon,
 } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -246,7 +247,7 @@ export const CartItemCard = ({
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <LockKeyIcon className="size-3.5 text-primary" />
-                  Escrow bảo vệ
+                  Thanh toán an toàn
                 </span>
                 {item.available ? null : (
                   <span className="font-medium text-destructive">
@@ -262,7 +263,7 @@ export const CartItemCard = ({
                   {formatVND(currentPrice)}
                 </span>
                 <Button
-                  aria-label={`Xóa ${item.listing.title ?? "Listing"} khỏi Cart`}
+                  aria-label={`Xóa ${item.listing.title ?? "sản phẩm"} khỏi Giỏ hàng`}
                   disabled={disabled}
                   onClick={onRemove}
                   size="icon-sm"
@@ -285,12 +286,15 @@ export const CartItemCard = ({
             </div>
           </div>
         </div>
-        <details className="mt-4 rounded-xl border border-border/60 bg-muted/20">
-          <summary className="cursor-pointer list-none px-3 py-2 text-sm font-semibold marker:hidden">
-            <span>Thêm mô tả hoặc hình ảnh</span>{" "}
-            <span className="font-normal text-muted-foreground">
-              (Không bắt buộc)
+        <details className="group mt-4 rounded-xl border border-border/60 bg-muted/20">
+          <summary className="flex cursor-pointer items-center justify-between list-none px-3 py-2 text-sm font-semibold marker:hidden">
+            <span>
+              Thêm mô tả hoặc hình ảnh{" "}
+              <span className="font-normal text-muted-foreground">
+                (Không bắt buộc)
+              </span>
             </span>
+            <CaretDownIcon className="size-4 text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
           </summary>
           <div className="grid gap-3 border-t border-border/60 p-3">
             <label
@@ -352,8 +356,8 @@ const CheckoutSummary = ({
 }) => (
   <Card className="h-fit lg:sticky lg:top-24">
     <CardHeader>
-      <CardTitle>Tóm tắt Checkout</CardTitle>
-      <CardDescription>{selectedCount} Listing được chọn</CardDescription>
+      <CardTitle>Tóm tắt thanh toán</CardTitle>
+      <CardDescription>{selectedCount} sản phẩm được chọn</CardDescription>
     </CardHeader>
     <CardContent className="space-y-5">
       <div className="flex items-center justify-between border-b border-border pb-4">
@@ -379,7 +383,7 @@ const CheckoutSummary = ({
       ) : null}
       {hasMissingContract ? (
         <p className="rounded-xl bg-destructive/10 p-3 text-xs text-destructive">
-          Cart cần được tải lại để xem lại contract hiện tại.
+          Giỏ hàng cần được tải lại để xem lại thông tin mới nhất.
         </p>
       ) : null}
       {children}
@@ -475,7 +479,7 @@ export const CartPage = () => {
         toast.error(
           error instanceof Error
             ? error.message
-            : "Không thể cập nhật Cart. Vui lòng thử lại."
+            : "Không thể cập nhật Giỏ hàng. Vui lòng thử lại."
         );
       }
       pendingSelectionCountRef.current -= 1;
@@ -519,7 +523,7 @@ export const CartPage = () => {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Không thể xóa Listing khỏi Cart. Vui lòng thử lại."
+          : "Không thể xóa sản phẩm khỏi Giỏ hàng. Vui lòng thử lại."
       );
     },
     onMutate: async ({ listingId }) => {
@@ -607,7 +611,7 @@ export const CartPage = () => {
           queryKey: walletTransactionsQueryOptions().queryKey,
         }),
       ]);
-      toast.success("Checkout thành công. Tiền đã được giữ trong Escrow.");
+      toast.success("Thanh toán thành công. Tiền đang được tạm giữ an toàn.");
       await navigate({ to: "/orders" });
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
@@ -643,7 +647,7 @@ export const CartPage = () => {
       <Shell variant="default">
         <div className="py-16 text-center">
           <WarningCircleIcon className="mx-auto size-10 text-destructive" />
-          <h1 className="mt-4 text-xl font-bold">Không thể tải Cart</h1>
+          <h1 className="mt-4 text-xl font-bold">Không thể tải Giỏ hàng</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Vui lòng thử lại sau.
           </p>
@@ -661,17 +665,17 @@ export const CartPage = () => {
         <div>
           <p className="text-sm font-medium text-primary">Mua sắm</p>
           <h1 className="mt-1 text-3xl font-bold tracking-tight">
-            Cart của bạn
+            Giỏ hàng của bạn
           </h1>
           <p className="mt-2 text-muted-foreground">
-            Chọn Listing và thanh toán được bảo vệ bởi Escrow.
+            Chọn sản phẩm và sử dụng thanh toán an toàn.
           </p>
         </div>
 
         {items.length === 0 ? (
           <Card>
             <CardContent className="py-16 text-center">
-              <p className="text-lg font-semibold">Cart đang trống</p>
+              <p className="text-lg font-semibold">Giỏ hàng đang trống</p>
               <p className="mt-2 text-sm text-muted-foreground">
                 Thêm Listing từ Catalog để bắt đầu.
               </p>

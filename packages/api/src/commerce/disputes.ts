@@ -55,6 +55,7 @@ import {
 } from "./dispute-workflow";
 import { refundEscrow, releaseEscrow } from "./fulfillment";
 import type { EscrowResolutionContext } from "./fulfillment";
+import { incrementCompletedOrderCounts } from "./review";
 
 const REASON_MAX_LENGTH = 5000;
 const COMMAND_KEY_MAX_LENGTH = 128;
@@ -107,6 +108,7 @@ interface DisputeRow {
   escrowHoldId: string;
   escrowHoldStatus: "CANCELLED" | "HELD" | "REFUNDED" | "RELEASED";
   itemId: string;
+  listingId: string;
   listingSnapshot: ListingSnapshot;
   orderId: string;
   orderItemPriceAmount: number;
@@ -226,6 +228,7 @@ const selectDisputeRows = async (
       escrowHoldId: escrowHold.id,
       escrowHoldStatus: escrowHold.status,
       itemId: orderItem.id,
+      listingId: orderItem.listingId,
       listingSnapshot: orderItem.listingSnapshot,
       orderId: order.id,
       orderItemPriceAmount: orderItem.priceAmount,
@@ -1160,6 +1163,13 @@ export const resolveDispute = ({
     if (!updatedItem) {
       throw new ORPCError("CONFLICT", {
         message: "OrderItem vừa được xử lý bởi request khác.",
+      });
+    }
+
+    if (decision.orderItemStatus === "CLOSED") {
+      await incrementCompletedOrderCounts(transaction, {
+        listingId: row.listingId,
+        sellerId: row.sellerId,
       });
     }
 

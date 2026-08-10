@@ -70,6 +70,7 @@ import {
 } from "./fulfillment";
 import type { FulfillmentActorRole } from "./fulfillment";
 import { getBuyerOrders, getSellerOrders } from "./orders";
+import { reviewRouter } from "./review";
 
 const listingIdInput = z.object({ listingId: z.uuid() });
 const packageSelectionInput = listingIdInput.extend({ packageId: z.uuid() });
@@ -574,4 +575,6 @@ export const commerceRouter = {
       getBuyerOrders(context.db, context.session.user.id)
     ),
   },
+
+  review: reviewRouter,
 };

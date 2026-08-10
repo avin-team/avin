@@ -30,6 +30,7 @@ import { Skeleton } from "@avin/ui/components/skeleton";
 import { Textarea } from "@avin/ui/components/textarea";
 import {
   ArrowClockwiseIcon,
+  CaretDownIcon,
   CheckCircleIcon,
   ClipboardTextIcon,
   PlayIcon,
@@ -379,8 +380,9 @@ export const SellerOrderItemCard = ({
     if (timelineQuery.data) {
       return (
         <details className="group rounded-2xl border border-border/60 p-4">
-          <summary className="cursor-pointer list-none font-semibold outline-none focus-visible:ring-2 focus-visible:ring-primary">
-            Xem tiến trình & bằng chứng
+          <summary className="flex cursor-pointer items-center justify-between list-none font-semibold outline-none focus-visible:ring-2 focus-visible:ring-primary marker:hidden">
+            <span>Chi tiết yêu cầu, bàn giao & lịch sử</span>
+            <CaretDownIcon className="size-4 text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
           </summary>
           <div className="mt-4">
             <OrderItemTimeline
@@ -585,9 +587,8 @@ export const SellerOrderItemCard = ({
                   Xác nhận hủy đơn hàng
                 </AlertDialogTitle>
                 <AlertDialogDescription className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  Số tiền tạm giữ (Escrow) của sản phẩm này sẽ được hoàn trả cho
-                  khách hàng. Các sản phẩm khác trong đơn (nếu có) không bị ảnh
-                  hưởng.
+                  Số tiền tạm giữ của sản phẩm này sẽ được hoàn trả cho khách
+                  hàng. Các sản phẩm khác trong đơn (nếu có) không bị ảnh hưởng.
                 </AlertDialogDescription>
               </div>
             </div>

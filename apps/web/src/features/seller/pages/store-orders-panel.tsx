@@ -373,7 +373,7 @@ export const StoreOrdersPanel = () => {
                 <th className="p-4">Sản phẩm</th>
                 <th className="p-4">Khách hàng</th>
                 <th className="p-4">Hạn xử lý</th>
-                <th className="p-4">Tạm giữ (Escrow) & Giá</th>
+                <th className="p-4">Số tiền tạm giữ & Giá</th>
                 <th className="p-4">Trạng thái</th>
                 <th className="p-4 text-right">Thao tác</th>
               </tr>

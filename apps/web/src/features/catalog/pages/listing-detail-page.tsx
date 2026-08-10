@@ -18,6 +18,7 @@ import { toast } from "sonner";
 
 import { Shell } from "@/components/shell";
 import { ListingMediaGallery } from "@/features/catalog/components/listing-media-gallery";
+import { ListingReviewsSection } from "@/features/catalog/components/listing-reviews-section";
 import { ServicePackageSelector } from "@/features/catalog/components/service-package-selector";
 import { addCartItemOptimistically } from "@/features/commerce/cart-cache";
 import type { CartView } from "@/features/commerce/cart-cache";
@@ -75,7 +76,7 @@ export const ListingDetailPage = () => {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Không thể thêm Listing vào Cart."
+          : "Không thể thêm sản phẩm vào Giỏ hàng."
       );
     },
     onMutate: async () => {
@@ -272,7 +273,7 @@ export const ListingDetailPage = () => {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-emerald-500 font-bold text-sm">
                         <ShieldCheckIcon className="h-5 w-5" />
-                        <span>Bảo hành bảo vệ người mua</span>
+                        <span>Bảo đảm cho người mua</span>
                       </div>
                       <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-500">
                         Bảo hành {listing.warrantyDurationHours} giờ
@@ -290,7 +291,7 @@ export const ListingDetailPage = () => {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-emerald-500 font-bold text-sm">
                         <ShieldCheckIcon className="h-5 w-5" />
-                        <span>Bảo hành bảo vệ người mua</span>
+                        <span>Bảo đảm cho người mua</span>
                       </div>
                       <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-500">
                         Bảo hành {selectedTimedWarranty.durationHours} giờ
@@ -347,12 +348,23 @@ export const ListingDetailPage = () => {
                           <div className="flex items-center gap-3 text-xs text-muted-foreground">
                             <span className="flex items-center gap-1 font-semibold text-amber-500">
                               <StarIcon className="h-3.5 w-3.5 fill-amber-500" />
-                              <span>5.0</span>
+                              <span>
+                                {Number(listing.seller?.ratingScore ?? 0) > 0
+                                  ? Number(listing.seller?.ratingScore).toFixed(
+                                      1
+                                    )
+                                  : "Mới"}
+                              </span>
                             </span>
                             <span>•</span>
-                            <span>0 đánh giá</span>
+                            <span>
+                              {listing.seller?.ratingCount ?? 0} đánh giá
+                            </span>
                             <span>•</span>
-                            <span>Đã bán 0</span>
+                            <span>
+                              {listing.seller?.completedOrderCount ?? 0} đơn
+                              hoàn thành
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -361,23 +373,25 @@ export const ListingDetailPage = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-border/40 text-xs">
                       <div className="space-y-1">
                         <span className="text-muted-foreground font-medium block">
-                          Đánh giá
+                          Đánh giá gian hàng
                         </span>
                         <span className="font-semibold text-foreground block truncate">
-                          Chưa có đánh giá công khai
+                          {listing.seller?.ratingCount
+                            ? `${listing.seller.ratingCount} đánh giá (${Number(listing.seller.ratingScore).toFixed(1)}⭐)`
+                            : "Chưa có đánh giá công khai"}
                         </span>
                       </div>
                       <div className="space-y-1">
                         <span className="text-muted-foreground font-medium block">
-                          Đơn hàng
+                          Đơn hoàn thành
                         </span>
                         <span className="font-semibold text-foreground block">
-                          Tin mới
+                          {listing.seller?.completedOrderCount ?? 0} đơn
                         </span>
                       </div>
                       <div className="space-y-1">
                         <span className="text-muted-foreground font-medium block">
-                          Thời gian phản hồi
+                          Thời gian xử lý
                         </span>
                         <span className="font-semibold text-foreground block">
                           {selectedProcessingTime
@@ -389,7 +403,7 @@ export const ListingDetailPage = () => {
 
                     {sellerStoreSlug ? (
                       <Link
-                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/5 py-3 px-4 font-bold text-sm text-rose-500 transition-all hover:bg-rose-500/10 hover:border-rose-500/60 active:scale-[0.99] text-center"
+                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/5 py-3 px-4 font-bold text-sm text-primary transition-all hover:bg-primary/10 hover:border-primary/60 active:scale-[0.99] text-center"
                         params={{ slug: sellerStoreSlug }}
                         to="/store/$slug"
                       >
@@ -402,6 +416,14 @@ export const ListingDetailPage = () => {
                     )}
                   </div>
                 </div>
+
+                {/* Reviews Section */}
+                <ListingReviewsSection
+                  completedOrderCount={listing.completedOrderCount ?? 0}
+                  listingId={listing.id}
+                  ratingCount={listing.ratingCount ?? 0}
+                  ratingScore={listing.ratingScore ?? "0"}
+                />
               </div>
 
               {/* Right Column: Pricing & Seller CTA Card */}
@@ -479,7 +501,7 @@ export const ListingDetailPage = () => {
                   <div className="space-y-2 text-xs text-muted-foreground pt-4 border-t border-border/40">
                     <div className="flex items-center gap-2">
                       <CheckCircleIcon className="h-4 w-4 text-emerald-500 shrink-0" />
-                      <span>Thanh toán bảo vệ qua Escrow</span>
+                      <span>Thanh toán an toàn</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <ClockIcon className="h-4 w-4 text-primary shrink-0" />

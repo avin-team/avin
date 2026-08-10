@@ -3,6 +3,7 @@ import {
   WarningCircleIcon,
   ArrowLeftIcon,
   PackageIcon,
+  StarIcon,
   StorefrontIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -101,14 +102,35 @@ export const PublicStorePage = () => {
                 <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
                   {profile.storefrontName}
                 </h1>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  /{profile.storeSlug}
-                </p>
+                <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                  <span>/{profile.storeSlug}</span>
+                  <span>•</span>
+                  <span>
+                    Tham gia{" "}
+                    {new Date(profile.createdAt).toLocaleDateString("vi-VN", {
+                      month: "long",
+                      year: "numeric",
+                    })}
+                  </span>
+                  <span>•</span>
+                  <span className="flex items-center gap-1 font-semibold text-amber-500">
+                    <StarIcon className="size-3.5 fill-amber-500" />
+                    <span>
+                      {Number(profile.ratingScore) > 0
+                        ? `${Number(profile.ratingScore).toFixed(1)} (${profile.ratingCount} đánh giá)`
+                        : "Chưa có đánh giá"}
+                    </span>
+                  </span>
+                  <span>•</span>
+                  <span className="font-semibold text-foreground">
+                    {profile.completedOrderCount} đơn đã hoàn thành
+                  </span>
+                </div>
                 <p className="mt-4 max-w-2xl whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
                   {profile.bio}
                 </p>
               </div>
-              <Badge variant="outline">Gian hàng public</Badge>
+              <Badge variant="outline">Gian hàng công khai</Badge>
             </div>
           </div>
         </section>

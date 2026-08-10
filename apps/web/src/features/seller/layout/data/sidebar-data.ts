@@ -1,10 +1,10 @@
 import {
-  ChartBarIcon,
+  // ChartBarIcon,
   BankIcon,
   SquaresFourIcon,
   PackageIcon,
   ShoppingBagIcon,
-  TicketIcon,
+  // TicketIcon,
   UserCircleIcon,
 } from "@phosphor-icons/react";
 
@@ -29,8 +29,8 @@ export const SELLER_NAV_GROUPS: SellerNavGroup[] = [
     items: [
       { icon: PackageIcon, label: "Sản phẩm", value: "products" },
       { icon: ShoppingBagIcon, label: "Đơn hàng", value: "orders" },
-      { icon: ChartBarIcon, label: "Khiếu nại", value: "complaints" },
-      { icon: TicketIcon, label: "Mã giảm giá", value: "discounts" },
+      // { icon: ChartBarIcon, label: "Khiếu nại", value: "complaints" },
+      // { icon: TicketIcon, label: "Mã giảm giá", value: "discounts" },
     ],
     title: "Bán hàng",
   },

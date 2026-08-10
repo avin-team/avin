@@ -41,6 +41,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { DisputeEvidenceUploader } from "@/features/commerce/components/dispute-evidence-uploader";
+import { OrderItemReviewSection } from "@/features/commerce/components/order-item-review-section";
 import { OrderItemTimeline } from "@/features/commerce/components/order-item-timeline";
 import {
   ORDER_TIMELINE_REFRESH_INTERVAL_MS,
@@ -108,7 +109,7 @@ export const BuyerOrderItemCard = ({
         await invalidateItem();
         toast.success(
           isNoWarrantyPolicy(item.warrantyPolicy)
-            ? "Đã xác nhận bàn giao. Escrow đã được giải ngân."
+            ? "Đã xác nhận bàn giao. Tiền tạm giữ đã được giải ngân."
             : "Đã xác nhận bàn giao. Warranty đã bắt đầu."
         );
       },
@@ -117,39 +118,39 @@ export const BuyerOrderItemCard = ({
   const cancelMutation = useMutation(
     orpc.commerce.orders.item.cancelByBuyer.mutationOptions({
       onError: (error) => {
-        toast.error(getErrorMessage(error, "Không thể hủy OrderItem."));
+        toast.error(getErrorMessage(error, "Không thể huỷ sản phẩm này."));
       },
       onSuccess: async () => {
         setCancelOpen(false);
         await invalidateItem();
-        toast.success("Đã hủy OrderItem và hoàn tiền.");
+        toast.success("Đã huỷ sản phẩm và hoàn tiền.");
       },
     })
   );
   const disputeMutation = useMutation(
     orpc.commerce.orders.item.openDispute.mutationOptions({
       onError: (error) => {
-        toast.error(getErrorMessage(error, "Không thể mở Dispute."));
+        toast.error(getErrorMessage(error, "Không thể tạo khiếu nại."));
       },
       onSuccess: async () => {
         setDisputeOpen(false);
         setDisputeEvidence([]);
         await invalidateItem();
-        toast.success("Đã mở Dispute cho OrderItem.");
+        toast.success("Đã gửi yêu cầu khiếu nại cho sản phẩm này.");
       },
     })
   );
   const cancelDisputeMutation = useMutation(
     orpc.commerce.disputes.cancel.mutationOptions({
       onError: (error) => {
-        toast.error(getErrorMessage(error, "Không thể hủy Dispute."));
+        toast.error(getErrorMessage(error, "Không thể huỷ yêu cầu khiếu nại."));
       },
       onSuccess: async () => {
         setDisputeCancelOpen(false);
         setDisputeCancelReason("");
         await invalidateItem();
         toast.success(
-          "Đã hủy Dispute. Escrow vẫn được giữ để xử lý bình thường."
+          "Đã huỷ khiếu nại. Hệ thống vẫn tạm giữ tiền để bảo đảm giao dịch."
         );
       },
     })
@@ -160,7 +161,7 @@ export const BuyerOrderItemCard = ({
       try {
         if (disputeEvidence.length === 0) {
           toast.error(
-            "Hãy tải ít nhất một tệp bằng chứng trước khi mở Dispute."
+            "Hãy tải ít nhất một tệp bằng chứng trước khi tạo khiếu nại."
           );
           return;
         }
@@ -259,13 +260,13 @@ export const BuyerOrderItemCard = ({
   const handleCancelDispute = async (): Promise<void> => {
     const reason = disputeCancelReason.trim();
     if (!reason) {
-      toast.error("Hãy nhập lý do hủy Dispute.");
+      toast.error("Hãy nhập lý do huỷ khiếu nại.");
       return;
     }
     try {
       const disputeId = timelineQuery.data?.dispute?.id;
       if (!disputeId) {
-        toast.error("Không tìm thấy Dispute đang mở.");
+        toast.error("Không tìm thấy khiếu nại nào đang mở.");
         return;
       }
       await cancelDisputeMutation.mutateAsync({
@@ -437,6 +438,16 @@ export const BuyerOrderItemCard = ({
             </div>
           </form>
         ) : null}
+
+        {status === "CLOSED" && (
+          <OrderItemReviewSection
+            closedAt={
+              timelineQuery.data?.events.find((e) => e.newStatus === "CLOSED")
+                ?.effectiveAt
+            }
+            orderItemId={item.id}
+          />
+        )}
 
         {timelineContent}
       </CardContent>

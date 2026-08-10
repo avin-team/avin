@@ -169,6 +169,13 @@
       "when": 1786365536795,
       "tag": "0023_gray_steve_rogers",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1786368101017,
+      "tag": "0024_typical_spencer_smythe",
+      "breakpoints": true
     }
   ]
 }

@@ -131,6 +131,7 @@ export const listing = pgTable(
     categoryId: uuid("category_id")
       .notNull()
       .references(() => subCategory.id, { onDelete: "restrict" }),
+    completedOrderCount: integer("completed_order_count").default(0).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     description: text("description"),
     id: uuid("id").defaultRandom().primaryKey(),
@@ -138,6 +139,10 @@ export const listing = pgTable(
     images: jsonb("images").$type<string[]>().default([]).notNull(),
     priceAmount: integer("price_amount"),
     processingTimeHours: integer("processing_time_hours"),
+    ratingCount: integer("rating_count").default(0).notNull(),
+    ratingScore: numeric("rating_score", { precision: 3, scale: 2 })
+      .default("0")
+      .notNull(),
     sellerId: text("seller_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),

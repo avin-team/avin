@@ -156,7 +156,11 @@ export const listingDiscoveryRouter = {
           sellerProfile: {
             columns: {
               avatarUrl: true,
+              completedOrderCount: true,
+              createdAt: true,
               id: true,
+              ratingCount: true,
+              ratingScore: true,
               storeSlug: true,
               storefrontName: true,
             },
@@ -214,15 +218,24 @@ export const listingDiscoveryRouter = {
 
       return {
         ...foundRest,
+        completedOrderCount: found.completedOrderCount ?? 0,
         priceAmount:
           found.type === "SERVICE"
             ? getServicePackageSummaryPrice(availablePackages)
             : found.priceAmount,
+        ratingCount: found.ratingCount ?? 0,
+        ratingScore: found.ratingScore ?? "0",
         seller: {
+          avatarUrl: foundProfile?.avatarUrl ?? foundSeller.image,
+          completedOrderCount: foundProfile?.completedOrderCount ?? 0,
+          createdAt: foundProfile?.createdAt ?? null,
           id: foundProfile?.id ?? foundSeller.id,
           image: foundProfile?.avatarUrl ?? foundSeller.image,
           name: foundProfile?.storefrontName ?? foundSeller.name,
+          ratingCount: foundProfile?.ratingCount ?? 0,
+          ratingScore: foundProfile?.ratingScore ?? "0",
           storeSlug: foundProfile?.storeSlug ?? null,
+          storefrontName: foundProfile?.storefrontName ?? foundSeller.name,
         },
         servicePackages: availablePackages,
       };
@@ -368,7 +381,10 @@ export const listingDiscoveryRouter = {
           sellerProfile: {
             columns: {
               avatarUrl: true,
+              completedOrderCount: true,
               id: true,
+              ratingCount: true,
+              ratingScore: true,
               storeSlug: true,
               storefrontName: true,
             },
@@ -407,22 +423,29 @@ export const listingDiscoveryRouter = {
       }
 
       return {
+        // oxlint-disable-next-line complexity
         items: items.map((item) => {
           const { sellerProfile: prof, seller: sel, ...rest } = item;
 
           return {
             ...rest,
+            completedOrderCount: item.completedOrderCount ?? 0,
             priceAmount:
               item.type === "SERVICE"
                 ? (getServicePackageSummaryPrice(item.servicePackages) ?? 0)
                 : (item.priceAmount ?? 0),
-            ratingCount: 0,
-            ratingScore: null,
+            ratingCount: item.ratingCount ?? 0,
+            ratingScore: item.ratingScore ? Number(item.ratingScore) : null,
             seller: {
+              avatarUrl: prof?.avatarUrl ?? sel.image,
+              completedOrderCount: prof?.completedOrderCount ?? 0,
               id: prof?.id ?? sel.id,
               image: prof?.avatarUrl ?? sel.image,
               name: prof?.storefrontName ?? sel.name,
+              ratingCount: prof?.ratingCount ?? 0,
+              ratingScore: prof?.ratingScore ?? "0",
               storeSlug: prof?.storeSlug ?? null,
+              storefrontName: prof?.storefrontName ?? sel.name,
             },
             servicePackages: item.servicePackages,
             soldCount: soldCountMap[item.id] ?? 0,

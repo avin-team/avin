@@ -412,21 +412,28 @@ export const createCheckoutAttachmentUploadRouter = (
       multipleFiles: true,
       onBeforeUpload: async ({ clientMetadata, files, req }) => {
         const session = await auth.api.getSession({ headers: req.headers });
-        if (!session || session.user.role !== "BUYER") {
-          throw new RejectUpload("Chỉ Buyer mới có thể tải ảnh Checkout");
+        if (!session) {
+          throw new RejectUpload("Chưa đăng nhập để tải ảnh đính kèm");
+        }
+
+        const userCart = await db.query.cart.findFirst({
+          columns: { id: true },
+          where: (table, { eq }) => eq(table.userId, session.user.id),
+        });
+        if (!userCart) {
+          throw new RejectUpload("Không tìm thấy giỏ hàng của bạn");
         }
 
         const cartEntry = await db.query.cartItem.findFirst({
           columns: { id: true },
           where: (table, { and, eq }) =>
             and(
-              eq(table.listingId, clientMetadata.listingId),
-              eq(table.selected, true)
+              eq(table.cartId, userCart.id),
+              eq(table.listingId, clientMetadata.listingId)
             ),
-          with: { cart: { columns: { userId: true } } },
         });
-        if (!cartEntry || cartEntry.cart.userId !== session.user.id) {
-          throw new RejectUpload("Listing không thuộc Cart đang được chọn");
+        if (!cartEntry) {
+          throw new RejectUpload("Listing không thuộc Cart của bạn");
         }
 
         const existingDrafts = await db.query.checkoutAttachmentDraft.findMany({

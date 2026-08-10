@@ -92,8 +92,11 @@ export interface PublicStoreProfile {
   avatarUrl: string | null;
   bannerUrl: string | null;
   bio: string | null;
+  completedOrderCount: number;
   createdAt: Date;
   id: string;
+  ratingCount: number;
+  ratingScore: string;
   storeSlug: string;
   storefrontName: string;
   updatedAt: Date;

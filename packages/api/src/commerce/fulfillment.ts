@@ -67,6 +67,7 @@ import {
   deleteOrderFileObject,
   createSignedOrderFileUrl,
 } from "./private-storage";
+import { incrementCompletedOrderCounts } from "./review";
 
 export type FulfillmentActorType = "BUYER" | "SELLER" | "SYSTEM";
 export type FulfillmentActorRole = Extract<
@@ -152,6 +153,7 @@ export interface OrderItemContext {
   escrowHoldId: string;
   escrowHoldStatus: "CANCELLED" | "HELD" | "REFUNDED" | "RELEASED";
   id: string;
+  listingId: string;
   orderId: string;
   processingDeadlineAt: Date;
   servicePackage: ServicePackageSnapshot | null;
@@ -286,6 +288,7 @@ const getItemContext = async (
       escrowHoldId: escrowHold.id,
       escrowHoldStatus: escrowHold.status,
       id: orderItem.id,
+      listingId: orderItem.listingId,
       orderId: order.id,
       processingDeadlineAt: orderItem.processingDeadlineAt,
       sellerBanExpires: user.banExpires,
@@ -1124,6 +1127,10 @@ const createTransitionArtifact = async ({
 
   if (transition.newStatus === "CLOSED") {
     const artifactId = await releaseEscrow(executor, item, now);
+    await incrementCompletedOrderCounts(executor, {
+      listingId: item.listingId,
+      sellerId: item.sellerId,
+    });
     return { artifactId, artifactType: "ESCROW_RELEASE" };
   }
 

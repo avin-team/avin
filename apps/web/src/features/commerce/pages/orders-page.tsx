@@ -67,8 +67,8 @@ export const OrdersPage = () => {
             Đơn hàng của tôi
           </h1>
           <p className="mt-2 max-w-2xl text-muted-foreground">
-            Theo dõi từng OrderItem độc lập, xem bằng chứng bàn giao và thực
-            hiện hành động phù hợp với trạng thái hiện tại.
+            Theo dõi từng sản phẩm độc lập, xem bằng chứng bàn giao và thực hiện
+            hành động phù hợp với trạng thái hiện tại.
           </p>
         </div>
 
@@ -78,8 +78,8 @@ export const OrdersPage = () => {
               <HandshakeIcon aria-hidden="true" className="text-primary" />
               <h2 className="text-lg font-semibold">Chưa có đơn hàng</h2>
               <p className="max-w-md text-sm text-muted-foreground">
-                Sau khi Checkout thành công, các Order và OrderItem của bạn sẽ
-                xuất hiện ở đây.
+                Sau khi thanh toán thành công, các đơn hàng và sản phẩm của bạn
+                sẽ xuất hiện ở đây.
               </p>
             </CardContent>
           </Card>
