@@ -22,7 +22,6 @@ import {
 } from "@avin/ui/components/card";
 import {
   Field,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -43,6 +42,8 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { DisputeEvidenceUploader } from "@/features/commerce/components/dispute-evidence-uploader";
+import { OrderImageUploader } from "@/features/commerce/components/order-image-uploader";
+import type { OrderImageAttachment } from "@/features/commerce/components/order-image-uploader";
 import { OrderItemTimeline } from "@/features/commerce/components/order-item-timeline";
 import {
   ORDER_TIMELINE_REFRESH_INTERVAL_MS,
@@ -94,18 +95,6 @@ const getEscrowReleaseMessage = (
   return "Sẽ giải ngân khi hoàn tất đơn hàng";
 };
 
-const getEvidenceFiles = (value: string) =>
-  value
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((storageKey, index) => ({
-      byteSize: null,
-      contentType: "text/uri-list",
-      fileName: `Bằng chứng ${index + 1}`,
-      storageKey,
-    }));
-
 const SellerDeliveryForm = ({
   itemId,
   onCompleted,
@@ -124,17 +113,31 @@ const SellerDeliveryForm = ({
       },
     })
   );
+  const createAttachmentMutation = useMutation(
+    orpc.commerce.orders.item.createAttachment.mutationOptions()
+  );
+  const discardAttachmentMutation = useMutation(
+    orpc.commerce.orders.item.discardAttachment.mutationOptions()
+  );
+  const [attachments, setAttachments] = useState<OrderImageAttachment[]>([]);
+  const [attachmentBusy, setAttachmentBusy] = useState(false);
+  const [uploaderKey, setUploaderKey] = useState(0);
   const deliveryForm = useForm({
-    defaultValues: { deliveryNote: "", evidence: "" },
+    defaultValues: { deliveryNote: "" },
     onSubmit: async ({ value }) => {
+      if (attachmentBusy) {
+        return;
+      }
       try {
         await mutation.mutateAsync({
+          attachmentIds: attachments.map((attachment) => attachment.id),
           commandKey: crypto.randomUUID(),
           deliveryNote: value.deliveryNote,
-          files: getEvidenceFiles(value.evidence),
           itemId,
         });
         deliveryForm.reset();
+        setAttachments([]);
+        setUploaderKey((current) => current + 1);
       } catch {
         // The mutation error handler already shows the failure to the Seller.
       }
@@ -157,7 +160,7 @@ const SellerDeliveryForm = ({
         <div>
           <h4 className="font-semibold">Bàn giao cho người mua</h4>
           <p className="mt-1 text-sm text-muted-foreground">
-            Ghi chú và ít nhất một liên kết HTTP hoặc HTTPS là bắt buộc.
+            Mô tả và hình ảnh bàn giao đều không bắt buộc.
           </p>
         </div>
       </div>
@@ -175,7 +178,7 @@ const SellerDeliveryForm = ({
                 <Textarea
                   aria-invalid={isInvalid}
                   id={`delivery-note-${itemId}`}
-                  maxLength={20_000}
+                  maxLength={1000}
                   name={field.name}
                   onBlur={field.handleBlur}
                   onChange={(event) => field.handleChange(event.target.value)}
@@ -189,36 +192,28 @@ const SellerDeliveryForm = ({
             );
           }}
         </deliveryForm.Field>
-        <deliveryForm.Field name="evidence">
-          {(field) => {
-            const isInvalid =
-              field.state.meta.isTouched && !field.state.meta.isValid;
-
-            return (
-              <Field data-invalid={isInvalid}>
-                <FieldLabel htmlFor={`delivery-evidence-${itemId}`}>
-                  Liên kết bằng chứng (URL)
-                </FieldLabel>
-                <Textarea
-                  aria-describedby={`delivery-evidence-help-${itemId}`}
-                  aria-invalid={isInvalid}
-                  id={`delivery-evidence-${itemId}`}
-                  name={field.name}
-                  onBlur={field.handleBlur}
-                  onChange={(event) => field.handleChange(event.target.value)}
-                  placeholder="https://example.com/proof"
-                  value={field.state.value}
-                />
-                <FieldDescription id={`delivery-evidence-help-${itemId}`}>
-                  Có thể nhập nhiều URL, mỗi URL một dòng.
-                </FieldDescription>
-                {isInvalid ? (
-                  <FieldError errors={field.state.meta.errors} />
-                ) : null}
-              </Field>
-            );
+        <OrderImageUploader
+          disabled={mutation.isPending}
+          key={uploaderKey}
+          metadata={{ itemId }}
+          onAttachmentsChange={setAttachments}
+          onBusyChange={setAttachmentBusy}
+          onCreateAttachment={async (input) => {
+            const attachment = await createAttachmentMutation.mutateAsync({
+              ...input,
+              itemId,
+            });
+            return {
+              ...attachment,
+              byteSize: attachment.byteSize ?? input.byteSize,
+            };
           }}
-        </deliveryForm.Field>
+          onDiscardAttachment={(attachmentId) =>
+            discardAttachmentMutation.mutateAsync({ attachmentId })
+          }
+          route="delivery-attachment"
+          uploadPath="/api/delivery-attachment-upload"
+        />
       </FieldGroup>
       <div className="mt-4 flex justify-end">
         <deliveryForm.Subscribe
@@ -229,7 +224,12 @@ const SellerDeliveryForm = ({
         >
           {({ canSubmit, isSubmitting }) => (
             <Button
-              disabled={!canSubmit || isSubmitting || mutation.isPending}
+              disabled={
+                !canSubmit ||
+                isSubmitting ||
+                mutation.isPending ||
+                attachmentBusy
+              }
               form={`delivery-form-${itemId}`}
               type="submit"
             >

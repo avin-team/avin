@@ -22,6 +22,8 @@ import { startSePayReconciliationSchedule } from "./jobs/sepay-reconciliation";
 import {
   createOrderChatAttachmentUploadRouter,
   createDisputeEvidenceUploadRouter,
+  createCheckoutAttachmentUploadRouter,
+  createDeliveryAttachmentUploadRouter,
   handleUploadRequest,
   createListingImageUploadRouter,
 } from "./uploads/listing-image-upload";
@@ -37,6 +39,12 @@ const orderChatAttachmentUploadRouter = listingImageStorage
   : null;
 const disputeEvidenceUploadRouter = listingImageStorage
   ? createDisputeEvidenceUploadRouter(listingImageStorage.client)
+  : null;
+const checkoutAttachmentUploadRouter = listingImageStorage
+  ? createCheckoutAttachmentUploadRouter(listingImageStorage.client)
+  : null;
+const deliveryAttachmentUploadRouter = listingImageStorage
+  ? createDeliveryAttachmentUploadRouter(listingImageStorage.client)
   : null;
 
 const sePayWebhookConfiguration = {
@@ -89,6 +97,28 @@ app.post("/api/dispute-evidence-upload", (c) => {
   }
 
   return handleUploadRequest(c.req.raw, disputeEvidenceUploadRouter);
+});
+
+app.post("/api/checkout-attachment-upload", (c) => {
+  if (!checkoutAttachmentUploadRouter) {
+    return c.json(
+      { error: "Checkout attachment uploads are not configured" },
+      503
+    );
+  }
+
+  return handleUploadRequest(c.req.raw, checkoutAttachmentUploadRouter);
+});
+
+app.post("/api/delivery-attachment-upload", (c) => {
+  if (!deliveryAttachmentUploadRouter) {
+    return c.json(
+      { error: "Delivery attachment uploads are not configured" },
+      503
+    );
+  }
+
+  return handleUploadRequest(c.req.raw, deliveryAttachmentUploadRouter);
 });
 
 const sePayWebhook = (c: { req: { raw: Request } }) =>

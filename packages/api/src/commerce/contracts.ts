@@ -235,15 +235,18 @@ export const fingerprintCheckoutRequest = (input: {
   confirmMaterialChanges: boolean;
   items: {
     contractFingerprint: string;
+    description?: string;
     listingId: string;
     packageId?: string | null;
   }[];
 }): string =>
   fingerprint({
     confirmMaterialChanges: input.confirmMaterialChanges,
-    items: input.items.toSorted(
-      (left, right) =>
-        left.listingId.localeCompare(right.listingId) ||
-        (left.packageId ?? "").localeCompare(right.packageId ?? "")
-    ),
+    items: input.items
+      .toSorted(
+        (left, right) =>
+          left.listingId.localeCompare(right.listingId) ||
+          (left.packageId ?? "").localeCompare(right.packageId ?? "")
+      )
+      .map((item) => ({ ...item, description: item.description ?? "" })),
   });

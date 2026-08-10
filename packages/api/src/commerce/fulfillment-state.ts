@@ -131,20 +131,13 @@ const startFulfillment = (
 };
 
 const submitDelivery = (
-  input: OrderItemTransitionInput,
-  deliveryNote: string
+  input: OrderItemTransitionInput
 ): OrderItemTransitionResult => {
   assertStatus(
     input,
     "IN_PROGRESS",
     "OrderItem must be IN_PROGRESS before delivery"
   );
-  if (!deliveryNote.trim()) {
-    throw new InvalidOrderItemTransitionError(
-      "Delivery submission requires a note"
-    );
-  }
-
   const deliveryReviewDeadlineAt = new Date(
     input.now.getTime() + DELIVERY_REVIEW_WINDOW_MS
   );
@@ -351,7 +344,7 @@ export const decideOrderItemTransition = (
       return startFulfillment(input);
     }
     case "SUBMIT_DELIVERY": {
-      return submitDelivery(input, input.command.deliveryNote);
+      return submitDelivery(input);
     }
     default: {
       throw new InvalidOrderItemTransitionError(

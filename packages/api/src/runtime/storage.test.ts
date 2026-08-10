@@ -4,12 +4,16 @@ import {
   createListingImageKey,
   createDisputeEvidenceKey,
   createOrderChatAttachmentKey,
+  createCheckoutAttachmentKey,
+  createDeliveryAttachmentKey,
   createSellerLogoKey,
   createSellerBannerKey,
   createPublicMediaUrl,
   getManagedListingImageKeysToDelete,
   isDisputeEvidenceKey,
   isOrderChatAttachmentKey,
+  isCheckoutAttachmentKey,
+  isDeliveryAttachmentKey,
   LISTING_IMAGE_MAX_BYTES,
   ORDER_CHAT_ATTACHMENT_CONTENT_TYPES,
   ORDER_CHAT_ATTACHMENT_MAX_BYTES,
@@ -171,6 +175,43 @@ describe("order chat attachment storage helpers", () => {
     expect(key).toBe(`orders/${LISTING_ID}/chat/${BUYER_ID}/${NEW_OBJECT_ID}`);
     expect(isOrderChatAttachmentKey(key, LISTING_ID, BUYER_ID)).toBe(true);
     expect(isOrderChatAttachmentKey(key, LISTING_ID, SELLER_ID)).toBe(false);
+  });
+});
+
+describe("commerce image attachment storage helpers", () => {
+  it("scopes buyer checkout images to the buyer, checkout key, and Listing", () => {
+    const key = createCheckoutAttachmentKey(
+      "checkout_123",
+      BUYER_ID,
+      LISTING_ID,
+      "image/png",
+      NEW_OBJECT_ID
+    );
+
+    expect(key).toBe(
+      `checkouts/${BUYER_ID}/checkout_123/${LISTING_ID}/${NEW_OBJECT_ID}.png`
+    );
+    expect(
+      isCheckoutAttachmentKey(key, "checkout_123", BUYER_ID, LISTING_ID)
+    ).toBe(true);
+    expect(
+      isCheckoutAttachmentKey(key, "checkout_123", SELLER_ID, LISTING_ID)
+    ).toBe(false);
+  });
+
+  it("scopes delivery images to the OrderItem and Seller", () => {
+    const key = createDeliveryAttachmentKey(
+      LISTING_ID,
+      SELLER_ID,
+      "image/webp",
+      NEW_OBJECT_ID
+    );
+
+    expect(key).toBe(
+      `orders/${LISTING_ID}/delivery/${SELLER_ID}/${NEW_OBJECT_ID}.webp`
+    );
+    expect(isDeliveryAttachmentKey(key, LISTING_ID, SELLER_ID)).toBe(true);
+    expect(isDeliveryAttachmentKey(key, LISTING_ID, BUYER_ID)).toBe(false);
   });
 });
 

@@ -13,8 +13,10 @@ import {
   cart,
   cartItem,
   checkout,
+  checkoutAttachmentDraft,
   escrowHold,
   order,
+  orderFile,
   orderItem,
   orderItemLifecycleEvent,
 } from "@avin/db/schema/commerce";
@@ -24,6 +26,7 @@ import { ORPCError } from "@orpc/server";
 import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
 
 import { isListingPubliclyAvailable } from "../listing/listing-discovery";
+import { COMMERCE_IMAGE_MAX_COUNT } from "../runtime/storage";
 import { recordBalancedLedgerTransaction } from "../wallet/ledger";
 import { ensureWalletAccounts } from "../wallet/service";
 import type { CommerceExecutor } from "./cart";
@@ -93,6 +96,7 @@ interface SelectedListingRow {
 }
 
 interface PreparedCheckoutItem {
+  buyerDescription: string;
   contract: ReturnType<typeof parseListingContract>;
   row: SelectedListingRow;
 }
@@ -437,6 +441,7 @@ const prepareCheckoutItems = (
     }
 
     prepared.push({
+      buyerDescription: requestedItem.description ?? "",
       contract,
       row,
     });
@@ -451,6 +456,7 @@ const createOrdersAndEscrowHolds = async (
   buyerId: string,
   purchaseTransactionId: string,
   items: PreparedCheckoutItem[],
+  checkoutKey: string,
   now: Date
 ): Promise<void> => {
   const itemsBySeller = new Map<string, PreparedCheckoutItem[]>();
@@ -479,7 +485,7 @@ const createOrdersAndEscrowHolds = async (
       throw new Error("Order was not created");
     }
 
-    for (const { contract, row } of sellerItems) {
+    for (const { buyerDescription, contract, row } of sellerItems) {
       const {
         commissionRatePercent,
         listingSnapshot,
@@ -490,6 +496,7 @@ const createOrdersAndEscrowHolds = async (
       const [createdItem] = await transaction
         .insert(orderItem)
         .values({
+          buyerDescription: buyerDescription || null,
           commissionRatePercent,
           listingId: row.listingId,
           listingSnapshot,
@@ -507,6 +514,44 @@ const createOrdersAndEscrowHolds = async (
 
       if (!createdItem) {
         throw new Error("OrderItem was not created");
+      }
+
+      const attachments = await transaction
+        .select()
+        .from(checkoutAttachmentDraft)
+        .where(
+          and(
+            eq(checkoutAttachmentDraft.checkoutKey, checkoutKey),
+            eq(checkoutAttachmentDraft.listingId, row.listingId),
+            eq(checkoutAttachmentDraft.userId, buyerId)
+          )
+        );
+      if (attachments.length > COMMERCE_IMAGE_MAX_COUNT) {
+        throw new ORPCError("CONFLICT", {
+          message: `Mỗi Listing chỉ được đính kèm tối đa ${COMMERCE_IMAGE_MAX_COUNT} ảnh.`,
+        });
+      }
+      if (attachments.length > 0) {
+        await transaction.insert(orderFile).values(
+          attachments.map((attachment) => ({
+            byteSize: attachment.byteSize,
+            contentType: attachment.contentType,
+            fileName: attachment.fileName,
+            orderId: createdOrder.id,
+            orderItemId: createdItem.id,
+            storageKey: attachment.storageKey,
+            uploadedByUserId: buyerId,
+          }))
+        );
+        await transaction
+          .delete(checkoutAttachmentDraft)
+          .where(
+            and(
+              eq(checkoutAttachmentDraft.checkoutKey, checkoutKey),
+              eq(checkoutAttachmentDraft.listingId, row.listingId),
+              eq(checkoutAttachmentDraft.userId, buyerId)
+            )
+          );
       }
 
       await transaction.insert(orderItemLifecycleEvent).values({
@@ -676,6 +721,7 @@ export const createCheckout = (
       userId,
       purchaseTransaction.id,
       preparedItems,
+      input.idempotencyKey,
       now
     );
 

@@ -11,10 +11,12 @@ import {
 import { cn } from "@avin/ui/lib/utils";
 import {
   FileTextIcon,
+  ImageIcon,
   ShieldCheckIcon,
   TimerIcon,
 } from "@phosphor-icons/react";
 import { useMutation } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -28,7 +30,6 @@ import {
   isNoWarrantyPolicy,
 } from "@/features/commerce/order-status";
 import { getErrorMessage } from "@/utils/get-error-message";
-import { getSafeEvidenceHref } from "@/utils/get-safe-evidence-href";
 import { orpc } from "@/utils/orpc";
 
 const ACTOR_LABELS: Record<
@@ -121,29 +122,63 @@ const EVENT_REASON_LABELS: Record<string, string> = {
 const formatEventReason = (reason: string): string =>
   EVENT_REASON_LABELS[reason] ?? reason;
 
-const EvidenceFile = ({
+const OrderFileAttachment = ({
   file,
+  itemId,
 }: {
-  file: NonNullable<
-    OrderItemTimelineView["deliverySubmission"]
-  >["files"][number];
+  file:
+    | NonNullable<OrderItemTimelineView["deliverySubmission"]>["files"][number]
+    | NonNullable<OrderItemTimelineView["buyerInput"]>["files"][number];
+  itemId: string;
 }) => {
-  const href = getSafeEvidenceHref(file.storageKey);
+  const isImage = file.contentType.startsWith("image/");
+  const [url, setUrl] = useState<string>();
+  const { mutateAsync } = useMutation(
+    orpc.commerce.orders.item.getFileUrl.mutationOptions()
+  );
+  let fileVisual = <FileTextIcon aria-hidden="true" />;
+  if (isImage) {
+    fileVisual = url ? (
+      <img alt="" className="size-12 rounded-lg object-cover" src={url} />
+    ) : (
+      <ImageIcon aria-hidden="true" />
+    );
+  }
+
+  useEffect(() => {
+    let active = true;
+    const loadFileUrl = async (): Promise<void> => {
+      try {
+        const result = await mutateAsync({ fileId: file.id, itemId });
+        if (active) {
+          setUrl(result.url);
+        }
+      } catch {
+        // Keep the timeline readable when a signed URL cannot be created.
+      }
+    };
+    void loadFileUrl();
+    return () => {
+      active = false;
+    };
+  }, [file.id, itemId, mutateAsync]);
+
   return (
     <li className="flex min-w-0 items-center gap-2 rounded-xl bg-muted/50 px-3 py-2 text-sm">
-      <FileTextIcon aria-hidden="true" />
-      {href ? (
+      {url ? (
         <a
-          className="truncate text-primary underline-offset-4 hover:underline"
-          href={href}
+          className="flex min-w-0 items-center gap-2 truncate text-primary underline-offset-4 hover:underline"
+          href={url}
           rel="noopener noreferrer"
           target="_blank"
         >
+          {fileVisual}
           {file.fileName}
         </a>
       ) : (
-        <span className="min-w-0 truncate">
-          {file.fileName} · {file.storageKey}
+        <span className="flex min-w-0 items-center gap-2 truncate">
+          {fileVisual}
+          {file.fileName}
         </span>
       )}
     </li>
@@ -286,6 +321,35 @@ export const OrderItemTimeline = ({
       </Card>
     ) : null}
 
+    {timeline.buyerInput ? (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Thông tin gửi người bán</CardTitle>
+          <CardDescription>
+            Mô tả và hình ảnh tham khảo từ người mua
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          {timeline.buyerInput.description ? (
+            <p className="whitespace-pre-wrap text-sm">
+              {timeline.buyerInput.description}
+            </p>
+          ) : null}
+          {timeline.buyerInput.files.length > 0 ? (
+            <ul className="flex flex-col gap-2">
+              {timeline.buyerInput.files.map((file) => (
+                <OrderFileAttachment
+                  file={file}
+                  itemId={timeline.orderItemId}
+                  key={file.id}
+                />
+              ))}
+            </ul>
+          ) : null}
+        </CardContent>
+      </Card>
+    ) : null}
+
     {timeline.deliverySubmission ? (
       <Card>
         <CardHeader>
@@ -296,20 +360,28 @@ export const OrderItemTimeline = ({
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          <p className="whitespace-pre-wrap text-sm">
-            {timeline.deliverySubmission.deliveryNote}
-          </p>
+          {timeline.deliverySubmission.deliveryNote ? (
+            <p className="whitespace-pre-wrap text-sm">
+              {timeline.deliverySubmission.deliveryNote}
+            </p>
+          ) : null}
           {timeline.deliverySubmission.files.length > 0 ? (
             <ul className="flex flex-col gap-2">
               {timeline.deliverySubmission.files.map((file) => (
-                <EvidenceFile file={file} key={file.id} />
+                <OrderFileAttachment
+                  file={file}
+                  itemId={timeline.orderItemId}
+                  key={file.id}
+                />
               ))}
             </ul>
-          ) : (
+          ) : null}
+          {timeline.deliverySubmission.files.length === 0 &&
+          !timeline.deliverySubmission.deliveryNote ? (
             <p className="text-sm text-muted-foreground">
-              Không có tệp đính kèm.
+              Không có mô tả hoặc tệp đính kèm.
             </p>
-          )}
+          ) : null}
         </CardContent>
       </Card>
     ) : null}

@@ -1,7 +1,14 @@
 import { z } from "zod";
 
+export const CHECKOUT_DESCRIPTION_MAX_LENGTH = 1000;
+
 const checkoutItemInputSchema = z.object({
   contractFingerprint: z.string().regex(/^[a-f0-9]{64}$/u),
+  description: z
+    .string()
+    .trim()
+    .max(CHECKOUT_DESCRIPTION_MAX_LENGTH)
+    .default(""),
   listingId: z.uuid(),
   packageId: z.uuid().nullable().optional(),
 });
@@ -26,4 +33,9 @@ export const checkoutInputSchema = z
     }
   });
 
-export type CheckoutInput = z.infer<typeof checkoutInputSchema>;
+export type CheckoutInput = Omit<
+  z.input<typeof checkoutInputSchema>,
+  "confirmMaterialChanges"
+> & {
+  confirmMaterialChanges: boolean;
+};

@@ -35,8 +35,8 @@ export const createListingImageStorage =
     return {
       client,
       objectStore: {
-        deleteObject: (key) =>
-          deleteObject(client, { bucket: PUBLIC_MEDIA_BUCKET, key }),
+        deleteObject: (key, bucket = PUBLIC_MEDIA_BUCKET) =>
+          deleteObject(client, { bucket, key }),
         supabaseUrl: env.SUPABASE_URL,
       },
     };

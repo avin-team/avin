@@ -31,12 +31,21 @@ import {
   gte,
   inArray,
   isNotNull,
+  isNull,
   lte,
+  like,
   or,
 } from "drizzle-orm";
 import { z } from "zod";
 
-import { isDisputeEvidenceKey } from "../runtime/storage";
+import {
+  COMMERCE_IMAGE_CONTENT_TYPES,
+  COMMERCE_IMAGE_MAX_BYTES,
+  COMMERCE_IMAGE_MAX_COUNT,
+  isDisputeEvidenceKey,
+  isDeliveryAttachmentKey,
+} from "../runtime/storage";
+import type { ManagedObjectStore } from "../runtime/storage";
 import { recordBalancedLedgerTransaction } from "../wallet/ledger";
 import {
   ensureSellerWalletAccounts,
@@ -54,6 +63,10 @@ import type {
   OrderItemTransitionCommand,
   OrderItemTransitionResult,
 } from "./fulfillment-state";
+import {
+  deleteOrderFileObject,
+  createSignedOrderFileUrl,
+} from "./private-storage";
 
 export type FulfillmentActorType = "BUYER" | "SELLER" | "SYSTEM";
 export type FulfillmentActorRole = Extract<
@@ -63,8 +76,7 @@ export type FulfillmentActorRole = Extract<
 
 const COMMAND_KEY_MAX_LENGTH = 128;
 const CONTENT_TYPE_MAX_LENGTH = 255;
-const DELIVERY_FILE_LIMIT = 20;
-const DELIVERY_NOTE_MAX_LENGTH = 20_000;
+const DELIVERY_NOTE_MAX_LENGTH = 1000;
 const FILE_NAME_MAX_LENGTH = 255;
 const MAX_ADMIN_NOTIFICATION_RECIPIENTS = 100;
 const MAX_BANNED_SELLER_CANCELLATIONS = 100;
@@ -76,33 +88,21 @@ const TRANSACTION_REFERENCE_SUFFIX_LENGTH = 12;
 
 const commandKeySchema = z.string().trim().min(1).max(COMMAND_KEY_MAX_LENGTH);
 
-const orderFileInputSchema = z
-  .object({
-    byteSize: z.number().int().nonnegative().nullable().optional(),
-    contentType: z.string().trim().min(1).max(CONTENT_TYPE_MAX_LENGTH),
-    fileName: z.string().trim().min(1).max(FILE_NAME_MAX_LENGTH),
-    storageKey: z.string().trim().min(1).max(STORAGE_KEY_MAX_LENGTH),
-  })
-  .superRefine((file, context) => {
-    if (file.contentType !== "text/uri-list") {
-      return;
-    }
-
-    try {
-      const url = new URL(file.storageKey);
-      if (url.protocol === "http:" || url.protocol === "https:") {
-        return;
-      }
-    } catch {
-      // Fall through to the validation issue below.
-    }
-
-    context.addIssue({
-      code: "custom",
-      message: "URI-list evidence must use an HTTP or HTTPS URL",
-      path: ["storageKey"],
-    });
+const throwNotFound = (): never => {
+  throw new ORPCError("NOT_FOUND", {
+    message: "OrderItem không tồn tại.",
   });
+};
+
+const throwForbidden = (): never => {
+  throw new ORPCError("FORBIDDEN", {
+    message: "Bạn không có quyền thao tác OrderItem này.",
+  });
+};
+
+const throwConflict = (message: string): never => {
+  throw new ORPCError("CONFLICT", { message });
+};
 
 export const fulfillmentCommandInputSchema = z.object({
   commandKey: commandKeySchema,
@@ -120,20 +120,30 @@ export const disputeInputSchema = fulfillmentCommandInputSchema.extend({
 
 export const deliverySubmissionInputSchema =
   fulfillmentCommandInputSchema.extend({
-    deliveryNote: z.string().trim().min(1).max(DELIVERY_NOTE_MAX_LENGTH),
-    files: z
-      .array(orderFileInputSchema)
-      .min(1, "Delivery requires at least one evidence file")
-      .max(DELIVERY_FILE_LIMIT),
+    attachmentIds: z.array(z.uuid()).max(COMMERCE_IMAGE_MAX_COUNT).default([]),
+    deliveryNote: z.string().trim().max(DELIVERY_NOTE_MAX_LENGTH).default(""),
   });
 
 export type DeliverySubmissionInput = z.infer<
   typeof deliverySubmissionInputSchema
 >;
 
+export const deliveryAttachmentInputSchema = z.object({
+  byteSize: z.number().int().positive().max(COMMERCE_IMAGE_MAX_BYTES),
+  contentType: z.string().trim().min(1).max(CONTENT_TYPE_MAX_LENGTH),
+  fileName: z.string().trim().min(1).max(FILE_NAME_MAX_LENGTH),
+  itemId: z.uuid(),
+  storageKey: z.string().trim().min(1).max(STORAGE_KEY_MAX_LENGTH),
+});
+
+export type DeliveryAttachmentInput = z.infer<
+  typeof deliveryAttachmentInputSchema
+>;
+
 type FulfillmentExecutor = CommerceExecutor;
 
 export interface OrderItemContext {
+  buyerDescription: string | null;
   buyerId: string;
   commissionRatePercent: string;
   deliveredAt: Date | null;
@@ -195,9 +205,19 @@ export interface OrderItemTimelineView {
     warrantyPolicy: WarrantyPolicySnapshot;
     warrantyStartedAt: string | null;
   };
+  buyerInput?: {
+    description: string | null;
+    files: {
+      byteSize: number | null;
+      contentType: string;
+      fileName: string;
+      id: string;
+      storageKey: string;
+    }[];
+  } | null;
   deliverySubmission: {
     deliveredAt: string;
-    deliveryNote: string;
+    deliveryNote: string | null;
     files: {
       byteSize: number | null;
       contentType: string;
@@ -257,6 +277,7 @@ const getItemContext = async (
 ): Promise<OrderItemContext | undefined> => {
   const query = executor
     .select({
+      buyerDescription: orderItem.buyerDescription,
       buyerId: order.buyerId,
       commissionRatePercent: orderItem.commissionRatePercent,
       deliveredAt: orderItem.deliveredAt,
@@ -286,6 +307,189 @@ const getItemContext = async (
     ? await query.for("update").limit(1)
     : await query.limit(1);
   return item;
+};
+
+const assertCommerceImageContentType = (contentType: string): void => {
+  if (
+    !COMMERCE_IMAGE_CONTENT_TYPES.includes(
+      contentType as (typeof COMMERCE_IMAGE_CONTENT_TYPES)[number]
+    )
+  ) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Ảnh chỉ hỗ trợ JPEG, PNG hoặc WebP.",
+    });
+  }
+};
+
+export const createDeliveryAttachment = async ({
+  database = db,
+  input,
+  sellerId,
+  storage,
+}: {
+  database?: typeof db;
+  input: DeliveryAttachmentInput;
+  sellerId: string;
+  storage?: ManagedObjectStore;
+}) => {
+  const parsedInput = deliveryAttachmentInputSchema.parse(input);
+  assertCommerceImageContentType(parsedInput.contentType);
+  if (
+    !isDeliveryAttachmentKey(
+      parsedInput.storageKey,
+      parsedInput.itemId,
+      sellerId
+    )
+  ) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Đường dẫn ảnh bàn giao không hợp lệ.",
+    });
+  }
+
+  try {
+    const item = await getItemContext(database, parsedInput.itemId, true);
+    if (!item) {
+      return throwNotFound();
+    }
+    if (item.sellerId !== sellerId) {
+      return throwForbidden();
+    }
+    if (item.status !== "IN_PROGRESS") {
+      throwConflict("Chỉ có thể tải ảnh khi OrderItem đang được xử lý.");
+    }
+
+    const existing = await database
+      .select({ id: orderFile.id })
+      .from(orderFile)
+      .where(
+        and(
+          eq(orderFile.orderItemId, item.id),
+          eq(orderFile.uploadedByUserId, sellerId),
+          isNull(orderFile.deliverySubmissionId),
+          isNull(orderFile.orderMessageId),
+          like(orderFile.storageKey, `orders/${item.id}/delivery/%`)
+        )
+      );
+    if (existing.length >= COMMERCE_IMAGE_MAX_COUNT) {
+      throw new ORPCError("BAD_REQUEST", {
+        message: `Mỗi lần bàn giao chỉ được đính kèm tối đa ${COMMERCE_IMAGE_MAX_COUNT} ảnh.`,
+      });
+    }
+
+    const [attachment] = await database
+      .insert(orderFile)
+      .values({
+        byteSize: parsedInput.byteSize,
+        contentType: parsedInput.contentType,
+        fileName: parsedInput.fileName,
+        orderId: item.orderId,
+        orderItemId: item.id,
+        storageKey: parsedInput.storageKey,
+        uploadedByUserId: sellerId,
+      })
+      .returning();
+    if (!attachment) {
+      throw new ORPCError("INTERNAL_SERVER_ERROR", {
+        message: "Không thể lưu ảnh bàn giao.",
+      });
+    }
+    return attachment;
+  } catch (error) {
+    try {
+      const [persisted] = await database
+        .select({ id: orderFile.id })
+        .from(orderFile)
+        .where(
+          and(
+            eq(orderFile.storageKey, parsedInput.storageKey),
+            eq(orderFile.uploadedByUserId, sellerId)
+          )
+        )
+        .limit(1);
+      if (!persisted) {
+        await deleteOrderFileObject(parsedInput.storageKey, storage);
+      }
+    } catch {
+      // Maintenance retries persisted drafts; an untracked object is best-effort cleanup.
+    }
+    throw error;
+  }
+};
+
+export const discardDeliveryAttachment = async ({
+  attachmentId,
+  database = db,
+  sellerId,
+  storage,
+}: {
+  attachmentId: string;
+  database?: typeof db;
+  sellerId: string;
+  storage?: ManagedObjectStore;
+}): Promise<void> => {
+  const [attachment] = await database
+    .select({
+      id: orderFile.id,
+      storageKey: orderFile.storageKey,
+    })
+    .from(orderFile)
+    .where(
+      and(
+        eq(orderFile.id, attachmentId),
+        eq(orderFile.uploadedByUserId, sellerId),
+        isNull(orderFile.deliverySubmissionId),
+        isNull(orderFile.orderMessageId),
+        like(orderFile.storageKey, "orders/%/delivery/%")
+      )
+    )
+    .limit(1);
+  if (!attachment) {
+    throw new ORPCError("NOT_FOUND", {
+      message: "Không tìm thấy ảnh bàn giao.",
+    });
+  }
+
+  await deleteOrderFileObject(attachment.storageKey, storage);
+  await database.delete(orderFile).where(eq(orderFile.id, attachment.id));
+};
+
+export const cleanupDeliveryAttachmentDrafts = async ({
+  database = db,
+  deleteObject = deleteOrderFileObject,
+  now = new Date(),
+}: {
+  database?: typeof db;
+  deleteObject?: (storageKey: string) => Promise<void>;
+  now?: Date;
+} = {}): Promise<number> => {
+  const expiry = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const attachments = await database.query.orderFile.findMany({
+    limit: 100,
+    where: and(
+      isNull(orderFile.deliverySubmissionId),
+      isNull(orderFile.orderMessageId),
+      lte(orderFile.createdAt, expiry),
+      like(orderFile.storageKey, "orders/%/delivery/%")
+    ),
+  });
+
+  const deletedCounts = await Promise.all(
+    attachments.map(async (attachment) => {
+      await deleteObject(attachment.storageKey);
+      const [deleted] = await database
+        .delete(orderFile)
+        .where(
+          and(
+            eq(orderFile.id, attachment.id),
+            isNull(orderFile.deliverySubmissionId),
+            isNull(orderFile.orderMessageId)
+          )
+        )
+        .returning({ id: orderFile.id });
+      return deleted ? 1 : 0;
+    })
+  );
+  return deletedCounts.reduce<number>((total, count) => total + count, 0);
 };
 
 const getExistingLifecycleEvent = async (
@@ -348,22 +552,6 @@ const toCommandResult = (
   orderItemId: itemId,
   status: event.newStatus,
 });
-
-const throwNotFound = (): never => {
-  throw new ORPCError("NOT_FOUND", {
-    message: "OrderItem không tồn tại.",
-  });
-};
-
-const throwForbidden = (): never => {
-  throw new ORPCError("FORBIDDEN", {
-    message: "Bạn không có quyền thao tác OrderItem này.",
-  });
-};
-
-const throwConflict = (message: string): never => {
-  throw new ORPCError("CONFLICT", { message });
-};
 
 const assertSellerCanAct = (
   item: OrderItemContext,
@@ -778,7 +966,7 @@ const insertDelivery = async (
     .values({
       commandKey,
       deliveredAt,
-      deliveryNote: input.deliveryNote.trim(),
+      deliveryNote: input.deliveryNote.trim() || null,
       orderItemId: item.id,
       sellerId: item.sellerId,
     })
@@ -787,19 +975,27 @@ const insertDelivery = async (
     throw new Error("DeliverySubmission was not created");
   }
 
-  if (input.files.length > 0) {
-    await executor.insert(orderFile).values(
-      input.files.map((file) => ({
-        byteSize: file.byteSize ?? null,
-        contentType: file.contentType,
-        deliverySubmissionId: submission.id,
-        fileName: file.fileName,
-        orderId: item.orderId,
-        orderItemId: item.id,
-        storageKey: file.storageKey,
-        uploadedByUserId: item.sellerId,
-      }))
-    );
+  if (input.attachmentIds.length > 0) {
+    const attachments = await executor
+      .select({ id: orderFile.id })
+      .from(orderFile)
+      .where(
+        and(
+          inArray(orderFile.id, input.attachmentIds),
+          eq(orderFile.orderItemId, item.id),
+          eq(orderFile.uploadedByUserId, item.sellerId),
+          isNull(orderFile.deliverySubmissionId),
+          isNull(orderFile.orderMessageId),
+          like(orderFile.storageKey, `orders/${item.id}/delivery/%`)
+        )
+      );
+    if (attachments.length !== input.attachmentIds.length) {
+      throwConflict("Một hoặc nhiều ảnh bàn giao không hợp lệ.");
+    }
+    await executor
+      .update(orderFile)
+      .set({ deliverySubmissionId: submission.id })
+      .where(inArray(orderFile.id, input.attachmentIds));
   }
 
   return submission.id;
@@ -872,7 +1068,7 @@ const createTransitionArtifact = async ({
   command,
   commandKey,
   executor,
-  files,
+  attachmentIds,
   item,
   now,
   transition,
@@ -881,7 +1077,7 @@ const createTransitionArtifact = async ({
   command: OrderItemTransitionCommand;
   commandKey: string;
   executor: FulfillmentExecutor;
-  files?: DeliverySubmissionInput["files"];
+  attachmentIds?: DeliverySubmissionInput["attachmentIds"];
   item: OrderItemContext;
   now: Date;
   transition: OrderItemTransitionResult;
@@ -892,9 +1088,9 @@ const createTransitionArtifact = async ({
       item,
       commandKey,
       {
+        attachmentIds: attachmentIds ?? [],
         commandKey,
         deliveryNote: command.deliveryNote,
-        files: files ?? [],
       },
       transition.deliveredAt ?? now
     );
@@ -993,7 +1189,7 @@ const executeTransition = ({
   command,
   commandKey,
   database,
-  files,
+  attachmentIds,
   itemId,
   now,
 }: {
@@ -1002,7 +1198,7 @@ const executeTransition = ({
   command: OrderItemTransitionCommand;
   commandKey: string;
   database: typeof db;
-  files?: DeliverySubmissionInput["files"];
+  attachmentIds?: DeliverySubmissionInput["attachmentIds"];
   itemId: string;
   now: Date;
 }): Promise<OrderItemCommandResult> =>
@@ -1074,10 +1270,10 @@ const executeTransition = ({
 
     const { artifactId, artifactType } = await createTransitionArtifact({
       actorId,
+      attachmentIds,
       command,
       commandKey,
       executor: transaction,
-      files,
       item,
       now,
       transition,
@@ -1148,13 +1344,13 @@ export const submitDelivery = ({
   return executeTransition({
     actorId: sellerId,
     actorType: "SELLER",
+    attachmentIds: parsedInput.attachmentIds,
     command: {
       deliveryNote: parsedInput.deliveryNote,
       type: "SUBMIT_DELIVERY",
     },
     commandKey: commandKeyFor("SUBMIT_DELIVERY", parsedInput.commandKey),
     database,
-    files: parsedInput.files,
     itemId,
     now,
   });
@@ -1433,7 +1629,7 @@ export const getOrderItemTimeline = async ({
   }
   assertTimelineAccess(item, actorId, actorRole);
 
-  const [events, submissionRows] = await Promise.all([
+  const [events, submissionRows, buyerInputFiles] = await Promise.all([
     database
       .select({
         actorType: orderItemLifecycleEvent.actorType,
@@ -1463,6 +1659,25 @@ export const getOrderItemTimeline = async ({
       .from(deliverySubmission)
       .where(eq(deliverySubmission.orderItemId, item.id))
       .limit(1),
+    database
+      .select({
+        byteSize: orderFile.byteSize,
+        contentType: orderFile.contentType,
+        fileName: orderFile.fileName,
+        id: orderFile.id,
+        storageKey: orderFile.storageKey,
+      })
+      .from(orderFile)
+      .where(
+        and(
+          eq(orderFile.orderItemId, item.id),
+          eq(orderFile.uploadedByUserId, item.buyerId),
+          isNull(orderFile.deliverySubmissionId),
+          isNull(orderFile.orderMessageId),
+          like(orderFile.storageKey, "checkouts/%")
+        )
+      )
+      .orderBy(asc(orderFile.createdAt), asc(orderFile.id)),
   ]);
   const [submission] = submissionRows;
 
@@ -1512,6 +1727,13 @@ export const getOrderItemTimeline = async ({
     : [];
 
   return {
+    buyerInput:
+      item.buyerDescription !== null || buyerInputFiles.length > 0
+        ? {
+            description: item.buyerDescription,
+            files: buyerInputFiles,
+          }
+        : null,
     current: {
       deliveredAt: asIso(item.deliveredAt),
       deliveryReviewDeadlineAt: asIso(item.deliveryReviewDeadlineAt),
@@ -1566,4 +1788,45 @@ export const getOrderItemTimeline = async ({
     })),
     orderItemId: item.id,
   };
+};
+
+export const getOrderFileUrl = async ({
+  actorId,
+  actorRole,
+  database = db,
+  fileId,
+  itemId,
+}: {
+  actorId: string;
+  actorRole: FulfillmentActorRole;
+  database?: typeof db;
+  fileId: string;
+  itemId: string;
+}): Promise<{ url: string }> => {
+  const item = await getItemContext(database, itemId, false);
+  if (!item) {
+    return throwNotFound();
+  }
+  assertTimelineAccess(item, actorId, actorRole);
+
+  const [file] = await database
+    .select({ storageKey: orderFile.storageKey })
+    .from(orderFile)
+    .where(
+      and(
+        eq(orderFile.id, fileId),
+        eq(orderFile.orderItemId, item.id),
+        or(
+          isNotNull(orderFile.deliverySubmissionId),
+          like(orderFile.storageKey, "checkouts/%")
+        )
+      )
+    )
+    .limit(1);
+  if (!file) {
+    throw new ORPCError("NOT_FOUND", {
+      message: "Không tìm thấy ảnh của OrderItem.",
+    });
+  }
+  return createSignedOrderFileUrl(file.storageKey);
 };

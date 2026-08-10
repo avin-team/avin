@@ -33,6 +33,11 @@ import {
 } from "./chat";
 import { checkoutInputSchema, createCheckout } from "./checkout";
 import {
+  checkoutAttachmentInputSchema,
+  createCheckoutAttachment,
+  discardCheckoutAttachment,
+} from "./checkout-attachments";
+import {
   cancelDispute,
   disputeCancelInputSchema,
   disputeGetInputSchema,
@@ -50,9 +55,13 @@ import {
   cancelByBuyer,
   cancelBySeller,
   confirmDelivery,
+  createDeliveryAttachment,
   deliverySubmissionInputSchema,
+  deliveryAttachmentInputSchema,
+  discardDeliveryAttachment,
   disputeInputSchema,
   fulfillmentCommandInputSchema,
+  getOrderFileUrl,
   getOrderItemTimeline,
   openDispute,
   sellerCancellationInputSchema,
@@ -292,6 +301,30 @@ export const commerceRouter = {
   },
 
   checkout: {
+    attachments: {
+      create: buyerProcedure
+        .input(checkoutAttachmentInputSchema)
+        .handler(({ context, input }) =>
+          createCheckoutAttachment({
+            buyerId: context.session.user.id,
+            database: context.db,
+            input,
+            storage: context.storage,
+          })
+        ),
+
+      discard: buyerProcedure
+        .input(z.object({ attachmentId: z.uuid() }))
+        .handler(({ context, input }) =>
+          discardCheckoutAttachment({
+            attachmentId: input.attachmentId,
+            buyerId: context.session.user.id,
+            database: context.db,
+            storage: context.storage,
+          })
+        ),
+    },
+
     create: buyerProcedure
       .input(checkoutInputSchema)
       .handler(({ context, input }) =>
@@ -428,6 +461,49 @@ export const commerceRouter = {
           })
         ),
 
+      createAttachment: sellerProcedure
+        .input(deliveryAttachmentInputSchema)
+        .handler(({ context, input }) =>
+          createDeliveryAttachment({
+            database: context.db,
+            input,
+            sellerId: context.session.user.id,
+            storage: context.storage,
+          })
+        ),
+
+      discardAttachment: sellerProcedure
+        .input(attachmentIdInputSchema)
+        .handler(({ context, input }) =>
+          discardDeliveryAttachment({
+            attachmentId: input.attachmentId,
+            database: context.db,
+            sellerId: context.session.user.id,
+            storage: context.storage,
+          })
+        ),
+
+      getFileUrl: protectedProcedure
+        .input(z.object({ fileId: z.uuid(), itemId: z.uuid() }))
+        .handler(({ context, input }) => {
+          if (
+            context.session.user.role === "ADMIN" &&
+            adminRequiresTwoFactor(context.session.user)
+          ) {
+            throw new ORPCError("FORBIDDEN", {
+              message:
+                "Two-factor authentication is required for Admin access.",
+            });
+          }
+          return getOrderFileUrl({
+            actorId: context.session.user.id,
+            actorRole: getFulfillmentActorRole(context.session.user.role),
+            database: context.db,
+            fileId: input.fileId,
+            itemId: input.itemId,
+          });
+        }),
+
       openDispute: buyerProcedure
         .input(disputeInput)
         .handler(({ context, input }) =>
@@ -460,9 +536,9 @@ export const commerceRouter = {
           submitDelivery({
             database: context.db,
             input: {
+              attachmentIds: input.attachmentIds,
               commandKey: input.commandKey,
               deliveryNote: input.deliveryNote,
-              files: input.files,
             },
             itemId: input.itemId,
             sellerId: context.session.user.id,

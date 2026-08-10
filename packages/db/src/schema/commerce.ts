@@ -185,6 +185,35 @@ export const checkout = pgTable(
   ]
 );
 
+export const checkoutAttachmentDraft = pgTable(
+  "checkout_attachment_draft",
+  {
+    byteSize: integer("byte_size").notNull(),
+    checkoutKey: text("checkout_key").notNull(),
+    contentType: text("content_type").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    fileName: text("file_name").notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    listingId: uuid("listing_id")
+      .notNull()
+      .references(() => listing.id, { onDelete: "restrict" }),
+    storageKey: text("storage_key").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+  },
+  (table) => [
+    index("checkout_attachment_draft_user_key_idx").on(
+      table.userId,
+      table.checkoutKey
+    ),
+    index("checkout_attachment_draft_listing_idx").on(table.listingId),
+    uniqueIndex("checkout_attachment_draft_storage_key_unique_idx").on(
+      table.storageKey
+    ),
+  ]
+);
+
 export const order = pgTable(
   "order",
   {
@@ -216,6 +245,7 @@ export const order = pgTable(
 export const orderItem = pgTable(
   "order_item",
   {
+    buyerDescription: text("buyer_description"),
     cancelledAt: timestamp("cancelled_at"),
     commissionRatePercent: numeric("commission_rate_percent", {
       precision: 5,
@@ -277,7 +307,7 @@ export const deliverySubmission = pgTable(
     commandKey: text("command_key").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     deliveredAt: timestamp("delivered_at").notNull(),
-    deliveryNote: text("delivery_note").notNull(),
+    deliveryNote: text("delivery_note"),
     id: uuid("id").defaultRandom().primaryKey(),
     orderItemId: uuid("order_item_id")
       .notNull()
@@ -573,6 +603,20 @@ export const checkoutRelations = relations(checkout, ({ many, one }) => ({
     references: [user.id],
   }),
 }));
+
+export const checkoutAttachmentDraftRelations = relations(
+  checkoutAttachmentDraft,
+  ({ one }) => ({
+    listing: one(listing, {
+      fields: [checkoutAttachmentDraft.listingId],
+      references: [listing.id],
+    }),
+    user: one(user, {
+      fields: [checkoutAttachmentDraft.userId],
+      references: [user.id],
+    }),
+  })
+);
 
 export const orderRelations = relations(order, ({ many, one }) => ({
   buyer: one(user, {

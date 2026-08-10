@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@avin/ui/components/select";
 import { Skeleton } from "@avin/ui/components/skeleton";
+import { Textarea } from "@avin/ui/components/textarea";
 import {
   WarningCircleIcon,
   CheckCircleIcon,
@@ -23,9 +24,9 @@ import {
 } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Shell } from "@/components/shell";
@@ -35,6 +36,11 @@ import {
   setCartItemSelectedOptimistically,
 } from "@/features/commerce/cart-cache";
 import type { CartView } from "@/features/commerce/cart-cache";
+import { OrderImageUploader } from "@/features/commerce/components/order-image-uploader";
+import type {
+  OrderImageAttachment,
+  OrderImageUploadMetadata,
+} from "@/features/commerce/components/order-image-uploader";
 import {
   walletSummaryQueryOptions,
   walletTransactionsQueryOptions,
@@ -72,6 +78,13 @@ interface CartItem {
     name: string;
   };
 }
+
+const EMPTY_CART_ITEMS: CartItem[] = [];
+
+const noopDescriptionChange = (_description: string): void => undefined;
+
+const unavailableAttachmentAction = (): Promise<never> =>
+  Promise.reject(new Error("Checkout attachment actions are unavailable"));
 
 const CartItemThumbnail = ({
   title,
@@ -157,14 +170,26 @@ const CartItemPackageSelect = ({
  */
 export const CartItemCard = ({
   actionPending,
+  checkoutKey = "",
   item,
+  onBusyChange,
+  onDescriptionChange = noopDescriptionChange,
+  onCreateAttachment,
+  onDiscardAttachment,
   onRemove,
   onSelectPackage,
   onToggle,
   selectionPending,
 }: {
   actionPending: boolean;
+  checkoutKey?: string;
   item: CartItem;
+  onCreateAttachment?: (
+    input: OrderImageUploadMetadata
+  ) => Promise<OrderImageAttachment>;
+  onBusyChange?: (busy: boolean) => void;
+  onDescriptionChange?: (description: string) => void;
+  onDiscardAttachment?: (attachmentId: string) => Promise<void>;
   onRemove: () => void;
   onSelectPackage?: (packageId: string) => void;
   onToggle: (selected: boolean) => void;
@@ -177,7 +202,10 @@ export const CartItemCard = ({
     ? currentPkg.priceAmount
     : (item.listing.priceAmount ?? 0);
   const packages = item.listing.servicePackages ?? [];
-  const disabled = actionPending || selectionPending;
+  const [attachmentBusy, setAttachmentBusy] = useState(false);
+  const disabled = actionPending || selectionPending || attachmentBusy;
+  const inputDisabled = disabled || !item.selected;
+  const [description, setDescription] = useState("");
 
   return (
     <Card className={item.selected ? "border-primary/40" : "opacity-80"}>
@@ -257,6 +285,53 @@ export const CartItemCard = ({
             </div>
           </div>
         </div>
+        <details className="mt-4 rounded-xl border border-border/60 bg-muted/20">
+          <summary className="cursor-pointer list-none px-3 py-2 text-sm font-semibold marker:hidden">
+            <span>Thêm mô tả hoặc hình ảnh</span>{" "}
+            <span className="font-normal text-muted-foreground">
+              (Không bắt buộc)
+            </span>
+          </summary>
+          <div className="grid gap-3 border-t border-border/60 p-3">
+            <label
+              className="grid gap-1.5 text-sm font-medium"
+              htmlFor={`checkout-description-${item.listing.id}`}
+            >
+              Mô tả cho người bán
+              <Textarea
+                disabled={inputDisabled}
+                id={`checkout-description-${item.listing.id}`}
+                maxLength={1000}
+                onChange={(event) => {
+                  const nextDescription = event.target.value;
+                  setDescription(nextDescription);
+                  onDescriptionChange(nextDescription);
+                }}
+                placeholder="Mô tả yêu cầu hoặc thông tin bạn muốn gửi người bán..."
+                value={description}
+              />
+            </label>
+            <OrderImageUploader
+              disabled={inputDisabled}
+              metadata={{
+                checkoutKey,
+                listingId: item.listing.id,
+              }}
+              onBusyChange={(busy) => {
+                setAttachmentBusy(busy);
+                onBusyChange?.(busy);
+              }}
+              onCreateAttachment={
+                onCreateAttachment ?? unavailableAttachmentAction
+              }
+              onDiscardAttachment={
+                onDiscardAttachment ?? unavailableAttachmentAction
+              }
+              route="checkout-attachment"
+              uploadPath="/api/checkout-attachment-upload"
+            />
+          </div>
+        </details>
       </CardContent>
     </Card>
   );
@@ -313,23 +388,20 @@ const CheckoutSummary = ({
 );
 
 export const CartPage = () => {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const cartQuery = useQuery(orpc.commerce.cart.get.queryOptions());
   const [contractChanged, setContractChanged] = useState(false);
-  const checkoutKey = useRef<string | null>(null);
+  const [checkoutKey, setCheckoutKey] = useState(() => crypto.randomUUID());
+  const checkoutDescriptionsRef = useRef(new Map<string, string>());
+  const checkoutAttachmentBusyRef = useRef(new Set<string>());
   const confirmationRequested = useRef(false);
   const selectionQueueRef = useRef<Promise<void> | null>(null);
   const pendingSelectionCountRef = useRef(0);
   const selectionLastServerCartRef = useRef<CartView | null>(null);
   const selectionHadErrorRef = useRef(false);
   const [selectionPending, setSelectionPending] = useState(false);
-
-  const getCheckoutKey = (): string => {
-    if (checkoutKey.current === null) {
-      checkoutKey.current = crypto.randomUUID();
-    }
-    return checkoutKey.current;
-  };
+  const [checkoutAttachmentsBusy, setCheckoutAttachmentsBusy] = useState(false);
 
   const invalidateCart = async () => {
     await queryClient.invalidateQueries({
@@ -473,33 +545,58 @@ export const CartPage = () => {
   const checkoutMutation = useMutation(
     orpc.commerce.checkout.create.mutationOptions()
   );
+  const createCheckoutAttachmentMutation = useMutation(
+    orpc.commerce.checkout.attachments.create.mutationOptions()
+  );
+  const discardCheckoutAttachmentMutation = useMutation(
+    orpc.commerce.checkout.attachments.discard.mutationOptions()
+  );
 
   const cart = cartQuery.data;
-  const items = cart?.items ?? [];
+  const items = useMemo(() => cart?.items ?? EMPTY_CART_ITEMS, [cart?.items]);
   const selectedItems = items.filter((item) => item.selected);
+  useEffect(() => {
+    const visibleListingIds = new Set(items.map((item) => item.listing.id));
+    for (const listingId of checkoutDescriptionsRef.current.keys()) {
+      if (!visibleListingIds.has(listingId)) {
+        checkoutDescriptionsRef.current.delete(listingId);
+      }
+    }
+    for (const listingId of checkoutAttachmentBusyRef.current) {
+      if (!visibleListingIds.has(listingId)) {
+        checkoutAttachmentBusyRef.current.delete(listingId);
+      }
+    }
+    setCheckoutAttachmentsBusy(checkoutAttachmentBusyRef.current.size > 0);
+  }, [items]);
   const hasUnavailableSelected = selectedItems.some((item) => !item.available);
   const hasMissingContract = selectedItems.some(
     (item) => item.contractFingerprint === null
   );
   const actionPending = removeMutation.isPending || checkoutMutation.isPending;
-  const busy = actionPending || selectionPending;
+  const busy = actionPending || selectionPending || checkoutAttachmentsBusy;
 
   const submitCheckout = async (confirm = false): Promise<void> => {
-    if (!cart || selectedItems.length === 0) {
+    if (!cart || selectedItems.length === 0 || checkoutAttachmentsBusy) {
       return;
     }
 
     try {
       await checkoutMutation.mutateAsync({
         confirmMaterialChanges: confirm,
-        idempotencyKey: getCheckoutKey(),
+        idempotencyKey: checkoutKey,
         items: selectedItems.map((item) => ({
           contractFingerprint: item.contractFingerprint ?? "0".repeat(64),
+          description:
+            checkoutDescriptionsRef.current.get(item.listing.id) ?? "",
           listingId: item.listing.id,
           packageId: item.selectedPackageId,
         })),
       });
-      checkoutKey.current = crypto.randomUUID();
+      checkoutDescriptionsRef.current.clear();
+      checkoutAttachmentBusyRef.current.clear();
+      setCheckoutAttachmentsBusy(false);
+      setCheckoutKey(crypto.randomUUID());
       setContractChanged(false);
       await Promise.all([
         invalidateCart(),
@@ -511,6 +608,7 @@ export const CartPage = () => {
         }),
       ]);
       toast.success("Checkout thành công. Tiền đã được giữ trong Escrow.");
+      await navigate({ to: "/orders" });
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
       if (message.includes("thay đổi")) {
@@ -600,10 +698,47 @@ export const CartPage = () => {
                 {items.map((item) => (
                   <CartItemCard
                     actionPending={actionPending}
+                    checkoutKey={checkoutKey}
                     item={item}
                     key={item.cartItemId}
                     onRemove={() => {
+                      checkoutDescriptionsRef.current.delete(item.listing.id);
                       removeMutation.mutate({ listingId: item.listing.id });
+                    }}
+                    onDescriptionChange={(description) => {
+                      checkoutDescriptionsRef.current.set(
+                        item.listing.id,
+                        description
+                      );
+                    }}
+                    onCreateAttachment={async (input) => {
+                      const attachment =
+                        await createCheckoutAttachmentMutation.mutateAsync({
+                          ...input,
+                          checkoutKey,
+                          listingId: item.listing.id,
+                        });
+                      return {
+                        ...attachment,
+                        byteSize: attachment.byteSize ?? input.byteSize,
+                      };
+                    }}
+                    onDiscardAttachment={(attachmentId) =>
+                      discardCheckoutAttachmentMutation.mutateAsync({
+                        attachmentId,
+                      })
+                    }
+                    onBusyChange={(attachmentBusy) => {
+                      if (attachmentBusy) {
+                        checkoutAttachmentBusyRef.current.add(item.listing.id);
+                      } else {
+                        checkoutAttachmentBusyRef.current.delete(
+                          item.listing.id
+                        );
+                      }
+                      setCheckoutAttachmentsBusy(
+                        checkoutAttachmentBusyRef.current.size > 0
+                      );
                     }}
                     onSelectPackage={(packageId) => {
                       packageMutation.mutate({

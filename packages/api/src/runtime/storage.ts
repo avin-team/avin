@@ -6,9 +6,11 @@ export const SELLER_LOGO_UPLOAD_ROUTE = "seller-logo";
 export const SELLER_BANNER_UPLOAD_ROUTE = "seller-banner";
 export const ORDER_CHAT_ATTACHMENT_UPLOAD_ROUTE = "order-chat-attachment";
 export const DISPUTE_EVIDENCE_UPLOAD_ROUTE = "dispute-evidence";
+export const CHECKOUT_ATTACHMENT_UPLOAD_ROUTE = "checkout-attachment";
+export const DELIVERY_ATTACHMENT_UPLOAD_ROUTE = "delivery-attachment";
 
 export interface ManagedObjectStore {
-  deleteObject: (key: string) => Promise<void>;
+  deleteObject: (key: string, bucket?: string) => Promise<void>;
   supabaseUrl: string;
 }
 
@@ -59,6 +61,10 @@ export const DISPUTE_EVIDENCE_CONTENT_TYPES = [
   "image/webp",
   "text/plain",
 ] as const;
+
+export const COMMERCE_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+export const COMMERCE_IMAGE_MAX_COUNT = 5;
+export const COMMERCE_IMAGE_CONTENT_TYPES = LISTING_IMAGE_CONTENT_TYPES;
 
 export const isOrderChatAttachmentContentType = (
   contentType: string
@@ -208,6 +214,90 @@ export const isOrderChatAttachmentKey = (
 ): boolean =>
   key.startsWith(`orders/${orderId}/chat/${userId}/`) &&
   SAFE_PATH_SEGMENT.test(key.split("/").at(-1) ?? "");
+
+const COMMERCE_IMAGE_EXTENSIONS: Record<
+  (typeof COMMERCE_IMAGE_CONTENT_TYPES)[number],
+  string
+> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+
+const getCommerceImageExtension = (contentType: string): string => {
+  const extension =
+    COMMERCE_IMAGE_EXTENSIONS[
+      contentType as (typeof COMMERCE_IMAGE_CONTENT_TYPES)[number]
+    ];
+  if (!extension) {
+    throw new Error(`Unsupported commerce image type: ${contentType}`);
+  }
+  return extension;
+};
+
+const assertCommercePathSegments = (segments: string[]): void => {
+  if (segments.some((segment) => !SAFE_PATH_SEGMENT.test(segment))) {
+    throw new Error("Invalid commerce attachment path segment");
+  }
+};
+
+export const createCheckoutAttachmentKey = (
+  checkoutKey: string,
+  userId: string,
+  listingId: string,
+  contentType: string,
+  objectId = crypto.randomUUID()
+): string => {
+  const extension = getCommerceImageExtension(contentType);
+  assertCommercePathSegments([checkoutKey, userId, listingId, objectId]);
+  return `checkouts/${userId}/${checkoutKey}/${listingId}/${objectId}.${extension}`;
+};
+
+export const isCheckoutAttachmentKey = (
+  key: string,
+  checkoutKey: string,
+  userId: string,
+  listingId: string
+): boolean => {
+  try {
+    assertCommercePathSegments([checkoutKey, userId, listingId]);
+  } catch {
+    return false;
+  }
+  const prefix = `checkouts/${userId}/${checkoutKey}/${listingId}/`;
+  return new RegExp(
+    `^${prefix.replaceAll("/", "\\/")}[a-f0-9-]{36}\\.(?:jpg|png|webp)$`,
+    "iu"
+  ).test(key);
+};
+
+export const createDeliveryAttachmentKey = (
+  orderItemId: string,
+  sellerId: string,
+  contentType: string,
+  objectId = crypto.randomUUID()
+): string => {
+  const extension = getCommerceImageExtension(contentType);
+  assertCommercePathSegments([orderItemId, sellerId, objectId]);
+  return `orders/${orderItemId}/delivery/${sellerId}/${objectId}.${extension}`;
+};
+
+export const isDeliveryAttachmentKey = (
+  key: string,
+  orderItemId: string,
+  sellerId: string
+): boolean => {
+  try {
+    assertCommercePathSegments([orderItemId, sellerId]);
+  } catch {
+    return false;
+  }
+  const prefix = `orders/${orderItemId}/delivery/${sellerId}/`;
+  return new RegExp(
+    `^${prefix.replaceAll("/", "\\/")}[a-f0-9-]{36}\\.(?:jpg|png|webp)$`,
+    "iu"
+  ).test(key);
+};
 
 export const createPublicMediaUrl = (
   supabaseUrl: string,

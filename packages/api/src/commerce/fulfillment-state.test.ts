@@ -55,6 +55,20 @@ describe("OrderItem fulfillment state", () => {
     });
   });
 
+  it("allows delivery to be submitted without a note or attachments", () => {
+    const result = decideOrderItemTransition(
+      transition({
+        command: { deliveryNote: "", type: "SUBMIT_DELIVERY" },
+        currentStatus: "IN_PROGRESS",
+      })
+    );
+
+    expect(result).toMatchObject({
+      newStatus: "DELIVERED",
+      oldStatus: "IN_PROGRESS",
+    });
+  });
+
   it("uses the fixed review deadline as the warranty start for timeout", () => {
     const reviewDeadlineAt = new Date("2026-08-03T00:00:00.000Z");
     const result = decideOrderItemTransition({

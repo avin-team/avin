@@ -3,6 +3,7 @@
   "type": "module",
   "exports": {
     "./commerce/chat": "./src/commerce/chat.ts",
+    "./commerce/checkout-attachments": "./src/commerce/checkout-attachments.ts",
     "./commerce/dispute-contracts": "./src/commerce/dispute-contracts.ts",
     "./commerce/disputes": "./src/commerce/disputes.ts",
     "./commerce/fulfillment": "./src/commerce/fulfillment.ts",

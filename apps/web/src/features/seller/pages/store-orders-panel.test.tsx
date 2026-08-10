@@ -56,6 +56,8 @@ vi.mock("@/utils/orpc", () => ({
       orders: {
         item: {
           cancelBySeller: { mutationOptions: () => ({}) },
+          createAttachment: { mutationOptions: () => ({}) },
+          discardAttachment: { mutationOptions: () => ({}) },
           startFulfillment: { mutationOptions: () => ({}) },
           submitDelivery: { mutationOptions: () => ({}) },
           timeline: {
@@ -283,7 +285,7 @@ describe("StoreOrdersPanel", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders fulfillment actions and the delivery evidence form per OrderItem", async () => {
+  it("renders fulfillment actions and the delivery form per OrderItem", async () => {
     mocks.ordersQuery.data = [order];
     const user = userEvent.setup();
 
@@ -291,7 +293,7 @@ describe("StoreOrdersPanel", () => {
 
     await user.click(screen.getByRole("button", { name: "Bàn giao" }));
 
-    expect(screen.getByText("Gửi kết quả cho Buyer")).toBeInTheDocument();
+    expect(screen.getByText("Bàn giao cho người mua")).toBeInTheDocument();
 
     await user.type(
       screen.getByPlaceholderText(
@@ -299,21 +301,12 @@ describe("StoreOrdersPanel", () => {
       ),
       "Đã hoàn thành công việc."
     );
-    await user.type(
-      screen.getByPlaceholderText("https://example.com/proof"),
-      "https://example.com/proof"
-    );
     await user.click(screen.getByRole("button", { name: "Gửi bàn giao" }));
 
     expect(mocks.mutateAsync).toHaveBeenLastCalledWith(
       expect.objectContaining({
+        attachmentIds: [],
         deliveryNote: "Đã hoàn thành công việc.",
-        files: [
-          expect.objectContaining({
-            contentType: "text/uri-list",
-            storageKey: "https://example.com/proof",
-          }),
-        ],
         itemId: "item-2",
       })
     );

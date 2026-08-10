@@ -4,6 +4,8 @@ import {
 } from "@avin/api/listing/seller-workspace";
 import {
   createListingImageKey,
+  createCheckoutAttachmentKey,
+  createDeliveryAttachmentKey,
   createOrderChatAttachmentKey,
   createDisputeEvidenceKey,
   createSellerBannerKey,
@@ -21,6 +23,11 @@ import {
   DISPUTE_EVIDENCE_MAX_BYTES,
   DISPUTE_EVIDENCE_MAX_COUNT,
   DISPUTE_EVIDENCE_UPLOAD_ROUTE,
+  CHECKOUT_ATTACHMENT_UPLOAD_ROUTE,
+  DELIVERY_ATTACHMENT_UPLOAD_ROUTE,
+  COMMERCE_IMAGE_CONTENT_TYPES,
+  COMMERCE_IMAGE_MAX_BYTES,
+  COMMERCE_IMAGE_MAX_COUNT,
   PUBLIC_MEDIA_BUCKET,
   SELLER_BANNER_CONTENT_TYPES,
   SELLER_BANNER_MAX_BYTES,
@@ -43,6 +50,13 @@ const sellerLogoClientMetadataSchema = z.object({});
 const sellerBannerClientMetadataSchema = z.object({});
 const orderChatAttachmentClientMetadataSchema = z.object({ orderId: z.uuid() });
 const disputeEvidenceClientMetadataSchema = z.object({
+  itemId: z.uuid(),
+});
+const checkoutAttachmentClientMetadataSchema = z.object({
+  checkoutKey: z.uuid(),
+  listingId: z.uuid(),
+});
+const deliveryAttachmentClientMetadataSchema = z.object({
   itemId: z.uuid(),
 });
 
@@ -109,6 +123,18 @@ const assertDisputeEvidenceFileTypes = (files: { type: string }[]): void => {
       throw new RejectUpload(
         "Bằng chứng chỉ hỗ trợ PDF, TXT, JPEG, PNG hoặc WebP"
       );
+    }
+  }
+};
+
+const assertCommerceImageFileTypes = (files: { type: string }[]): void => {
+  for (const file of files) {
+    if (
+      !COMMERCE_IMAGE_CONTENT_TYPES.includes(
+        file.type as (typeof COMMERCE_IMAGE_CONTENT_TYPES)[number]
+      )
+    ) {
+      throw new RejectUpload("Ảnh chỉ hỗ trợ JPEG, PNG hoặc WebP");
     }
   }
 };
@@ -361,6 +387,138 @@ export const createDisputeEvidenceUploadRouter = (
           generateObjectInfo: ({ file }) => ({
             cacheControl: "private, max-age=0",
             key: createDisputeEvidenceKey(
+              clientMetadata.itemId,
+              session.user.id,
+              file.type
+            ),
+          }),
+        };
+      },
+    }),
+  },
+});
+
+export const createCheckoutAttachmentUploadRouter = (
+  client: Router["client"]
+): Router => ({
+  bucketName: ORDER_FILES_BUCKET,
+  client,
+  routes: {
+    [CHECKOUT_ATTACHMENT_UPLOAD_ROUTE]: route({
+      clientMetadataSchema: checkoutAttachmentClientMetadataSchema,
+      fileTypes: [...COMMERCE_IMAGE_CONTENT_TYPES],
+      maxFileSize: COMMERCE_IMAGE_MAX_BYTES,
+      maxFiles: COMMERCE_IMAGE_MAX_COUNT,
+      multipleFiles: true,
+      onBeforeUpload: async ({ clientMetadata, files, req }) => {
+        const session = await auth.api.getSession({ headers: req.headers });
+        if (!session || session.user.role !== "BUYER") {
+          throw new RejectUpload("Chỉ Buyer mới có thể tải ảnh Checkout");
+        }
+
+        const cartEntry = await db.query.cartItem.findFirst({
+          columns: { id: true },
+          where: (table, { and, eq }) =>
+            and(
+              eq(table.listingId, clientMetadata.listingId),
+              eq(table.selected, true)
+            ),
+          with: { cart: { columns: { userId: true } } },
+        });
+        if (!cartEntry || cartEntry.cart.userId !== session.user.id) {
+          throw new RejectUpload("Listing không thuộc Cart đang được chọn");
+        }
+
+        const existingDrafts = await db.query.checkoutAttachmentDraft.findMany({
+          columns: { id: true },
+          where: (table, { and, eq }) =>
+            and(
+              eq(table.checkoutKey, clientMetadata.checkoutKey),
+              eq(table.listingId, clientMetadata.listingId),
+              eq(table.userId, session.user.id)
+            ),
+        });
+        if (existingDrafts.length + files.length > COMMERCE_IMAGE_MAX_COUNT) {
+          throw new RejectUpload(
+            `Mỗi Listing chỉ được đính kèm tối đa ${COMMERCE_IMAGE_MAX_COUNT} ảnh`
+          );
+        }
+
+        assertCommerceImageFileTypes(files);
+        return {
+          generateObjectInfo: ({ file }) => ({
+            cacheControl: "private, max-age=0",
+            key: createCheckoutAttachmentKey(
+              clientMetadata.checkoutKey,
+              session.user.id,
+              clientMetadata.listingId,
+              file.type
+            ),
+          }),
+        };
+      },
+    }),
+  },
+});
+
+export const createDeliveryAttachmentUploadRouter = (
+  client: Router["client"]
+): Router => ({
+  bucketName: ORDER_FILES_BUCKET,
+  client,
+  routes: {
+    [DELIVERY_ATTACHMENT_UPLOAD_ROUTE]: route({
+      clientMetadataSchema: deliveryAttachmentClientMetadataSchema,
+      fileTypes: [...COMMERCE_IMAGE_CONTENT_TYPES],
+      maxFileSize: COMMERCE_IMAGE_MAX_BYTES,
+      maxFiles: COMMERCE_IMAGE_MAX_COUNT,
+      multipleFiles: true,
+      onBeforeUpload: async ({ clientMetadata, files, req }) => {
+        const session = await auth.api.getSession({ headers: req.headers });
+        if (!session || session.user.role !== "SELLER") {
+          throw new RejectUpload("Chỉ Seller mới có thể tải ảnh bàn giao");
+        }
+
+        const item = await db.query.orderItem.findFirst({
+          columns: { status: true },
+          where: (table, { eq }) => eq(table.id, clientMetadata.itemId),
+          with: { order: { columns: { sellerId: true } } },
+        });
+        if (
+          !item ||
+          item.order.sellerId !== session.user.id ||
+          item.status !== "IN_PROGRESS"
+        ) {
+          throw new RejectUpload(
+            "Bạn chỉ có thể tải ảnh khi đang xử lý OrderItem của mình"
+          );
+        }
+
+        const existingDrafts = await db.query.orderFile.findMany({
+          columns: { id: true },
+          where: (table, { and, eq, isNull, like }) =>
+            and(
+              eq(table.orderItemId, clientMetadata.itemId),
+              eq(table.uploadedByUserId, session.user.id),
+              isNull(table.deliverySubmissionId),
+              isNull(table.orderMessageId),
+              like(
+                table.storageKey,
+                `orders/${clientMetadata.itemId}/delivery/%`
+              )
+            ),
+        });
+        if (existingDrafts.length + files.length > COMMERCE_IMAGE_MAX_COUNT) {
+          throw new RejectUpload(
+            `Mỗi lần bàn giao chỉ được đính kèm tối đa ${COMMERCE_IMAGE_MAX_COUNT} ảnh`
+          );
+        }
+
+        assertCommerceImageFileTypes(files);
+        return {
+          generateObjectInfo: ({ file }) => ({
+            cacheControl: "private, max-age=0",
+            key: createDeliveryAttachmentKey(
               clientMetadata.itemId,
               session.user.id,
               file.type

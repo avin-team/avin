@@ -7,6 +7,7 @@ vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, ...props }: { children: React.ReactNode }) => (
     <a {...props}>{children}</a>
   ),
+  useNavigate: () => vi.fn(),
 }));
 
 const item = {
