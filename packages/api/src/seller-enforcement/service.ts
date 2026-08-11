@@ -10,9 +10,19 @@ import {
   sellerEnforcementRemediation,
   sellerEnforcementRemediationItem,
 } from "@avin/db/schema/seller-enforcement";
-import { userWallet } from "@avin/db/schema/wallet";
+import { ledgerAccount } from "@avin/db/schema/wallet";
 import { ORPCError } from "@orpc/server";
-import { and, asc, desc, eq, inArray, isNotNull, lte } from "drizzle-orm";
+import {
+  aliasedTable,
+  and,
+  asc,
+  desc,
+  eq,
+  inArray,
+  isNotNull,
+  lte,
+  sql,
+} from "drizzle-orm";
 import { z } from "zod";
 
 import {
@@ -1503,16 +1513,22 @@ export const listAdminSellers = async (
     status?: "ALL" | "ACTIVE" | "SUSPENDED" | "BANNED";
   }
 ) => {
+  const sellerAvailableAccount = aliasedTable(
+    ledgerAccount,
+    "seller_available_account"
+  );
+  const sellerHeldAccount = aliasedTable(ledgerAccount, "seller_held_account");
+
   const [profiles, activeAppeals] = await Promise.all([
     database
       .select({
-        availableBalance: userWallet.availableBalance,
+        availableBalance: sellerAvailableAccount.balanceAmount,
         avatarUrl: sellerProfile.avatarUrl,
         completedOrderCount: sellerProfile.completedOrderCount,
         createdAt: sellerProfile.createdAt,
         enforcementExpiresAt: sellerEnforcement.expiresAt,
         enforcementState: sellerEnforcement.state,
-        heldBalance: userWallet.heldBalance,
+        heldBalance: sellerHeldAccount.balanceAmount,
         id: sellerProfile.id,
         phone: sellerProfile.phone,
         ratingCount: sellerProfile.ratingCount,
@@ -1529,7 +1545,20 @@ export const listAdminSellers = async (
         sellerEnforcement,
         eq(sellerProfile.userId, sellerEnforcement.sellerId)
       )
-      .leftJoin(userWallet, eq(sellerProfile.userId, userWallet.userId))
+      .leftJoin(
+        sellerAvailableAccount,
+        eq(
+          sellerAvailableAccount.accountKey,
+          sql<string>`'SELLER_WALLET_AVAILABLE:' || ${sellerProfile.userId}`
+        )
+      )
+      .leftJoin(
+        sellerHeldAccount,
+        eq(
+          sellerHeldAccount.accountKey,
+          sql<string>`'SELLER_WALLET_HELD:' || ${sellerProfile.userId}`
+        )
+      )
       .orderBy(desc(sellerProfile.createdAt)),
     database
       .select({

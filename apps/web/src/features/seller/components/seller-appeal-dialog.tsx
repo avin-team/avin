@@ -55,6 +55,12 @@ export const SellerAppealDialog = ({
       return;
     }
 
+    const missingDesc = evidence.some((item) => !item.description.trim());
+    if (missingDesc) {
+      toast.error("Vui lòng mô tả từng tệp bằng chứng trước khi gửi.");
+      return;
+    }
+
     try {
       await submitMutation.mutateAsync({
         actionId,

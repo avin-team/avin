@@ -8,6 +8,7 @@ import { env } from "@avin/env/web";
 import { FileDropzone } from "@avin/ui/components/file-dropzone";
 import { Textarea } from "@avin/ui/components/textarea";
 import { useUploadFiles } from "@better-upload/client";
+import { FileIcon, XIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 
 const ACCEPTED_CONTENT_TYPES = {
@@ -23,6 +24,7 @@ export interface AppealEvidenceItem {
   contentType: (typeof SELLER_ENFORCEMENT_APPEAL_EVIDENCE_CONTENT_TYPES)[number];
   description: string;
   fileName: string;
+  previewUrl: string | null;
   storageKey: string;
 }
 
@@ -49,7 +51,7 @@ export const SellerAppealEvidenceUploader = ({
   const [evidence, setEvidence] = useState<AppealEvidenceItem[]>([]);
 
   const upload = useUploadFiles({
-    api: `${env.VITE_SERVER_URL}/api/seller-enforcement-appeal-evidence`,
+    api: `${env.VITE_SERVER_URL}/api/seller-enforcement-appeal-evidence-upload`,
     credentials: "include",
     onError: () => setErrorMessage("Không thể tải bằng chứng khiếu nại lên."),
     route: SELLER_ENFORCEMENT_APPEAL_EVIDENCE_UPLOAD_ROUTE,
@@ -58,10 +60,6 @@ export const SellerAppealEvidenceUploader = ({
 
   const handleFilesSelected = async (files: File[]): Promise<void> => {
     const trimmedDescription = description.trim();
-    if (!trimmedDescription) {
-      setErrorMessage("Hãy mô tả tệp bằng chứng trước khi chọn tải lên.");
-      return;
-    }
 
     const availableSlots =
       SELLER_ENFORCEMENT_APPEAL_EVIDENCE_MAX_COUNT - evidence.length;
@@ -85,12 +83,14 @@ export const SellerAppealEvidenceUploader = ({
         if (!isAppealEvidenceContentType(contentType)) {
           return [];
         }
+        const isImage = contentType.startsWith("image/");
         return [
           {
             byteSize: uploadedFile.raw.size,
             contentType,
             description: trimmedDescription,
             fileName: uploadedFile.raw.name,
+            previewUrl: isImage ? URL.createObjectURL(uploadedFile.raw) : null,
             storageKey: uploadedFile.objectInfo.key,
           },
         ];
@@ -112,6 +112,16 @@ export const SellerAppealEvidenceUploader = ({
         "Không thể tải tệp bằng chứng lên máy chủ. Vui lòng thử lại."
       );
     }
+  };
+
+  const handleRemove = (storageKey: string) => {
+    const removed = evidence.find((e) => e.storageKey === storageKey);
+    if (removed?.previewUrl) {
+      URL.revokeObjectURL(removed.previewUrl);
+    }
+    const next = evidence.filter((e) => e.storageKey !== storageKey);
+    setEvidence(next);
+    onEvidenceChange(next);
   };
 
   const isUploading = upload.isPending;
@@ -153,11 +163,37 @@ export const SellerAppealEvidenceUploader = ({
         uploadingLabel="Đang tải tệp bằng chứng…"
       />
       {evidence.length > 0 ? (
-        <ul className="grid gap-1 text-xs text-muted-foreground">
+        <ul className="grid grid-cols-3 gap-2">
           {evidence.map((file) => (
-            <li key={file.storageKey}>
-              {file.fileName} · {(file.byteSize / 1024 / 1024).toFixed(2)} MB:{" "}
-              {file.description}
+            <li
+              key={file.storageKey}
+              className="relative group rounded-lg overflow-hidden border border-border bg-muted"
+            >
+              {file.previewUrl ? (
+                <img
+                  alt={file.fileName}
+                  className="w-full h-24 object-cover"
+                  src={file.previewUrl}
+                />
+              ) : (
+                <div className="w-full h-24 flex flex-col items-center justify-center gap-1 text-muted-foreground">
+                  <FileIcon className="size-8" />
+                  <span className="text-[10px] px-1 text-center line-clamp-2 break-all">
+                    {file.fileName}
+                  </span>
+                </div>
+              )}
+              <button
+                aria-label={`Xóa ${file.fileName}`}
+                className="absolute top-1 right-1 rounded-full bg-black/60 p-0.5 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={() => handleRemove(file.storageKey)}
+                type="button"
+              >
+                <XIcon className="size-3" />
+              </button>
+              <div className="px-1.5 py-1 text-[10px] text-muted-foreground truncate">
+                {file.fileName} · {(file.byteSize / 1024 / 1024).toFixed(2)} MB
+              </div>
             </li>
           ))}
         </ul>

@@ -91,12 +91,12 @@ export const SellerDetailPage = () => {
   if (!sellerBase) {
     return (
       <Main className="flex flex-1 flex-col items-start justify-center gap-4">
-        <p className="text-sm font-medium text-primary">SELLER GOVERNANCE</p>
+        <p className="text-sm font-medium text-primary">QUẢN LÝ NGƯỜI BÁN</p>
         <h1 className="text-3xl font-semibold tracking-tight">
-          Seller not found
+          Không tìm thấy gian hàng
         </h1>
         <Button render={<Link to="/sellers" />} variant="outline">
-          <ArrowLeftIcon /> Back to sellers
+          <ArrowLeftIcon /> Quay lại danh sách
         </Button>
       </Main>
     );
@@ -129,7 +129,7 @@ export const SellerDetailPage = () => {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3">
             <Button
-              aria-label="Back to sellers"
+              aria-label="Quay lại danh sách"
               render={<Link to="/sellers" />}
               size="icon"
               variant="outline"
@@ -138,7 +138,7 @@ export const SellerDetailPage = () => {
             </Button>
             <div>
               <p className="text-sm font-medium text-primary">
-                STOREFRONT GOVERNANCE
+                QUẢN LÝ GIAN HÀNG
               </p>
               <h1 className="text-3xl font-semibold tracking-tight">
                 {seller.storefrontName}
@@ -155,7 +155,7 @@ export const SellerDetailPage = () => {
           <div className="grid gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>Tổng quan tài khoản Seller</CardTitle>
+                <CardTitle>Tổng quan tài khoản Người bán</CardTitle>
                 <CardDescription>
                   Thông tin kinh doanh và hiệu suất gian hàng.
                 </CardDescription>
@@ -186,7 +186,7 @@ export const SellerDetailPage = () => {
               <CardHeader className="flex flex-row items-center gap-2">
                 <WalletIcon className="size-5 text-primary" />
                 <div>
-                  <CardTitle>Ví tiền Seller (SellerWallet)</CardTitle>
+                  <CardTitle>Ví tiền Người bán</CardTitle>
                   <CardDescription>
                     Số dư tạm giữ và khả dụng thực tế.
                   </CardDescription>
@@ -195,7 +195,7 @@ export const SellerDetailPage = () => {
               <CardContent className="grid gap-4 sm:grid-cols-2">
                 <div className="rounded-2xl border p-4">
                   <p className="text-xs font-medium text-muted-foreground">
-                    Số dư tạm giữ (Pending Escrow)
+                    Số dư tạm giữ
                   </p>
                   <p className="mt-1 font-mono text-xl font-semibold">
                     {seller.heldBalanceVnd.toLocaleString("vi-VN")} đ
@@ -206,7 +206,7 @@ export const SellerDetailPage = () => {
                 </div>
                 <div className="rounded-2xl border bg-muted/30 p-4">
                   <p className="text-xs font-medium text-muted-foreground">
-                    Số dư khả dụng (Available)
+                    Số dư khả dụng
                   </p>
                   <p className="mt-1 font-mono text-xl font-semibold text-emerald-600 dark:text-emerald-400">
                     {seller.availableBalanceVnd.toLocaleString("vi-VN")} đ
@@ -236,23 +236,24 @@ export const SellerDetailPage = () => {
 
           <Card className="h-fit">
             <CardHeader>
-              <CardTitle>Quyết định xử lý Admin</CardTitle>
+              <CardTitle>Quyết định xử lý của Quản trị viên</CardTitle>
               <CardDescription>
-                Thay đổi trạng thái hoạt động của Seller hoặc hiệu chỉnh lý do.
+                Thay đổi trạng thái hoạt động của gian hàng hoặc hiệu chỉnh lý
+                do.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3">
               {seller.enforcementStatus !== "ACTIVE" && (
                 <Button onClick={() => handleAction("ACTIVE")}>
-                  <CheckCircleIcon /> Khôi phục Hoạt Động (Lift Enforcement)
+                  <CheckCircleIcon /> Khôi phục hoạt động
                 </Button>
               )}
-              {seller.enforcementStatus !== "SUSPENDED" && (
+              {seller.enforcementStatus === "ACTIVE" && (
                 <Button
                   onClick={() => handleAction("SUSPENDED")}
                   variant="outline"
                 >
-                  <WarningIcon /> Tạm dừng gian hàng (Suspend)
+                  <WarningIcon /> Tạm dừng gian hàng
                 </Button>
               )}
               {seller.enforcementStatus !== "BANNED" && (
@@ -260,7 +261,7 @@ export const SellerDetailPage = () => {
                   onClick={() => handleAction("BANNED")}
                   variant="destructive"
                 >
-                  <ProhibitIcon /> Cấm vĩnh viễn (Ban)
+                  <ProhibitIcon /> Cấm vĩnh viễn
                 </Button>
               )}
 
@@ -269,7 +270,7 @@ export const SellerDetailPage = () => {
                   onClick={() => setReasonCorrectionOpen(true)}
                   variant="secondary"
                 >
-                  <NotePencilIcon /> Hiệu chỉnh lý do vi phạm
+                  <NotePencilIcon /> Sửa lý do vi phạm
                 </Button>
               )}
 
@@ -280,18 +281,18 @@ export const SellerDetailPage = () => {
                 </p>
                 <ul className="mt-1 list-disc space-y-1 ps-4">
                   <li>
-                    <strong>Suspend:</strong> Ẩn toàn bộ Listings, chặn tạo đơn
-                    hàng và rút tiền mới. Seller vẫn truy cập đơn đang chạy để
-                    hỗ trợ chat.
+                    <strong>Tạm dừng:</strong> Ẩn toàn bộ sản phẩm, chặn tạo đơn
+                    hàng và rút tiền mới. Người bán vẫn truy cập đơn đang chạy
+                    để hỗ trợ chat.
                   </li>
                   <li>
-                    <strong>Ban:</strong> Khóa tài khoản Seller hoàn toàn, tự
-                    động hủy và refund các đơn hàng chưa giao, đóng băng số dư
-                    payout.
+                    <strong>Cấm vĩnh viễn:</strong> Khóa tài khoản Người bán
+                    hoàn toàn, tự động hủy và hoàn tiền các đơn hàng chưa giao,
+                    đóng băng số dư rút tiền.
                   </li>
                   <li>
-                    <strong>Reason Correction:</strong> Sửa lại lý do hoặc mã vi
-                    phạm gửi tới Seller mà không làm gián đoạn trạng thái xử
+                    <strong>Hiệu chỉnh lý do:</strong> Sửa lại lý do hoặc mã vi
+                    phạm gửi tới Người bán mà không làm gián đoạn trạng thái xử
                     phạt.
                   </li>
                 </ul>

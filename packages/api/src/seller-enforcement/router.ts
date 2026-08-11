@@ -157,9 +157,9 @@ export const sellerEnforcementRouter = {
       .input(sellerEnforcementClearCommandSchema)
       .handler(({ context, input }) =>
         changeSellerEnforcement({
-          actionType: "LIFT",
           actorUserId: context.session.user.id,
           adminNote: input.adminNote,
+          allowOverturn: true,
           database: context.db,
           idempotencyKey: input.idempotencyKey,
           nextState: "CLEAR",

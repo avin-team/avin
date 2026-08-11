@@ -1,4 +1,5 @@
 import { Button } from "@avin/ui/components/button";
+import { Calendar } from "@avin/ui/components/calendar";
 import { Checkbox } from "@avin/ui/components/checkbox";
 import {
   Dialog,
@@ -8,8 +9,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@avin/ui/components/dialog";
-import { Input } from "@avin/ui/components/input";
 import { Label } from "@avin/ui/components/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@avin/ui/components/popover";
 import {
   Select,
   SelectContent,
@@ -18,8 +23,14 @@ import {
   SelectValue,
 } from "@avin/ui/components/select";
 import { Textarea } from "@avin/ui/components/textarea";
-import { ProhibitIcon, ShieldWarningIcon } from "@phosphor-icons/react";
-import { useState } from "react";
+import { cn } from "@avin/ui/lib/utils";
+import {
+  CalendarBlankIcon,
+  ProhibitIcon,
+  ShieldWarningIcon,
+} from "@phosphor-icons/react";
+import { format } from "date-fns";
+import { useReducer } from "react";
 import { toast } from "sonner";
 
 import { updateSellerEnforcement } from "../api/mock-sellers";
@@ -55,20 +66,90 @@ const REASON_OPTIONS: { label: string; value: SellerEnforcementReasonCode }[] =
     { label: REASON_CODE_LABELS.OTHER, value: "OTHER" },
   ];
 
+interface DialogFormState {
+  adminNote: string;
+  confirmEscrowHolds: boolean;
+  confirmOrderItems: boolean;
+  confirmWithdrawals: boolean;
+  expiresAt: Date | undefined;
+  reasonCode: SellerEnforcementReasonCode;
+  sellerReason: string;
+}
+
+type DialogFormAction =
+  | { type: "RESET" }
+  | { field: "adminNote"; type: "SET_TEXT"; value: string }
+  | { field: "sellerReason"; type: "SET_TEXT"; value: string }
+  | {
+      field: "reasonCode";
+      type: "SET_REASON";
+      value: SellerEnforcementReasonCode;
+    }
+  | {
+      field: "confirmOrderItems" | "confirmEscrowHolds" | "confirmWithdrawals";
+      type: "SET_BOOL";
+      value: boolean;
+    }
+  | { type: "SET_EXPIRES_AT"; value: Date | undefined };
+
+const INITIAL_FORM_STATE: DialogFormState = {
+  adminNote: "",
+  confirmEscrowHolds: false,
+  confirmOrderItems: false,
+  confirmWithdrawals: false,
+  expiresAt: undefined,
+  reasonCode: "POLICY_VIOLATION",
+  sellerReason: "",
+};
+
+const formReducer = (
+  state: DialogFormState,
+  action: DialogFormAction
+): DialogFormState => {
+  if (action.type === "RESET") {
+    return INITIAL_FORM_STATE;
+  }
+  if (action.type === "SET_TEXT") {
+    return { ...state, [action.field]: action.value };
+  }
+  if (action.type === "SET_REASON") {
+    return { ...state, reasonCode: action.value };
+  }
+  if (action.type === "SET_BOOL") {
+    return { ...state, [action.field]: action.value };
+  }
+  if (action.type === "SET_EXPIRES_AT") {
+    return { ...state, expiresAt: action.value };
+  }
+  return state;
+};
+
+const getConfirmLabel = (status: SellerEnforcementStatus): string => {
+  if (status === "ACTIVE") {
+    return "Khôi phục";
+  }
+  if (status === "SUSPENDED") {
+    return "Tạm dừng";
+  }
+  return "Cấm vĩnh viễn";
+};
+
 export const EnforcementDialog = ({
   onOpenChange,
   open,
   seller,
   targetStatus,
 }: Props) => {
-  const [reasonCode, setReasonCode] =
-    useState<SellerEnforcementReasonCode>("POLICY_VIOLATION");
-  const [sellerReason, setSellerReason] = useState("");
-  const [adminNote, setAdminNote] = useState("");
-  const [expiresAt, setExpiresAt] = useState("");
-  const [confirmOrderItems, setConfirmOrderItems] = useState(false);
-  const [confirmEscrowHolds, setConfirmEscrowHolds] = useState(false);
-  const [confirmWithdrawals, setConfirmWithdrawals] = useState(false);
+  const [form, dispatch] = useReducer(formReducer, INITIAL_FORM_STATE);
+  const {
+    adminNote,
+    confirmEscrowHolds,
+    confirmOrderItems,
+    confirmWithdrawals,
+    expiresAt,
+    reasonCode,
+    sellerReason,
+  } = form;
 
   const applyMutation = useApplySellerEnforcement();
   const liftMutation = useLiftSellerEnforcement();
@@ -106,7 +187,7 @@ export const EnforcementDialog = ({
       (!confirmOrderItems || !confirmEscrowHolds || !confirmWithdrawals)
     ) {
       toast.error(
-        "Cấm Seller yêu cầu xác nhận đủ cả 3 cam kết xử lý đơn hàng, escrow và rút tiền."
+        "Việc cấm gian hàng yêu cầu xác nhận đủ cả 3 cam kết xử lý đơn hàng, khoản tiền tạm giữ và rút tiền."
       );
       return;
     }
@@ -136,7 +217,7 @@ export const EnforcementDialog = ({
                 : undefined,
             expiresAt:
               effectiveTargetStatus === "SUSPENDED" && expiresAt
-                ? new Date(expiresAt)
+                ? expiresAt
                 : null,
             idempotencyKey: crypto.randomUUID(),
             reasonCode,
@@ -156,16 +237,11 @@ export const EnforcementDialog = ({
         // Mock fallback if seller is real backend id
       }
 
-      toast.success(`Cập nhật trạng thái Seller thành công (${targetStatus})`, {
+      toast.success("Cập nhật trạng thái gian hàng thành công", {
         description: `Đã áp dụng chế tài cho ${seller.storefrontName}`,
       });
       onOpenChange(false);
-      setSellerReason("");
-      setAdminNote("");
-      setExpiresAt("");
-      setConfirmOrderItems(false);
-      setConfirmEscrowHolds(false);
-      setConfirmWithdrawals(false);
+      dispatch({ type: "RESET" });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Thao tác thất bại");
     }
@@ -173,12 +249,12 @@ export const EnforcementDialog = ({
 
   const renderTitle = () => {
     if (effectiveTargetStatus === "ACTIVE") {
-      return "Khôi phục trạng thái Hoạt Động (Lift Enforcement)";
+      return "Khôi phục hoạt động gian hàng";
     }
     if (effectiveTargetStatus === "SUSPENDED") {
-      return "Tạm dừng hoạt động Seller (Suspend)";
+      return "Tạm dừng hoạt động gian hàng";
     }
-    return "Cấm vĩnh viễn Seller (Ban)";
+    return "Cấm vĩnh viễn gian hàng";
   };
 
   return (
@@ -194,9 +270,9 @@ export const EnforcementDialog = ({
             <DialogTitle>{renderTitle()}</DialogTitle>
           </div>
           <DialogDescription>
-            Thực hiện trên storefront <strong>{seller.storefrontName}</strong>.
-            Thao tác này ghi lại nhật ký Enforcement Action và gửi thông báo tới
-            Seller.
+            Thực hiện trên gian hàng <strong>{seller.storefrontName}</strong>.
+            Thao tác này ghi lại nhật ký xử lý vi phạm và gửi thông báo tới
+            Người bán.
           </DialogDescription>
         </DialogHeader>
 
@@ -206,7 +282,11 @@ export const EnforcementDialog = ({
             <Select
               items={REASON_OPTIONS}
               onValueChange={(val) =>
-                setReasonCode(val as SellerEnforcementReasonCode)
+                dispatch({
+                  field: "reasonCode",
+                  type: "SET_REASON",
+                  value: val as SellerEnforcementReasonCode,
+                })
               }
               value={reasonCode}
             >
@@ -225,14 +305,20 @@ export const EnforcementDialog = ({
 
           <div className="grid gap-1.5">
             <Label htmlFor="seller-reason">
-              Lý do gửi tới Seller (Bắt buộc, công khai với Seller){" "}
+              Lý do gửi tới Người bán (Bắt buộc, công khai với Người bán){" "}
               <span className="text-destructive">*</span>
             </Label>
             <Textarea
               disabled={isPending}
               id="seller-reason"
               maxLength={2000}
-              onChange={(e) => setSellerReason(e.target.value)}
+              onChange={(e) =>
+                dispatch({
+                  field: "sellerReason",
+                  type: "SET_TEXT",
+                  value: e.target.value,
+                })
+              }
               placeholder="Nhập chi tiết căn cứ xử phạt hoặc vi phạm điều khoản..."
               rows={3}
               value={sellerReason}
@@ -244,13 +330,19 @@ export const EnforcementDialog = ({
 
           <div className="grid gap-1.5">
             <Label htmlFor="admin-note">
-              Ghi chú nội bộ Admin (Tùy chọn, chỉ Admin xem được)
+              Ghi chú nội bộ (Tùy chọn, chỉ Quản trị viên xem được)
             </Label>
             <Textarea
               disabled={isPending}
               id="admin-note"
               maxLength={5000}
-              onChange={(e) => setAdminNote(e.target.value)}
+              onChange={(e) =>
+                dispatch({
+                  field: "adminNote",
+                  type: "SET_TEXT",
+                  value: e.target.value,
+                })
+              }
               placeholder="Ghi chú hồ sơ điều tra, đối chứng giao dịch nội bộ..."
               rows={2}
               value={adminNote}
@@ -259,16 +351,37 @@ export const EnforcementDialog = ({
 
           {effectiveTargetStatus === "SUSPENDED" ? (
             <div className="grid gap-1.5">
-              <Label htmlFor="expires-at">
+              <Label>
                 Thời hạn tạm dừng (Tùy chọn, để trống nếu không xác định hạn)
               </Label>
-              <Input
-                disabled={isPending}
-                id="expires-at"
-                onChange={(e) => setExpiresAt(e.target.value)}
-                type="datetime-local"
-                value={expiresAt}
-              />
+              <Popover>
+                <PopoverTrigger
+                  render={
+                    <Button
+                      disabled={isPending}
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !expiresAt && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarBlankIcon className="mr-2 size-4" />
+                      {expiresAt
+                        ? format(expiresAt, "dd/MM/yyyy")
+                        : "dd/mm/yyyy"}
+                    </Button>
+                  }
+                />
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={expiresAt}
+                    onSelect={(date) =>
+                      dispatch({ type: "SET_EXPIRES_AT", value: date })
+                    }
+                  />
+                </PopoverContent>
+              </Popover>
               <p className="text-xs text-muted-foreground">
                 Nếu đặt thời hạn, hệ thống sẽ tự động khôi phục gian hàng khi
                 hết hạn.
@@ -279,20 +392,26 @@ export const EnforcementDialog = ({
           {effectiveTargetStatus === "BANNED" ? (
             <div className="space-y-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-xs">
               <p className="font-semibold text-destructive">
-                Xác nhận bắt buộc để Ban Seller (Hệ thống bảo vệ khách hàng):
+                Xác nhận bắt buộc để cấm gian hàng (Hệ thống bảo vệ khách hàng):
               </p>
               <div className="flex items-start gap-2.5">
                 <Checkbox
                   checked={confirmOrderItems}
                   id="confirm-order-items"
-                  onCheckedChange={(c) => setConfirmOrderItems(Boolean(c))}
+                  onCheckedChange={(c) =>
+                    dispatch({
+                      field: "confirmOrderItems",
+                      type: "SET_BOOL",
+                      value: Boolean(c),
+                    })
+                  }
                 />
                 <label
                   className="leading-snug cursor-pointer"
                   htmlFor="confirm-order-items"
                 >
-                  Xác nhận tự động hủy và hoàn tiền toàn bộ các OrderItem chưa
-                  bàn giao (AWAITING_SELLER / IN_PROGRESS).
+                  Xác nhận tự động hủy và hoàn tiền toàn bộ các sản phẩm trong
+                  đơn hàng chưa bàn giao.
                 </label>
               </div>
 
@@ -300,14 +419,20 @@ export const EnforcementDialog = ({
                 <Checkbox
                   checked={confirmEscrowHolds}
                   id="confirm-escrow-holds"
-                  onCheckedChange={(c) => setConfirmEscrowHolds(Boolean(c))}
+                  onCheckedChange={(c) =>
+                    dispatch({
+                      field: "confirmEscrowHolds",
+                      type: "SET_BOOL",
+                      value: Boolean(c),
+                    })
+                  }
                 />
                 <label
                   className="leading-snug cursor-pointer"
                   htmlFor="confirm-escrow-holds"
                 >
-                  Xác nhận đóng băng và tự động xử lý các khoản EscrowHold tương
-                  ứng.
+                  Xác nhận đóng băng và tự động xử lý các khoản tiền tạm giữ
+                  tương ứng.
                 </label>
               </div>
 
@@ -315,7 +440,13 @@ export const EnforcementDialog = ({
                 <Checkbox
                   checked={confirmWithdrawals}
                   id="confirm-withdrawals"
-                  onCheckedChange={(c) => setConfirmWithdrawals(Boolean(c))}
+                  onCheckedChange={(c) =>
+                    dispatch({
+                      field: "confirmWithdrawals",
+                      type: "SET_BOOL",
+                      value: Boolean(c),
+                    })
+                  }
                 />
                 <label
                   className="leading-snug cursor-pointer"
@@ -342,7 +473,9 @@ export const EnforcementDialog = ({
             onClick={() => void handleConfirm()}
             variant={isDestructive ? "destructive" : "default"}
           >
-            {isPending ? "Đang xử lý..." : `Xác nhận ${targetStatus}`}
+            {isPending
+              ? "Đang xử lý..."
+              : getConfirmLabel(effectiveTargetStatus)}
           </Button>
         </DialogFooter>
       </DialogContent>

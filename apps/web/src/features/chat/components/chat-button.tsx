@@ -16,6 +16,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
+import { authClient } from "@/features/auth/api/auth-client";
 import { orpc } from "@/utils/orpc";
 import { supabasePublic } from "@/utils/supabase";
 
@@ -23,13 +24,19 @@ const REALTIME_TOKEN_REFRESH_BUFFER_MS = 30_000;
 const RECENT_CONVERSATION_LIMIT = 3;
 
 export const ChatButton = () => {
+  const { data: session, isPending: isSessionPending } =
+    authClient.useSession();
+  const isAuthenticated = Boolean(session);
+
   const queryClient = useQueryClient();
-  const notificationSummaryQuery = useQuery(
-    orpc.commerce.chat.getNotificationSummary.queryOptions()
-  );
-  const notificationTokenQuery = useQuery(
-    orpc.commerce.chat.getNotificationRealtimeToken.queryOptions()
-  );
+  const notificationSummaryQuery = useQuery({
+    ...orpc.commerce.chat.getNotificationSummary.queryOptions(),
+    enabled: isAuthenticated,
+  });
+  const notificationTokenQuery = useQuery({
+    ...orpc.commerce.chat.getNotificationRealtimeToken.queryOptions(),
+    enabled: isAuthenticated,
+  });
   const { refetch: refetchNotificationToken } = notificationTokenQuery;
   const conversations = notificationSummaryQuery.data?.conversations ?? [];
   const unreadCount = notificationSummaryQuery.data?.unreadCount ?? 0;
@@ -88,6 +95,10 @@ export const ChatButton = () => {
 
     return () => clearTimeout(refreshTimer);
   }, [notificationToken?.expiresInSeconds, refetchNotificationToken]);
+
+  if (isSessionPending || !isAuthenticated) {
+    return null;
+  }
 
   return (
     <Popover>

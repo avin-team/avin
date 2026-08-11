@@ -150,6 +150,7 @@ export const SellerListPage = () => {
                     <TableHead>Gian hàng</TableHead>
                     <TableHead>Chủ tài khoản</TableHead>
                     <TableHead>Đánh giá / Đơn hàng</TableHead>
+                    <TableHead>Số dư ví</TableHead>
                     <TableHead>Trạng thái</TableHead>
                     <TableHead className="text-end">Hành động</TableHead>
                   </TableRow>
@@ -159,7 +160,7 @@ export const SellerListPage = () => {
                     ? Array.from({ length: 4 }).map((_, i) => (
                         // eslint-disable-next-line react/no-array-index-key
                         <TableRow key={i}>
-                          {Array.from({ length: 5 }).map((__, j) => (
+                          {Array.from({ length: 6 }).map((__, j) => (
                             // eslint-disable-next-line react/no-array-index-key
                             <TableCell key={j}>
                               <Skeleton className="h-5 w-full" />
@@ -208,6 +209,20 @@ export const SellerListPage = () => {
                               </p>
                               <p className="text-muted-foreground">
                                 {seller.completedOrdersCount} đơn hoàn thành
+                              </p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-mono text-xs">
+                              <p className="font-medium text-emerald-600 dark:text-emerald-400">
+                                {seller.availableBalanceVnd.toLocaleString(
+                                  "vi-VN"
+                                )}
+                                đ
+                              </p>
+                              <p className="text-muted-foreground">
+                                +{seller.heldBalanceVnd.toLocaleString("vi-VN")}
+                                đ giữ
                               </p>
                             </div>
                           </TableCell>

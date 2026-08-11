@@ -309,7 +309,7 @@ const getItemContext = async (
     .where(eq(orderItem.id, itemId));
 
   const [item] = lock
-    ? await query.for("update").limit(1)
+    ? await query.for("update", { of: orderItem }).limit(1)
     : await query.limit(1);
   return item;
 };

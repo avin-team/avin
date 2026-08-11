@@ -79,7 +79,7 @@ export const AppealReviewDialog = ({
       toast.success(`Thẩm định khiếu nại thành công (${outcome})`, {
         description:
           outcome === "OVERTURNED"
-            ? "Quyết định xử phạt đã được hủy và trạng thái Seller đã được khôi phục CLEAR."
+            ? "Quyết định xử phạt đã được hủy và trạng thái gian hàng đã được khôi phục bình thường."
             : "Đã cập nhật trạng thái khiếu nại.",
       });
       onOpenChange(false);
@@ -96,17 +96,17 @@ export const AppealReviewDialog = ({
         <DialogHeader>
           <div className="flex items-center gap-2 text-primary">
             <ShieldCheckIcon className="size-5" />
-            <DialogTitle>Thẩm định đơn khiếu nại (Review Appeal)</DialogTitle>
+            <DialogTitle>Thẩm định đơn khiếu nại</DialogTitle>
           </div>
           <DialogDescription>
-            Đưa ra kết luận thẩm định đối với đơn khiếu nại của Seller.
+            Đưa ra kết luận thẩm định đối với đơn khiếu nại của Người bán.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-2 text-sm">
           <div className="rounded-xl bg-muted/40 p-3 text-xs">
             <p className="font-semibold text-foreground">
-              Giải trình của Seller:
+              Giải trình của Người bán:
             </p>
             <p className="mt-1 leading-relaxed text-muted-foreground whitespace-pre-wrap">
               {appeal.sellerReason}
@@ -118,16 +118,15 @@ export const AppealReviewDialog = ({
             <Select
               items={[
                 {
-                  label: "Chuyển sang Đang thẩm định (Under Review)",
+                  label: "Chuyển sang Đang thẩm định",
                   value: "UNDER_REVIEW",
                 },
                 {
-                  label: "Bác bỏ khiếu nại - Giữ nguyên phạt (Upheld)",
+                  label: "Bác bỏ khiếu nại (Giữ nguyên phạt)",
                   value: "UPHELD",
                 },
                 {
-                  label:
-                    "Chấp thuận khiếu nại - Hủy phạt & Khôi phục CLEAR (Overturned)",
+                  label: "Chấp thuận khiếu nại (Hủy phạt & Khôi phục)",
                   value: "OVERTURNED",
                 },
               ]}
@@ -140,14 +139,12 @@ export const AppealReviewDialog = ({
                 <SelectValue placeholder="Chọn kết luận thẩm định" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="UNDER_REVIEW">
-                  Đang thẩm định (Under Review)
-                </SelectItem>
+                <SelectItem value="UNDER_REVIEW">Đang thẩm định</SelectItem>
                 <SelectItem value="UPHELD">
-                  Bác bỏ khiếu nại - Giữ nguyên phạt (Upheld)
+                  Bác bỏ khiếu nại (Giữ nguyên phạt)
                 </SelectItem>
                 <SelectItem value="OVERTURNED">
-                  Chấp thuận khiếu nại - Hủy phạt & Khôi phục (Overturned)
+                  Chấp thuận khiếu nại (Hủy phạt & Khôi phục)
                 </SelectItem>
               </SelectContent>
             </Select>
@@ -178,7 +175,7 @@ export const AppealReviewDialog = ({
           {outcome === "UNDER_REVIEW" ? null : (
             <div className="grid gap-1.5">
               <Label htmlFor="review-outcome-reason">
-                Lý do kết luận (Bắt buộc, thông báo cho Seller){" "}
+                Lý do kết luận (Bắt buộc, thông báo cho Người bán){" "}
                 <span className="text-destructive">*</span>
               </Label>
               <Textarea
@@ -197,9 +194,7 @@ export const AppealReviewDialog = ({
           )}
 
           <div className="grid gap-1.5">
-            <Label htmlFor="review-admin-note">
-              Ghi chú nội bộ Admin (Tùy chọn)
-            </Label>
+            <Label htmlFor="review-admin-note">Ghi chú nội bộ (Tùy chọn)</Label>
             <Textarea
               disabled={reviewMutation.isPending}
               id="review-admin-note"
