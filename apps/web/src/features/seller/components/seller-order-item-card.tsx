@@ -64,6 +64,8 @@ import { formatVND } from "@/utils/format";
 import { getErrorMessage } from "@/utils/get-error-message";
 import { orpc } from "@/utils/orpc";
 
+import { useSellerEnforcement } from "../api/seller-enforcement-api";
+
 const getEscrowHoldStatusLabel = (status: string): string => {
   if (status === "HELD") {
     return "Đang giữ tiền";
@@ -337,13 +339,17 @@ export const SellerOrderItemCard = ({
     })
   );
 
+  const { data: enforcement } = useSellerEnforcement();
+  const isBanned = enforcement?.state === "BANNED";
+
   const current = timelineQuery.data?.current;
   const status = current?.status ?? item.status;
   const warrantyExpiresAt =
     current?.warrantyExpiresAt ?? item.warrantyExpiresAt;
   const deliveryReviewDeadlineAt =
     current?.deliveryReviewDeadlineAt ?? item.deliveryReviewDeadlineAt;
-  const canCancel = status === "AWAITING_SELLER" || status === "IN_PROGRESS";
+  const canCancel =
+    (status === "AWAITING_SELLER" || status === "IN_PROGRESS") && !isBanned;
   const currentDispute = timelineQuery.data?.dispute;
   const canSubmitSellerEvidence =
     status === "DISPUTED" && currentDispute?.status === "OPEN";
@@ -489,7 +495,7 @@ export const SellerOrderItemCard = ({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {status === "AWAITING_SELLER" ? (
+          {status === "AWAITING_SELLER" && !isBanned ? (
             <Button
               disabled={startMutation.isPending}
               onClick={() => void handleStart()}
@@ -512,8 +518,16 @@ export const SellerOrderItemCard = ({
           ) : null}
         </div>
 
-        {status === "IN_PROGRESS" ? (
+        {status === "IN_PROGRESS" && !isBanned ? (
           <SellerDeliveryForm itemId={item.id} onCompleted={invalidateItem} />
+        ) : null}
+
+        {isBanned &&
+        (status === "AWAITING_SELLER" || status === "IN_PROGRESS") ? (
+          <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-xs text-destructive">
+            Tài khoản Seller đang trong chế độ Banned. Các thao tác bắt đầu, bàn
+            giao hoặc hủy đơn đã bị vô hiệu hóa.
+          </div>
         ) : null}
 
         {canSubmitSellerEvidence ? (

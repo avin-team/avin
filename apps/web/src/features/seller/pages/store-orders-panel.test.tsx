@@ -71,6 +71,14 @@ vi.mock("@/utils/orpc", () => ({
         },
       },
     },
+    sellerEnforcement: {
+      seller: {
+        get: {
+          key: () => ["sellerEnforcement", "get"],
+          queryOptions: () => ({ queryKey: ["sellerEnforcement", "get"] }),
+        },
+      },
+    },
   },
 }));
 
@@ -254,8 +262,11 @@ describe("StoreOrdersPanel", () => {
       isPending: false,
       mutateAsync: mocks.mutateAsync,
     });
-    mocks.useQuery.mockImplementation((options: { queryKey: string[] }) =>
-      options.queryKey[0] === "seller-orders"
+    mocks.useQuery.mockImplementation((options: { queryKey: string[] }) => {
+      if (options.queryKey[0] === "sellerEnforcement") {
+        return { data: { state: "CLEAR" }, isPending: false };
+      }
+      return options.queryKey[0] === "seller-orders"
         ? mocks.ordersQuery
         : {
             ...mocks.timelineQuery,
@@ -265,8 +276,8 @@ describe("StoreOrdersPanel", () => {
                   options.queryKey[1] === item.id ? makeTimeline(item) : null
                 )
                 .find(Boolean) ?? null,
-          }
-    );
+          };
+    });
   });
 
   afterEach(() => {

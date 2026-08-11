@@ -19,6 +19,7 @@ import { useState } from "react";
 import { StoreOrdersPanel } from "@/features/seller/pages/store-orders-panel";
 import { orpc } from "@/utils/orpc";
 
+import { SellerEnforcementBanner } from "../components/seller-enforcement-banner";
 import { SellerWalletPanel } from "../components/seller-wallet-panel";
 import { StoreProfilePanel } from "../components/store-profile-panel";
 import { StoreSectionPlaceholder } from "../components/store-section-placeholder";
@@ -313,7 +314,8 @@ export const StorePage = () => {
               </div>
             </div>
           </div>
-          <div className="mt-6">
+          <div className="mt-6 space-y-6">
+            <SellerEnforcementBanner />
             <StoreContent
               active={active}
               onNavigateSection={(section) => setActive(section)}

@@ -5,6 +5,9 @@ import {
   areListingsVisible,
   canRequestWithdrawal,
   enforceSeller,
+  getActionTypeLabel,
+  getAppealStatusLabel,
+  getReasonCodeLabel,
 } from "./workflow";
 
 describe("Seller enforcement workflow", () => {
@@ -29,7 +32,7 @@ describe("Seller enforcement workflow", () => {
 
   it("requires a reason to suspend or ban a seller", () => {
     expect(() => enforceSeller(mockSeller, "SUSPENDED", "   ")).toThrow(
-      "Mẫu lý do xử lý vi phạm không được để trống"
+      "Lý do xử lý vi phạm không được để trống"
     );
   });
 
@@ -39,11 +42,57 @@ describe("Seller enforcement workflow", () => {
     ).toThrow("Seller đã ở trạng thái ACTIVE");
   });
 
+  it("requires ban confirmation flags when banning a seller", () => {
+    expect(() =>
+      enforceSeller(
+        mockSeller,
+        "BANNED",
+        "Gian lận tài chính nghiêm trọng",
+        "Avin Admin",
+        {
+          confirmAffectedEscrowHolds: false,
+          confirmAffectedOrderItems: true,
+          confirmAffectedWithdrawals: true,
+        }
+      )
+    ).toThrow(
+      "Cấm Seller yêu cầu xác nhận đầy đủ 3 cam kết xử lý đơn hàng, escrow và rút tiền"
+    );
+  });
+
+  it("successfully bans an active seller when all confirmations are provided", () => {
+    const banned = enforceSeller(
+      mockSeller,
+      "BANNED",
+      "Gian lận tài chính nghiêm trọng",
+      "Avin Admin",
+      {
+        adminNote: "Ghi chú bảo mật nội bộ",
+        confirmAffectedEscrowHolds: true,
+        confirmAffectedOrderItems: true,
+        confirmAffectedWithdrawals: true,
+        reasonCode: "FRAUD_RISK",
+      }
+    );
+
+    expect(banned.enforcementStatus).toBe("BANNED");
+    expect(banned.enforcementHistory).toHaveLength(1);
+    expect(banned.enforcementHistory[0]?.reasonCode).toBe("FRAUD_RISK");
+    expect(banned.enforcementHistory[0]?.adminNote).toBe(
+      "Ghi chú bảo mật nội bộ"
+    );
+    expect(banned.enforcementHistory[0]?.actionType).toBe("BAN");
+  });
+
   it("successfully suspends an active seller with history", () => {
     const suspended = enforceSeller(
       mockSeller,
       "SUSPENDED",
-      "Vi phạm chính sách bảo hành"
+      "Vi phạm chính sách bảo hành",
+      "Avin Admin",
+      {
+        reasonCode: "POLICY_VIOLATION",
+      }
     );
     expect(suspended.enforcementStatus).toBe("SUSPENDED");
     expect(suspended.enforcementHistory).toHaveLength(1);
@@ -62,5 +111,15 @@ describe("Seller enforcement workflow", () => {
     expect(areListingsVisible("ACTIVE")).toBe(true);
     expect(areListingsVisible("SUSPENDED")).toBe(false);
     expect(areListingsVisible("BANNED")).toBe(false);
+  });
+
+  it("formats labels correctly", () => {
+    expect(getReasonCodeLabel("FRAUD_RISK")).toBe(
+      "Nghi ngờ gian lận / Lừa đảo"
+    );
+    expect(getActionTypeLabel("BAN")).toBe("Cấm vĩnh viễn (Ban)");
+    expect(getAppealStatusLabel("SUBMITTED")).toBe(
+      "Đã nộp khiếu nại (Chờ xem xét)"
+    );
   });
 });

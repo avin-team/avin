@@ -8,12 +8,12 @@ import {
 } from "@avin/ui/components/card";
 import { Separator } from "@avin/ui/components/separator";
 import {
-  WarningIcon,
   ArrowLeftIcon,
-  ProhibitIcon,
   CheckCircleIcon,
-  ShieldIcon,
+  NotePencilIcon,
+  ProhibitIcon,
   WalletIcon,
+  WarningIcon,
 } from "@phosphor-icons/react";
 import { Link, useParams } from "@tanstack/react-router";
 import { useState } from "react";
@@ -23,9 +23,18 @@ import { Main } from "@/components/layout/main";
 import { ThemeSwitch } from "@/components/theme-switch";
 
 import { getSeller, useSellers } from "../api/mock-sellers";
+import { useAdminSellerEnforcement } from "../api/seller-enforcement-api";
+import { AppealsListCard } from "../components/appeals-list-card";
 import { EnforcementDialog } from "../components/enforcement-dialog";
+import { ReasonCorrectionDialog } from "../components/reason-correction-dialog";
+import { RemediationCard } from "../components/remediation-card";
 import { SellerEnforcementBadge } from "../components/seller-enforcement-badge";
-import type { SellerEnforcementStatus } from "../types";
+import { SellerEnforcementHistoryCard } from "../components/seller-enforcement-history-card";
+import type {
+  EnforcementRemediation,
+  SellerEnforcementReasonCode,
+  SellerEnforcementStatus,
+} from "../types";
 
 const DetailField = ({
   label,
@@ -43,13 +52,17 @@ const DetailField = ({
 export const SellerDetailPage = () => {
   const { sellerId } = useParams({ from: "/_authenticated/sellers/$sellerId" });
   const sellers = useSellers();
-  const seller = sellers.find((s) => s.id === sellerId) ?? getSeller(sellerId);
+  const mockSeller =
+    sellers.find((s) => s.id === sellerId) ?? getSeller(sellerId);
+
+  const { data: enforcementData } = useAdminSellerEnforcement(sellerId);
 
   const [targetStatus, setTargetStatus] =
     useState<SellerEnforcementStatus | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [reasonCorrectionOpen, setReasonCorrectionOpen] = useState(false);
 
-  if (!seller) {
+  if (!mockSeller) {
     return (
       <Main className="flex flex-1 flex-col items-start justify-center gap-4">
         <p className="text-sm font-medium text-primary">SELLER GOVERNANCE</p>
@@ -62,6 +75,16 @@ export const SellerDetailPage = () => {
       </Main>
     );
   }
+
+  const effectiveStatus: SellerEnforcementStatus =
+    enforcementData?.state === "CLEAR"
+      ? "ACTIVE"
+      : (enforcementData?.state ?? mockSeller.enforcementStatus);
+
+  const seller = {
+    ...mockSeller,
+    enforcementStatus: effectiveStatus,
+  };
 
   const handleAction = (status: SellerEnforcementStatus) => {
     setTargetStatus(status);
@@ -172,53 +195,33 @@ export const SellerDetailPage = () => {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ShieldIcon className="size-5 text-primary" />
-                  Nhật ký xử lý vi phạm (Enforcement Audit)
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-3">
-                {seller.enforcementHistory.map((record) => (
-                  <div
-                    className="rounded-xl border p-3 text-sm"
-                    key={record.id}
-                  >
-                    <div className="flex items-center justify-between font-medium">
-                      <span>
-                        {record.previousStatus} $\rightarrow${" "}
-                        <strong>{record.newStatus}</strong>
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(record.createdAt).toLocaleString("vi-VN")}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                      Lý do: {record.reason} (Thực hiện bởi: {record.adminName})
-                    </p>
-                  </div>
-                ))}
-                {seller.enforcementHistory.length === 0 && (
-                  <p className="py-2 text-sm text-muted-foreground">
-                    Chưa có lịch sử xử lý vi phạm nào đối với Seller này.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+            <RemediationCard
+              remediation={
+                (enforcementData?.remediation as unknown as EnforcementRemediation) ??
+                null
+              }
+              sellerId={seller.id}
+            />
+
+            <AppealsListCard sellerId={seller.id} />
+
+            <SellerEnforcementHistoryCard
+              fallbackHistory={seller.enforcementHistory}
+              sellerId={seller.id}
+            />
           </div>
 
           <Card className="h-fit">
             <CardHeader>
               <CardTitle>Quyết định xử lý Admin</CardTitle>
               <CardDescription>
-                Thay đổi trạng thái hoạt động của Seller.
+                Thay đổi trạng thái hoạt động của Seller hoặc hiệu chỉnh lý do.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3">
               {seller.enforcementStatus !== "ACTIVE" && (
                 <Button onClick={() => handleAction("ACTIVE")}>
-                  <CheckCircleIcon /> Khôi phục Hoạt Động (Active)
+                  <CheckCircleIcon /> Khôi phục Hoạt Động (Lift Enforcement)
                 </Button>
               )}
               {seller.enforcementStatus !== "SUSPENDED" && (
@@ -238,6 +241,15 @@ export const SellerDetailPage = () => {
                 </Button>
               )}
 
+              {seller.enforcementStatus !== "ACTIVE" && (
+                <Button
+                  onClick={() => setReasonCorrectionOpen(true)}
+                  variant="secondary"
+                >
+                  <NotePencilIcon /> Hiệu chỉnh lý do vi phạm
+                </Button>
+              )}
+
               <Separator />
               <div className="text-xs leading-relaxed text-muted-foreground">
                 <p>
@@ -254,6 +266,11 @@ export const SellerDetailPage = () => {
                     động hủy và refund các đơn hàng chưa giao, đóng băng số dư
                     payout.
                   </li>
+                  <li>
+                    <strong>Reason Correction:</strong> Sửa lại lý do hoặc mã vi
+                    phạm gửi tới Seller mà không làm gián đoạn trạng thái xử
+                    phạt.
+                  </li>
                 </ul>
               </div>
             </CardContent>
@@ -266,6 +283,18 @@ export const SellerDetailPage = () => {
         open={dialogOpen}
         seller={seller}
         targetStatus={targetStatus}
+      />
+
+      <ReasonCorrectionDialog
+        currentReason={enforcementData?.action?.sellerReason}
+        currentReasonCode={
+          (enforcementData?.action
+            ?.reasonCode as unknown as SellerEnforcementReasonCode) ??
+          "POLICY_VIOLATION"
+        }
+        onOpenChange={setReasonCorrectionOpen}
+        open={reasonCorrectionOpen}
+        sellerId={seller.id}
       />
     </>
   );

@@ -35,6 +35,7 @@ import { toast } from "sonner";
 
 import { orpc } from "@/utils/orpc";
 
+import { useSellerEnforcement } from "../api/seller-enforcement-api";
 import {
   formatSellerListingPrice,
   getSellerListingActionLabel,
@@ -137,6 +138,10 @@ export const StoreProductsPanel = () => {
   const queryClient = useQueryClient();
   const [pendingDelete, setPendingDelete] =
     useState<SellerProductListItem | null>(null);
+  const { data: enforcement } = useSellerEnforcement();
+  const isEnforced =
+    enforcement?.state === "SUSPENDED" || enforcement?.state === "BANNED";
+
   const listingsQuery = useQuery(
     orpc.listing.sellerWorkspace.listMine.queryOptions({
       retry: false,
@@ -158,8 +163,15 @@ export const StoreProductsPanel = () => {
     })
   );
 
-  const openEditor = (id: string) =>
+  const openEditor = (id: string) => {
+    if (isEnforced && id === "new") {
+      toast.error(
+        `Không thể tạo sản phẩm mới khi tài khoản đang bị ${enforcement.state}`
+      );
+      return;
+    }
     void navigate({ params: { id }, to: "/seller/listings/$id" });
+  };
 
   const openNewEditor = () => openEditor("new");
 

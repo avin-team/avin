@@ -100,6 +100,14 @@ vi.mock("@avin/ui/components/badge", () => ({
 }));
 vi.mock("@/utils/orpc", () => ({
   orpc: {
+    sellerEnforcement: {
+      seller: {
+        get: {
+          key: () => ["sellerEnforcement", "get"],
+          queryOptions: () => ({ queryKey: ["sellerEnforcement", "get"] }),
+        },
+      },
+    },
     wallet: {
       seller: {
         cancelWithdrawal: { mutationOptions: () => ({}) },
@@ -115,9 +123,14 @@ vi.mock("@/utils/orpc", () => ({
 
 describe("SellerWalletPanel", () => {
   beforeEach(() => {
-    mocks.useQuery.mockImplementation((options: { queryKey: string[] }) =>
-      options.queryKey[0] === "summary" ? mocks.summary : mocks.withdrawals
-    );
+    mocks.useQuery.mockImplementation((options: { queryKey: string[] }) => {
+      if (options.queryKey[0] === "sellerEnforcement") {
+        return { data: { state: "CLEAR" }, isPending: false };
+      }
+      return options.queryKey[0] === "summary"
+        ? mocks.summary
+        : mocks.withdrawals;
+    });
   });
 
   afterEach(() => {

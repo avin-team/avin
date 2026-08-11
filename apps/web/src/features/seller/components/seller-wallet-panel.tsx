@@ -25,6 +25,7 @@ import { formatVND } from "@/utils/format";
 import { getErrorMessage } from "@/utils/get-error-message";
 import { orpc } from "@/utils/orpc";
 
+import { useSellerEnforcement } from "../api/seller-enforcement-api";
 import {
   sellerWalletSummaryQueryOptions,
   sellerWithdrawalQueryKey,
@@ -136,6 +137,10 @@ export const SellerWalletPanel = () => {
   const queryClient = useQueryClient();
   const summaryQuery = useQuery(sellerWalletSummaryQueryOptions());
   const withdrawalsQuery = useQuery(sellerWithdrawalsQueryOptions());
+  const { data: enforcement } = useSellerEnforcement();
+  const isEnforced =
+    enforcement?.state === "SUSPENDED" || enforcement?.state === "BANNED";
+
   const invalidateWallet = async () => {
     await Promise.all([
       queryClient.invalidateQueries({
@@ -262,66 +267,81 @@ export const SellerWalletPanel = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form
-              onSubmit={async (event) => {
-                event.preventDefault();
-                await withdrawalForm.handleSubmit();
-              }}
-            >
-              <FieldGroup>
-                <withdrawalForm.Field name="amount">
-                  {(field) => {
-                    const invalid =
-                      field.state.meta.isTouched && !field.state.meta.isValid;
-                    return (
-                      <Field data-invalid={invalid}>
-                        <FieldLabel htmlFor="withdrawal-amount">
-                          Số tiền rút (VND)
-                        </FieldLabel>
-                        <Input
-                          aria-invalid={invalid}
-                          id="withdrawal-amount"
-                          min={SELLER_WITHDRAWAL_MINIMUM_AMOUNT}
-                          name={field.name}
-                          onBlur={field.handleBlur}
-                          onChange={(event) =>
-                            field.handleChange(Number(event.target.value))
-                          }
-                          type="number"
-                          value={field.state.value}
-                        />
-                        {invalid ? (
-                          <FieldError errors={field.state.meta.errors} />
-                        ) : (
-                          <FieldDescription>
-                            Số dư khả dụng sẽ được giữ ngay khi gửi yêu cầu.
-                          </FieldDescription>
-                        )}
-                      </Field>
-                    );
-                  }}
-                </withdrawalForm.Field>
-                <withdrawalForm.Subscribe
-                  selector={(state) =>
-                    [state.canSubmit, state.isSubmitting] as const
-                  }
-                >
-                  {([canSubmit, isSubmitting]) => (
-                    <Button
-                      disabled={
-                        !canSubmit || isSubmitting || requestMutation.isPending
-                      }
-                      type="submit"
-                    >
-                      <WalletIcon data-icon="inline-start" />
-                      {isSubmitting || requestMutation.isPending
-                        ? "Đang gửi..."
-                        : "Gửi yêu cầu rút"}
-                    </Button>
-                  )}
-                </withdrawalForm.Subscribe>
-              </FieldGroup>
-            </form>
+            {isEnforced ? (
+              <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-xs leading-relaxed text-destructive">
+                <p className="font-semibold">
+                  Tạm khóa chức năng rút tiền ({enforcement.state})
+                </p>
+                <p className="mt-1 text-muted-foreground">
+                  Tài khoản Seller đang chịu chế tài xử lý vi phạm. Quyền tạo
+                  yêu cầu rút tiền mới tạm thời bị vô hiệu hóa cho đến khi
+                  enforcement được gỡ bỏ hoặc khiếu nại thành công.
+                </p>
+              </div>
+            ) : (
+              <form
+                onSubmit={async (event) => {
+                  event.preventDefault();
+                  await withdrawalForm.handleSubmit();
+                }}
+              >
+                <FieldGroup>
+                  <withdrawalForm.Field name="amount">
+                    {(field) => {
+                      const invalid =
+                        field.state.meta.isTouched && !field.state.meta.isValid;
+                      return (
+                        <Field data-invalid={invalid}>
+                          <FieldLabel htmlFor="withdrawal-amount">
+                            Số tiền rút (VND)
+                          </FieldLabel>
+                          <Input
+                            aria-invalid={invalid}
+                            id="withdrawal-amount"
+                            min={SELLER_WITHDRAWAL_MINIMUM_AMOUNT}
+                            name={field.name}
+                            onBlur={field.handleBlur}
+                            onChange={(event) =>
+                              field.handleChange(Number(event.target.value))
+                            }
+                            type="number"
+                            value={field.state.value}
+                          />
+                          {invalid ? (
+                            <FieldError errors={field.state.meta.errors} />
+                          ) : (
+                            <FieldDescription>
+                              Số dư khả dụng sẽ được giữ ngay khi gửi yêu cầu.
+                            </FieldDescription>
+                          )}
+                        </Field>
+                      );
+                    }}
+                  </withdrawalForm.Field>
+                  <withdrawalForm.Subscribe
+                    selector={(state) =>
+                      [state.canSubmit, state.isSubmitting] as const
+                    }
+                  >
+                    {([canSubmit, isSubmitting]) => (
+                      <Button
+                        disabled={
+                          !canSubmit ||
+                          isSubmitting ||
+                          requestMutation.isPending
+                        }
+                        type="submit"
+                      >
+                        <WalletIcon data-icon="inline-start" />
+                        {isSubmitting || requestMutation.isPending
+                          ? "Đang gửi..."
+                          : "Gửi yêu cầu rút"}
+                      </Button>
+                    )}
+                  </withdrawalForm.Subscribe>
+                </FieldGroup>
+              </form>
+            )}
           </CardContent>
         </Card>
       </div>
