@@ -602,7 +602,10 @@ export const createOrdersAndEscrowHolds = async (
         now,
         recipients: [
           { targetPath: `/orders/${createdOrder.id}`, userId: buyerId },
-          { targetPath: `/orders/${createdOrder.id}`, userId: sellerId },
+          {
+            targetPath: "/seller/store?section=orders",
+            userId: sellerId,
+          },
         ],
         sourceId: lifecycleEvent.id,
         sourceType: "ORDER_ITEM_LIFECYCLE",

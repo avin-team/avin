@@ -52,12 +52,7 @@ export const StorePreviewPage = () => {
   };
 
   return (
-    <SellerLayout
-      active="profile"
-      onChange={() => {
-        void navigate({ to: "/seller/store" });
-      }}
-    >
+    <SellerLayout active="profile">
       <div className="min-w-0 px-4 pb-16 pt-6 sm:px-6 lg:px-8">
         <div className="mx-auto w-full max-w-3xl">
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border/60 pb-5">

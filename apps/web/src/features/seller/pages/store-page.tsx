@@ -13,8 +13,7 @@ import {
   UserCircleIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useSearch } from "@tanstack/react-router";
-import { useState } from "react";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 
 import { StoreOrdersPanel } from "@/features/seller/pages/store-orders-panel";
 import { orpc } from "@/utils/orpc";
@@ -290,14 +289,17 @@ const StoreContent = ({
 
 export const StorePage = () => {
   const search = useSearch({ from: "/_authenticated/seller/store" });
-  const initialSection: StoreSection =
+  const active: StoreSection =
     search.section === "developer" || search.section === undefined
       ? "overview"
       : search.section;
-  const [active, setActive] = useState<StoreSection>(initialSection);
+  const navigate = useNavigate({ from: "/seller/store" });
+  const handleNavigateSection = (section: StoreSection) => {
+    void navigate({ search: { section } });
+  };
 
   return (
-    <SellerLayout active={active} onChange={setActive}>
+    <SellerLayout active={active} onChange={handleNavigateSection}>
       <div className="min-w-0 px-4 pb-16 pt-6 sm:px-6 lg:px-8">
         <div className="mx-auto w-full max-w-512">
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border/60 pb-5">
@@ -318,7 +320,7 @@ export const StorePage = () => {
             <SellerEnforcementBanner />
             <StoreContent
               active={active}
-              onNavigateSection={(section) => setActive(section)}
+              onNavigateSection={handleNavigateSection}
             />
           </div>
         </div>

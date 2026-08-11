@@ -6,7 +6,7 @@ import { SellerAppSidebar } from "./app-sidebar";
 interface SellerLayoutProps {
   active: StoreSection;
   children: React.ReactNode;
-  onChange: (section: StoreSection) => void;
+  onChange?: (section: StoreSection) => void;
 }
 
 export const SellerLayout = ({

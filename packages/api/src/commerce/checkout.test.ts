@@ -95,7 +95,10 @@ describe("createCheckout", () => {
       now,
       recipients: [
         { targetPath: "/orders/order-1", userId: "buyer-1" },
-        { targetPath: "/orders/order-1", userId: "seller-1" },
+        {
+          targetPath: "/seller/store?section=orders",
+          userId: "seller-1",
+        },
       ],
       sourceId: "lifecycle-event-1",
       sourceType: "ORDER_ITEM_LIFECYCLE",

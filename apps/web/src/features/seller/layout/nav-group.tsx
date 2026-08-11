@@ -15,20 +15,21 @@ import {
   useSidebar,
 } from "@avin/ui/components/sidebar";
 import { CaretRightIcon, ShoppingBagIcon } from "@phosphor-icons/react";
+import { Link } from "@tanstack/react-router";
 
 import type { StoreSection } from "../data/store-types";
 import type { SellerNavGroup as SellerNavGroupData } from "./types";
 
 interface SellerNavGroupProps extends SellerNavGroupData {
   active: StoreSection;
-  onChange: (section: StoreSection) => void;
+  onChange?: (section: StoreSection) => void;
 }
 
 export const SellerNavGroup = ({
   active,
   items,
-  title,
   onChange,
+  title,
 }: SellerNavGroupProps) => {
   const { setOpenMobile } = useSidebar();
 
@@ -44,13 +45,17 @@ export const SellerNavGroup = ({
             <SidebarMenuButton
               isActive={isActive}
               render={
-                <button
+                <Link
                   aria-label={item.label}
-                  onClick={() => {
-                    onChange(item.value);
+                  onClick={(event) => {
                     setOpenMobile(false);
+                    if (onChange) {
+                      event.preventDefault();
+                      onChange(item.value);
+                    }
                   }}
-                  type="button"
+                  search={{ section: item.value }}
+                  to="/seller/store"
                 />
               }
               tooltip={item.label}
@@ -99,14 +104,18 @@ export const SellerNavGroup = ({
                     <SidebarMenuSubButton
                       isActive={isActive}
                       render={
-                        <button
+                        <Link
                           aria-label={item.label}
                           className="w-full"
-                          onClick={() => {
-                            onChange(item.value);
+                          onClick={(event) => {
                             setOpenMobile(false);
+                            if (onChange) {
+                              event.preventDefault();
+                              onChange(item.value);
+                            }
                           }}
-                          type="button"
+                          search={{ section: item.value }}
+                          to="/seller/store"
                         />
                       }
                     >

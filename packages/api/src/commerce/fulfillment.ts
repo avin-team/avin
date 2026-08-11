@@ -791,7 +791,10 @@ const insertNotifications = async (
 ): Promise<void> => {
   const recipients = [
     { targetPath: `/orders/${item.orderId}`, userId: item.buyerId },
-    { targetPath: `/orders/${item.orderId}`, userId: item.sellerId },
+    {
+      targetPath: "/seller/store?section=orders",
+      userId: item.sellerId,
+    },
   ];
   if (command.type === "OPEN_DISPUTE") {
     recipients.push(

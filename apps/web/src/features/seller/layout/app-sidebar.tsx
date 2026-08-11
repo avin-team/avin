@@ -18,7 +18,7 @@ import { SellerNavGroup } from "./nav-group";
 
 interface SellerAppSidebarProps {
   active: StoreSection;
-  onChange: (section: StoreSection) => void;
+  onChange?: (section: StoreSection) => void;
 }
 
 export const SellerAppSidebar = ({
