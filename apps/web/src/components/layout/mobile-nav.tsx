@@ -1,10 +1,18 @@
 import { ACCOUNT_ROLE } from "@avin/auth/permissions";
-import { ListIcon, XIcon } from "@phosphor-icons/react";
+import { cn } from "@avin/ui/lib/utils";
+import {
+  DesktopIcon,
+  ListIcon,
+  MoonIcon,
+  SunIcon,
+  XIcon,
+} from "@phosphor-icons/react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { AnimatePresence } from "motion/react";
 import * as m from "motion/react-m";
 import { toast } from "sonner";
 
+import { useTheme } from "@/components/theme-provider";
 import type { MainNavItem } from "@/config/site";
 import { authClient } from "@/features/auth/api/auth-client";
 
@@ -58,6 +66,7 @@ export const MobileNavTrigger = ({
 export const MobileNav = ({ isOpen, items, onToggle }: MobileNavProps) => {
   const navigate = useNavigate();
   const { data: session } = authClient.useSession();
+  const { theme, setTheme } = useTheme();
 
   return (
     <AnimatePresence>
@@ -99,6 +108,50 @@ export const MobileNav = ({ isOpen, items, onToggle }: MobileNavProps) => {
                 className="space-y-3 border-t border-border pt-6"
                 variants={mobileItemVariants}
               >
+                <div className="flex items-center justify-between px-4 py-1 text-sm">
+                  <span className="font-medium text-foreground">Giao diện</span>
+                  <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
+                    <button
+                      aria-label="Giao diện sáng"
+                      className={cn(
+                        "rounded-md p-1.5 transition-colors",
+                        theme === "light"
+                          ? "bg-background text-foreground shadow-xs"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                      onClick={() => setTheme("light")}
+                      type="button"
+                    >
+                      <SunIcon className="size-4" />
+                    </button>
+                    <button
+                      aria-label="Giao diện tối"
+                      className={cn(
+                        "rounded-md p-1.5 transition-colors",
+                        theme === "dark"
+                          ? "bg-background text-foreground shadow-xs"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                      onClick={() => setTheme("dark")}
+                      type="button"
+                    >
+                      <MoonIcon className="size-4" />
+                    </button>
+                    <button
+                      aria-label="Giao diện hệ thống"
+                      className={cn(
+                        "rounded-md p-1.5 transition-colors",
+                        theme === "system"
+                          ? "bg-background text-foreground shadow-xs"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                      onClick={() => setTheme("system")}
+                      type="button"
+                    >
+                      <DesktopIcon className="size-4" />
+                    </button>
+                  </div>
+                </div>
                 {session ? (
                   <div className="flex flex-col gap-2">
                     <div className="px-4 py-1 font-semibold text-foreground text-sm">

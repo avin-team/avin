@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import * as m from "motion/react-m";
 import { useEffect, useRef, useState } from "react";
 
+import { ModeToggle } from "@/components/mode-toggle";
 import { siteConfig } from "@/config/site";
 import { UserMenu } from "@/features/auth/components/user-menu";
 import { ChatButton } from "@/features/chat/components/chat-button";
@@ -76,28 +77,31 @@ export const Header = () => {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             <m.div
-              className="flex items-center space-x-3"
+              className="flex items-center gap-3"
               transition={{ damping: 25, stiffness: 400, type: "spring" }}
               variants={itemVariants}
-              whileHover={{ scale: 1.02 }}
             >
-              <Link className="flex items-center space-x-3" to="/">
-                <div className="relative flex size-9 items-center justify-center overflow-hidden rounded-xl bg-muted/20 shadow-sm border border-border/60">
-                  <img
-                    alt="Avin Logo"
-                    className="size-full object-cover"
-                    src="/logo.png"
-                  />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-lg font-bold text-foreground">
-                    {siteConfig.name}
-                  </span>
-                  <span className="-mt-1 text-xs text-muted-foreground">
-                    Dịch vụ số
-                  </span>
-                </div>
-              </Link>
+              <m.div whileHover={{ scale: 1.02 }}>
+                <Link className="flex items-center space-x-3" to="/">
+                  <div className="relative flex size-9 items-center justify-center overflow-hidden rounded-xl bg-muted/20 shadow-sm border border-border/60">
+                    <img
+                      alt="Avin Logo"
+                      className="size-full object-cover"
+                      src="/logo.png"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-lg font-bold text-foreground">
+                      {siteConfig.name}
+                    </span>
+                    <span className="-mt-1 text-xs text-muted-foreground">
+                      Dịch vụ số
+                    </span>
+                  </div>
+                </Link>
+              </m.div>
+
+              <ModeToggle />
             </m.div>
 
             <MainNav items={siteConfig.mainNav} />

@@ -25,7 +25,7 @@ export const NotificationButton = () => {
           ? `Thông báo, ${unreadCount} thông báo chưa đọc`
           : "Thông báo"
       }
-      className="relative"
+      className="relative text-muted-foreground hover:text-foreground"
       render={<Link to="/notifications" />}
       size="icon"
       title="Thông báo"
@@ -35,7 +35,7 @@ export const NotificationButton = () => {
       {unreadCount > 0 ? (
         <Badge
           aria-hidden="true"
-          className="pointer-events-none absolute -top-1 -right-1 h-4 min-w-4 justify-center rounded-full px-1 text-[10px] leading-none"
+          className="pointer-events-none absolute -top-1 -right-1 h-4 min-w-4 justify-center rounded-full bg-primary px-1 text-[10px] leading-none text-primary-foreground"
         >
           {unreadCount > 99 ? "99+" : unreadCount}
         </Badge>

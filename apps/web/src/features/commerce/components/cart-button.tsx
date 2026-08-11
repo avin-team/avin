@@ -31,7 +31,7 @@ export const CartButton = () => {
       aria-label={
         itemCount > 0 ? `Giỏ hàng, ${itemCount} sản phẩm` : "Giỏ hàng"
       }
-      className="relative"
+      className="relative text-muted-foreground hover:text-foreground"
       render={<Link to="/cart" />}
       size="icon"
       variant="ghost"
@@ -40,8 +40,7 @@ export const CartButton = () => {
       {itemCount > 0 ? (
         <Badge
           aria-hidden="true"
-          className="pointer-events-none absolute -top-1 -right-1 h-4 min-w-4 justify-center rounded-full px-1 text-[10px] leading-none"
-          variant="destructive"
+          className="pointer-events-none absolute -top-1 -right-1 h-4 min-w-4 justify-center rounded-full bg-primary px-1 text-[10px] leading-none text-primary-foreground"
         >
           {formatCartCount(itemCount)}
         </Badge>

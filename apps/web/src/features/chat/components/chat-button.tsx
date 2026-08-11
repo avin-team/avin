@@ -11,6 +11,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@avin/ui/components/popover";
+import { cn } from "@avin/ui/lib/utils";
 import { ChatCircleDotsIcon, CaretRightIcon } from "@phosphor-icons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -106,7 +107,7 @@ export const ChatButton = () => {
         aria-label={
           unreadCount > 0 ? `Tin nhắn, ${unreadCount} tin nhắn mới` : "Tin nhắn"
         }
-        className="relative inline-flex size-9 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="relative inline-flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
         <ChatCircleDotsIcon className="size-5.5" />
         {unreadCount > 0 ? (
@@ -123,12 +124,19 @@ export const ChatButton = () => {
         <div className="flex items-start justify-between border-b border-border/60 px-4 py-3">
           <div>
             <h2 className="text-base font-semibold">Tin nhắn</h2>
-            <p className="text-xs font-medium text-destructive">
+            <p
+              className={cn(
+                "text-xs font-medium",
+                unreadCount > 0
+                  ? "text-primary font-semibold"
+                  : "text-muted-foreground"
+              )}
+            >
               {unreadCount} chưa đọc
             </p>
           </div>
           <Link
-            className="inline-flex items-center gap-1 text-xs font-semibold text-destructive hover:underline"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
             to="/chat"
           >
             Xem tất cả

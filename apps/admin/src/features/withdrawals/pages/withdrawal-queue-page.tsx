@@ -1,3 +1,8 @@
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@avin/ui/components/avatar";
 import { Button } from "@avin/ui/components/button";
 import {
   Card,
@@ -45,6 +50,8 @@ export const WithdrawalQueuePage = () => {
     (request) =>
       q.length === 0 ||
       request.sellerId.toLowerCase().includes(q) ||
+      request.sellerName.toLowerCase().includes(q) ||
+      request.sellerEmail.toLowerCase().includes(q) ||
       request.bankAccount.accountNumber.includes(q) ||
       request.bankAccount.bankName.toLowerCase().includes(q)
   );
@@ -153,8 +160,31 @@ export const WithdrawalQueuePage = () => {
                 ) : null}
                 {withdrawals.map((request) => (
                   <TableRow key={request.id}>
-                    <TableCell className="font-mono text-xs">
-                      {request.sellerId}
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="size-8">
+                          {request.sellerImage ? (
+                            <AvatarImage
+                              alt={request.sellerName}
+                              src={request.sellerImage}
+                            />
+                          ) : null}
+                          <AvatarFallback>
+                            {request.sellerName
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")
+                              .slice(0, 2)
+                              .toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium">{request.sellerName}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {request.sellerEmail}
+                          </p>
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <p className="font-medium">

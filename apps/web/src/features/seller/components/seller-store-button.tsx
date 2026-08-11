@@ -19,7 +19,7 @@ export const SellerStoreButton = () => {
   return (
     <Button
       aria-label={label}
-      className="relative"
+      className="relative text-muted-foreground hover:text-foreground"
       render={<Link to="/seller/store" />}
       size="icon"
       title={label}

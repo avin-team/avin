@@ -68,7 +68,10 @@ export interface AdminWithdrawalRequestView {
   createdAt: string;
   id: string;
   paymentReference: string | null;
+  sellerEmail: string;
   sellerId: string;
+  sellerImage: string | null;
+  sellerName: string;
   status: WithdrawalStatus;
 }
 
@@ -138,7 +141,12 @@ const mapWithdrawalRequest = (
 });
 
 const mapAdminWithdrawalRequest = (
-  request: typeof withdrawalRequest.$inferSelect
+  request: typeof withdrawalRequest.$inferSelect,
+  seller: {
+    sellerEmail: string;
+    sellerImage: string | null;
+    sellerName: string;
+  }
 ): AdminWithdrawalRequestView => ({
   amount: request.amount,
   bankAccount: {
@@ -149,7 +157,10 @@ const mapAdminWithdrawalRequest = (
   createdAt: request.createdAt.toISOString(),
   id: request.id,
   paymentReference: request.paymentReference,
+  sellerEmail: seller.sellerEmail,
   sellerId: request.sellerId,
+  sellerImage: seller.sellerImage,
+  sellerName: seller.sellerName,
   status: request.status,
 });
 
@@ -284,12 +295,24 @@ export const listAdminWithdrawalRequests = async ({
   database?: typeof db;
   status?: WithdrawalStatus;
 } = {}): Promise<AdminWithdrawalRequestView[]> => {
-  const requests = await database
-    .select()
+  const rows = await database
+    .select({
+      request: withdrawalRequest,
+      sellerEmail: user.email,
+      sellerImage: user.image,
+      sellerName: user.name,
+    })
     .from(withdrawalRequest)
+    .innerJoin(user, eq(withdrawalRequest.sellerId, user.id))
     .where(status ? eq(withdrawalRequest.status, status) : undefined)
     .orderBy(desc(withdrawalRequest.createdAt), desc(withdrawalRequest.id));
-  return requests.map(mapAdminWithdrawalRequest);
+  return rows.map((row) =>
+    mapAdminWithdrawalRequest(row.request, {
+      sellerEmail: row.sellerEmail,
+      sellerImage: row.sellerImage,
+      sellerName: row.sellerName,
+    })
+  );
 };
 
 export const getWithdrawalRequest = async ({

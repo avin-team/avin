@@ -15,7 +15,10 @@ export interface AdminWithdrawal {
   readonly createdAt: string;
   readonly id: string;
   readonly paymentReference: string | null;
+  readonly sellerEmail: string;
   readonly sellerId: string;
+  readonly sellerImage: string | null;
+  readonly sellerName: string;
   readonly status: WithdrawalStatus;
 }
 

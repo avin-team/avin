@@ -17,7 +17,7 @@ export const OrdersButton = () => {
   return (
     <Button
       aria-label="Đơn hàng"
-      className="relative"
+      className="relative text-muted-foreground hover:text-foreground"
       render={<Link to="/orders" />}
       size="icon"
       title="Đơn hàng"
