@@ -47,7 +47,7 @@ describe("CartItemCard", () => {
 
     expect(screen.getByRole("checkbox")).not.toBeDisabled();
     expect(
-      screen.getByRole("button", { name: "Xóa Kháng 282 khỏi Cart" })
+      screen.getByRole("button", { name: "Xóa Kháng 282 khỏi Giỏ hàng" })
     ).toBeDisabled();
   });
 
@@ -64,7 +64,7 @@ describe("CartItemCard", () => {
 
     expect(screen.getByRole("checkbox")).toBeDisabled();
     expect(
-      screen.getByRole("button", { name: "Xóa Kháng 282 khỏi Cart" })
+      screen.getByRole("button", { name: "Xóa Kháng 282 khỏi Giỏ hàng" })
     ).toBeDisabled();
   });
 });

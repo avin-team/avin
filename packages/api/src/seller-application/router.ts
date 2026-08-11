@@ -5,6 +5,7 @@ import { and, desc, eq, gt } from "drizzle-orm";
 
 import { adminProcedure, protectedProcedure } from "../access/procedures";
 import type { Context } from "../runtime/context";
+import { assertMarketplaceSellerNotEnforced } from "../seller-enforcement/access";
 import { createStoreSlug } from "../seller-store/profile";
 import { isStoreSlugLocked } from "../seller-store/public-visibility";
 import { ensureSellerWalletAccounts } from "../wallet/service";
@@ -224,6 +225,8 @@ export const sellerApplicationRouter = {
     .handler(async ({ context, input }) => {
       const userId = context.session.user.id;
 
+      await assertMarketplaceSellerNotEnforced(context.db, userId);
+
       // Generate 6-digit OTP code (mock 123456 for predictable dev/testing)
       const otpCode = "123456";
       const identifier = `phone_otp:${userId}:${input.phone}`;
@@ -255,6 +258,8 @@ export const sellerApplicationRouter = {
     .input(submitApplicationInputSchema)
     .handler(async ({ context, input }) => {
       const userId = context.session.user.id;
+
+      await assertMarketplaceSellerNotEnforced(context.db, userId);
 
       const profile = await findSellerProfile(context.db, userId);
 
@@ -342,6 +347,8 @@ export const sellerApplicationRouter = {
     .handler(async ({ context, input }) => {
       const userId = context.session.user.id;
 
+      await assertMarketplaceSellerNotEnforced(context.db, userId);
+
       const existingProfile = await findSellerProfile(context.db, userId);
 
       if (existingProfile) {
@@ -391,6 +398,9 @@ export const sellerApplicationRouter = {
     .input(verifyPhoneOtpInputSchema)
     .handler(async ({ context, input }) => {
       const userId = context.session.user.id;
+
+      await assertMarketplaceSellerNotEnforced(context.db, userId);
+
       const identifier = `phone_otp:${userId}:${input.phone}`;
       const now = new Date();
 

@@ -22,7 +22,7 @@ describe("Seller Enforcement policy", () => {
     );
   });
 
-  it("treats only an active suspension or ban as marketplace enforcement", () => {
+  it("keeps a suspension active until the SYSTEM expiry action commits", () => {
     const now = new Date("2026-08-11T00:00:00.000Z");
 
     expect(
@@ -33,7 +33,7 @@ describe("Seller Enforcement policy", () => {
         { expiresAt: new Date("2026-08-10T23:59:59.000Z"), state: "SUSPENDED" },
         now
       )
-    ).toBe(false);
+    ).toBe(true);
     expect(
       isSellerEnforcementActive({ expiresAt: null, state: "BANNED" }, now)
     ).toBe(true);

@@ -18,7 +18,10 @@ import {
   getManagedListingImageKeysToDelete,
   LISTING_IMAGE_MAX_COUNT,
 } from "../runtime/storage";
-import { getSellerEnforcement } from "../seller-enforcement/access";
+import {
+  getSellerEnforcement,
+  isMarketplaceSellerEnforced,
+} from "../seller-enforcement/access";
 import { isSellerEnforced } from "../seller-store/profile";
 import { assertStoreProfileComplete } from "../seller-store/public-visibility";
 import {
@@ -610,7 +613,19 @@ export const sellerWorkspaceRouter = {
         throw new ORPCError("NOT_FOUND", { message: "Listing not found" });
       }
 
-      const hasAccess = canAccessListingMedia(context.session.user, found);
+      const enforcement = await getSellerEnforcement(
+        context.db,
+        found.sellerId
+      );
+      const isPublicSellerMedia = !isMarketplaceSellerEnforced(enforcement);
+      const isBannedSeller =
+        enforcement?.state === "BANNED" &&
+        isMarketplaceSellerEnforced(enforcement);
+      const hasAccess =
+        context.session.user.role === "ADMIN" ||
+        (context.session.user.id === found.sellerId && !isBannedSeller) ||
+        (isPublicSellerMedia &&
+          canAccessListingMedia(context.session.user, found));
       if (!hasAccess) {
         throw new ORPCError("FORBIDDEN", {
           message: "Media access is restricted for this listing",

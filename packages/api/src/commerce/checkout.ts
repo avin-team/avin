@@ -592,6 +592,7 @@ export const createCheckout = (
   input: CheckoutInput,
   now = new Date()
 ): Promise<CheckoutResult> =>
+  // oxlint-disable-next-line complexity
   database.transaction(async (transaction) => {
     const [account] = await transaction
       .select({ id: userTable.id, role: userTable.role })
@@ -626,6 +627,34 @@ export const createCheckout = (
       throw new ORPCError("BAD_REQUEST", {
         message: "Cart chưa có Listing nào được chọn.",
       });
+    }
+
+    const sellerIds = [
+      ...new Set(selectedRows.map((selected) => selected.sellerId)),
+    ];
+    // Seller Enforcement and Checkout serialize on the Seller account row.
+    // The fresh snapshot below ensures a ban that commits first is observed,
+    // while a Checkout that acquires the lock first remains authoritative.
+    await transaction
+      .select({ id: userTable.id })
+      .from(userTable)
+      .where(inArray(userTable.id, sellerIds))
+      .for("update");
+    const enforcementRows = await transaction
+      .select({
+        expiresAt: sellerEnforcement.expiresAt,
+        sellerId: sellerEnforcement.sellerId,
+        state: sellerEnforcement.state,
+      })
+      .from(sellerEnforcement)
+      .where(inArray(sellerEnforcement.sellerId, sellerIds));
+    const enforcementBySeller = new Map(
+      enforcementRows.map((enforcement) => [enforcement.sellerId, enforcement])
+    );
+    for (const selectedRow of selectedRows) {
+      const enforcement = enforcementBySeller.get(selectedRow.sellerId);
+      selectedRow.sellerEnforcementExpiresAt = enforcement?.expiresAt ?? null;
+      selectedRow.sellerEnforcementState = enforcement?.state ?? null;
     }
 
     const requestedItems = assertSelectedItemsMatchRequest(selectedRows, input);

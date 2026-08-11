@@ -9,7 +9,7 @@ import {
 } from "@avin/api/storage";
 import { generateUuidV7 } from "@avin/db";
 import type { db } from "@avin/db";
-import { auditLog } from "@avin/db/schema/auth";
+import { auditLog, user } from "@avin/db/schema/auth";
 import {
   chatReadCursor,
   dispute,
@@ -19,6 +19,7 @@ import {
   orderMessage,
 } from "@avin/db/schema/commerce";
 import { sellerProfile } from "@avin/db/schema/seller";
+import { sellerEnforcement } from "@avin/db/schema/seller-enforcement";
 import { ORPCError } from "@orpc/server";
 import {
   and,
@@ -184,6 +185,28 @@ function assertCanReadChat({
 
   return { isAdmin };
 }
+
+const assertSellerChatMutationAllowed = async (
+  database: typeof db,
+  sellerId: string
+): Promise<void> => {
+  await database
+    .select({ id: user.id })
+    .from(user)
+    .where(eq(user.id, sellerId))
+    .for("update")
+    .limit(1);
+  const [enforcement] = await database
+    .select({ state: sellerEnforcement.state })
+    .from(sellerEnforcement)
+    .where(eq(sellerEnforcement.sellerId, sellerId))
+    .limit(1);
+  if (enforcement?.state === "BANNED") {
+    throw new ORPCError("FORBIDDEN", {
+      message: "Banned seller cannot send order chat messages",
+    });
+  }
+};
 
 interface ConversationParticipantProfile {
   avatarUrl?: string | null;
@@ -381,17 +404,21 @@ async function resolveSenderRoleAndType({
   messageType: "text" | "system" | "admin_mediation";
   senderRole: "buyer" | "seller" | "admin";
 }> {
+  const enforcement =
+    userRole === "SELLER" || userId === sellerId
+      ? await getSellerEnforcement(database, userId)
+      : null;
+  if (enforcement?.state === "BANNED") {
+    throw new ORPCError("FORBIDDEN", {
+      message: "Banned seller cannot send order chat messages",
+    });
+  }
+
   if (userId === buyerId) {
     return { messageType: "text", senderRole: "buyer" };
   }
 
   if (userId === sellerId) {
-    const enforcement = await getSellerEnforcement(database, userId);
-    if (enforcement?.state === "BANNED") {
-      throw new ORPCError("FORBIDDEN", {
-        message: "Banned seller cannot send order chat messages",
-      });
-    }
     return { messageType: "text", senderRole: "seller" };
   }
 
@@ -494,6 +521,10 @@ export async function sendMessage({
   }
 
   const insertMessageAndAttachments = async (transaction: typeof db) => {
+    if (userRole === "SELLER" || userId === existingOrder.sellerId) {
+      await assertSellerChatMutationAllowed(transaction, userId);
+    }
+
     const messageId = generateUuidV7();
     const [inserted] = await transaction
       .insert(orderMessage)
@@ -597,17 +628,32 @@ export async function createAttachment({
     });
   }
 
-  const [attachment] = await database
-    .insert(orderFile)
-    .values({
-      byteSize: input.byteSize,
-      contentType: input.contentType,
-      fileName: input.fileName,
-      orderId: input.orderId,
-      storageKey: input.storageKey,
-      uploadedByUserId: actor.id,
-    })
-    .returning();
+  const persistAttachment = async (executor: typeof db) => {
+    if (actor.role === "SELLER" || actor.id === existingOrder.sellerId) {
+      await assertSellerChatMutationAllowed(executor, actor.id);
+    }
+
+    const [createdAttachment] = await executor
+      .insert(orderFile)
+      .values({
+        byteSize: input.byteSize,
+        contentType: input.contentType,
+        fileName: input.fileName,
+        orderId: input.orderId,
+        storageKey: input.storageKey,
+        uploadedByUserId: actor.id,
+      })
+      .returning();
+    return createdAttachment;
+  };
+  const transactionCapableDatabase = database as typeof database & {
+    transaction?: <Result>(
+      callback: (transaction: typeof db) => Promise<Result>
+    ) => Promise<Result>;
+  };
+  const attachment = transactionCapableDatabase.transaction
+    ? await transactionCapableDatabase.transaction(persistAttachment)
+    : await persistAttachment(database);
 
   if (!attachment) {
     throw new ORPCError("INTERNAL_SERVER_ERROR", {
@@ -676,12 +722,27 @@ export async function discardAttachment({
     });
   }
 
-  const [discardedAttachment] = await database
-    .delete(orderFile)
-    .where(
-      and(eq(orderFile.id, attachment.id), isNull(orderFile.orderMessageId))
-    )
-    .returning();
+  const removeAttachment = async (executor: typeof db) => {
+    if (actor.role === "SELLER" || actor.id === existingOrder.sellerId) {
+      await assertSellerChatMutationAllowed(executor, actor.id);
+    }
+
+    const [removedAttachment] = await executor
+      .delete(orderFile)
+      .where(
+        and(eq(orderFile.id, attachment.id), isNull(orderFile.orderMessageId))
+      )
+      .returning();
+    return removedAttachment;
+  };
+  const transactionCapableDatabase = database as typeof database & {
+    transaction?: <Result>(
+      callback: (transaction: typeof db) => Promise<Result>
+    ) => Promise<Result>;
+  };
+  const discardedAttachment = transactionCapableDatabase.transaction
+    ? await transactionCapableDatabase.transaction(removeAttachment)
+    : await removeAttachment(database);
   if (!discardedAttachment) {
     throw new ORPCError("CONFLICT", {
       message: "Attachment was sent before it could be removed",

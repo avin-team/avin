@@ -17,8 +17,11 @@ import {
   getSellerEnforcementView,
   listSellerEnforcementActions,
   listSellerEnforcementAppeals,
+  listSellerEnforcementSellerAppeals,
   reviewSellerEnforcementAppeal,
   retrySellerEnforcementRemediation,
+  SELLER_ENFORCEMENT_ADMIN_NOTE_MAX_LENGTH,
+  SELLER_ENFORCEMENT_REASON_MAX_LENGTH,
   sellerEnforcementAppealCommandSchema,
   sellerEnforcementClearCommandSchema,
   sellerEnforcementCommandSchema,
@@ -29,13 +32,29 @@ import {
 
 const sellerIdInput = z.object({ sellerId: z.string().trim().min(1) });
 
-const appealReviewInput = z.object({
-  adminNote: z.string().trim().max(5000).nullable().optional(),
-  appealId: z.uuid(),
-  outcome: z.enum(["UPHELD", "OVERTURNED"]),
-  outcomeReason: z.string().trim().min(1).max(2000),
-  reasonCode: sellerEnforcementReasonCodeSchema,
-});
+const appealReviewInput = z
+  .object({
+    adminNote: z
+      .string()
+      .trim()
+      .max(SELLER_ENFORCEMENT_ADMIN_NOTE_MAX_LENGTH)
+      .nullable()
+      .optional(),
+    appealId: z.uuid(),
+    outcome: z.enum(["UNDER_REVIEW", "UPHELD", "OVERTURNED"]),
+    outcomeReason: z.string().trim().max(SELLER_ENFORCEMENT_REASON_MAX_LENGTH),
+    reasonCode: sellerEnforcementReasonCodeSchema,
+  })
+  .partial({ outcomeReason: true })
+  .superRefine((input, context) => {
+    if (!input.outcomeReason?.trim() && input.outcome !== "UNDER_REVIEW") {
+      context.addIssue({
+        code: "custom",
+        message: "Appeal outcome reason is required",
+        path: ["outcomeReason"],
+      });
+    }
+  });
 
 export const sellerEnforcementRouter = {
   admin: {
@@ -55,6 +74,9 @@ export const sellerEnforcementRouter = {
         changeSellerEnforcement({
           actorUserId: context.session.user.id,
           adminNote: input.adminNote,
+          confirmAffectedEscrowHolds: input.confirmAffectedEscrowHolds,
+          confirmAffectedOrderItems: input.confirmAffectedOrderItems,
+          confirmAffectedWithdrawals: input.confirmAffectedWithdrawals,
           database: context.db,
           expiresAt: input.expiresAt,
           idempotencyKey: input.idempotencyKey,
@@ -179,6 +201,20 @@ export const sellerEnforcementRouter = {
   },
 
   seller: {
+    appeals: sellerProcedure
+      .input(
+        z
+          .object({ limit: z.number().int().positive().max(100).optional() })
+          .optional()
+      )
+      .handler(({ context, input }) =>
+        listSellerEnforcementSellerAppeals(
+          context.db,
+          context.session.user.id,
+          input?.limit
+        )
+      ),
+
     get: sellerProcedure.handler(({ context }) =>
       getSellerEnforcementSellerView(context.db, context.session.user.id)
     ),

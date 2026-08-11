@@ -1,18 +1,96 @@
 /* eslint-disable no-await-in-loop */
 
 import { db } from "@avin/db";
-import { dispute, orderItem } from "@avin/db/schema/commerce";
+import { order, orderItem } from "@avin/db/schema/commerce";
+import type { OrderItemStatus } from "@avin/db/schema/commerce";
 import {
+  sellerEnforcementAction,
+  sellerEnforcement,
   sellerEnforcementRemediation,
   sellerEnforcementRemediationItem,
 } from "@avin/db/schema/seller-enforcement";
 import { ORPCError } from "@orpc/server";
-import { and, asc, eq, inArray, lte, lt, not, or } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  inArray,
+  lte,
+  lt,
+  not,
+  notExists,
+  or,
+} from "drizzle-orm";
 
 import { cancelOrderItemForSellerEnforcement } from "../commerce/fulfillment";
+import { createSellerEnforcementRemediation } from "./service";
 
 const MAX_REMEDIATION_ATTEMPTS = 5;
 const DEFAULT_REMEDIATION_LIMIT = 100;
+
+interface ActiveBannedRemediationScope {
+  actionId: string;
+  effectiveAt: Date;
+}
+
+const getActiveBannedRemediationScope = async (
+  database: typeof db,
+  sellerId: string
+): Promise<ActiveBannedRemediationScope | null> => {
+  const [currentEnforcement] = await database
+    .select({ state: sellerEnforcement.state })
+    .from(sellerEnforcement)
+    .where(eq(sellerEnforcement.sellerId, sellerId))
+    .limit(1);
+  if (currentEnforcement?.state !== "BANNED") {
+    return null;
+  }
+
+  const actions = await database
+    .select({
+      actionId: sellerEnforcementAction.id,
+      actionType: sellerEnforcementAction.actionType,
+      effectiveAt: sellerEnforcementAction.effectiveAt,
+      newState: sellerEnforcementAction.newState,
+      supersedesActionId: sellerEnforcementAction.supersedesActionId,
+    })
+    .from(sellerEnforcementAction)
+    .where(eq(sellerEnforcementAction.sellerId, sellerId))
+    .orderBy(
+      desc(sellerEnforcementAction.effectiveAt),
+      desc(sellerEnforcementAction.createdAt)
+    );
+  const [latestAction] = actions;
+  if (!latestAction || latestAction.newState !== "BANNED") {
+    return null;
+  }
+
+  const actionsById = new Map(
+    actions.map((action) => [action.actionId, action])
+  );
+  const visited = new Set<string>();
+  let rootAction = latestAction;
+  while (rootAction.actionType === "REASON_CORRECTED") {
+    if (!rootAction.supersedesActionId || visited.has(rootAction.actionId)) {
+      return null;
+    }
+    visited.add(rootAction.actionId);
+    const previousAction = actionsById.get(rootAction.supersedesActionId);
+    if (!previousAction) {
+      return null;
+    }
+    rootAction = previousAction;
+  }
+
+  if (rootAction.newState !== "BANNED") {
+    return null;
+  }
+  return {
+    actionId: rootAction.actionId,
+    effectiveAt: rootAction.effectiveAt,
+  };
+};
 const STALE_REMEDIATION_ITEM_MS = 5 * 60 * 1000;
 
 const getErrorMessage = (error: unknown): string =>
@@ -112,28 +190,194 @@ const claimNextItem = (
     return claimed;
   });
 
-const itemNoLongerNeedsCancellation = async (
+const getCurrentItemStatus = async (
   database: typeof db,
   itemId: string
-): Promise<boolean> => {
+): Promise<OrderItemStatus | null> => {
   const [item] = await database
-    .select({ id: orderItem.id, status: orderItem.status })
+    .select({ status: orderItem.status })
     .from(orderItem)
     .where(eq(orderItem.id, itemId))
     .limit(1);
-  if (
-    !item ||
-    (item.status !== "AWAITING_SELLER" && item.status !== "IN_PROGRESS")
-  ) {
-    return true;
+  return item?.status ?? null;
+};
+
+const requeueRestoredItems = async (
+  database: typeof db,
+  remediationId: string,
+  sellerId: string,
+  actionId: string,
+  now: Date
+): Promise<boolean> => {
+  const activeScope = await getActiveBannedRemediationScope(database, sellerId);
+  if (!activeScope || activeScope.actionId !== actionId) {
+    return false;
   }
 
-  const [existingDispute] = await database
-    .select({ id: dispute.id })
-    .from(dispute)
-    .where(eq(dispute.orderItemId, itemId))
-    .limit(1);
-  return Boolean(existingDispute);
+  const restored = await database
+    .select({ id: sellerEnforcementRemediationItem.id })
+    .from(sellerEnforcementRemediationItem)
+    .innerJoin(
+      orderItem,
+      eq(orderItem.id, sellerEnforcementRemediationItem.orderItemId)
+    )
+    .where(
+      and(
+        eq(sellerEnforcementRemediationItem.remediationId, remediationId),
+        eq(sellerEnforcementRemediationItem.status, "COMPLETED"),
+        inArray(orderItem.status, ["AWAITING_SELLER", "IN_PROGRESS"])
+      )
+    );
+
+  await Promise.all(
+    restored.map((item) =>
+      database
+        .update(sellerEnforcementRemediationItem)
+        .set({
+          lastError: "OrderItem became eligible for ban remediation again",
+          processedAt: null,
+          status: "PENDING",
+          updatedAt: now,
+        })
+        .where(eq(sellerEnforcementRemediationItem.id, item.id))
+    )
+  );
+  if (restored.length > 0) {
+    await database
+      .update(sellerEnforcementRemediation)
+      .set({ finishedAt: null, status: "PENDING", updatedAt: now })
+      .where(eq(sellerEnforcementRemediation.id, remediationId));
+  }
+  return restored.length > 0;
+};
+
+const reconcileMissingRemediations = async (
+  database: typeof db,
+  now: Date,
+  limit: number
+): Promise<void> => {
+  const actions = await database
+    .select({
+      actionId: sellerEnforcementAction.id,
+      sellerId: sellerEnforcementAction.sellerId,
+    })
+    .from(sellerEnforcementAction)
+    .where(
+      and(
+        inArray(sellerEnforcementAction.actionType, ["BAN", "ESCALATE"]),
+        eq(sellerEnforcementAction.newState, "BANNED"),
+        notExists(
+          database
+            .select({ id: sellerEnforcementRemediation.id })
+            .from(sellerEnforcementRemediation)
+            .where(
+              eq(
+                sellerEnforcementRemediation.actionId,
+                sellerEnforcementAction.id
+              )
+            )
+        )
+      )
+    )
+    .orderBy(
+      desc(sellerEnforcementAction.effectiveAt),
+      desc(sellerEnforcementAction.createdAt)
+    )
+    .limit(limit);
+
+  await Promise.all(
+    actions.map(async (action) => {
+      try {
+        await createSellerEnforcementRemediation(
+          database,
+          action.actionId,
+          action.sellerId,
+          now
+        );
+      } catch {
+        // Keep processing other Sellers; the action remains enforced and can
+        // be reconciled again on the next maintenance run.
+      }
+    })
+  );
+};
+
+const reconcileRemediationTargets = async (
+  database: typeof db,
+  remediation: typeof sellerEnforcementRemediation.$inferSelect,
+  now: Date
+): Promise<void> => {
+  const activeScope = await getActiveBannedRemediationScope(
+    database,
+    remediation.sellerId
+  );
+  if (!activeScope || activeScope.actionId !== remediation.actionId) {
+    return;
+  }
+
+  const eligibleItems = await database
+    .select({ id: orderItem.id })
+    .from(orderItem)
+    .innerJoin(order, eq(order.id, orderItem.orderId))
+    .where(
+      and(
+        eq(order.sellerId, remediation.sellerId),
+        inArray(orderItem.status, ["AWAITING_SELLER", "IN_PROGRESS"]),
+        lte(orderItem.createdAt, activeScope.effectiveAt),
+        notExists(
+          database
+            .select({ id: sellerEnforcementRemediationItem.id })
+            .from(sellerEnforcementRemediationItem)
+            .where(
+              and(
+                eq(
+                  sellerEnforcementRemediationItem.remediationId,
+                  remediation.id
+                ),
+                eq(sellerEnforcementRemediationItem.orderItemId, orderItem.id)
+              )
+            )
+        )
+      )
+    )
+    .orderBy(asc(orderItem.createdAt), asc(orderItem.id));
+
+  if (eligibleItems.length > 0) {
+    await database
+      .insert(sellerEnforcementRemediationItem)
+      .values(
+        eligibleItems.map((item) => ({
+          createdAt: now,
+          orderItemId: item.id,
+          remediationId: remediation.id,
+          updatedAt: now,
+        }))
+      )
+      .onConflictDoNothing({
+        target: [
+          sellerEnforcementRemediationItem.remediationId,
+          sellerEnforcementRemediationItem.orderItemId,
+        ],
+      });
+  }
+
+  if (eligibleItems.length > 0 || remediation.status === "COMPLETED") {
+    const items = await database
+      .select({ id: sellerEnforcementRemediationItem.id })
+      .from(sellerEnforcementRemediationItem)
+      .where(
+        eq(sellerEnforcementRemediationItem.remediationId, remediation.id)
+      );
+    await database
+      .update(sellerEnforcementRemediation)
+      .set({
+        finishedAt: eligibleItems.length > 0 ? null : remediation.finishedAt,
+        status: eligibleItems.length > 0 ? "PENDING" : remediation.status,
+        totalItems: items.length,
+        updatedAt: now,
+      })
+      .where(eq(sellerEnforcementRemediation.id, remediation.id));
+  }
 };
 
 const refreshRemediation = async (
@@ -205,6 +449,33 @@ export const runSellerEnforcementRemediation = async ({
   limit?: number;
   now?: Date;
 } = {}): Promise<SellerEnforcementRemediationRunResult> => {
+  await reconcileMissingRemediations(database, now, limit);
+
+  const candidateRemediations = await database
+    .select()
+    .from(sellerEnforcementRemediation)
+    .where(
+      inArray(sellerEnforcementRemediation.status, [
+        "PENDING",
+        "RUNNING",
+        "COMPLETED",
+      ])
+    )
+    .orderBy(asc(sellerEnforcementRemediation.createdAt))
+    .limit(Math.max(1, Math.min(limit, DEFAULT_REMEDIATION_LIMIT)));
+  await Promise.all(
+    candidateRemediations.map(async (remediation) => {
+      await reconcileRemediationTargets(database, remediation, now);
+      await requeueRestoredItems(
+        database,
+        remediation.id,
+        remediation.sellerId,
+        remediation.actionId,
+        now
+      );
+    })
+  );
+
   const remediations = await database
     .select()
     .from(sellerEnforcementRemediation)
@@ -222,6 +493,13 @@ export const runSellerEnforcementRemediation = async ({
       break;
     }
     remediationIds.push(remediation.id);
+    await requeueRestoredItems(
+      database,
+      remediation.id,
+      remediation.sellerId,
+      remediation.actionId,
+      now
+    );
     const attemptedItemIds: string[] = [];
     while (processed < limit) {
       const item = await claimNextItem(
@@ -254,22 +532,41 @@ export const runSellerEnforcementRemediation = async ({
           .where(eq(sellerEnforcementRemediationItem.id, item.id));
         completedItemIds.push(item.orderItemId);
       } catch (error) {
-        if (
-          error instanceof ORPCError &&
-          error.code === "CONFLICT" &&
-          (await itemNoLongerNeedsCancellation(database, item.orderItemId))
-        ) {
-          await database
-            .update(sellerEnforcementRemediationItem)
-            .set({
-              lastError: null,
-              processedAt: now,
-              status: "COMPLETED",
-              updatedAt: now,
-            })
-            .where(eq(sellerEnforcementRemediationItem.id, item.id));
-          completedItemIds.push(item.orderItemId);
-          continue;
+        if (error instanceof ORPCError && error.code === "CONFLICT") {
+          const currentStatus = await getCurrentItemStatus(
+            database,
+            item.orderItemId
+          );
+          if (currentStatus === "DISPUTED") {
+            await database
+              .update(sellerEnforcementRemediationItem)
+              .set({
+                attempts: Math.max(item.attempts - 1, 0),
+                lastError: "Waiting for the active Dispute to resolve",
+                processedAt: null,
+                status: "PENDING",
+                updatedAt: now,
+              })
+              .where(eq(sellerEnforcementRemediationItem.id, item.id));
+            continue;
+          }
+          if (
+            currentStatus === null ||
+            (currentStatus !== "AWAITING_SELLER" &&
+              currentStatus !== "IN_PROGRESS")
+          ) {
+            await database
+              .update(sellerEnforcementRemediationItem)
+              .set({
+                lastError: null,
+                processedAt: now,
+                status: "COMPLETED",
+                updatedAt: now,
+              })
+              .where(eq(sellerEnforcementRemediationItem.id, item.id));
+            completedItemIds.push(item.orderItemId);
+            continue;
+          }
         }
 
         await database

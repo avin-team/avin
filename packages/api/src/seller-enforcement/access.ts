@@ -17,14 +17,26 @@ interface SellerEnforcementQuery {
   findFirst: (input: unknown) => Promise<MarketplaceSellerAccount | null>;
 }
 
+const isSellerEnforcementQuery = (
+  value: unknown
+): value is SellerEnforcementQuery => {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  return typeof Reflect.get(value, "findFirst") === "function";
+};
+
 const getSellerEnforcementQuery = (
   database: Context["db"]
-): SellerEnforcementQuery | undefined =>
-  (
-    database.query as unknown as {
-      sellerEnforcement?: SellerEnforcementQuery;
-    }
-  ).sellerEnforcement;
+): SellerEnforcementQuery | undefined => {
+  const queryContainer = Reflect.get(database, "query");
+  if (typeof queryContainer !== "object" || queryContainer === null) {
+    return undefined;
+  }
+
+  const query = Reflect.get(queryContainer, "sellerEnforcement");
+  return isSellerEnforcementQuery(query) ? query : undefined;
+};
 
 export const getSellerEnforcement = async (
   database: Context["db"],

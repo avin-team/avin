@@ -63,21 +63,16 @@ export const getSellerEnforcementTransition = (
 
 export const isSellerEnforcementActive = (
   enforcement: SellerEnforcementSnapshot,
-  now = new Date()
+  _now = new Date()
 ): boolean => {
   if (enforcement.state === "CLEAR") {
     return false;
   }
 
-  if (enforcement.state === "BANNED") {
-    return true;
-  }
-
-  return (
-    enforcement.expiresAt === null ||
-    enforcement.expiresAt === undefined ||
-    enforcement.expiresAt > now
-  );
+  // An expiry timestamp is a due date for the SYSTEM EXPIRE action, not an
+  // implicit state transition. The suspension remains active until that
+  // audited action commits, so scheduler lag cannot reopen the marketplace.
+  return true;
 };
 
 export const shouldCancelBannedSellerItem = (

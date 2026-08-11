@@ -351,19 +351,39 @@ export const createDeliveryAttachment = async ({
     });
   }
 
-  try {
-    const item = await getItemContext(database, parsedInput.itemId, true);
+  const persistAttachment = async (executor: typeof db) => {
+    await executor
+      .select({ id: user.id })
+      .from(user)
+      .where(eq(user.id, sellerId))
+      .for("update")
+      .limit(1);
+    const item = await getItemContext(executor, parsedInput.itemId, true);
     if (!item) {
       return throwNotFound();
     }
     if (item.sellerId !== sellerId) {
       return throwForbidden();
     }
+    if (
+      item.sellerEnforcementState === "BANNED" &&
+      isSellerEnforcementActive(
+        {
+          expiresAt: item.sellerEnforcementExpiresAt,
+          state: item.sellerEnforcementState,
+        },
+        new Date()
+      )
+    ) {
+      throw new ORPCError("FORBIDDEN", {
+        message: "Seller hiện không thể tải bản nháp bàn giao.",
+      });
+    }
     if (item.status !== "IN_PROGRESS") {
       throwConflict("Chỉ có thể tải ảnh khi OrderItem đang được xử lý.");
     }
 
-    const existing = await database
+    const existing = await executor
       .select({ id: orderFile.id })
       .from(orderFile)
       .where(
@@ -381,7 +401,7 @@ export const createDeliveryAttachment = async ({
       });
     }
 
-    const [attachment] = await database
+    const [attachment] = await executor
       .insert(orderFile)
       .values({
         byteSize: parsedInput.byteSize,
@@ -399,6 +419,18 @@ export const createDeliveryAttachment = async ({
       });
     }
     return attachment;
+  };
+
+  try {
+    const transactionCapableDatabase = database as typeof database & {
+      transaction?: <Result>(
+        callback: (transaction: typeof db) => Promise<Result>
+      ) => Promise<Result>;
+    };
+    if (transactionCapableDatabase.transaction) {
+      return await transactionCapableDatabase.transaction(persistAttachment);
+    }
+    return await persistAttachment(database);
   } catch (error) {
     try {
       const [persisted] = await database
@@ -432,30 +464,66 @@ export const discardDeliveryAttachment = async ({
   sellerId: string;
   storage?: ManagedObjectStore;
 }): Promise<void> => {
-  const [attachment] = await database
-    .select({
-      id: orderFile.id,
-      storageKey: orderFile.storageKey,
-    })
-    .from(orderFile)
-    .where(
-      and(
-        eq(orderFile.id, attachmentId),
-        eq(orderFile.uploadedByUserId, sellerId),
-        isNull(orderFile.deliverySubmissionId),
-        isNull(orderFile.orderMessageId),
-        like(orderFile.storageKey, "orders/%/delivery/%")
-      )
-    )
-    .limit(1);
-  if (!attachment) {
-    throw new ORPCError("NOT_FOUND", {
-      message: "Không tìm thấy ảnh bàn giao.",
-    });
-  }
+  const discardAttachment = async (executor: typeof db): Promise<void> => {
+    await executor
+      .select({ id: user.id })
+      .from(user)
+      .where(eq(user.id, sellerId))
+      .for("update")
+      .limit(1);
+    const [enforcement] = await executor
+      .select({
+        expiresAt: sellerEnforcement.expiresAt,
+        state: sellerEnforcement.state,
+      })
+      .from(sellerEnforcement)
+      .where(eq(sellerEnforcement.sellerId, sellerId))
+      .limit(1);
+    if (
+      enforcement?.state === "BANNED" &&
+      isSellerEnforcementActive(enforcement)
+    ) {
+      throw new ORPCError("FORBIDDEN", {
+        message: "Seller hiện không thể xóa bản nháp bàn giao.",
+      });
+    }
 
-  await deleteOrderFileObject(attachment.storageKey, storage);
-  await database.delete(orderFile).where(eq(orderFile.id, attachment.id));
+    const [attachment] = await executor
+      .select({
+        id: orderFile.id,
+        storageKey: orderFile.storageKey,
+      })
+      .from(orderFile)
+      .where(
+        and(
+          eq(orderFile.id, attachmentId),
+          eq(orderFile.uploadedByUserId, sellerId),
+          isNull(orderFile.deliverySubmissionId),
+          isNull(orderFile.orderMessageId),
+          like(orderFile.storageKey, "orders/%/delivery/%")
+        )
+      )
+      .limit(1);
+    if (!attachment) {
+      throw new ORPCError("NOT_FOUND", {
+        message: "Không tìm thấy ảnh bàn giao.",
+      });
+    }
+
+    await deleteOrderFileObject(attachment.storageKey, storage);
+    await executor.delete(orderFile).where(eq(orderFile.id, attachment.id));
+  };
+
+  const transactionCapableDatabase = database as typeof database & {
+    transaction?: <Result>(
+      callback: (transaction: typeof db) => Promise<Result>
+    ) => Promise<Result>;
+  };
+  if (transactionCapableDatabase.transaction) {
+    await transactionCapableDatabase.transaction(discardAttachment);
+    return;
+  }
+  await discardAttachment(database);
 };
 
 export const cleanupDeliveryAttachmentDrafts = async ({
@@ -694,6 +762,12 @@ const getNotificationCopy = (
     return {
       body: "Buyer đã xác nhận DeliverySubmission.",
       title: "Buyer đã xác nhận giao hàng",
+    };
+  }
+  if (command.type === "CANCEL_BY_SYSTEM") {
+    return {
+      body: "OrderItem đã được hủy do Seller Enforcement và khoản thanh toán đã được hoàn lại.",
+      title: "Đã bảo vệ khoản thanh toán của bạn",
     };
   }
 
@@ -1218,6 +1292,15 @@ const executeTransition = ({
   now: Date;
 }): Promise<OrderItemCommandResult> =>
   database.transaction(async (transaction) => {
+    if (actorType === "SELLER" && actorId) {
+      await transaction
+        .select({ id: user.id })
+        .from(user)
+        .where(eq(user.id, actorId))
+        .for("update")
+        .limit(1);
+    }
+
     const item = await getItemContext(transaction, itemId, true);
     if (!item) {
       return throwNotFound();

@@ -56,11 +56,7 @@ export const getStoreVisibility = async (
       where: eq(sellerProfile.userId, userId),
     }),
     database.query.user.findFirst({
-      columns: {
-        banExpires: true,
-        banned: true,
-        role: true,
-      },
+      columns: { role: true },
       where: eq(userTable.id, userId),
     }),
     database.query.sellerApplication.findFirst({
@@ -135,11 +131,7 @@ export const isStoreSlugLocked = async (
 
   const [account, application, enforcement] = await Promise.all([
     database.query.user.findFirst({
-      columns: {
-        banExpires: true,
-        banned: true,
-        role: true,
-      },
+      columns: { role: true },
       where: eq(userTable.id, profile.userId),
     }),
     database.query.sellerApplication.findFirst({

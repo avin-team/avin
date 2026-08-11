@@ -59,6 +59,7 @@ describe("Seller Enforcement backend router", () => {
       "reviewAppeal",
     ]);
     expect(Object.keys(sellerEnforcementRouter.seller).toSorted()).toEqual([
+      "appeals",
       "get",
       "getAppeal",
       "getAppealEvidenceUrl",

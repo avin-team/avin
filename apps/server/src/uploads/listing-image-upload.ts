@@ -3,6 +3,7 @@ import {
   canUploadListingImage,
 } from "@avin/api/listing/seller-workspace";
 import { assertMarketplaceSellerNotEnforced } from "@avin/api/seller-enforcement/access";
+import { isSellerEnforcementActive } from "@avin/api/seller-enforcement/policy";
 import {
   createListingImageKey,
   createCheckoutAttachmentKey,
@@ -317,6 +318,19 @@ export const createOrderChatAttachmentUploadRouter = (
           );
         }
 
+        if (session.user.role === "SELLER") {
+          const enforcement = await db.query.sellerEnforcement.findFirst({
+            columns: { expiresAt: true, state: true },
+            where: (table, { eq }) => eq(table.sellerId, session.user.id),
+          });
+          if (
+            enforcement?.state === "BANNED" &&
+            isSellerEnforcementActive(enforcement)
+          ) {
+            throw new RejectUpload("Seller bị cấm không thể tải tệp chat mới");
+          }
+        }
+
         return {
           generateObjectInfo: () => ({
             cacheControl: "private, max-age=0",
@@ -615,6 +629,17 @@ export const createDeliveryAttachmentUploadRouter = (
           throw new RejectUpload(
             "Bạn chỉ có thể tải ảnh khi đang xử lý OrderItem của mình"
           );
+        }
+
+        const enforcement = await db.query.sellerEnforcement.findFirst({
+          columns: { expiresAt: true, state: true },
+          where: (table, { eq }) => eq(table.sellerId, session.user.id),
+        });
+        if (
+          enforcement?.state === "BANNED" &&
+          isSellerEnforcementActive(enforcement)
+        ) {
+          throw new RejectUpload("Seller bị cấm không thể tải ảnh bàn giao");
         }
 
         const existingDrafts = await db.query.orderFile.findMany({

@@ -1,6 +1,6 @@
 import { db } from "@avin/db";
 import { user } from "@avin/db/schema/auth";
-import { dispute, order, orderItem } from "@avin/db/schema/commerce";
+import { order, orderItem } from "@avin/db/schema/commerce";
 import { sellerApplication } from "@avin/db/schema/seller";
 import {
   sellerEnforcement,
@@ -11,16 +11,7 @@ import {
   sellerEnforcementRemediationItem,
 } from "@avin/db/schema/seller-enforcement";
 import { ORPCError } from "@orpc/server";
-import {
-  and,
-  asc,
-  desc,
-  eq,
-  inArray,
-  isNotNull,
-  lte,
-  notExists,
-} from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, lte } from "drizzle-orm";
 import { z } from "zod";
 
 import {
@@ -45,6 +36,16 @@ export { orderItemStatusValues as sellerEnforcementItemStatuses } from "@avin/db
 export const SELLER_ENFORCEMENT_REASON_MAX_LENGTH = 2000;
 export const SELLER_ENFORCEMENT_ADMIN_NOTE_MAX_LENGTH = 5000;
 export const SELLER_ENFORCEMENT_IDEMPOTENCY_KEY_MAX_LENGTH = 128;
+export const SELLER_ENFORCEMENT_APPEAL_EVIDENCE_DESCRIPTION_MAX_LENGTH = 5000;
+export const SELLER_ENFORCEMENT_APPEAL_EVIDENCE_FILE_NAME_MAX_LENGTH = 255;
+export const SELLER_ENFORCEMENT_APPEAL_EVIDENCE_STORAGE_KEY_MAX_LENGTH = 1024;
+export const SELLER_ENFORCEMENT_APPEAL_EVIDENCE_SIGNED_URL_TTL_SECONDS = 600;
+
+const sellerEnforcementBanConfirmationFields = [
+  "confirmAffectedOrderItems",
+  "confirmAffectedEscrowHolds",
+  "confirmAffectedWithdrawals",
+] as const;
 
 export const sellerEnforcementReasonCodeSchema = z.enum(
   sellerEnforcementReasonCodeValues
@@ -54,28 +55,46 @@ export const sellerEnforcementStateSchema = z.enum(
   sellerEnforcementStateValues
 );
 
-export const sellerEnforcementCommandSchema = z.object({
-  adminNote: z
-    .string()
-    .trim()
-    .max(SELLER_ENFORCEMENT_ADMIN_NOTE_MAX_LENGTH)
-    .nullable()
-    .optional(),
-  expiresAt: z.coerce.date().nullable().optional(),
-  idempotencyKey: z
-    .string()
-    .trim()
-    .min(1)
-    .max(SELLER_ENFORCEMENT_IDEMPOTENCY_KEY_MAX_LENGTH),
-  reasonCode: sellerEnforcementReasonCodeSchema,
-  sellerId: z.string().trim().min(1),
-  sellerReason: z
-    .string()
-    .trim()
-    .min(1)
-    .max(SELLER_ENFORCEMENT_REASON_MAX_LENGTH),
-  state: z.enum(["SUSPENDED", "BANNED"]),
-});
+export const sellerEnforcementCommandSchema = z
+  .object({
+    adminNote: z
+      .string()
+      .trim()
+      .max(SELLER_ENFORCEMENT_ADMIN_NOTE_MAX_LENGTH)
+      .nullable()
+      .optional(),
+    confirmAffectedEscrowHolds: z.boolean().optional(),
+    confirmAffectedOrderItems: z.boolean().optional(),
+    confirmAffectedWithdrawals: z.boolean().optional(),
+    expiresAt: z.coerce.date().nullable().optional(),
+    idempotencyKey: z
+      .string()
+      .trim()
+      .min(1)
+      .max(SELLER_ENFORCEMENT_IDEMPOTENCY_KEY_MAX_LENGTH),
+    reasonCode: sellerEnforcementReasonCodeSchema,
+    sellerId: z.string().trim().min(1),
+    sellerReason: z
+      .string()
+      .trim()
+      .min(1)
+      .max(SELLER_ENFORCEMENT_REASON_MAX_LENGTH),
+    state: z.enum(["SUSPENDED", "BANNED"]),
+  })
+  .superRefine((input, context) => {
+    if (input.state !== "BANNED") {
+      return;
+    }
+    for (const field of sellerEnforcementBanConfirmationFields) {
+      if (input[field] !== true) {
+        context.addIssue({
+          code: "custom",
+          message: "Banning requires confirmation of affected records",
+          path: [field],
+        });
+      }
+    }
+  });
 
 export const sellerEnforcementClearCommandSchema = z.object({
   adminNote: z
@@ -130,9 +149,21 @@ export const sellerEnforcementAppealCommandSchema = z.object({
           .positive()
           .max(SELLER_ENFORCEMENT_APPEAL_EVIDENCE_MAX_BYTES),
         contentType: z.enum(SELLER_ENFORCEMENT_APPEAL_EVIDENCE_CONTENT_TYPES),
-        description: z.string().trim().min(1).max(5000),
-        fileName: z.string().trim().min(1).max(255),
-        storageKey: z.string().trim().min(1).max(1024),
+        description: z
+          .string()
+          .trim()
+          .min(1)
+          .max(SELLER_ENFORCEMENT_APPEAL_EVIDENCE_DESCRIPTION_MAX_LENGTH),
+        fileName: z
+          .string()
+          .trim()
+          .min(1)
+          .max(SELLER_ENFORCEMENT_APPEAL_EVIDENCE_FILE_NAME_MAX_LENGTH),
+        storageKey: z
+          .string()
+          .trim()
+          .min(1)
+          .max(SELLER_ENFORCEMENT_APPEAL_EVIDENCE_STORAGE_KEY_MAX_LENGTH),
       })
     )
     .min(1)
@@ -199,6 +230,10 @@ export interface SellerEnforcementSellerAppealView {
   evidence: SellerEnforcementAppealEvidence[];
 }
 
+const signedUrlResponseSchema = z.object({
+  signedURL: z.string().min(1),
+});
+
 const toOrpcError = (error: unknown): never => {
   if (error instanceof ORPCError) {
     throw error;
@@ -206,7 +241,9 @@ const toOrpcError = (error: unknown): never => {
   if (error instanceof Error) {
     throw new ORPCError("BAD_REQUEST", { message: error.message });
   }
-  throw error;
+  throw new ORPCError("BAD_REQUEST", {
+    message: "Invalid Seller Enforcement transition",
+  });
 };
 
 const getCurrentEnforcement = async (
@@ -236,6 +273,52 @@ const getLatestAction = async (
     )
     .limit(1);
   return rows[0] ?? null;
+};
+
+const isAppealActionCurrent = async (
+  executor: EnforcementExecutor,
+  appealedAction: typeof sellerEnforcementAction.$inferSelect,
+  latestAction: typeof sellerEnforcementAction.$inferSelect
+): Promise<boolean> => {
+  if (latestAction.id === appealedAction.id) {
+    return true;
+  }
+  if (latestAction.actionType !== "REASON_CORRECTED") {
+    return false;
+  }
+
+  const actions = await executor
+    .select({
+      actionType: sellerEnforcementAction.actionType,
+      id: sellerEnforcementAction.id,
+      supersedesActionId: sellerEnforcementAction.supersedesActionId,
+    })
+    .from(sellerEnforcementAction)
+    .where(eq(sellerEnforcementAction.sellerId, appealedAction.sellerId));
+  const actionsById = new Map(actions.map((action) => [action.id, action]));
+  const visited = new Set<string>();
+  let currentActionId = latestAction.id;
+  let currentActionType: (typeof sellerEnforcementAction.$inferSelect)["actionType"] =
+    latestAction.actionType;
+  let currentSupersedesActionId = latestAction.supersedesActionId;
+  while (currentActionId !== appealedAction.id) {
+    if (
+      currentActionType !== "REASON_CORRECTED" ||
+      !currentSupersedesActionId ||
+      visited.has(currentActionId)
+    ) {
+      return false;
+    }
+    visited.add(currentActionId);
+    const previousAction = actionsById.get(currentSupersedesActionId);
+    if (!previousAction) {
+      return false;
+    }
+    currentActionId = previousAction.id;
+    currentActionType = previousAction.actionType;
+    currentSupersedesActionId = previousAction.supersedesActionId;
+  }
+  return true;
 };
 
 export const getSellerEnforcementView = async (
@@ -321,6 +404,22 @@ export const listSellerEnforcementAppeals = (
     )
     .limit(Math.min(Math.max(limit, 1), 100));
 
+export const listSellerEnforcementSellerAppeals = async (
+  database: typeof db,
+  sellerId: string,
+  limit = 50
+): Promise<SellerEnforcementSellerAppealView["appeal"][]> => {
+  const appeals = await listSellerEnforcementAppeals(database, sellerId, limit);
+  return appeals.map((appeal) => {
+    const {
+      adminNote: _adminNote,
+      reviewerUserId: _reviewerUserId,
+      ...sellerAppeal
+    } = appeal;
+    return sellerAppeal;
+  });
+};
+
 export const getSellerEnforcementAppeal = async ({
   appealId,
   database = db,
@@ -388,7 +487,9 @@ const createSignedSellerEnforcementAppealEvidenceUrl = async (
       env.SUPABASE_URL
     ),
     {
-      body: JSON.stringify({ expiresIn: 600 }),
+      body: JSON.stringify({
+        expiresIn: SELLER_ENFORCEMENT_APPEAL_EVIDENCE_SIGNED_URL_TTL_SECONDS,
+      }),
       headers: {
         Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
         "Content-Type": "application/json",
@@ -402,15 +503,23 @@ const createSignedSellerEnforcementAppealEvidenceUrl = async (
       message: "Không thể tạo đường dẫn tải bằng chứng Appeal.",
     });
   }
-  const result = (await response.json()) as { signedURL?: string };
-  if (!result.signedURL) {
+  let responseBody: unknown;
+  try {
+    responseBody = await response.json();
+  } catch {
     throw new ORPCError("INTERNAL_SERVER_ERROR", {
       message: "Không thể tạo đường dẫn tải bằng chứng Appeal.",
     });
   }
-  const signedPath = result.signedURL.startsWith("/storage/v1/")
-    ? result.signedURL
-    : `/storage/v1${result.signedURL}`;
+  const result = signedUrlResponseSchema.safeParse(responseBody);
+  if (!result.success) {
+    throw new ORPCError("INTERNAL_SERVER_ERROR", {
+      message: "Không thể tạo đường dẫn tải bằng chứng Appeal.",
+    });
+  }
+  const signedPath = result.data.signedURL.startsWith("/storage/v1/")
+    ? result.data.signedURL
+    : `/storage/v1${result.data.signedURL}`;
   return { url: new URL(signedPath, env.SUPABASE_URL).toString() };
 };
 
@@ -444,6 +553,18 @@ export const getSellerEnforcementAppealEvidenceUrl = async ({
   return createSignedSellerEnforcementAppealEvidenceUrl(evidence.storageKey);
 };
 
+const lockSellerAccount = async (
+  executor: EnforcementExecutor,
+  sellerId: string
+): Promise<void> => {
+  await executor
+    .select({ id: user.id })
+    .from(user)
+    .where(eq(user.id, sellerId))
+    .for("update")
+    .limit(1);
+};
+
 const assertApprovedSeller = async (
   executor: EnforcementExecutor,
   sellerId: string
@@ -452,6 +573,7 @@ const assertApprovedSeller = async (
     .select({ id: user.id, role: user.role })
     .from(user)
     .where(eq(user.id, sellerId))
+    .for("update")
     .limit(1);
   if (!account || account.role !== "SELLER") {
     throw new ORPCError("NOT_FOUND", { message: "Seller not found" });
@@ -493,40 +615,63 @@ const validateExpiry = (
   return state === "SUSPENDED" ? (expiresAt ?? null) : null;
 };
 
+const assertMatchingEnforcementIdempotency = (
+  action: typeof sellerEnforcementAction.$inferSelect,
+  requestedActionType:
+    | (typeof sellerEnforcementAction.$inferInsert)["actionType"]
+    | undefined,
+  nextState: Exclude<SellerEnforcementState, "CLEAR"> | "CLEAR",
+  reasonCode: SellerEnforcementReasonCode,
+  sellerReason: string,
+  expiresAt: Date | null | undefined
+): void => {
+  const expectedActionType =
+    requestedActionType ??
+    (() => {
+      try {
+        return getSellerEnforcementTransition(action.previousState, nextState);
+      } catch {
+        return null;
+      }
+    })();
+  const existingExpiresAt = action.expiresAt?.getTime() ?? null;
+  const requestedExpiresAt = expiresAt?.getTime() ?? null;
+  if (
+    action.actionType !== expectedActionType ||
+    action.newState !== nextState ||
+    action.reasonCode !== reasonCode ||
+    action.sellerReason !== sellerReason ||
+    existingExpiresAt !== requestedExpiresAt
+  ) {
+    throw new ORPCError("CONFLICT", {
+      message: "Idempotency key was already used for another decision",
+    });
+  }
+};
+
 const createRemediation = async (
   executor: EnforcementExecutor,
   actionId: string,
   sellerId: string,
   now: Date
 ): Promise<void> => {
-  const targetedItems = await executor
-    .select({ id: orderItem.id })
-    .from(orderItem)
-    .innerJoin(order, eq(order.id, orderItem.orderId))
-    .where(
-      and(
-        eq(order.sellerId, sellerId),
-        inArray(orderItem.status, ["AWAITING_SELLER", "IN_PROGRESS"]),
-        notExists(
-          executor
-            .select({ id: dispute.id })
-            .from(dispute)
-            .where(eq(dispute.orderItemId, orderItem.id))
-        )
-      )
-    )
-    .orderBy(asc(orderItem.createdAt), asc(orderItem.id));
+  const [enforcementAction] = await executor
+    .select({ effectiveAt: sellerEnforcementAction.effectiveAt })
+    .from(sellerEnforcementAction)
+    .where(eq(sellerEnforcementAction.id, actionId))
+    .limit(1);
+  if (!enforcementAction) {
+    throw new Error("Seller Enforcement action was not found");
+  }
 
-  const isComplete = targetedItems.length === 0;
   const [remediation] = await executor
     .insert(sellerEnforcementRemediation)
     .values({
       actionId,
       createdAt: now,
-      finishedAt: isComplete ? now : null,
       sellerId,
-      status: isComplete ? "COMPLETED" : "PENDING",
-      totalItems: targetedItems.length,
+      status: "PENDING",
+      totalItems: 0,
       updatedAt: now,
     })
     .returning();
@@ -534,17 +679,57 @@ const createRemediation = async (
     throw new Error("Seller Enforcement remediation was not created");
   }
 
-  if (targetedItems.length > 0) {
-    await executor.insert(sellerEnforcementRemediationItem).values(
-      targetedItems.map((item) => ({
-        createdAt: now,
-        orderItemId: item.id,
-        remediationId: remediation.id,
+  try {
+    const targetedItems = await executor
+      .select({ id: orderItem.id })
+      .from(orderItem)
+      .innerJoin(order, eq(order.id, orderItem.orderId))
+      .where(
+        and(
+          eq(order.sellerId, sellerId),
+          inArray(orderItem.status, ["AWAITING_SELLER", "IN_PROGRESS"]),
+          lte(orderItem.createdAt, enforcementAction.effectiveAt)
+        )
+      )
+      .orderBy(asc(orderItem.createdAt), asc(orderItem.id));
+
+    if (targetedItems.length > 0) {
+      await executor.insert(sellerEnforcementRemediationItem).values(
+        targetedItems.map((item) => ({
+          createdAt: now,
+          orderItemId: item.id,
+          remediationId: remediation.id,
+          updatedAt: now,
+        }))
+      );
+    }
+
+    await executor
+      .update(sellerEnforcementRemediation)
+      .set({
+        finishedAt: targetedItems.length === 0 ? now : null,
+        status: targetedItems.length === 0 ? "COMPLETED" : "PENDING",
+        totalItems: targetedItems.length,
         updatedAt: now,
-      }))
-    );
+      })
+      .where(eq(sellerEnforcementRemediation.id, remediation.id));
+  } catch (error) {
+    await executor
+      .update(sellerEnforcementRemediation)
+      .set({
+        lastError:
+          error instanceof Error
+            ? error.message
+            : "Unable to enumerate Seller Enforcement remediation items",
+        status: "NEEDS_ATTENTION",
+        updatedAt: now,
+      })
+      .where(eq(sellerEnforcementRemediation.id, remediation.id));
+    throw error;
   }
 };
+
+export const createSellerEnforcementRemediation = createRemediation;
 
 // oxlint-disable-next-line complexity
 export const changeSellerEnforcement = async ({
@@ -554,6 +739,9 @@ export const changeSellerEnforcement = async ({
   allowOverturn = false,
   database = db,
   expiresAt,
+  confirmAffectedEscrowHolds = false,
+  confirmAffectedOrderItems = false,
+  confirmAffectedWithdrawals = false,
   idempotencyKey,
   nextState,
   now = new Date(),
@@ -566,6 +754,9 @@ export const changeSellerEnforcement = async ({
   actorUserId: string | null;
   adminNote?: string | null;
   database?: typeof db;
+  confirmAffectedEscrowHolds?: boolean;
+  confirmAffectedOrderItems?: boolean;
+  confirmAffectedWithdrawals?: boolean;
   expiresAt?: Date | null;
   idempotencyKey: string;
   nextState: Exclude<SellerEnforcementState, "CLEAR"> | "CLEAR";
@@ -582,9 +773,9 @@ export const changeSellerEnforcement = async ({
         "Enforcement idempotency key and Seller-visible reason are required",
     });
   }
-
   // oxlint-disable-next-line complexity
-  await database.transaction(async (transaction) => {
+  const remediationAction = await database.transaction(async (transaction) => {
+    let remediationActionId: string | null = null;
     const [existingAction] = await transaction
       .select()
       .from(sellerEnforcementAction)
@@ -596,23 +787,57 @@ export const changeSellerEnforcement = async ({
       )
       .limit(1);
     if (existingAction) {
-      const existingExpiresAt = existingAction.expiresAt?.getTime() ?? null;
-      const requestedExpiresAt = expiresAt?.getTime() ?? null;
-      if (
-        existingAction.newState !== nextState ||
-        existingAction.reasonCode !== reasonCode ||
-        existingAction.sellerReason !== normalizedReason ||
-        existingExpiresAt !== requestedExpiresAt
-      ) {
-        throw new ORPCError("CONFLICT", {
-          message: "Idempotency key was already used for another decision",
-        });
-      }
+      assertMatchingEnforcementIdempotency(
+        existingAction,
+        actionType,
+        nextState,
+        reasonCode,
+        normalizedReason,
+        expiresAt
+      );
       return;
     }
 
-    if (actionType !== "EXPIRE") {
-      await assertApprovedSeller(transaction, sellerId);
+    if (
+      nextState === "BANNED" &&
+      actionType !== "REASON_CORRECTED" &&
+      (!confirmAffectedOrderItems ||
+        !confirmAffectedEscrowHolds ||
+        !confirmAffectedWithdrawals)
+    ) {
+      throw new ORPCError("BAD_REQUEST", {
+        message:
+          "Banning requires confirmation of affected OrderItems, EscrowHolds, and WithdrawalRequests",
+      });
+    }
+
+    await (actionType === "EXPIRE"
+      ? lockSellerAccount(transaction, sellerId)
+      : assertApprovedSeller(transaction, sellerId));
+
+    // A concurrent retry can have passed the first read before waiting on the
+    // seller-row lock. Re-read after the lock so idempotent retries return the
+    // original action instead of surfacing a unique-key error.
+    const [existingActionAfterLock] = await transaction
+      .select()
+      .from(sellerEnforcementAction)
+      .where(
+        and(
+          eq(sellerEnforcementAction.sellerId, sellerId),
+          eq(sellerEnforcementAction.idempotencyKey, normalizedKey)
+        )
+      )
+      .limit(1);
+    if (existingActionAfterLock) {
+      assertMatchingEnforcementIdempotency(
+        existingActionAfterLock,
+        actionType,
+        nextState,
+        reasonCode,
+        normalizedReason,
+        expiresAt
+      );
+      return;
     }
 
     const [previousAction, current] = await Promise.all([
@@ -698,13 +923,19 @@ export const changeSellerEnforcement = async ({
       throw new Error("Seller Enforcement action was not created");
     }
 
-    if (previousAction) {
+    const supersedesOpenAppeal = [
+      "ESCALATE",
+      "EXPIRE",
+      "LIFT",
+      "OVERTURN",
+    ].includes(transition);
+    if (supersedesOpenAppeal) {
       await transaction
         .update(sellerEnforcementAppeal)
         .set({ status: "SUPERSEDED", updatedAt: now })
         .where(
           and(
-            eq(sellerEnforcementAppeal.actionId, previousAction.id),
+            eq(sellerEnforcementAppeal.sellerId, sellerId),
             inArray(sellerEnforcementAppeal.status, [
               "SUBMITTED",
               "UNDER_REVIEW",
@@ -730,9 +961,19 @@ export const changeSellerEnforcement = async ({
     }
 
     if (nextState === "BANNED" && previousState !== "BANNED") {
-      await createRemediation(transaction, action.id, sellerId, now);
+      remediationActionId = action.id;
     }
+    return remediationActionId;
   });
+
+  if (remediationAction) {
+    try {
+      await createRemediation(database, remediationAction, sellerId, now);
+    } catch {
+      // The Enforcement Action is already committed; the maintenance worker
+      // reconciles a missing or attention-needed remediation on its next run.
+    }
+  }
 
   return getSellerEnforcementView(database, sellerId);
 };
@@ -765,6 +1006,7 @@ export const correctSellerEnforcementReason = async ({
     actorUserId,
     adminNote,
     database,
+    expiresAt: current.expiresAt,
     idempotencyKey,
     nextState: current.state,
     reasonCode,
@@ -818,6 +1060,7 @@ export const submitSellerEnforcementAppeal = ({
   sellerId: string;
   sellerReason: string;
 }): Promise<typeof sellerEnforcementAppeal.$inferSelect> =>
+  // oxlint-disable-next-line complexity
   database.transaction(async (transaction) => {
     const normalizedKey = idempotencyKey.trim();
     const normalizedReason = sellerReason.trim();
@@ -826,6 +1069,11 @@ export const submitSellerEnforcementAppeal = ({
         message: "Appeal idempotency key and Seller reason are required",
       });
     }
+
+    // Serialize appeal submission with enforcement decisions. This prevents a
+    // seller from inserting an appeal for an action after a concurrent lift,
+    // expiry, or escalation has superseded it.
+    await lockSellerAccount(transaction, sellerId);
 
     const [action] = await transaction
       .select()
@@ -921,6 +1169,7 @@ export const submitSellerEnforcementAppeal = ({
     return appeal;
   });
 
+// oxlint-disable-next-line complexity
 export const reviewSellerEnforcementAppeal = ({
   adminNote,
   appealId,
@@ -934,28 +1183,41 @@ export const reviewSellerEnforcementAppeal = ({
   adminNote?: string | null;
   appealId: string;
   database?: typeof db;
-  outcome: "UPHELD" | "OVERTURNED";
-  outcomeReason: string;
+  outcome: "UNDER_REVIEW" | "UPHELD" | "OVERTURNED";
+  outcomeReason?: string | null;
   reasonCode: SellerEnforcementReasonCode;
   reviewerUserId: string;
   now?: Date;
 }): Promise<typeof sellerEnforcementAppeal.$inferSelect> =>
+  // oxlint-disable-next-line complexity
   database.transaction(async (transaction) => {
-    const [appeal] = await transaction
+    const [appealSnapshot] = await transaction
       .select()
       .from(sellerEnforcementAppeal)
       .where(eq(sellerEnforcementAppeal.id, appealId))
       .limit(1);
-    const normalizedOutcomeReason = outcomeReason.trim();
-    if (!normalizedOutcomeReason) {
-      throw new ORPCError("BAD_REQUEST", {
-        message: "Appeal outcome reason is required",
-      });
+    if (!appealSnapshot) {
+      throw new ORPCError("NOT_FOUND", { message: "Appeal not found" });
     }
+
+    // Use the same seller-row lock as enforcement decisions and submissions,
+    // then lock the appeal row before validating/updating its status.
+    await lockSellerAccount(transaction, appealSnapshot.sellerId);
+    const [appeal] = await transaction
+      .select()
+      .from(sellerEnforcementAppeal)
+      .where(eq(sellerEnforcementAppeal.id, appealId))
+      .for("update")
+      .limit(1);
     if (!appeal) {
       throw new ORPCError("NOT_FOUND", { message: "Appeal not found" });
     }
-    if (appeal.status !== "SUBMITTED" && appeal.status !== "UNDER_REVIEW") {
+    if (outcome === "UNDER_REVIEW" && appeal.status !== "SUBMITTED") {
+      throw new ORPCError("CONFLICT", {
+        message: "This appeal is already under review or resolved",
+      });
+    }
+    if (outcome !== "UNDER_REVIEW" && appeal.status !== "UNDER_REVIEW") {
       throw new ORPCError("CONFLICT", {
         message: "This appeal has already been resolved",
       });
@@ -972,11 +1234,41 @@ export const reviewSellerEnforcementAppeal = ({
     if (
       !appealedAction ||
       appealedAction.newState === "CLEAR" ||
-      !latestAction ||
-      latestAction.id !== appealedAction.id
+      !latestAction
     ) {
       throw new ORPCError("CONFLICT", {
         message: "This appeal has been superseded by a newer decision",
+      });
+    }
+    if (
+      !(await isAppealActionCurrent(transaction, appealedAction, latestAction))
+    ) {
+      throw new ORPCError("CONFLICT", {
+        message: "This appeal has been superseded by a newer decision",
+      });
+    }
+
+    if (outcome === "UNDER_REVIEW") {
+      const [updatedAppeal] = await transaction
+        .update(sellerEnforcementAppeal)
+        .set({
+          adminNote: adminNote?.trim() || null,
+          reviewerUserId,
+          status: "UNDER_REVIEW",
+          updatedAt: now,
+        })
+        .where(eq(sellerEnforcementAppeal.id, appealId))
+        .returning();
+      if (!updatedAppeal) {
+        throw new Error("Appeal was not updated for review");
+      }
+      return updatedAppeal;
+    }
+
+    const normalizedOutcomeReason = outcomeReason?.trim() ?? "";
+    if (!normalizedOutcomeReason) {
+      throw new ORPCError("BAD_REQUEST", {
+        message: "Appeal outcome reason is required",
       });
     }
 
@@ -1009,7 +1301,7 @@ export const reviewSellerEnforcementAppeal = ({
           reasonCode,
           sellerId: appeal.sellerId,
           sellerReason: normalizedOutcomeReason,
-          supersedesActionId: appeal.actionId,
+          supersedesActionId: latestAction.id,
         })
         .returning();
       if (!action) {
@@ -1049,7 +1341,6 @@ export const getEnforcementRemediationItems = (
     .where(eq(sellerEnforcementRemediationItem.remediationId, remediationId))
     .orderBy(asc(sellerEnforcementRemediationItem.createdAt));
 
-const MAX_REMEDIATION_ATTEMPTS = 5;
 const MAX_REMEDIATION_ITEMS_PER_RUN = 100;
 
 export const retrySellerEnforcementRemediation = ({
@@ -1162,7 +1453,12 @@ export const expireSellerEnforcements = async ({
         if (error instanceof ORPCError && error.code === "CONFLICT") {
           return null;
         }
-        throw error;
+        if (error instanceof Error) {
+          throw error;
+        }
+        throw new Error("Failed to expire seller enforcement", {
+          cause: error,
+        });
       }
     })
   );
@@ -1171,12 +1467,3 @@ export const expireSellerEnforcements = async ({
   );
   return { expiredSellerIds };
 };
-
-export interface SellerEnforcementRemediationRunResult {
-  completedItemIds: string[];
-  failedItemIds: string[];
-  remediationIds: string[];
-}
-
-export const getRemediationAttemptLimit = (): number =>
-  MAX_REMEDIATION_ATTEMPTS;

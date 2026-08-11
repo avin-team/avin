@@ -126,7 +126,7 @@ describe("store profile contract", () => {
         now: new Date("2026-08-02T13:00:00.000Z"),
         profile,
       })
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("keeps the Store slug locked after its first public state", async () => {

@@ -54,9 +54,8 @@ export const isListingPubliclyAvailable = (
 const sellerEnforcementTableName = getTableName(sellerEnforcement);
 const sellerEnforcementSellerIdColumnName = sellerEnforcement.sellerId.name;
 const sellerEnforcementStateColumnName = sellerEnforcement.state.name;
-const sellerEnforcementExpiresAtColumnName = sellerEnforcement.expiresAt.name;
 
-export const sellerIsNotEnforcedCondition = (now = new Date()): SQL<unknown> =>
+export const sellerIsNotEnforcedCondition = (_now = new Date()): SQL<unknown> =>
   sql`
   NOT EXISTS (
     SELECT 1
@@ -64,13 +63,7 @@ export const sellerIsNotEnforcedCondition = (now = new Date()): SQL<unknown> =>
     WHERE seller_enforcement.${sql.identifier(sellerEnforcementSellerIdColumnName)} = ${listing.sellerId}
       AND (
         seller_enforcement.${sql.identifier(sellerEnforcementStateColumnName)} = 'BANNED'
-        OR (
-          seller_enforcement.${sql.identifier(sellerEnforcementStateColumnName)} = 'SUSPENDED'
-          AND (
-            seller_enforcement.${sql.identifier(sellerEnforcementExpiresAtColumnName)} IS NULL
-            OR seller_enforcement.${sql.identifier(sellerEnforcementExpiresAtColumnName)} > ${now}
-          )
-        )
+        OR seller_enforcement.${sql.identifier(sellerEnforcementStateColumnName)} = 'SUSPENDED'
       )
   )
 `;
@@ -185,6 +178,9 @@ export const listingDiscoveryRouter = {
       const isAdmin = user?.role === "ADMIN";
       const isOwner = user?.id === found.sellerId;
       const sellerAccount = await getSellerEnforcement(db, found.sellerId);
+      const isBannedSeller =
+        sellerAccount?.state === "BANNED" &&
+        isMarketplaceSellerEnforced(sellerAccount);
       const isPubliclyAvailable = isListingPubliclyAvailable(
         found.status,
         found.category.status,
@@ -198,7 +194,7 @@ export const listingDiscoveryRouter = {
 
       if (
         !isAdmin &&
-        !isOwner &&
+        (!isOwner || isBannedSeller) &&
         (!isPubliclyAvailable ||
           !hasAvailableServicePackage ||
           isMarketplaceSellerEnforced(sellerAccount))
