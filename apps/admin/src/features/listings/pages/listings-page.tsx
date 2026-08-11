@@ -201,7 +201,7 @@ export const ListingsPage = () => {
         <div>
           <p className="text-sm font-medium text-primary">LISTING GOVERNANCE</p>
           <h1 className="text-3xl font-semibold tracking-tight">
-            Moderation Listing
+            Duyệt sản phẩm
           </h1>
           <p className="text-muted-foreground">
             Post-moderate Listing bằng hide, restore và archive; mọi thay đổi

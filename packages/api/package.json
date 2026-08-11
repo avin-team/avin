@@ -10,6 +10,7 @@
     "./commerce/orders": "./src/commerce/orders.ts",
     "./context": "./src/runtime/context.ts",
     "./listing/seller-workspace": "./src/listing/seller-workspace.ts",
+    "./notifications/email-delivery": "./src/notifications/email-delivery.ts",
     "./router": "./src/router.ts",
     "./seller-store/profile": "./src/seller-store/profile.ts",
     "./seller-enforcement/policy": "./src/seller-enforcement/policy.ts",

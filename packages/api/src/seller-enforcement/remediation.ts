@@ -24,6 +24,10 @@ import {
 } from "drizzle-orm";
 
 import { cancelOrderItemForSellerEnforcement } from "../commerce/fulfillment";
+import {
+  createNotificationEvent,
+  listNotificationRecipientsByRole,
+} from "../notifications/notification";
 import { createSellerEnforcementRemediation } from "./service";
 
 const MAX_REMEDIATION_ATTEMPTS = 5;
@@ -381,7 +385,7 @@ const reconcileRemediationTargets = async (
 };
 
 const refreshRemediation = async (
-  database: typeof db,
+  database: Pick<typeof db, "select" | "update">,
   remediationId: string,
   now: Date
 ): Promise<typeof sellerEnforcementRemediation.$inferSelect | null> => {
@@ -581,7 +585,33 @@ export const runSellerEnforcementRemediation = async ({
         failedItemIds.push(item.orderItemId);
       }
     }
-    await refreshRemediation(database, remediation.id, now);
+    await database.transaction(async (transaction) => {
+      const refreshed = await refreshRemediation(
+        transaction,
+        remediation.id,
+        now
+      );
+      if (
+        refreshed?.status === "NEEDS_ATTENTION" &&
+        remediation.status !== "NEEDS_ATTENTION"
+      ) {
+        await createNotificationEvent(transaction, {
+          body: "Seller Enforcement remediation đã vượt quá số lần thử và cần xử lý.",
+          context: {
+            remediationId: refreshed.id,
+            sellerId: refreshed.sellerId,
+          },
+          eventType: "enforcement_remediation.needs_attention",
+          recipients: await listNotificationRecipientsByRole(transaction, {
+            role: "ADMIN",
+            targetPath: "/sellers",
+          }),
+          sourceId: refreshed.id,
+          sourceType: "SELLER_ENFORCEMENT_REMEDIATION",
+          title: "Remediation cần được xử lý",
+        });
+      }
+    });
   }
 
   return { completedItemIds, failedItemIds, remediationIds };

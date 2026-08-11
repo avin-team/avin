@@ -26,6 +26,10 @@ import {
   sql,
 } from "drizzle-orm";
 
+import {
+  createNotificationEvent,
+  listNotificationRecipientsByRole,
+} from "../notifications/notification";
 import { recordBalancedLedgerTransaction } from "./ledger";
 import type { WalletExecutor } from "./ledger";
 import {
@@ -901,6 +905,32 @@ export const creditDepositForEvent = async (
     })
     .where(eq(depositRequest.id, request.id));
 
+  await createNotificationEvent(executor, {
+    body: `Ví của bạn đã được ghi có ${event.amount.toLocaleString("vi-VN")} VND.`,
+    context: {
+      amount: event.amount,
+      depositRequestId: request.id,
+      transactionId: transaction.id,
+    },
+    email: {
+      htmlBody: `<p>Ví của bạn đã được ghi có ${event.amount.toLocaleString("vi-VN")} VND.</p>`,
+      recipientUserIds: [request.userId],
+      subject: "Avin: Nạp tiền thành công",
+      textBody: `Ví của bạn đã được ghi có ${event.amount.toLocaleString("vi-VN")} VND.`,
+    },
+    eventType: "transaction.deposit_credited",
+    recipients: [
+      { targetPath: "/wallet", userId: request.userId },
+      ...(await listNotificationRecipientsByRole(executor, {
+        role: "ADMIN",
+        targetPath: "/operations",
+      })),
+    ],
+    sourceId: transaction.id,
+    sourceType: "LEDGER_TRANSACTION",
+    title: "Nạp tiền thành công",
+  });
+
   return {
     amount: event.amount,
     newAvailableBalance: updatedWallet.availableBalance,
@@ -919,7 +949,11 @@ export const reverseLedgerTransactionInTransaction = async (
     reason: string;
     transactionId: string;
   }
-): Promise<{ reversalId: string; reversalReference: string }> => {
+): Promise<{
+  affectedUserIds: string[];
+  reversalId: string;
+  reversalReference: string;
+}> => {
   const [original] = await transaction
     .select()
     .from(ledgerTransaction)
@@ -1040,6 +1074,7 @@ export const reverseLedgerTransactionInTransaction = async (
   }
 
   return {
+    affectedUserIds: walletEntries.map(([userId]) => userId),
     reversalId: reversal.id,
     reversalReference: reversal.reference,
   };
@@ -1053,10 +1088,46 @@ export const reverseLedgerTransaction = ({
   database?: typeof db;
   reason: string;
   transactionId: string;
-}): Promise<{ reversalId: string; reversalReference: string }> =>
-  database.transaction((transaction) =>
-    reverseLedgerTransactionInTransaction(transaction, {
+}): Promise<{
+  affectedUserIds: string[];
+  reversalId: string;
+  reversalReference: string;
+}> =>
+  database.transaction(async (transaction) => {
+    const result = await reverseLedgerTransactionInTransaction(transaction, {
       reason,
       transactionId,
-    })
-  );
+    });
+
+    await createNotificationEvent(transaction, {
+      body: "Một giao dịch tài chính liên quan đến ví của bạn đã được đảo.",
+      context: {
+        originalTransactionId: transactionId,
+        reversalTransactionId: result.reversalId,
+      },
+      email: {
+        htmlBody:
+          "<p>Một giao dịch tài chính liên quan đến ví của bạn đã được đảo.</p>",
+        recipientUserIds: result.affectedUserIds,
+        subject: "Avin: Giao dịch tài chính đã được đảo",
+        textBody:
+          "Một giao dịch tài chính liên quan đến ví của bạn đã được đảo.",
+      },
+      eventType: "transaction.reversal_committed",
+      recipients: [
+        ...result.affectedUserIds.map((userId) => ({
+          targetPath: "/wallet",
+          userId,
+        })),
+        ...(await listNotificationRecipientsByRole(transaction, {
+          role: "ADMIN",
+          targetPath: "/operations",
+        })),
+      ],
+      sourceId: result.reversalId,
+      sourceType: "LEDGER_TRANSACTION",
+      title: "Giao dịch tài chính đã được đảo",
+    });
+
+    return result;
+  });

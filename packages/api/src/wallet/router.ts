@@ -95,25 +95,18 @@ const withdrawalPaymentInput = withdrawalRequestIdInput.extend({
 const mapReconciliationEvent = (
   event: typeof sepayPaymentEvent.$inferSelect
 ) => ({
-  accountNumber: event.accountNumber,
   amount: event.amount,
-  bankReference: event.bankReference,
-  content: event.content,
   currency: event.currency,
   depositRequestId: event.depositRequestId,
+  eventId: event.id,
   failureReason: event.failureReason,
-  gateway: event.gateway,
-  id: event.id,
+  ledgerTransactionId: event.ledgerTransactionId,
   paymentCode: event.paymentCode,
   processedAt: event.processedAt?.toISOString() ?? null,
   providerEventId: event.providerEventId,
-  rawBody: event.rawBody,
-  rawPayload: event.rawPayload,
   receivedAt: event.receivedAt.toISOString(),
-  source: event.source,
   status: event.status,
   transactionAt: event.transactionAt.toISOString(),
-  transferType: event.transferType,
 });
 
 export const walletRouter = {
@@ -130,12 +123,27 @@ export const walletRouter = {
 
     getWithdrawal: adminProcedure
       .input(withdrawalRequestIdInput)
-      .handler(({ context, input }) =>
-        getWithdrawalRequest({
-          database: context.db,
-          withdrawalRequestId: input.withdrawalRequestId,
-        })
-      ),
+      .handler(async ({ context, input }) => {
+        const auditEvent = {
+          action: "wallet.withdrawal.read",
+          actorUserId: context.session.user.id,
+          metadata: { purpose: "Review withdrawal payout details" },
+          targetId: input.withdrawalRequestId,
+          targetType: "WITHDRAWAL_REQUEST",
+        } as const;
+
+        try {
+          const result = await getWithdrawalRequest({
+            database: context.db,
+            withdrawalRequestId: input.withdrawalRequestId,
+          });
+          await context.audit.record({ ...auditEvent, outcome: "SUCCESS" });
+          return result;
+        } catch (error) {
+          await context.audit.record({ ...auditEvent, outcome: "FAILURE" });
+          throw error;
+        }
+      }),
 
     listReconciliation: adminProcedure
       .input(reconciliationListInput)

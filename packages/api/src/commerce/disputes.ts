@@ -8,7 +8,6 @@ import {
   dispute,
   disputeEvidence,
   escrowHold,
-  notification,
   order,
   orderFile,
   orderItem,
@@ -37,6 +36,10 @@ import {
 } from "drizzle-orm";
 import { z } from "zod";
 
+import {
+  createNotificationEvent,
+  listNotificationRecipientsByRole,
+} from "../notifications/notification";
 import {
   DISPUTE_EVIDENCE_MAX_COUNT,
   isDisputeEvidenceKey,
@@ -616,37 +619,38 @@ export const getDisputeEvidenceUrlForUser = async ({
 
 const insertDisputeNotifications = async (
   executor: CommerceExecutor,
-  row: Pick<DisputeRow, "buyerId" | "itemId" | "sellerId">,
+  row: Pick<DisputeRow, "buyerId" | "disputeId" | "orderId" | "sellerId">,
   eventId: string,
+  eventType: "dispute.resolved",
   body: string,
   title: string,
   now: Date
 ): Promise<void> => {
-  const adminRows = await executor
-    .select({ id: user.id })
-    .from(user)
-    .where(eq(user.role, "ADMIN"))
-    .limit(MAX_ADMIN_NOTIFICATION_RECIPIENTS);
-  const recipientIds = new Set([
-    row.buyerId,
-    row.sellerId,
-    ...adminRows.map((admin) => admin.id),
-  ]);
-  await executor
-    .insert(notification)
-    .values(
-      [...recipientIds].map((recipientUserId) => ({
-        body,
-        createdAt: now,
-        lifecycleEventId: eventId,
-        orderItemId: row.itemId,
-        recipientUserId,
-        title,
-      }))
-    )
-    .onConflictDoNothing({
-      target: [notification.lifecycleEventId, notification.recipientUserId],
-    });
+  const adminRecipients = await listNotificationRecipientsByRole(executor, {
+    limit: MAX_ADMIN_NOTIFICATION_RECIPIENTS,
+    role: "ADMIN",
+    targetPath: "/disputes",
+  });
+  await createNotificationEvent(executor, {
+    body,
+    context: { disputeId: row.disputeId, orderId: row.orderId },
+    email: {
+      htmlBody: `<p>${body}</p>`,
+      recipientUserIds: [row.buyerId, row.sellerId],
+      subject: "Avin: Dispute đã được xử lý",
+      textBody: body,
+    },
+    eventType,
+    now,
+    recipients: [
+      { targetPath: `/orders/${row.orderId}`, userId: row.buyerId },
+      { targetPath: `/orders/${row.orderId}`, userId: row.sellerId },
+      ...adminRecipients,
+    ],
+    sourceId: eventId,
+    sourceType: "DISPUTE",
+    title,
+  });
 };
 
 export const submitSellerEvidence = ({
@@ -748,7 +752,7 @@ export const submitSellerEvidence = ({
       });
     }
 
-    const [inserted, eventRows] = await Promise.all([
+    const [inserted] = await Promise.all([
       transaction
         .insert(disputeEvidence)
         .values(
@@ -766,57 +770,36 @@ export const submitSellerEvidence = ({
           }))
         )
         .returning(),
-      transaction
-        .insert(orderItemLifecycleEvent)
-        .values({
-          actorType: "SELLER",
-          actorUserId: sellerId,
-          artifactId: disputeId,
-          artifactType: "DISPUTE_EVIDENCE",
-          commandKey: eventCommandKey,
-          createdAt: now,
-          effectiveAt: now,
-          newStatus: "DISPUTED",
-          oldStatus: "DISPUTED",
-          orderItemId: row.orderItemId,
-          reason: "Seller submitted dispute evidence",
-        })
-        .returning({ id: orderItemLifecycleEvent.id }),
+      transaction.insert(orderItemLifecycleEvent).values({
+        actorType: "SELLER",
+        actorUserId: sellerId,
+        artifactId: disputeId,
+        artifactType: "DISPUTE_EVIDENCE",
+        commandKey: eventCommandKey,
+        createdAt: now,
+        effectiveAt: now,
+        newStatus: "DISPUTED",
+        oldStatus: "DISPUTED",
+        orderItemId: row.orderItemId,
+        reason: "Seller submitted dispute evidence",
+      }),
     ]);
-    const [event] = eventRows;
-    if (!event) {
-      throw new Error("Dispute evidence lifecycle event was not created");
-    }
-    await Promise.all([
-      transaction
-        .update(dispute)
-        .set({
-          adminDecisionDeadlineAt: addBusinessHours(
-            now > row.responseDeadlineAt ? row.responseDeadlineAt : now,
-            DISPUTE_ADMIN_SLA_HOURS
-          ),
-          updatedAt: now,
-        })
-        .where(
-          and(
-            eq(dispute.id, disputeId),
-            eq(dispute.status, "OPEN"),
-            isNull(dispute.adminDecisionDeadlineAt)
-          )
+    await transaction
+      .update(dispute)
+      .set({
+        adminDecisionDeadlineAt: addBusinessHours(
+          now > row.responseDeadlineAt ? row.responseDeadlineAt : now,
+          DISPUTE_ADMIN_SLA_HOURS
         ),
-      insertDisputeNotifications(
-        transaction,
-        {
-          buyerId: row.buyerId,
-          itemId: row.orderItemId,
-          sellerId: row.sellerId,
-        },
-        event.id,
-        "Seller đã gửi thêm bằng chứng cho Dispute.",
-        "Dispute có bằng chứng mới",
-        now
-      ),
-    ]);
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(dispute.id, disputeId),
+          eq(dispute.status, "OPEN"),
+          isNull(dispute.adminDecisionDeadlineAt)
+        )
+      );
 
     return inserted.map((file) => ({
       byteSize: file.byteSize ?? 0,
@@ -846,6 +829,7 @@ export const notifyDisputeResponseDeadlines = async ({
       buyerId: dispute.buyerId,
       disputeId: dispute.id,
       itemId: dispute.orderItemId,
+      orderId: order.id,
       responseDeadlineAt: dispute.responseDeadlineAt,
       sellerId: order.sellerId,
     })
@@ -892,12 +876,12 @@ export const notifyDisputeResponseDeadlines = async ({
           .where(eq(dispute.id, dueDispute.disputeId));
       }
 
-      const [adminRows, existingEvents] = await Promise.all([
-        transaction
-          .select({ id: user.id })
-          .from(user)
-          .where(eq(user.role, "ADMIN"))
-          .limit(MAX_ADMIN_NOTIFICATION_RECIPIENTS),
+      const [adminRecipients, existingEvents] = await Promise.all([
+        listNotificationRecipientsByRole(transaction, {
+          limit: MAX_ADMIN_NOTIFICATION_RECIPIENTS,
+          role: "ADMIN",
+          targetPath: "/disputes",
+        }),
         transaction
           .select({
             commandKey: orderItemLifecycleEvent.commandKey,
@@ -909,11 +893,6 @@ export const notifyDisputeResponseDeadlines = async ({
       const existingCommandKeys = new Set(
         existingEvents.map((event) => event.commandKey)
       );
-      const recipientIds = new Set([
-        dueDispute.buyerId,
-        dueDispute.sellerId,
-        ...adminRows.map((admin) => admin.id),
-      ]);
       let changed = false;
 
       const createDeadlineEvent = async ({
@@ -949,24 +928,35 @@ export const notifyDisputeResponseDeadlines = async ({
         if (!event) {
           throw new Error("Dispute deadline event was not created");
         }
-        await transaction
-          .insert(notification)
-          .values(
-            [...recipientIds].map((recipientUserId) => ({
-              body,
-              createdAt: now,
-              lifecycleEventId: event.id,
-              orderItemId: dueDispute.itemId,
-              recipientUserId,
-              title,
-            }))
-          )
-          .onConflictDoNothing({
-            target: [
-              notification.lifecycleEventId,
-              notification.recipientUserId,
-            ],
-          });
+        await createNotificationEvent(transaction, {
+          body,
+          context: {
+            disputeId: dueDispute.disputeId,
+            orderId: dueDispute.orderId,
+          },
+          email: {
+            htmlBody: `<p>${body}</p>`,
+            recipientUserIds: [dueDispute.buyerId, dueDispute.sellerId],
+            subject: "Avin: Dispute có mốc thời hạn mới",
+            textBody: body,
+          },
+          eventType: "dispute.deadline",
+          now,
+          recipients: [
+            {
+              targetPath: `/orders/${dueDispute.orderId}`,
+              userId: dueDispute.buyerId,
+            },
+            {
+              targetPath: `/orders/${dueDispute.orderId}`,
+              userId: dueDispute.sellerId,
+            },
+            ...adminRecipients,
+          ],
+          sourceId: event.id,
+          sourceType: "DISPUTE",
+          title,
+        });
         changed = true;
       };
 
@@ -1014,6 +1004,7 @@ const toEscrowResolutionContext = (
   escrowHoldId: row.escrowHoldId,
   escrowHoldStatus: row.escrowHoldStatus,
   id: row.itemId,
+  orderId: row.orderId,
   sellerId: row.sellerId,
 });
 
@@ -1200,6 +1191,7 @@ export const resolveDispute = ({
       transaction,
       row,
       event.id,
+      "dispute.resolved",
       decision.escrowHoldStatus === "REFUNDED"
         ? "Admin đã hoàn toàn bộ escrow cho Buyer."
         : "Admin đã giải ngân toàn bộ escrow cho Seller.",
@@ -1350,6 +1342,7 @@ export const cancelDispute = ({
       transaction,
       row,
       event.id,
+      "dispute.resolved",
       "Buyer đã hủy tranh chấp. Escrow quay lại quy trình bình thường.",
       "Dispute đã được hủy",
       now

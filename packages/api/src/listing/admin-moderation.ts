@@ -6,6 +6,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { adminProcedure } from "../access/procedures";
+import { createNotificationEvent } from "../notifications/notification";
 import type { Context } from "../runtime/context";
 import { assertStoreProfileComplete } from "../seller-store/public-visibility";
 import {
@@ -134,6 +135,11 @@ const moderateListing = async ({
 
   const nextStatus = getModerationTransition(found.status, action);
   const updatedAt = new Date();
+  let restoreCategory: Awaited<
+    ReturnType<typeof assertActiveSubCategory>
+  > | null = null;
+  let legacyServicePackage: ReturnType<typeof toLegacyServicePackageDraft> =
+    null;
 
   if (action === "RESTORE") {
     await assertEligibleSeller(found.sellerId);
@@ -142,32 +148,55 @@ const moderateListing = async ({
     });
     assertStoreProfileComplete(profile);
     const category = await assertActiveSubCategory(found.categoryId);
+    restoreCategory = category;
     if (found.type === "SERVICE") {
       assertServiceListingBasics(found);
       const packages = await context.db.query.servicePackage.findMany({
         where: eq(servicePackage.listingId, found.id),
       });
       if (packages.length === 0) {
-        const legacyPackage = toLegacyServicePackageDraft(found);
-        if (!legacyPackage) {
+        legacyServicePackage = toLegacyServicePackageDraft(found);
+        if (!legacyServicePackage) {
           throw new ORPCError("BAD_REQUEST", {
             message:
               "A Service listing must define at least one package before restore",
           });
         }
-        await context.db.insert(servicePackage).values({
+      } else {
+        assertServicePackagesPublishable(packages, category);
+      }
+    } else {
+      assertPublishable(found, category);
+    }
+  }
+
+  const updated = await context.db.transaction(async (transaction) => {
+    if (action === "RESTORE" && found.type === "SERVICE") {
+      if (!restoreCategory) {
+        throw new Error("Restore category was not validated");
+      }
+
+      let packages = await transaction.query.servicePackage.findMany({
+        where: eq(servicePackage.listingId, found.id),
+      });
+      if (packages.length === 0) {
+        if (!legacyServicePackage) {
+          throw new ORPCError("BAD_REQUEST", {
+            message:
+              "A Service listing must define at least one package before restore",
+          });
+        }
+        await transaction.insert(servicePackage).values({
           firstPublishedAt: updatedAt,
           listingId: found.id,
-          ...legacyPackage,
+          ...legacyServicePackage,
         });
-        packages.push(
-          ...(await context.db.query.servicePackage.findMany({
-            where: eq(servicePackage.listingId, found.id),
-          }))
-        );
+        packages = await transaction.query.servicePackage.findMany({
+          where: eq(servicePackage.listingId, found.id),
+        });
       }
-      assertServicePackagesPublishable(packages, category);
-      await context.db
+      assertServicePackagesPublishable(packages, restoreCategory);
+      await transaction
         .update(servicePackage)
         .set({ firstPublishedAt: updatedAt, updatedAt })
         .where(
@@ -176,20 +205,56 @@ const moderateListing = async ({
             isNull(servicePackage.firstPublishedAt)
           )
         );
-    } else {
-      assertPublishable(found, category);
     }
-  }
 
-  const [updated] = await context.db
-    .update(listing)
-    .set({ status: nextStatus, updatedAt })
-    .where(eq(listing.id, found.id))
-    .returning();
+    const [result] = await transaction
+      .update(listing)
+      .set({ status: nextStatus, updatedAt })
+      .where(eq(listing.id, found.id))
+      .returning();
 
-  if (!updated) {
-    throw new ORPCError("NOT_FOUND", { message: "Listing not found" });
-  }
+    if (!result) {
+      throw new ORPCError("NOT_FOUND", { message: "Listing not found" });
+    }
+
+    let body: string;
+    let eventType: "listing.archived" | "listing.hidden" | "listing.restored";
+    let title: string;
+    switch (action) {
+      case "ARCHIVE": {
+        body = "Listing của bạn đã được lưu trữ.";
+        eventType = "listing.archived";
+        title = "Listing đã được lưu trữ";
+        break;
+      }
+      case "HIDE": {
+        body = "Listing của bạn đã bị ẩn khỏi marketplace.";
+        eventType = "listing.hidden";
+        title = "Listing đã bị ẩn";
+        break;
+      }
+      case "RESTORE": {
+        body = "Listing của bạn đã được khôi phục trên marketplace.";
+        eventType = "listing.restored";
+        title = "Listing đã được khôi phục";
+        break;
+      }
+      default: {
+        throw new Error(`Unsupported listing moderation action: ${action}`);
+      }
+    }
+    await createNotificationEvent(transaction, {
+      body,
+      context: { listingId: result.id, status: result.status },
+      eventType,
+      recipients: [{ targetPath: "/seller/store", userId: found.sellerId }],
+      sourceId: `${result.id}:${result.status}:${updatedAt.toISOString()}`,
+      sourceType: "LISTING",
+      title,
+    });
+
+    return result;
+  });
 
   await recordModerationAudit({
     action,

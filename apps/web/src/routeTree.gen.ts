@@ -22,6 +22,7 @@ import { Route as publicIndexRouteImport } from './routes/(public)/index'
 import { Route as AuthenticatedAiRouteImport } from './routes/_authenticated/ai'
 import { Route as AuthenticatedCartRouteImport } from './routes/_authenticated/cart'
 import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/chat'
+import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedSecurityRouteImport } from './routes/_authenticated/security'
 import { Route as AuthenticatedTwoFactorRouteImport } from './routes/_authenticated/two-factor'
 import { Route as authSellerLoginRouteImport } from './routes/(auth)/seller/login'
@@ -101,6 +102,12 @@ const AuthenticatedChatRoute = AuthenticatedChatRouteImport.update({
   path: '/chat',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedNotificationsRoute =
+  AuthenticatedNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSecurityRoute = AuthenticatedSecurityRouteImport.update({
   id: '/security',
   path: '/security',
@@ -202,6 +209,7 @@ export interface FileRoutesByFullPath {
   '/ai': typeof AuthenticatedAiRoute
   '/cart': typeof AuthenticatedCartRoute
   '/chat': typeof AuthenticatedChatRoute
+  '/notifications': typeof AuthenticatedNotificationsRoute
   '/security': typeof AuthenticatedSecurityRoute
   '/two-factor': typeof AuthenticatedTwoFactorRoute
   '/seller/login': typeof authSellerLoginRoute
@@ -230,6 +238,7 @@ export interface FileRoutesByTo {
   '/ai': typeof AuthenticatedAiRoute
   '/cart': typeof AuthenticatedCartRoute
   '/chat': typeof AuthenticatedChatRoute
+  '/notifications': typeof AuthenticatedNotificationsRoute
   '/security': typeof AuthenticatedSecurityRoute
   '/two-factor': typeof AuthenticatedTwoFactorRoute
   '/seller/login': typeof authSellerLoginRoute
@@ -261,6 +270,7 @@ export interface FileRoutesById {
   '/_authenticated/ai': typeof AuthenticatedAiRoute
   '/_authenticated/cart': typeof AuthenticatedCartRoute
   '/_authenticated/chat': typeof AuthenticatedChatRoute
+  '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/security': typeof AuthenticatedSecurityRoute
   '/_authenticated/two-factor': typeof AuthenticatedTwoFactorRoute
   '/(public)/': typeof publicIndexRoute
@@ -292,6 +302,7 @@ export interface FileRouteTypes {
     | '/ai'
     | '/cart'
     | '/chat'
+    | '/notifications'
     | '/security'
     | '/two-factor'
     | '/seller/login'
@@ -320,6 +331,7 @@ export interface FileRouteTypes {
     | '/ai'
     | '/cart'
     | '/chat'
+    | '/notifications'
     | '/security'
     | '/two-factor'
     | '/seller/login'
@@ -350,6 +362,7 @@ export interface FileRouteTypes {
     | '/_authenticated/ai'
     | '/_authenticated/cart'
     | '/_authenticated/chat'
+    | '/_authenticated/notifications'
     | '/_authenticated/security'
     | '/_authenticated/two-factor'
     | '/(public)/'
@@ -471,6 +484,13 @@ declare module '@tanstack/react-router' {
       path: '/chat'
       fullPath: '/chat'
       preLoaderRoute: typeof AuthenticatedChatRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/notifications': {
+      id: '/_authenticated/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof AuthenticatedNotificationsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/security': {
@@ -640,6 +660,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAiRoute: typeof AuthenticatedAiRoute
   AuthenticatedCartRoute: typeof AuthenticatedCartRoute
   AuthenticatedChatRoute: typeof AuthenticatedChatRoute
+  AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedSecurityRoute: typeof AuthenticatedSecurityRoute
   AuthenticatedTwoFactorRoute: typeof AuthenticatedTwoFactorRoute
   AuthenticatedOrdersIdRoute: typeof AuthenticatedOrdersIdRoute
@@ -656,6 +677,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAiRoute: AuthenticatedAiRoute,
   AuthenticatedCartRoute: AuthenticatedCartRoute,
   AuthenticatedChatRoute: AuthenticatedChatRoute,
+  AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedSecurityRoute: AuthenticatedSecurityRoute,
   AuthenticatedTwoFactorRoute: AuthenticatedTwoFactorRoute,
   AuthenticatedOrdersIdRoute: AuthenticatedOrdersIdRoute,

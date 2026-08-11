@@ -10,6 +10,11 @@ import {
 
 const { dbMock } = vi.hoisted(() => ({
   dbMock: {
+    insert: vi.fn().mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        onConflictDoNothing: vi.fn(),
+      }),
+    }),
     query: {
       auditLog: { findMany: vi.fn() },
       listing: { findFirst: vi.fn(), findMany: vi.fn() },
@@ -18,6 +23,7 @@ const { dbMock } = vi.hoisted(() => ({
       subCategory: { findFirst: vi.fn() },
       user: { findFirst: vi.fn() },
     },
+    transaction: vi.fn(),
     update: vi.fn(),
   },
 }));
@@ -323,4 +329,8 @@ describe("Listing moderation state transitions", () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  dbMock.transaction.mockImplementation(
+    // oxlint-disable-next-line promise/prefer-await-to-callbacks, node/callback-return
+    async (callback) => await callback(dbMock)
+  );
 });

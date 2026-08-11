@@ -14,6 +14,10 @@ import {
 import { ORPCError } from "@orpc/server";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
+import {
+  createNotificationEvent,
+  listNotificationRecipientsByRole,
+} from "../notifications/notification";
 import { isSellerEnforced } from "../seller-store/profile";
 import type { WalletExecutor } from "./ledger";
 import { recordBalancedLedgerTransaction } from "./ledger";
@@ -56,6 +60,16 @@ export interface WithdrawalRequestView {
   sellerId: string;
   status: WithdrawalStatus;
   updatedAt: string;
+}
+
+export interface AdminWithdrawalRequestView {
+  amount: number;
+  bankAccount: BankAccount;
+  createdAt: string;
+  id: string;
+  paymentReference: string | null;
+  sellerId: string;
+  status: WithdrawalStatus;
 }
 
 const createWithdrawalReference = (kind: "PAID" | "REQUEST"): string =>
@@ -121,6 +135,22 @@ const mapWithdrawalRequest = (
   sellerId: request.sellerId,
   status: request.status,
   updatedAt: request.updatedAt.toISOString(),
+});
+
+const mapAdminWithdrawalRequest = (
+  request: typeof withdrawalRequest.$inferSelect
+): AdminWithdrawalRequestView => ({
+  amount: request.amount,
+  bankAccount: {
+    accountName: request.bankAccount.accountName,
+    accountNumber: `**** ${request.bankAccount.accountNumber.slice(-4)}`,
+    bankName: request.bankAccount.bankName,
+  },
+  createdAt: request.createdAt.toISOString(),
+  id: request.id,
+  paymentReference: request.paymentReference,
+  sellerId: request.sellerId,
+  status: request.status,
 });
 
 const getSellerBankAccount = async (
@@ -253,13 +283,13 @@ export const listAdminWithdrawalRequests = async ({
 }: {
   database?: typeof db;
   status?: WithdrawalStatus;
-} = {}): Promise<WithdrawalRequestView[]> => {
+} = {}): Promise<AdminWithdrawalRequestView[]> => {
   const requests = await database
     .select()
     .from(withdrawalRequest)
     .where(status ? eq(withdrawalRequest.status, status) : undefined)
     .orderBy(desc(withdrawalRequest.createdAt), desc(withdrawalRequest.id));
-  return requests.map(mapWithdrawalRequest);
+  return requests.map(mapAdminWithdrawalRequest);
 };
 
 export const getWithdrawalRequest = async ({
@@ -376,6 +406,27 @@ export const requestWithdrawal = ({
     if (!createdRequest) {
       throw new Error("Withdrawal request was not created");
     }
+    await createNotificationEvent(transaction, {
+      body: `Yêu cầu rút ${amount.toLocaleString("vi-VN")} VND của bạn đã được gửi.`,
+      context: { amount, withdrawalRequestId: createdRequest.id },
+      email: {
+        htmlBody: `<p>Yêu cầu rút ${amount.toLocaleString("vi-VN")} VND của bạn đã được gửi.</p>`,
+        recipientUserIds: [sellerId],
+        subject: "Avin: Yêu cầu rút tiền đã được gửi",
+        textBody: `Yêu cầu rút ${amount.toLocaleString("vi-VN")} VND của bạn đã được gửi.`,
+      },
+      eventType: "transaction.withdrawal_requested",
+      recipients: [
+        { targetPath: "/seller/store", userId: sellerId },
+        ...(await listNotificationRecipientsByRole(transaction, {
+          role: "ADMIN",
+          targetPath: "/withdrawals",
+        })),
+      ],
+      sourceId: createdRequest.id,
+      sourceType: "WITHDRAWAL_REQUEST",
+      title: "Yêu cầu rút tiền mới",
+    });
     return mapWithdrawalRequest(createdRequest);
   });
 };
@@ -432,6 +483,30 @@ export const cancelWithdrawalRequest = ({
         message: "Yêu cầu rút tiền vừa được xử lý bởi request khác.",
       });
     }
+    await createNotificationEvent(transaction, {
+      body: "Số dư giữ cho yêu cầu rút tiền đã được hoàn lại.",
+      context: {
+        amount: updatedRequest.amount,
+        withdrawalRequestId: updatedRequest.id,
+      },
+      email: {
+        htmlBody: "<p>Số dư giữ cho yêu cầu rút tiền đã được hoàn lại.</p>",
+        recipientUserIds: [updatedRequest.sellerId],
+        subject: "Avin: Đã hoàn lại số dư rút tiền",
+        textBody: "Số dư giữ cho yêu cầu rút tiền đã được hoàn lại.",
+      },
+      eventType: "transaction.reversal_committed",
+      recipients: [
+        { targetPath: "/seller/store", userId: updatedRequest.sellerId },
+        ...(await listNotificationRecipientsByRole(transaction, {
+          role: "ADMIN",
+          targetPath: "/withdrawals",
+        })),
+      ],
+      sourceId: reversal.reversalId,
+      sourceType: "LEDGER_TRANSACTION",
+      title: "Đã hoàn lại số dư rút tiền",
+    });
     return mapWithdrawalRequest(updatedRequest);
   });
 
@@ -481,6 +556,24 @@ export const approveWithdrawalRequest = ({
         message: "Yêu cầu rút tiền vừa được xử lý bởi Admin khác.",
       });
     }
+    await createNotificationEvent(transaction, {
+      body: "Yêu cầu rút tiền của bạn đã được duyệt.",
+      context: {
+        amount: updatedRequest.amount,
+        withdrawalRequestId: updatedRequest.id,
+      },
+      eventType: "transaction.withdrawal_approved",
+      recipients: [
+        { targetPath: "/seller/store", userId: updatedRequest.sellerId },
+        ...(await listNotificationRecipientsByRole(transaction, {
+          role: "ADMIN",
+          targetPath: "/withdrawals",
+        })),
+      ],
+      sourceId: updatedRequest.id,
+      sourceType: "WITHDRAWAL_REQUEST",
+      title: "Yêu cầu rút tiền đã được duyệt",
+    });
     return mapWithdrawalRequest(updatedRequest);
   });
 
@@ -543,6 +636,51 @@ export const rejectWithdrawalRequest = ({
         message: "Yêu cầu rút tiền vừa được xử lý bởi request khác.",
       });
     }
+    await createNotificationEvent(transaction, {
+      body: "Yêu cầu rút tiền của bạn đã bị từ chối; số dư đã được hoàn lại.",
+      context: {
+        amount: updatedRequest.amount,
+        reversalTransactionId: reversal.reversalId,
+        withdrawalRequestId: updatedRequest.id,
+      },
+      email: {
+        htmlBody:
+          "<p>Yêu cầu rút tiền của bạn đã bị từ chối; số dư đã được hoàn lại.</p>",
+        recipientUserIds: [updatedRequest.sellerId],
+        subject: "Avin: Yêu cầu rút tiền bị từ chối",
+        textBody:
+          "Yêu cầu rút tiền của bạn đã bị từ chối; số dư đã được hoàn lại.",
+      },
+      eventType: "transaction.withdrawal_rejected",
+      recipients: [
+        { targetPath: "/seller/store", userId: updatedRequest.sellerId },
+        ...(await listNotificationRecipientsByRole(transaction, {
+          role: "ADMIN",
+          targetPath: "/withdrawals",
+        })),
+      ],
+      sourceId: updatedRequest.id,
+      sourceType: "WITHDRAWAL_REQUEST",
+      title: "Yêu cầu rút tiền bị từ chối",
+    });
+    await createNotificationEvent(transaction, {
+      body: "Số dư giữ cho yêu cầu rút tiền đã được hoàn lại.",
+      context: {
+        amount: updatedRequest.amount,
+        withdrawalRequestId: updatedRequest.id,
+      },
+      eventType: "transaction.reversal_committed",
+      recipients: [
+        { targetPath: "/seller/store", userId: updatedRequest.sellerId },
+        ...(await listNotificationRecipientsByRole(transaction, {
+          role: "ADMIN",
+          targetPath: "/withdrawals",
+        })),
+      ],
+      sourceId: reversal.reversalId,
+      sourceType: "LEDGER_TRANSACTION",
+      title: "Đã hoàn lại số dư rút tiền",
+    });
     return mapWithdrawalRequest(updatedRequest);
   });
 };
@@ -640,6 +778,31 @@ export const markWithdrawalRequestPaid = ({
         message: "Yêu cầu rút tiền vừa được xử lý bởi Admin khác.",
       });
     }
+    await createNotificationEvent(transaction, {
+      body: "Yêu cầu rút tiền của bạn đã được đánh dấu là đã thanh toán.",
+      context: {
+        amount: updatedRequest.amount,
+        withdrawalRequestId: updatedRequest.id,
+      },
+      email: {
+        htmlBody:
+          "<p>Yêu cầu rút tiền của bạn đã được đánh dấu là đã thanh toán.</p>",
+        recipientUserIds: [updatedRequest.sellerId],
+        subject: "Avin: Rút tiền đã được thanh toán",
+        textBody: "Yêu cầu rút tiền của bạn đã được đánh dấu là đã thanh toán.",
+      },
+      eventType: "transaction.withdrawal_paid",
+      recipients: [
+        { targetPath: "/seller/store", userId: updatedRequest.sellerId },
+        ...(await listNotificationRecipientsByRole(transaction, {
+          role: "ADMIN",
+          targetPath: "/withdrawals",
+        })),
+      ],
+      sourceId: paidTransaction.id,
+      sourceType: "LEDGER_TRANSACTION",
+      title: "Rút tiền đã thanh toán",
+    });
     return mapWithdrawalRequest(updatedRequest);
   });
 };

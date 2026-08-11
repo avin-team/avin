@@ -3,9 +3,7 @@ import { generateUuidV7 } from "@avin/db";
 import { user as userTable } from "@avin/db/schema/auth";
 import { listing } from "@avin/db/schema/catalog";
 import {
-  notification,
   orderItem,
-  orderItemLifecycleEvent,
   review,
   reviewModerationAudit,
 } from "@avin/db/schema/commerce";
@@ -20,6 +18,7 @@ import {
   buyerProcedure,
   publicProcedure,
 } from "../access/procedures";
+import { createNotificationEvent } from "../notifications/notification";
 import type { CommerceExecutor } from "./cart";
 import {
   calculateStarDistribution,
@@ -192,30 +191,21 @@ export const createReview = async ({
       sellerId: itemRow.order.sellerId,
     });
 
-    // 5. Create review lifecycle event & notify seller
-    const reviewLifecycleEventId = generateUuidV7();
-    await tx.insert(orderItemLifecycleEvent).values({
-      actorType: "BUYER",
-      actorUserId: buyerId,
-      artifactId: reviewId,
-      artifactType: "REVIEW",
-      commandKey: `create-review-${reviewId}`,
-      createdAt: now,
-      effectiveAt: now,
-      id: reviewLifecycleEventId,
-      newStatus: itemRow.status,
-      oldStatus: itemRow.status,
-      orderItemId: itemRow.id,
-      reason: "Buyer submitted a review",
-    });
-
-    await tx.insert(notification).values({
+    // 5. Publish the generic review event without fabricating an OrderItem event.
+    await createNotificationEvent(tx, {
       body: `Người mua vừa để lại đánh giá ${input.rating} sao cho đơn hàng.`,
-      createdAt: now,
-      id: generateUuidV7(),
-      lifecycleEventId: reviewLifecycleEventId,
-      orderItemId: itemRow.id,
-      recipientUserId: itemRow.order.sellerId,
+      context: {
+        listingId: itemRow.listingId,
+        orderItemId: itemRow.id,
+        rating: input.rating,
+      },
+      eventType: "review.created",
+      now,
+      recipients: [
+        { targetPath: "/seller/store", userId: itemRow.order.sellerId },
+      ],
+      sourceId: reviewId,
+      sourceType: "REVIEW",
       title: "Đánh giá mới từ người mua",
     });
 

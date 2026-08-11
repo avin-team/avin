@@ -23,6 +23,8 @@ import { Route as AuthenticatedCategoriesIndexRouteImport } from './routes/_auth
 import { Route as AuthenticatedDisputesIndexRouteImport } from './routes/_authenticated/disputes/index'
 import { Route as AuthenticatedDisputesDisputeIdRouteImport } from './routes/_authenticated/disputes/$disputeId'
 import { Route as AuthenticatedListingsIndexRouteImport } from './routes/_authenticated/listings/index'
+import { Route as AuthenticatedNotificationsIndexRouteImport } from './routes/_authenticated/notifications/index'
+import { Route as AuthenticatedOperationsIndexRouteImport } from './routes/_authenticated/operations/index'
 import { Route as AuthenticatedSellerApplicationsIndexRouteImport } from './routes/_authenticated/seller-applications/index'
 import { Route as AuthenticatedSellerApplicationsApplicationIdRouteImport } from './routes/_authenticated/seller-applications/$applicationId'
 import { Route as AuthenticatedSellersIndexRouteImport } from './routes/_authenticated/sellers/index'
@@ -102,6 +104,18 @@ const AuthenticatedListingsIndexRoute =
     path: '/listings/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedNotificationsIndexRoute =
+  AuthenticatedNotificationsIndexRouteImport.update({
+    id: '/notifications/',
+    path: '/notifications/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedOperationsIndexRoute =
+  AuthenticatedOperationsIndexRouteImport.update({
+    id: '/operations/',
+    path: '/operations/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedSellerApplicationsIndexRoute =
   AuthenticatedSellerApplicationsIndexRouteImport.update({
     id: '/seller-applications/',
@@ -149,6 +163,8 @@ export interface FileRoutesByFullPath {
   '/categories/': typeof AuthenticatedCategoriesIndexRoute
   '/disputes/': typeof AuthenticatedDisputesIndexRoute
   '/listings/': typeof AuthenticatedListingsIndexRoute
+  '/notifications/': typeof AuthenticatedNotificationsIndexRoute
+  '/operations/': typeof AuthenticatedOperationsIndexRoute
   '/seller-applications/': typeof AuthenticatedSellerApplicationsIndexRoute
   '/sellers/': typeof AuthenticatedSellersIndexRoute
   '/withdrawals/': typeof AuthenticatedWithdrawalsIndexRoute
@@ -169,6 +185,8 @@ export interface FileRoutesByTo {
   '/categories': typeof AuthenticatedCategoriesIndexRoute
   '/disputes': typeof AuthenticatedDisputesIndexRoute
   '/listings': typeof AuthenticatedListingsIndexRoute
+  '/notifications': typeof AuthenticatedNotificationsIndexRoute
+  '/operations': typeof AuthenticatedOperationsIndexRoute
   '/seller-applications': typeof AuthenticatedSellerApplicationsIndexRoute
   '/sellers': typeof AuthenticatedSellersIndexRoute
   '/withdrawals': typeof AuthenticatedWithdrawalsIndexRoute
@@ -191,6 +209,8 @@ export interface FileRoutesById {
   '/_authenticated/categories/': typeof AuthenticatedCategoriesIndexRoute
   '/_authenticated/disputes/': typeof AuthenticatedDisputesIndexRoute
   '/_authenticated/listings/': typeof AuthenticatedListingsIndexRoute
+  '/_authenticated/notifications/': typeof AuthenticatedNotificationsIndexRoute
+  '/_authenticated/operations/': typeof AuthenticatedOperationsIndexRoute
   '/_authenticated/seller-applications/': typeof AuthenticatedSellerApplicationsIndexRoute
   '/_authenticated/sellers/': typeof AuthenticatedSellersIndexRoute
   '/_authenticated/withdrawals/': typeof AuthenticatedWithdrawalsIndexRoute
@@ -213,6 +233,8 @@ export interface FileRouteTypes {
     | '/categories/'
     | '/disputes/'
     | '/listings/'
+    | '/notifications/'
+    | '/operations/'
     | '/seller-applications/'
     | '/sellers/'
     | '/withdrawals/'
@@ -233,6 +255,8 @@ export interface FileRouteTypes {
     | '/categories'
     | '/disputes'
     | '/listings'
+    | '/notifications'
+    | '/operations'
     | '/seller-applications'
     | '/sellers'
     | '/withdrawals'
@@ -254,6 +278,8 @@ export interface FileRouteTypes {
     | '/_authenticated/categories/'
     | '/_authenticated/disputes/'
     | '/_authenticated/listings/'
+    | '/_authenticated/notifications/'
+    | '/_authenticated/operations/'
     | '/_authenticated/seller-applications/'
     | '/_authenticated/sellers/'
     | '/_authenticated/withdrawals/'
@@ -370,6 +396,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedListingsIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/notifications/': {
+      id: '/_authenticated/notifications/'
+      path: '/notifications'
+      fullPath: '/notifications/'
+      preLoaderRoute: typeof AuthenticatedNotificationsIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/operations/': {
+      id: '/_authenticated/operations/'
+      path: '/operations'
+      fullPath: '/operations/'
+      preLoaderRoute: typeof AuthenticatedOperationsIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/seller-applications/': {
       id: '/_authenticated/seller-applications/'
       path: '/seller-applications'
@@ -417,6 +457,8 @@ interface AuthenticatedRouteChildren {
   AuthenticatedCategoriesIndexRoute: typeof AuthenticatedCategoriesIndexRoute
   AuthenticatedDisputesIndexRoute: typeof AuthenticatedDisputesIndexRoute
   AuthenticatedListingsIndexRoute: typeof AuthenticatedListingsIndexRoute
+  AuthenticatedNotificationsIndexRoute: typeof AuthenticatedNotificationsIndexRoute
+  AuthenticatedOperationsIndexRoute: typeof AuthenticatedOperationsIndexRoute
   AuthenticatedSellerApplicationsIndexRoute: typeof AuthenticatedSellerApplicationsIndexRoute
   AuthenticatedSellersIndexRoute: typeof AuthenticatedSellersIndexRoute
   AuthenticatedWithdrawalsIndexRoute: typeof AuthenticatedWithdrawalsIndexRoute
@@ -432,6 +474,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedCategoriesIndexRoute: AuthenticatedCategoriesIndexRoute,
   AuthenticatedDisputesIndexRoute: AuthenticatedDisputesIndexRoute,
   AuthenticatedListingsIndexRoute: AuthenticatedListingsIndexRoute,
+  AuthenticatedNotificationsIndexRoute: AuthenticatedNotificationsIndexRoute,
+  AuthenticatedOperationsIndexRoute: AuthenticatedOperationsIndexRoute,
   AuthenticatedSellerApplicationsIndexRoute:
     AuthenticatedSellerApplicationsIndexRoute,
   AuthenticatedSellersIndexRoute: AuthenticatedSellersIndexRoute,

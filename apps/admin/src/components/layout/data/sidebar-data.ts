@@ -4,6 +4,8 @@ import {
   FolderIcon,
   GavelIcon,
   BankIcon,
+  ChartLineUpIcon,
+  BellIcon,
   SquaresFourIcon,
   GearIcon,
   StorefrontIcon,
@@ -16,6 +18,7 @@ export const sidebarData: SidebarData = {
     {
       items: [
         { icon: SquaresFourIcon, title: "Tổng quan", url: "/" },
+        { icon: BellIcon, title: "Thông báo Admin", url: "/notifications" },
         {
           icon: ClipboardTextIcon,
           title: "Duyệt hồ sơ Seller",
@@ -33,7 +36,7 @@ export const sidebarData: SidebarData = {
         },
         {
           icon: GavelIcon,
-          title: "Moderation Listing",
+          title: "Duyệt sản phẩm",
           url: "/listings",
         },
         {
@@ -55,6 +58,11 @@ export const sidebarData: SidebarData = {
           icon: BankIcon,
           title: "Yêu cầu Rút tiền",
           url: "/withdrawals",
+        },
+        {
+          icon: ChartLineUpIcon,
+          title: "Operations Console",
+          url: "/operations",
         },
       ],
       title: "Tài chính & Payout",

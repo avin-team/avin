@@ -10,6 +10,10 @@ This document serves as the canonical glossary and domain model for the **Avin**
 
 An authorized Avin platform operator responsible for marketplace governance, including reviewing `SellerApplication`s, mediating `Dispute`s, enforcing Seller policy, and approving SellerWallet withdrawals. An `Admin` is distinct from both a `User` (buyer) and a `Seller` (merchant).
 
+### Operations console
+
+An Admin-only workspace that brings together role-protected views of marketplace risk, money, and audit state across existing domain contexts. It coordinates those views but does not own `SellerApplication`, `Listing`, `Dispute`, `Wallet`, or `Seller Enforcement` decisions. Its P0 surfaces are deposit reconciliation, read-only `Transaction` exploration, generic audit history, and email-delivery health; these surfaces use domain-specific filters and cursor pagination. Reconciliation and email retry invoke existing authorized domain commands, while transaction and audit history remain read-only. Sensitive Admin reads—full bank or KYC details, `DisputeEvidence`, Order Chat, financial detail, and email retry—are audited with actor, target, purpose, and outcome; ordinary lists and aggregates are not audited individually.
+
 ### User (Buyer)
 
 An authenticated account representing a buyer on the marketplace. Every `User` is implicitly a buyer and possesses a `UserWallet`. Under Avin's architecture, `User` and `Seller` are strictly separate entities requiring distinct accounts and logins.
@@ -237,7 +241,15 @@ A private, immutable file submitted as evidence for a `Dispute`. Access is limit
 
 ### Notification
 
-An in-app or system alert sent to a `User`, `Seller`, or authorized `Admin` when a relevant lifecycle event succeeds. An Enforcement Action immediately notifies the Seller of its state, Seller-visible reason, restrictions, and appeal path and sends affected Buyers only a neutral protection notice; a refund is announced only after its financial Transaction commits, and Admin is alerted when Enforcement Remediation needs attention. Each OrderItem lifecycle transition emits at most one deduplicated Notification to the appropriate parties; email delivery is outside AVIN-19.
+An in-app or system alert sent to a `User`, `Seller`, or authorized `Admin` as a per-recipient record when an allowlisted lifecycle event succeeds; an `OrderItem` transition is one source, not the only source. The P0 catalog is: `SellerApplication` submitted/approved/rejected; `Listing` hidden/restored/archived; every committed `OrderItem` lifecycle transition; `Dispute` opened/deadline/resolved; important deposit, withdrawal, refund, and reversal `Transaction` outcomes; Seller Enforcement action applied/lifted/appeal resolved and Enforcement Remediation needing attention; and `Review` created. Failed commands, read-only queries, drafts, and `Chat Messages` are not Notifications. Each Notification references a stable event identity (`eventType`, `sourceType`, `sourceId`) rather than pretending every source is an `OrderItem` event. Recipients follow the event's affected parties: Buyers and Sellers receive their own lifecycle outcomes, while Admin receives unassigned operational alerts and attention-required outcomes. An Enforcement Action immediately notifies the Seller of its state, Seller-visible reason, restrictions, and appeal path and sends affected Buyers only a neutral protection notice; a refund is announced only after its financial `Transaction` commits, and Admin is alerted when Enforcement Remediation needs attention. A Notification contains safe context and points to an authorized detail rather than exposing sensitive snapshots. Each lifecycle event emits at most one deduplicated Notification to each appropriate recipient. Critical Notifications may also enter retryable email delivery, and reading one recipient's Notification does not change another recipient's state.
+
+### Notification inbox
+
+The per-recipient view of a `User`'s, `Seller`'s, or `Admin`'s Notifications, ordered by recency and supporting cursor pagination, unread filtering/counts, and idempotent one-at-a-time or mark-all read actions without deleting alerts. Buyer and Seller inboxes live in the web app; the Admin inbox lives in the Admin app. A Notification's deep link opens an authorized detail route and falls back to a safe destination when the target is no longer accessible. It is separate from the unread state of `Order Chat`.
+
+### Email delivery
+
+A separate durable record for a critical Notification's email attempt, keyed uniquely by event, recipient, and channel. It moves through `pending`, `retrying`, `sent`, or `failed`, records attempts, next retry time, and the last error, and is retried at most five times over 24 hours. A provider-neutral sender adapter wraps the existing Resend integration; a worker sends email outside the business transaction, so delivery failure never rolls back the committed event or in-app Notification. An Admin may retry a terminal failure through an authorized, audited command, which starts one new bounded retry window rather than allowing infinite retries. Email-delivery records remain available for Operations health; AVIN-25 does not define automatic Notification retention or deletion.
 
 ---
 

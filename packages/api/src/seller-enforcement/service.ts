@@ -26,6 +26,10 @@ import {
 import { z } from "zod";
 
 import {
+  createNotificationEvent,
+  listNotificationRecipientsByRole,
+} from "../notifications/notification";
+import {
   isSellerEnforcementAppealEvidenceKey,
   ORDER_FILES_BUCKET,
   SELLER_ENFORCEMENT_APPEAL_EVIDENCE_CONTENT_TYPES,
@@ -784,6 +788,10 @@ export const changeSellerEnforcement = async ({
         "Enforcement idempotency key and Seller-visible reason are required",
     });
   }
+  let affectedBuyerRecipients: {
+    targetPath: string;
+    userId: string;
+  }[] = [];
   // oxlint-disable-next-line complexity
   const remediationAction = await database.transaction(async (transaction) => {
     let remediationActionId: string | null = null;
@@ -856,6 +864,28 @@ export const changeSellerEnforcement = async ({
       getCurrentEnforcement(transaction, sellerId, true),
     ]);
     const previousState = current?.state ?? "CLEAR";
+    if (nextState !== "CLEAR" && nextState !== previousState) {
+      const affectedBuyers = await transaction
+        .select({ buyerId: order.buyerId })
+        .from(orderItem)
+        .innerJoin(order, eq(order.id, orderItem.orderId))
+        .where(
+          and(
+            eq(order.sellerId, sellerId),
+            inArray(orderItem.status, [
+              "AWAITING_SELLER",
+              "IN_PROGRESS",
+              "DELIVERED",
+              "IN_WARRANTY",
+              "DISPUTED",
+            ])
+          )
+        );
+      affectedBuyerRecipients = affectedBuyers.map(({ buyerId }) => ({
+        targetPath: "/orders",
+        userId: buyerId,
+      }));
+    }
     const transition =
       actionType === "REASON_CORRECTED"
         ? "REASON_CORRECTED"
@@ -971,6 +1001,62 @@ export const changeSellerEnforcement = async ({
       });
     }
 
+    await createNotificationEvent(transaction, {
+      body:
+        nextState === "CLEAR"
+          ? "Biện pháp enforcement của bạn đã được gỡ bỏ."
+          : `Tài khoản người bán của bạn đang ở trạng thái ${nextState}.`,
+      context: {
+        actionId: action.id,
+        sellerId,
+        state: nextState,
+      },
+      email: {
+        htmlBody:
+          nextState === "CLEAR"
+            ? "<p>Biện pháp enforcement của bạn đã được gỡ bỏ.</p>"
+            : `<p>Tài khoản người bán của bạn đang ở trạng thái ${nextState}.</p>`,
+        recipientUserIds: [sellerId],
+        subject:
+          nextState === "CLEAR"
+            ? "Avin: Enforcement đã được gỡ bỏ"
+            : "Avin: Enforcement đã được áp dụng",
+        textBody:
+          nextState === "CLEAR"
+            ? "Biện pháp enforcement của bạn đã được gỡ bỏ."
+            : `Tài khoản người bán của bạn đang ở trạng thái ${nextState}.`,
+      },
+      eventType:
+        nextState === "CLEAR"
+          ? "seller_enforcement.lifted"
+          : "seller_enforcement.applied",
+      recipients: [
+        { targetPath: "/seller/store", userId: sellerId },
+        ...(await listNotificationRecipientsByRole(transaction, {
+          role: "ADMIN",
+          targetPath: "/sellers",
+        })),
+      ],
+      sourceId: action.id,
+      sourceType: "SELLER_ENFORCEMENT_ACTION",
+      title:
+        nextState === "CLEAR"
+          ? "Enforcement đã được gỡ bỏ"
+          : "Enforcement đã được áp dụng",
+    });
+
+    if (affectedBuyerRecipients.length > 0) {
+      await createNotificationEvent(transaction, {
+        body: "Avin đang theo dõi việc xử lý các đơn hàng của bạn.",
+        context: {},
+        eventType: "seller_enforcement.applied",
+        recipients: affectedBuyerRecipients,
+        sourceId: action.id,
+        sourceType: "SELLER_ENFORCEMENT_ACTION",
+        title: "Cập nhật an toàn đơn hàng",
+      });
+    }
+
     if (nextState === "BANNED" && previousState !== "BANNED") {
       remediationActionId = action.id;
     }
@@ -983,6 +1069,22 @@ export const changeSellerEnforcement = async ({
     } catch {
       // The Enforcement Action is already committed; the maintenance worker
       // reconciles a missing or attention-needed remediation on its next run.
+      try {
+        await createNotificationEvent(database, {
+          body: "Remediation của enforcement cần được Admin xử lý.",
+          context: { actionId: remediationAction, sellerId },
+          eventType: "enforcement_remediation.needs_attention",
+          recipients: await listNotificationRecipientsByRole(database, {
+            role: "ADMIN",
+            targetPath: "/sellers",
+          }),
+          sourceId: remediationAction,
+          sourceType: "SELLER_ENFORCEMENT_REMEDIATION",
+          title: "Remediation cần được xử lý",
+        });
+      } catch {
+        // Notification failure must not hide the already committed enforcement.
+      }
     }
   }
 
@@ -1283,6 +1385,7 @@ export const reviewSellerEnforcementAppeal = ({
       });
     }
 
+    let overturnActionId: string | null = null;
     if (outcome === "OVERTURNED") {
       const current = await getCurrentEnforcement(
         transaction,
@@ -1318,6 +1421,7 @@ export const reviewSellerEnforcementAppeal = ({
       if (!action) {
         throw new Error("Appeal overturn action was not created");
       }
+      overturnActionId = action.id;
       await transaction
         .update(sellerEnforcement)
         .set({ expiresAt: null, state: "CLEAR", updatedAt: now })
@@ -1338,6 +1442,51 @@ export const reviewSellerEnforcementAppeal = ({
       .returning();
     if (!updatedAppeal) {
       throw new Error("Appeal was not updated");
+    }
+    const recipients = [
+      { targetPath: "/seller/store", userId: appeal.sellerId },
+      ...(await listNotificationRecipientsByRole(transaction, {
+        role: "ADMIN",
+        targetPath: "/sellers",
+      })),
+    ];
+    await createNotificationEvent(transaction, {
+      body:
+        outcome === "UPHELD"
+          ? "Kháng nghị enforcement của bạn đã được giữ nguyên."
+          : "Kháng nghị enforcement của bạn đã được chấp thuận.",
+      context: { appealId: appeal.id, outcome, sellerId: appeal.sellerId },
+      email: {
+        htmlBody:
+          outcome === "UPHELD"
+            ? "<p>Kháng nghị enforcement của bạn đã được giữ nguyên.</p>"
+            : "<p>Kháng nghị enforcement của bạn đã được chấp thuận.</p>",
+        recipientUserIds: [appeal.sellerId],
+        subject: "Avin: Kháng nghị enforcement đã được giải quyết",
+        textBody:
+          outcome === "UPHELD"
+            ? "Kháng nghị enforcement của bạn đã được giữ nguyên."
+            : "Kháng nghị enforcement của bạn đã được chấp thuận.",
+      },
+      eventType: "seller_enforcement.appeal_resolved",
+      recipients,
+      sourceId: appeal.id,
+      sourceType: "SELLER_ENFORCEMENT_APPEAL",
+      title:
+        outcome === "UPHELD"
+          ? "Kháng nghị enforcement đã được giải quyết"
+          : "Kháng nghị enforcement được chấp thuận",
+    });
+    if (overturnActionId) {
+      await createNotificationEvent(transaction, {
+        body: "Enforcement của bạn đã được gỡ bỏ sau khi kháng nghị.",
+        context: { actionId: overturnActionId, sellerId: appeal.sellerId },
+        eventType: "seller_enforcement.lifted",
+        recipients,
+        sourceId: overturnActionId,
+        sourceType: "SELLER_ENFORCEMENT_ACTION",
+        title: "Enforcement đã được gỡ bỏ",
+      });
     }
     return updatedAppeal;
   });

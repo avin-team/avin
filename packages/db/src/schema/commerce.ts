@@ -39,6 +39,11 @@ export type WarrantyPolicySnapshot =
   | WarrantyPolicy
   | LegacyWarrantyPolicySnapshot;
 
+export type NotificationContext = Record<
+  string,
+  boolean | null | number | string
+>;
+
 export interface ServicePackageSnapshot {
   description: string;
   id: string;
@@ -517,29 +522,96 @@ export const notification = pgTable(
   "notification",
   {
     body: text("body").notNull(),
+    context: jsonb("context")
+      .$type<NotificationContext>()
+      .default({})
+      .notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
+    deepLink: text("deep_link").notNull(),
+    eventType: text("event_type").notNull(),
     id: uuid("id").defaultRandom().primaryKey(),
-    lifecycleEventId: uuid("lifecycle_event_id")
-      .notNull()
-      .references(() => orderItemLifecycleEvent.id, { onDelete: "restrict" }),
-    orderItemId: uuid("order_item_id")
-      .notNull()
-      .references(() => orderItem.id, { onDelete: "restrict" }),
     readAt: timestamp("read_at"),
     recipientUserId: text("recipient_user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
+    sourceId: text("source_id").notNull(),
+    sourceType: text("source_type").notNull(),
     title: text("title").notNull(),
   },
   (table) => [
     uniqueIndex("notification_event_recipient_unique_idx").on(
-      table.lifecycleEventId,
+      table.eventType,
+      table.sourceType,
+      table.sourceId,
       table.recipientUserId
     ),
     index("notification_recipient_created_idx").on(
       table.recipientUserId,
-      table.createdAt
+      table.createdAt,
+      table.id
     ),
+    index("notification_recipient_unread_idx").on(
+      table.recipientUserId,
+      table.readAt
+    ),
+  ]
+);
+
+export const emailDeliveryStatusValues = [
+  "pending",
+  "retrying",
+  "sent",
+  "failed",
+] as const;
+
+export const emailDeliveryStatus = pgEnum(
+  "email_delivery_status",
+  emailDeliveryStatusValues
+);
+
+export const emailDelivery = pgTable(
+  "email_delivery",
+  {
+    attemptCount: integer("attempt_count").default(0).notNull(),
+    channel: text("channel").default("email").notNull(),
+    claimedAt: timestamp("claimed_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    eventType: text("event_type").notNull(),
+    firstAttemptAt: timestamp("first_attempt_at"),
+    htmlBody: text("html_body").notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    lastAttemptAt: timestamp("last_attempt_at"),
+    lastError: text("last_error"),
+    nextAttemptAt: timestamp("next_attempt_at"),
+    recipientEmail: text("recipient_email").notNull(),
+    recipientUserId: text("recipient_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    retryWindowStartedAt: timestamp("retry_window_started_at"),
+    sourceId: text("source_id").notNull(),
+    sourceType: text("source_type").notNull(),
+    status: emailDeliveryStatus("status").default("pending").notNull(),
+    subject: text("subject").notNull(),
+    textBody: text("text_body").notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("email_delivery_event_recipient_channel_unique_idx").on(
+      table.eventType,
+      table.sourceType,
+      table.sourceId,
+      table.recipientUserId,
+      table.channel
+    ),
+    index("email_delivery_claim_idx").on(
+      table.status,
+      table.nextAttemptAt,
+      table.claimedAt
+    ),
+    index("email_delivery_created_at_idx").on(table.createdAt),
   ]
 );
 
@@ -719,7 +791,6 @@ export const orderItemRelations = relations(orderItem, ({ many, one }) => ({
     fields: [orderItem.listingId],
     references: [listing.id],
   }),
-  notifications: many(notification),
   order: one(order, {
     fields: [orderItem.orderId],
     references: [order.id],
@@ -814,16 +885,15 @@ export const disputeEvidenceRelations = relations(
 );
 
 export const notificationRelations = relations(notification, ({ one }) => ({
-  lifecycleEvent: one(orderItemLifecycleEvent, {
-    fields: [notification.lifecycleEventId],
-    references: [orderItemLifecycleEvent.id],
-  }),
-  orderItem: one(orderItem, {
-    fields: [notification.orderItemId],
-    references: [orderItem.id],
-  }),
   recipient: one(user, {
     fields: [notification.recipientUserId],
+    references: [user.id],
+  }),
+}));
+
+export const emailDeliveryRelations = relations(emailDelivery, ({ one }) => ({
+  recipient: one(user, {
+    fields: [emailDelivery.recipientUserId],
     references: [user.id],
   }),
 }));

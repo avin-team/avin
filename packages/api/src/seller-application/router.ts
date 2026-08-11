@@ -1,9 +1,14 @@
 import { user, verification } from "@avin/db/schema/auth";
 import { sellerApplication, sellerProfile } from "@avin/db/schema/seller";
+import type { BankAccount } from "@avin/db/schema/seller";
 import { ORPCError } from "@orpc/server";
 import { and, desc, eq, gt } from "drizzle-orm";
 
 import { adminProcedure, protectedProcedure } from "../access/procedures";
+import {
+  createNotificationEvent,
+  listNotificationRecipientsByRole,
+} from "../notifications/notification";
 import type { Context } from "../runtime/context";
 import { assertMarketplaceSellerNotEnforced } from "../seller-enforcement/access";
 import { createStoreSlug } from "../seller-store/profile";
@@ -37,6 +42,11 @@ const createAvailableStoreSlug = async (
 
   return `${baseSlug.slice(0, 90)}-${crypto.randomUUID().slice(0, 8)}`;
 };
+
+const maskBankAccount = (bankAccount: BankAccount): BankAccount => ({
+  ...bankAccount,
+  accountNumber: `**** ${bankAccount.accountNumber.slice(-4)}`,
+});
 
 export const sellerApplicationRouter = {
   adminDecide: adminProcedure
@@ -100,6 +110,47 @@ export const sellerApplicationRouter = {
           await ensureSellerWalletAccounts(transaction, app.userId);
         }
 
+        const decisionEventType =
+          input.decision === "APPROVED"
+            ? "seller_application.approved"
+            : "seller_application.rejected";
+        await createNotificationEvent(transaction, {
+          body:
+            input.decision === "APPROVED"
+              ? "Hồ sơ người bán của bạn đã được duyệt."
+              : "Hồ sơ người bán của bạn đã bị từ chối.",
+          context: { applicationId: updated.id, status: updated.status },
+          email: {
+            htmlBody:
+              input.decision === "APPROVED"
+                ? "<p>Hồ sơ người bán của bạn đã được duyệt.</p>"
+                : "<p>Hồ sơ người bán của bạn đã bị từ chối.</p>",
+            recipientUserIds: [app.userId],
+            subject:
+              input.decision === "APPROVED"
+                ? "Avin: Hồ sơ người bán đã được duyệt"
+                : "Avin: Hồ sơ người bán bị từ chối",
+            textBody:
+              input.decision === "APPROVED"
+                ? "Hồ sơ người bán của bạn đã được duyệt."
+                : "Hồ sơ người bán của bạn đã bị từ chối.",
+          },
+          eventType: decisionEventType,
+          recipients: [
+            { targetPath: "/seller/onboarding", userId: app.userId },
+            ...(await listNotificationRecipientsByRole(transaction, {
+              role: "ADMIN",
+              targetPath: "/seller-applications",
+            })),
+          ],
+          sourceId: `${updated.id}:${updated.status}:${updated.updatedAt.toISOString()}`,
+          sourceType: "SELLER_APPLICATION",
+          title:
+            input.decision === "APPROVED"
+              ? "Hồ sơ người bán đã được duyệt"
+              : "Hồ sơ người bán bị từ chối",
+        });
+
         return [updated] as const;
       });
 
@@ -118,7 +169,7 @@ export const sellerApplicationRouter = {
 
       return {
         applicantName: updatedApp.applicantName,
-        bankAccount: updatedApp.bankAccount,
+        bankAccount: maskBankAccount(updatedApp.bankAccount),
         email: updatedApp.email,
         id: updatedApp.id,
         phone: updatedApp.phone,
@@ -134,31 +185,45 @@ export const sellerApplicationRouter = {
   adminGet: adminProcedure
     .input(adminGetApplicationInputSchema)
     .handler(async ({ context, input }) => {
-      const [app] = await context.db
-        .select()
-        .from(sellerApplication)
-        .where(eq(sellerApplication.id, input.id))
-        .limit(1);
+      const auditEvent = {
+        action: "seller.application.read",
+        actorUserId: context.session.user.id,
+        metadata: { purpose: "Review SellerApplication details" },
+        targetId: input.id,
+        targetType: "SELLER_APPLICATION",
+      } as const;
 
-      if (!app) {
-        throw new ORPCError("NOT_FOUND", {
-          message: "Hồ sơ đăng ký người bán không tồn tại",
-        });
+      try {
+        const [app] = await context.db
+          .select()
+          .from(sellerApplication)
+          .where(eq(sellerApplication.id, input.id))
+          .limit(1);
+
+        if (!app) {
+          throw new ORPCError("NOT_FOUND", {
+            message: "Hồ sơ đăng ký người bán không tồn tại",
+          });
+        }
+
+        await context.audit.record({ ...auditEvent, outcome: "SUCCESS" });
+        return {
+          applicantName: app.applicantName,
+          bankAccount: app.bankAccount,
+          email: app.email,
+          id: app.id,
+          phone: app.phone,
+          reviewReason: app.reviewReason ?? undefined,
+          revisionCount: app.revisionCount,
+          sellerAgreementVersion: app.sellerAgreementVersion,
+          status: app.status,
+          storefrontName: app.storefrontName,
+          submittedAt: app.createdAt.toISOString(),
+        };
+      } catch (error) {
+        await context.audit.record({ ...auditEvent, outcome: "FAILURE" });
+        throw error;
       }
-
-      return {
-        applicantName: app.applicantName,
-        bankAccount: app.bankAccount,
-        email: app.email,
-        id: app.id,
-        phone: app.phone,
-        reviewReason: app.reviewReason ?? undefined,
-        revisionCount: app.revisionCount,
-        sellerAgreementVersion: app.sellerAgreementVersion,
-        status: app.status,
-        storefrontName: app.storefrontName,
-        submittedAt: app.createdAt.toISOString(),
-      };
     }),
 
   adminList: adminProcedure
@@ -191,7 +256,7 @@ export const sellerApplicationRouter = {
         }
         result.push({
           applicantName: app.applicantName,
-          bankAccount: app.bankAccount,
+          bankAccount: maskBankAccount(app.bankAccount),
           email: app.email,
           id: app.id,
           phone: app.phone,
@@ -269,77 +334,122 @@ export const sellerApplicationRouter = {
         });
       }
 
-      if (!profile.phone) {
+      const { phone } = profile;
+      if (!phone) {
         throw new ORPCError("BAD_REQUEST", {
           message: "Vui lòng nhập số điện thoại liên hệ trước khi nộp đơn",
         });
       }
 
-      // Update bank account on profile
-      await context.db
-        .update(sellerProfile)
-        .set({
-          bankAccount: input.bankAccount,
-          updatedAt: new Date(),
-        })
-        .where(eq(sellerProfile.id, profile.id));
-
-      const existingApp = await findLatestSellerApplication(context.db, userId);
-
-      if (existingApp?.status === "PENDING_REVIEW") {
-        throw new ORPCError("BAD_REQUEST", {
-          message: "Hồ sơ đăng ký người bán của bạn đang được duyệt",
-        });
-      }
-
-      if (existingApp?.status === "APPROVED") {
-        throw new ORPCError("BAD_REQUEST", {
-          message: "Tài khoản người bán của bạn đã được duyệt",
-        });
-      }
-
-      const acceptedAt = new Date();
-
-      if (existingApp?.status === "CHANGES_REQUESTED") {
-        const [updatedApp] = await context.db
-          .update(sellerApplication)
+      return context.db.transaction(async (transaction) => {
+        // Update bank account on profile together with the application event.
+        await transaction
+          .update(sellerProfile)
           .set({
+            bankAccount: input.bankAccount,
+            updatedAt: new Date(),
+          })
+          .where(eq(sellerProfile.id, profile.id));
+
+        const existingApp = await findLatestSellerApplication(
+          transaction,
+          userId
+        );
+
+        if (existingApp?.status === "PENDING_REVIEW") {
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Hồ sơ đăng ký người bán của bạn đang được duyệt",
+          });
+        }
+
+        if (existingApp?.status === "APPROVED") {
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Tài khoản người bán của bạn đã được duyệt",
+          });
+        }
+
+        const acceptedAt = new Date();
+
+        if (existingApp?.status === "CHANGES_REQUESTED") {
+          const [updatedApp] = await transaction
+            .update(sellerApplication)
+            .set({
+              applicantName: context.session.user.name,
+              bankAccount: input.bankAccount,
+              email: context.session.user.email,
+              phone,
+              reviewReason: null,
+              revisionCount: existingApp.revisionCount + 1,
+              sellerAgreementAcceptedAt: acceptedAt,
+              sellerAgreementVersion: input.sellerAgreementVersion,
+              status: "PENDING_REVIEW",
+              storefrontName: profile.storefrontName,
+              updatedAt: acceptedAt,
+            })
+            .where(eq(sellerApplication.id, existingApp.id))
+            .returning();
+
+          if (!updatedApp) {
+            throw new ORPCError("CONFLICT", {
+              message: "Không thể cập nhật hồ sơ người bán.",
+            });
+          }
+          await createNotificationEvent(transaction, {
+            body: "Hồ sơ người bán của bạn đã được gửi lại để duyệt.",
+            context: {
+              applicationId: updatedApp.id,
+              status: updatedApp.status,
+            },
+            eventType: "seller_application.submitted",
+            recipients: await listNotificationRecipientsByRole(transaction, {
+              role: "ADMIN",
+              targetPath: "/seller-applications",
+            }),
+            sourceId: `${updatedApp.id}:${updatedApp.status}:${updatedApp.updatedAt.toISOString()}`,
+            sourceType: "SELLER_APPLICATION",
+            title: "Hồ sơ người bán được gửi lại",
+          });
+
+          return updatedApp;
+        }
+
+        const [newApp] = await transaction
+          .insert(sellerApplication)
+          .values({
             applicantName: context.session.user.name,
             bankAccount: input.bankAccount,
             email: context.session.user.email,
-            phone: profile.phone,
-            reviewReason: null,
-            revisionCount: existingApp.revisionCount + 1,
+            phone,
+            revisionCount: 0,
             sellerAgreementAcceptedAt: acceptedAt,
             sellerAgreementVersion: input.sellerAgreementVersion,
+            sellerProfileId: profile.id,
             status: "PENDING_REVIEW",
             storefrontName: profile.storefrontName,
-            updatedAt: acceptedAt,
+            userId,
           })
-          .where(eq(sellerApplication.id, existingApp.id))
           .returning();
 
-        return updatedApp;
-      }
+        if (!newApp) {
+          throw new ORPCError("CONFLICT", {
+            message: "Không thể tạo hồ sơ người bán.",
+          });
+        }
+        await createNotificationEvent(transaction, {
+          body: "Hồ sơ người bán của bạn đã được gửi để duyệt.",
+          context: { applicationId: newApp.id, status: newApp.status },
+          eventType: "seller_application.submitted",
+          recipients: await listNotificationRecipientsByRole(transaction, {
+            role: "ADMIN",
+            targetPath: "/seller-applications",
+          }),
+          sourceId: `${newApp.id}:${newApp.status}:${newApp.createdAt.toISOString()}`,
+          sourceType: "SELLER_APPLICATION",
+          title: "Hồ sơ người bán mới",
+        });
 
-      const [newApp] = await context.db
-        .insert(sellerApplication)
-        .values({
-          applicantName: context.session.user.name,
-          bankAccount: input.bankAccount,
-          email: context.session.user.email,
-          phone: profile.phone,
-          revisionCount: 0,
-          sellerAgreementAcceptedAt: acceptedAt,
-          sellerAgreementVersion: input.sellerAgreementVersion,
-          sellerProfileId: profile.id,
-          status: "PENDING_REVIEW",
-          storefrontName: profile.storefrontName,
-          userId,
-        })
-        .returning();
-
-      return newApp;
+        return newApp;
+      });
     }),
 
   updateDraftProfile: protectedProcedure

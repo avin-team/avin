@@ -8,7 +8,6 @@ import {
   dispute,
   disputeEvidence,
   escrowHold,
-  notification,
   order,
   orderFile,
   orderItem,
@@ -39,6 +38,10 @@ import {
 } from "drizzle-orm";
 import { z } from "zod";
 
+import {
+  createNotificationEvent,
+  listNotificationRecipientsByRole,
+} from "../notifications/notification";
 import {
   COMMERCE_IMAGE_CONTENT_TYPES,
   COMMERCE_IMAGE_MAX_BYTES,
@@ -176,6 +179,7 @@ export type EscrowResolutionContext = Pick<
   | "escrowHoldId"
   | "escrowHoldStatus"
   | "id"
+  | "orderId"
   | "sellerId"
 >;
 
@@ -785,34 +789,38 @@ const insertNotifications = async (
   status: OrderItemStatus,
   now: Date
 ): Promise<void> => {
-  const recipientIds = new Set([item.buyerId, item.sellerId]);
+  const recipients = [
+    { targetPath: `/orders/${item.orderId}`, userId: item.buyerId },
+    { targetPath: `/orders/${item.orderId}`, userId: item.sellerId },
+  ];
   if (command.type === "OPEN_DISPUTE") {
-    const adminRows = await executor
-      .select({ id: user.id })
-      .from(user)
-      .where(eq(user.role, "ADMIN"))
-      .limit(MAX_ADMIN_NOTIFICATION_RECIPIENTS);
-    for (const admin of adminRows) {
-      recipientIds.add(admin.id);
-    }
+    recipients.push(
+      ...(await listNotificationRecipientsByRole(executor, {
+        limit: MAX_ADMIN_NOTIFICATION_RECIPIENTS,
+        role: "ADMIN",
+        targetPath: "/disputes",
+      }))
+    );
   }
 
   const copy = getNotificationCopy(command, status);
-  await executor
-    .insert(notification)
-    .values(
-      [...recipientIds].map((recipientUserId) => ({
-        body: copy.body,
-        createdAt: now,
-        lifecycleEventId: eventId,
-        orderItemId: item.id,
-        recipientUserId,
-        title: copy.title,
-      }))
-    )
-    .onConflictDoNothing({
-      target: [notification.lifecycleEventId, notification.recipientUserId],
-    });
+  await createNotificationEvent(executor, {
+    body: copy.body,
+    context: {
+      orderId: item.orderId,
+      orderItemId: item.id,
+      status,
+    },
+    eventType:
+      command.type === "OPEN_DISPUTE"
+        ? "dispute.opened"
+        : "order_item.transition",
+    now,
+    recipients,
+    sourceId: eventId,
+    sourceType: "ORDER_ITEM_LIFECYCLE",
+    title: copy.title,
+  });
 };
 
 export const refundEscrow = async (
@@ -889,6 +897,32 @@ export const refundEscrow = async (
   if (!updatedHold) {
     throwConflict("EscrowHold vừa được xử lý bởi một request khác.");
   }
+
+  await createNotificationEvent(executor, {
+    body: `Khoản hoàn tiền ${item.escrowAmount.toLocaleString("vi-VN")} VND đã được ghi có vào ví của bạn.`,
+    context: {
+      amount: item.escrowAmount,
+      orderItemId: item.id,
+      transactionId: refundTransaction.id,
+    },
+    email: {
+      htmlBody: `<p>Khoản hoàn tiền ${item.escrowAmount.toLocaleString("vi-VN")} VND đã được ghi có vào ví của bạn.</p>`,
+      recipientUserIds: [item.buyerId],
+      subject: "Avin: Hoàn tiền thành công",
+      textBody: `Khoản hoàn tiền ${item.escrowAmount.toLocaleString("vi-VN")} VND đã được ghi có vào ví của bạn.`,
+    },
+    eventType: "transaction.refund_committed",
+    recipients: [
+      { targetPath: `/orders/${item.orderId}`, userId: item.buyerId },
+      ...(await listNotificationRecipientsByRole(executor, {
+        role: "ADMIN",
+        targetPath: "/disputes",
+      })),
+    ],
+    sourceId: refundTransaction.id,
+    sourceType: "LEDGER_TRANSACTION",
+    title: "Hoàn tiền thành công",
+  });
 
   return refundTransaction.id;
 };
