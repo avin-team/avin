@@ -30,6 +30,7 @@ export type NotificationRole = "ADMIN" | "BUYER" | "SELLER";
 export const DEFAULT_NOTIFICATION_RECIPIENT_LIMIT = 100;
 
 export interface CreateNotificationEventInput {
+  actorUserId?: string | null;
   body: string;
   context?: Record<string, unknown>;
   email?: NotificationEmailInput;
@@ -57,7 +58,9 @@ export const createNotificationEvent = async (
     throw new Error("Notification source identity is required");
   }
 
-  const recipients = normalizeNotificationRecipients(input.recipients);
+  const recipients = normalizeNotificationRecipients(input.recipients).filter(
+    (recipient) => recipient.userId !== input.actorUserId
+  );
   if (recipients.length === 0) {
     return;
   }

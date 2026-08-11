@@ -1,4 +1,4 @@
-import { ledgerAccount, ledgerPosting } from "@avin/db/schema/wallet";
+import { ledgerPosting } from "@avin/db/schema/wallet";
 import { describe, expect, it, vi } from "vitest";
 
 import type { WalletExecutor } from "./ledger";
@@ -6,10 +6,8 @@ import { getWalletTransactions } from "./service";
 
 const createHistoryExecutor = ({
   ledgerRows,
-  heldOnlyRows = [],
   pendingRows,
 }: {
-  heldOnlyRows?: unknown[];
   ledgerRows: unknown[];
   pendingRows: unknown[];
 }): WalletExecutor => {
@@ -28,8 +26,6 @@ const createHistoryExecutor = ({
         let rows = pendingRows;
         if (source === ledgerPosting) {
           rows = ledgerRows;
-        } else if (source === ledgerAccount) {
-          rows = heldOnlyRows;
         }
         return Object.assign(Promise.resolve(rows), { as: () => query });
       },
@@ -47,21 +43,6 @@ describe("wallet transaction history", () => {
   it("merges completed ledger events and observed deposits into one buyer timeline", async () => {
     const result = await getWalletTransactions(
       createHistoryExecutor({
-        heldOnlyRows: [
-          {
-            amount: 10_000,
-            balanceAfter: null,
-            createdAt: new Date("2026-08-02T09:59:00.000Z"),
-            creditAmount: 0,
-            currency: "VND",
-            debitAmount: 10_000,
-            depositPaymentCode: null,
-            depositRequestId: null,
-            id: "ledger-release-1",
-            reference: "AVTX-RELEASE",
-            type: "ESCROW_RELEASE",
-          },
-        ],
         ledgerRows: [
           {
             amount: 50_000,
@@ -160,16 +141,6 @@ describe("wallet transaction history", () => {
           status: "ATTENTION",
           timestamp: "2026-08-02T10:00:00.000Z",
           type: "Nạp tiền",
-        },
-        {
-          amount: -10_000,
-          currency: "VND",
-          id: "transaction:ledger-release-1",
-          paymentReference: "AVTX-RELEASE",
-          resultingAvailableBalance: null,
-          status: "COMPLETED",
-          timestamp: "2026-08-02T09:59:00.000Z",
-          type: "Giải ngân ký quỹ",
         },
         {
           amount: 15_000,

@@ -7,13 +7,15 @@ export const NOTIFICATION_UNREAD_REFETCH_INTERVAL_MS = 60_000;
 
 export const useNotifications = ({
   cursor,
+  enabled = true,
   unreadOnly,
-}: { cursor?: string; unreadOnly?: boolean } = {}) =>
-  useQuery(
-    orpc.notifications.list.queryOptions({
+}: { cursor?: string; enabled?: boolean; unreadOnly?: boolean } = {}) =>
+  useQuery({
+    ...orpc.notifications.list.queryOptions({
       input: { cursor, limit: NOTIFICATION_PAGE_SIZE, unreadOnly },
-    })
-  );
+    }),
+    enabled,
+  });
 
 export const useNotificationUnreadCount = (enabled: boolean) =>
   useQuery({

@@ -84,21 +84,7 @@ describe("createCheckout", () => {
       now
     );
 
-    expect(createNotificationEvent).toHaveBeenCalledTimes(2);
-    expect(createNotificationEvent).toHaveBeenCalledWith(transaction, {
-      body: "Đơn hàng của bạn đã được tạo và đang chờ người bán xác nhận.",
-      context: {
-        orderId: "order-1",
-        orderItemId: "item-1",
-        status: "AWAITING_SELLER",
-      },
-      eventType: "order_item.transition",
-      now,
-      recipients: [{ targetPath: "/orders/order-1", userId: "buyer-1" }],
-      sourceId: "lifecycle-event-1",
-      sourceType: "ORDER_ITEM_LIFECYCLE",
-      title: "Đặt hàng thành công",
-    });
+    expect(createNotificationEvent).toHaveBeenCalledTimes(1);
     expect(createNotificationEvent).toHaveBeenCalledWith(transaction, {
       body: "Bạn có đơn hàng mới đang chờ xác nhận.",
       context: {

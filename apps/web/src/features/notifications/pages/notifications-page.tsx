@@ -10,6 +10,7 @@ import {
 } from "@avin/ui/components/card";
 import {
   BellIcon,
+  CaretRightIcon,
   CheckCircleIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
@@ -24,6 +25,51 @@ import {
 
 const formatDate = (value: string): string =>
   new Date(value).toLocaleString("vi-VN");
+
+const capitalizeFirst = (str: string): string =>
+  str.length > 0 ? str.charAt(0).toUpperCase() + str.slice(1) : str;
+
+const formatNotificationTitle = (title: string): string => {
+  if (title === "Cập nhật OrderItem") {
+    return "Cập nhật đơn hàng";
+  }
+  if (title === "Dispute mới cần xử lý") {
+    return "Khiếu nại mới cần xử lý";
+  }
+  if (title === "OrderItem đã được giao") {
+    return "Sản phẩm đã được bàn giao";
+  }
+  if (title === "Buyer đã xác nhận giao hàng") {
+    return "Đã xác nhận nhận hàng";
+  }
+  const formatted = title
+    .replaceAll(/\bOrderItem\b/gu, "Đơn hàng")
+    .replaceAll(/\borderItem\b/gu, "đơn hàng")
+    .replaceAll(/\bDispute\b/gu, "Khiếu nại")
+    .replaceAll(/\bBuyer\b/gu, "Người mua")
+    .replaceAll(/\bSeller\b/gu, "Người bán");
+  return capitalizeFirst(formatted);
+};
+
+const formatNotificationText = (text: string): string => {
+  const formatted = text
+    .replaceAll(/\bOrderItem\b/gu, "Đơn hàng")
+    .replaceAll(/\borderItem\b/gu, "đơn hàng")
+    .replaceAll(/\bIN_PROGRESS\b/gu, "Đang xử lý")
+    .replaceAll(/\bAWAITING_SELLER\b/gu, "Chờ người bán xác nhận")
+    .replaceAll(/\bDELIVERED\b/gu, "Đã bàn giao")
+    .replaceAll(/\bIN_WARRANTY\b/gu, "Đang bảo hành")
+    .replaceAll(/\bCLOSED\b/gu, "Hoàn tất")
+    .replaceAll(/\bCANCELLED\b/gu, "Đã hủy")
+    .replaceAll(/\bREFUNDED\b/gu, "Đã hoàn tiền")
+    .replaceAll(/\bDISPUTED\b/gu, "Đang khiếu nại")
+    .replaceAll(/\bBuyer\b/gu, "Người mua")
+    .replaceAll(/\bSeller\b/gu, "Người bán")
+    .replaceAll(/\bDispute\b/gu, "Khiếu nại")
+    .replaceAll(/\bDeliverySubmission\b/gu, "thông tin bàn giao")
+    .replaceAll(/\bSeller Enforcement\b/gu, "xử lý vi phạm gian hàng");
+  return capitalizeFirst(formatted);
+};
 
 export const NotificationsPage = () => {
   const [cursor, setCursor] = useState<string>();
@@ -114,51 +160,37 @@ export const NotificationsPage = () => {
               </p>
             ) : null}
             {items.map((item) => (
-              <article
-                className={`rounded-xl border p-4 transition-colors ${
+              <a
+                aria-label={`Mở thông báo: ${item.title}`}
+                className={`group block rounded-xl border p-4 transition-colors hover:border-primary/30 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                   item.readAt ? "bg-background" : "bg-muted/40"
                 }`}
+                href={item.deepLink}
                 key={item.id}
+                onClick={() => {
+                  if (!item.readAt) {
+                    markRead.mutate({ notificationId: item.id });
+                  }
+                }}
               >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="flex flex-col gap-1">
+                <div className="flex items-start gap-3">
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="font-semibold">{item.title}</h2>
+                      <h2 className="font-semibold">
+                        {formatNotificationTitle(item.title)}
+                      </h2>
                       {item.readAt ? null : <Badge>Chưa đọc</Badge>}
                     </div>
-                    <p className="text-sm text-muted-foreground">{item.body}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {formatNotificationText(item.body)}
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       {formatDate(item.createdAt)}
                     </p>
                   </div>
-                  <div className="flex shrink-0 gap-2">
-                    {item.readAt ? null : (
-                      <Button
-                        disabled={markRead.isPending}
-                        onClick={() =>
-                          markRead.mutate({ notificationId: item.id })
-                        }
-                        size="sm"
-                        variant="ghost"
-                      >
-                        Đã đọc
-                      </Button>
-                    )}
-                    <Button
-                      render={
-                        <a
-                          aria-label={`Mở thông báo: ${item.title}`}
-                          href={item.deepLink}
-                        />
-                      }
-                      size="sm"
-                      variant="outline"
-                    >
-                      Mở
-                    </Button>
-                  </div>
+                  <CaretRightIcon className="mt-1 size-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
                 </div>
-              </article>
+              </a>
             ))}
             {cursor || notificationsQuery.data?.nextCursor ? (
               <div className="flex justify-end gap-2 border-t pt-3">

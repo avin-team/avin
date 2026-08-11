@@ -12,6 +12,14 @@ import {
 export const DEFAULT_NOTIFICATION_PAGE_SIZE = 20;
 export const MAX_NOTIFICATION_PAGE_SIZE = 50;
 
+const SELLER_WITHDRAWAL_NOTIFICATION_PATH = "/seller/store?section=finance";
+const sellerWithdrawalEventTypes = new Set([
+  "transaction.withdrawal_approved",
+  "transaction.withdrawal_paid",
+  "transaction.withdrawal_rejected",
+  "transaction.withdrawal_requested",
+]);
+
 export interface ListNotificationsInput {
   cursor?: string;
   limit?: number;
@@ -68,12 +76,23 @@ const getPageSize = (limit: number | undefined): number => {
   return value;
 };
 
+const isSellerWithdrawalNotification = (
+  row: typeof notification.$inferSelect
+): boolean =>
+  sellerWithdrawalEventTypes.has(row.eventType) ||
+  (row.eventType === "transaction.reversal_committed" &&
+    typeof row.context.withdrawalRequestId === "string");
+
 const toNotificationView = (
   row: typeof notification.$inferSelect
 ): NotificationView => {
-  const deepLink = isSafeNotificationTargetPath(row.deepLink)
-    ? row.deepLink
-    : "/notifications";
+  const { deepLink: notificationDeepLink } = row;
+  let deepLink = "/notifications";
+  if (isSellerWithdrawalNotification(row)) {
+    deepLink = SELLER_WITHDRAWAL_NOTIFICATION_PATH;
+  } else if (isSafeNotificationTargetPath(notificationDeepLink)) {
+    deepLink = notificationDeepLink;
+  }
 
   return {
     body: row.body,

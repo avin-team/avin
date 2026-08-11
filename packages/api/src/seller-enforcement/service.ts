@@ -1001,30 +1001,34 @@ export const changeSellerEnforcement = async ({
       });
     }
 
+    let enforcementMessage: string;
+    if (nextState === "CLEAR") {
+      enforcementMessage = "Hạn chế tài khoản người bán của bạn đã được gỡ bỏ.";
+    } else if (nextState === "SUSPENDED") {
+      enforcementMessage =
+        "Tài khoản người bán của bạn đang bị tạm đình chỉ do vi phạm quy định.";
+    } else if (nextState === "BANNED") {
+      enforcementMessage =
+        "Tài khoản người bán của bạn đã bị khóa vĩnh viễn do vi phạm quy định.";
+    } else {
+      enforcementMessage = `Tài khoản người bán của bạn đã được cập nhật trạng thái (${nextState}).`;
+    }
+
     await createNotificationEvent(transaction, {
-      body:
-        nextState === "CLEAR"
-          ? "Biện pháp enforcement của bạn đã được gỡ bỏ."
-          : `Tài khoản người bán của bạn đang ở trạng thái ${nextState}.`,
+      body: enforcementMessage,
       context: {
         actionId: action.id,
         sellerId,
         state: nextState,
       },
       email: {
-        htmlBody:
-          nextState === "CLEAR"
-            ? "<p>Biện pháp enforcement của bạn đã được gỡ bỏ.</p>"
-            : `<p>Tài khoản người bán của bạn đang ở trạng thái ${nextState}.</p>`,
+        htmlBody: `<p>${enforcementMessage}</p>`,
         recipientUserIds: [sellerId],
         subject:
           nextState === "CLEAR"
-            ? "Avin: Enforcement đã được gỡ bỏ"
-            : "Avin: Enforcement đã được áp dụng",
-        textBody:
-          nextState === "CLEAR"
-            ? "Biện pháp enforcement của bạn đã được gỡ bỏ."
-            : `Tài khoản người bán của bạn đang ở trạng thái ${nextState}.`,
+            ? "Avin: Đã gỡ bỏ hạn chế tài khoản người bán"
+            : "Avin: Cập nhật xử lý vi phạm tài khoản người bán",
+        textBody: enforcementMessage,
       },
       eventType:
         nextState === "CLEAR"
@@ -1041,8 +1045,8 @@ export const changeSellerEnforcement = async ({
       sourceType: "SELLER_ENFORCEMENT_ACTION",
       title:
         nextState === "CLEAR"
-          ? "Enforcement đã được gỡ bỏ"
-          : "Enforcement đã được áp dụng",
+          ? "Đã gỡ bỏ hạn chế tài khoản"
+          : "Thông báo xử lý vi phạm tài khoản",
     });
 
     if (affectedBuyerRecipients.length > 0) {
@@ -1071,7 +1075,7 @@ export const changeSellerEnforcement = async ({
       // reconciles a missing or attention-needed remediation on its next run.
       try {
         await createNotificationEvent(database, {
-          body: "Remediation của enforcement cần được Admin xử lý.",
+          body: "Quy trình xử lý hoàn tiền vi phạm cần được Quản trị viên kiểm tra.",
           context: { actionId: remediationAction, sellerId },
           eventType: "enforcement_remediation.needs_attention",
           recipients: await listNotificationRecipientsByRole(database, {
@@ -1080,7 +1084,7 @@ export const changeSellerEnforcement = async ({
           }),
           sourceId: remediationAction,
           sourceType: "SELLER_ENFORCEMENT_REMEDIATION",
-          title: "Remediation cần được xử lý",
+          title: "Cần xử lý hoàn tiền vi phạm",
         });
       } catch {
         // Notification failure must not hide the already committed enforcement.
@@ -1450,23 +1454,18 @@ export const reviewSellerEnforcementAppeal = ({
         targetPath: "/sellers",
       })),
     ];
+    const appealMessage =
+      outcome === "UPHELD"
+        ? "Yêu cầu kháng nghị của bạn đã được xem xét và giữ nguyên quyết định xử lý."
+        : "Yêu cầu kháng nghị của bạn đã được chấp thuận.";
     await createNotificationEvent(transaction, {
-      body:
-        outcome === "UPHELD"
-          ? "Kháng nghị enforcement của bạn đã được giữ nguyên."
-          : "Kháng nghị enforcement của bạn đã được chấp thuận.",
+      body: appealMessage,
       context: { appealId: appeal.id, outcome, sellerId: appeal.sellerId },
       email: {
-        htmlBody:
-          outcome === "UPHELD"
-            ? "<p>Kháng nghị enforcement của bạn đã được giữ nguyên.</p>"
-            : "<p>Kháng nghị enforcement của bạn đã được chấp thuận.</p>",
+        htmlBody: `<p>${appealMessage}</p>`,
         recipientUserIds: [appeal.sellerId],
-        subject: "Avin: Kháng nghị enforcement đã được giải quyết",
-        textBody:
-          outcome === "UPHELD"
-            ? "Kháng nghị enforcement của bạn đã được giữ nguyên."
-            : "Kháng nghị enforcement của bạn đã được chấp thuận.",
+        subject: "Avin: Kết quả kháng nghị tài khoản",
+        textBody: appealMessage,
       },
       eventType: "seller_enforcement.appeal_resolved",
       recipients,
@@ -1474,18 +1473,18 @@ export const reviewSellerEnforcementAppeal = ({
       sourceType: "SELLER_ENFORCEMENT_APPEAL",
       title:
         outcome === "UPHELD"
-          ? "Kháng nghị enforcement đã được giải quyết"
-          : "Kháng nghị enforcement được chấp thuận",
+          ? "Kết quả kháng nghị: Giữ nguyên quyết định"
+          : "Kết quả kháng nghị: Đã chấp thuận",
     });
     if (overturnActionId) {
       await createNotificationEvent(transaction, {
-        body: "Enforcement của bạn đã được gỡ bỏ sau khi kháng nghị.",
+        body: "Tài khoản của bạn đã được gỡ bỏ hạn chế sau khi kháng nghị thành công.",
         context: { actionId: overturnActionId, sellerId: appeal.sellerId },
         eventType: "seller_enforcement.lifted",
         recipients,
         sourceId: overturnActionId,
         sourceType: "SELLER_ENFORCEMENT_ACTION",
-        title: "Enforcement đã được gỡ bỏ",
+        title: "Đã gỡ bỏ hạn chế tài khoản",
       });
     }
     return updatedAppeal;

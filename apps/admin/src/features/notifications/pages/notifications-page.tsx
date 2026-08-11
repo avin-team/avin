@@ -22,6 +22,51 @@ import {
 const formatDate = (value: string): string =>
   new Date(value).toLocaleString("vi-VN");
 
+const capitalizeFirst = (str: string): string =>
+  str.length > 0 ? str.charAt(0).toUpperCase() + str.slice(1) : str;
+
+const formatNotificationTitle = (title: string): string => {
+  if (title === "Cập nhật OrderItem") {
+    return "Cập nhật đơn hàng";
+  }
+  if (title === "Dispute mới cần xử lý") {
+    return "Khiếu nại mới cần xử lý";
+  }
+  if (title === "OrderItem đã được giao") {
+    return "Sản phẩm đã được bàn giao";
+  }
+  if (title === "Buyer đã xác nhận giao hàng") {
+    return "Đã xác nhận nhận hàng";
+  }
+  const formatted = title
+    .replaceAll(/\bOrderItem\b/gu, "Đơn hàng")
+    .replaceAll(/\borderItem\b/gu, "đơn hàng")
+    .replaceAll(/\bDispute\b/gu, "Khiếu nại")
+    .replaceAll(/\bBuyer\b/gu, "Người mua")
+    .replaceAll(/\bSeller\b/gu, "Người bán");
+  return capitalizeFirst(formatted);
+};
+
+const formatNotificationText = (text: string): string => {
+  const formatted = text
+    .replaceAll(/\bOrderItem\b/gu, "Đơn hàng")
+    .replaceAll(/\borderItem\b/gu, "đơn hàng")
+    .replaceAll(/\bIN_PROGRESS\b/gu, "Đang xử lý")
+    .replaceAll(/\bAWAITING_SELLER\b/gu, "Chờ người bán xác nhận")
+    .replaceAll(/\bDELIVERED\b/gu, "Đã bàn giao")
+    .replaceAll(/\bIN_WARRANTY\b/gu, "Đang bảo hành")
+    .replaceAll(/\bCLOSED\b/gu, "Hoàn tất")
+    .replaceAll(/\bCANCELLED\b/gu, "Đã hủy")
+    .replaceAll(/\bREFUNDED\b/gu, "Đã hoàn tiền")
+    .replaceAll(/\bDISPUTED\b/gu, "Đang khiếu nại")
+    .replaceAll(/\bBuyer\b/gu, "Người mua")
+    .replaceAll(/\bSeller\b/gu, "Người bán")
+    .replaceAll(/\bDispute\b/gu, "Khiếu nại")
+    .replaceAll(/\bDeliverySubmission\b/gu, "thông tin bàn giao")
+    .replaceAll(/\bSeller Enforcement\b/gu, "xử lý vi phạm gian hàng");
+  return capitalizeFirst(formatted);
+};
+
 export const NotificationsPage = () => {
   const [cursor, setCursor] = useState<string>();
   const [unreadOnly, setUnreadOnly] = useState(false);
@@ -103,10 +148,14 @@ export const NotificationsPage = () => {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="font-semibold">{item.title}</h2>
+                      <h2 className="font-semibold">
+                        {formatNotificationTitle(item.title)}
+                      </h2>
                       {item.readAt ? null : <Badge>Chưa đọc</Badge>}
                     </div>
-                    <p className="text-sm text-muted-foreground">{item.body}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {formatNotificationText(item.body)}
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       {formatDate(item.createdAt)}
                     </p>

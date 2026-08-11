@@ -5,8 +5,11 @@ import { listNotifications, markNotificationRead } from "./inbox";
 import type { NotificationExecutor } from "./notification";
 
 const notificationRow = {
-  body: "OrderItem đã cập nhật.",
-  context: { orderId: "order-1" },
+  body: "Đơn hàng đã cập nhật.",
+  context: { orderId: "order-1" } as Record<
+    string,
+    boolean | null | number | string
+  >,
   createdAt: new Date("2026-08-11T03:00:00.000Z"),
   deepLink: "/orders/order-1",
   eventType: "order_item.transition",
@@ -15,7 +18,7 @@ const notificationRow = {
   recipientUserId: "buyer-1",
   sourceId: "event-1",
   sourceType: "ORDER_ITEM_LIFECYCLE",
-  title: "Cập nhật OrderItem",
+  title: "Cập nhật đơn hàng",
 };
 
 const createListDatabase = (row = notificationRow) => {
@@ -56,7 +59,7 @@ describe("Notification inbox", () => {
     expect(result).toEqual({
       items: [
         {
-          body: "OrderItem đã cập nhật.",
+          body: "Đơn hàng đã cập nhật.",
           context: { orderId: "order-1" },
           createdAt: "2026-08-11T03:00:00.000Z",
           deepLink: "/orders/order-1",
@@ -65,7 +68,7 @@ describe("Notification inbox", () => {
           readAt: null,
           sourceId: "event-1",
           sourceType: "ORDER_ITEM_LIFECYCLE",
-          title: "Cập nhật OrderItem",
+          title: "Cập nhật đơn hàng",
         },
       ],
       nextCursor: null,
@@ -111,6 +114,21 @@ describe("Notification inbox", () => {
     });
 
     expect(result.items[0]?.deepLink).toBe("/notifications");
+  });
+
+  it("routes withdrawal notifications to the seller finance section", async () => {
+    const result = await listNotifications({
+      database: createListDatabase({
+        ...notificationRow,
+        context: { withdrawalRequestId: "withdrawal-1" },
+        deepLink: "/seller/store",
+        eventType: "transaction.withdrawal_paid",
+      }),
+      input: { limit: 20 },
+      userId: "seller-1",
+    });
+
+    expect(result.items[0]?.deepLink).toBe("/seller/store?section=finance");
   });
 
   it("does not reveal another recipient's notification", async () => {

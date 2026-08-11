@@ -222,21 +222,21 @@ const moderateListing = async ({
     let title: string;
     switch (action) {
       case "ARCHIVE": {
-        body = "Listing của bạn đã được lưu trữ.";
+        body = "Sản phẩm/dịch vụ của bạn đã được lưu trữ.";
         eventType = "listing.archived";
-        title = "Listing đã được lưu trữ";
+        title = "Sản phẩm/dịch vụ đã được lưu trữ";
         break;
       }
       case "HIDE": {
-        body = "Listing của bạn đã bị ẩn khỏi marketplace.";
+        body = "Sản phẩm/dịch vụ của bạn đã bị ẩn khỏi sàn.";
         eventType = "listing.hidden";
-        title = "Listing đã bị ẩn";
+        title = "Sản phẩm/dịch vụ đã bị ẩn";
         break;
       }
       case "RESTORE": {
-        body = "Listing của bạn đã được khôi phục trên marketplace.";
+        body = "Sản phẩm/dịch vụ của bạn đã được khôi phục trên sàn.";
         eventType = "listing.restored";
-        title = "Listing đã được khôi phục";
+        title = "Sản phẩm/dịch vụ đã được khôi phục";
         break;
       }
       default: {

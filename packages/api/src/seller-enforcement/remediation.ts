@@ -596,7 +596,7 @@ export const runSellerEnforcementRemediation = async ({
         remediation.status !== "NEEDS_ATTENTION"
       ) {
         await createNotificationEvent(transaction, {
-          body: "Seller Enforcement remediation đã vượt quá số lần thử và cần xử lý.",
+          body: "Xử lý hoàn tiền vi phạm đã vượt quá số lần thử lại và cần Quản trị viên xử lý.",
           context: {
             remediationId: refreshed.id,
             sellerId: refreshed.sellerId,
@@ -608,7 +608,7 @@ export const runSellerEnforcementRemediation = async ({
           }),
           sourceId: refreshed.id,
           sourceType: "SELLER_ENFORCEMENT_REMEDIATION",
-          title: "Remediation cần được xử lý",
+          title: "Cần xử lý hoàn tiền vi phạm",
         });
       }
     });

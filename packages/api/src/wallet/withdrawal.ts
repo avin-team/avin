@@ -32,6 +32,7 @@ export const WITHDRAWAL_PAYMENT_REFERENCE_MAX_LENGTH = 255;
 export const WITHDRAWAL_REJECTION_REASON_MAX_LENGTH = 500;
 
 const WITHDRAWAL_REFERENCE_LENGTH = 24;
+const SELLER_WITHDRAWAL_NOTIFICATION_PATH = "/seller/store?section=finance";
 
 export type WithdrawalStatus =
   (typeof withdrawalRequest.status.enumValues)[number];
@@ -430,6 +431,7 @@ export const requestWithdrawal = ({
       throw new Error("Withdrawal request was not created");
     }
     await createNotificationEvent(transaction, {
+      actorUserId: sellerId,
       body: `Yêu cầu rút ${amount.toLocaleString("vi-VN")} VND của bạn đã được gửi.`,
       context: { amount, withdrawalRequestId: createdRequest.id },
       email: {
@@ -440,7 +442,7 @@ export const requestWithdrawal = ({
       },
       eventType: "transaction.withdrawal_requested",
       recipients: [
-        { targetPath: "/seller/store", userId: sellerId },
+        { targetPath: SELLER_WITHDRAWAL_NOTIFICATION_PATH, userId: sellerId },
         ...(await listNotificationRecipientsByRole(transaction, {
           role: "ADMIN",
           targetPath: "/withdrawals",
@@ -507,6 +509,7 @@ export const cancelWithdrawalRequest = ({
       });
     }
     await createNotificationEvent(transaction, {
+      actorUserId: sellerId,
       body: "Số dư giữ cho yêu cầu rút tiền đã được hoàn lại.",
       context: {
         amount: updatedRequest.amount,
@@ -520,7 +523,10 @@ export const cancelWithdrawalRequest = ({
       },
       eventType: "transaction.reversal_committed",
       recipients: [
-        { targetPath: "/seller/store", userId: updatedRequest.sellerId },
+        {
+          targetPath: SELLER_WITHDRAWAL_NOTIFICATION_PATH,
+          userId: updatedRequest.sellerId,
+        },
         ...(await listNotificationRecipientsByRole(transaction, {
           role: "ADMIN",
           targetPath: "/withdrawals",
@@ -580,6 +586,7 @@ export const approveWithdrawalRequest = ({
       });
     }
     await createNotificationEvent(transaction, {
+      actorUserId: adminUserId,
       body: "Yêu cầu rút tiền của bạn đã được duyệt.",
       context: {
         amount: updatedRequest.amount,
@@ -587,7 +594,10 @@ export const approveWithdrawalRequest = ({
       },
       eventType: "transaction.withdrawal_approved",
       recipients: [
-        { targetPath: "/seller/store", userId: updatedRequest.sellerId },
+        {
+          targetPath: SELLER_WITHDRAWAL_NOTIFICATION_PATH,
+          userId: updatedRequest.sellerId,
+        },
         ...(await listNotificationRecipientsByRole(transaction, {
           role: "ADMIN",
           targetPath: "/withdrawals",
@@ -660,6 +670,7 @@ export const rejectWithdrawalRequest = ({
       });
     }
     await createNotificationEvent(transaction, {
+      actorUserId: adminUserId,
       body: "Yêu cầu rút tiền của bạn đã bị từ chối; số dư đã được hoàn lại.",
       context: {
         amount: updatedRequest.amount,
@@ -676,7 +687,10 @@ export const rejectWithdrawalRequest = ({
       },
       eventType: "transaction.withdrawal_rejected",
       recipients: [
-        { targetPath: "/seller/store", userId: updatedRequest.sellerId },
+        {
+          targetPath: SELLER_WITHDRAWAL_NOTIFICATION_PATH,
+          userId: updatedRequest.sellerId,
+        },
         ...(await listNotificationRecipientsByRole(transaction, {
           role: "ADMIN",
           targetPath: "/withdrawals",
@@ -687,6 +701,7 @@ export const rejectWithdrawalRequest = ({
       title: "Yêu cầu rút tiền bị từ chối",
     });
     await createNotificationEvent(transaction, {
+      actorUserId: adminUserId,
       body: "Số dư giữ cho yêu cầu rút tiền đã được hoàn lại.",
       context: {
         amount: updatedRequest.amount,
@@ -694,7 +709,10 @@ export const rejectWithdrawalRequest = ({
       },
       eventType: "transaction.reversal_committed",
       recipients: [
-        { targetPath: "/seller/store", userId: updatedRequest.sellerId },
+        {
+          targetPath: SELLER_WITHDRAWAL_NOTIFICATION_PATH,
+          userId: updatedRequest.sellerId,
+        },
         ...(await listNotificationRecipientsByRole(transaction, {
           role: "ADMIN",
           targetPath: "/withdrawals",
@@ -802,6 +820,7 @@ export const markWithdrawalRequestPaid = ({
       });
     }
     await createNotificationEvent(transaction, {
+      actorUserId: adminUserId,
       body: "Yêu cầu rút tiền của bạn đã được đánh dấu là đã thanh toán.",
       context: {
         amount: updatedRequest.amount,
@@ -816,7 +835,10 @@ export const markWithdrawalRequestPaid = ({
       },
       eventType: "transaction.withdrawal_paid",
       recipients: [
-        { targetPath: "/seller/store", userId: updatedRequest.sellerId },
+        {
+          targetPath: SELLER_WITHDRAWAL_NOTIFICATION_PATH,
+          userId: updatedRequest.sellerId,
+        },
         ...(await listNotificationRecipientsByRole(transaction, {
           role: "ADMIN",
           targetPath: "/withdrawals",

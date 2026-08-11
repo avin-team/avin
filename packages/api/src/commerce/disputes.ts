@@ -637,7 +637,7 @@ const insertDisputeNotifications = async (
     email: {
       htmlBody: `<p>${body}</p>`,
       recipientUserIds: [row.buyerId, row.sellerId],
-      subject: "Avin: Dispute đã được xử lý",
+      subject: "Avin: Khiếu nại đã được xử lý",
       textBody: body,
     },
     eventType,
@@ -937,7 +937,7 @@ export const notifyDisputeResponseDeadlines = async ({
           email: {
             htmlBody: `<p>${body}</p>`,
             recipientUserIds: [dueDispute.buyerId, dueDispute.sellerId],
-            subject: "Avin: Dispute có mốc thời hạn mới",
+            subject: "Avin: Cập nhật thời hạn khiếu nại",
             textBody: body,
           },
           eventType: "dispute.deadline",
@@ -961,17 +961,17 @@ export const notifyDisputeResponseDeadlines = async ({
       };
 
       await createDeadlineEvent({
-        body: "Đã hết 48 giờ để Seller phản hồi. Admin có thể ra quyết định.",
+        body: "Đã hết 48 giờ để người bán phản hồi. Quản trị viên có thể xem xét và ra quyết định.",
         commandKey: `DISPUTE_RESPONSE_DEADLINE:${dueDispute.disputeId}`,
         reason: "Seller response deadline expired",
-        title: "Hết hạn phản hồi Dispute",
+        title: "Hết thời hạn phản hồi khiếu nại",
       });
       if (now >= adminDecisionDeadlineAt) {
         await createDeadlineEvent({
-          body: "Đã quá SLA 48 giờ làm việc để Admin xử lý Dispute.",
+          body: "Đã quá 48 giờ làm việc để Quản trị viên xử lý khiếu nại.",
           commandKey: `DISPUTE_ADMIN_DEADLINE:${dueDispute.disputeId}`,
           reason: "Admin decision deadline expired",
-          title: "Dispute quá hạn xử lý Admin",
+          title: "Khiếu nại quá hạn xử lý của Quản trị viên",
         });
       }
       return changed;
@@ -1193,9 +1193,9 @@ export const resolveDispute = ({
       event.id,
       "dispute.resolved",
       decision.escrowHoldStatus === "REFUNDED"
-        ? "Admin đã hoàn toàn bộ escrow cho Buyer."
-        : "Admin đã giải ngân toàn bộ escrow cho Seller.",
-      "Dispute đã được xử lý",
+        ? "Quản trị viên đã quyết định hoàn tiền cho người mua."
+        : "Quản trị viên đã quyết định giải ngân cho người bán.",
+      "Khiếu nại đã được xử lý",
       now
     );
 
@@ -1343,8 +1343,8 @@ export const cancelDispute = ({
       row,
       event.id,
       "dispute.resolved",
-      "Buyer đã hủy tranh chấp. Escrow quay lại quy trình bình thường.",
-      "Dispute đã được hủy",
+      "Người mua đã rút khiếu nại. Đơn hàng tiếp tục quy trình xử lý bình thường.",
+      "Khiếu nại đã được rút",
       now
     );
 

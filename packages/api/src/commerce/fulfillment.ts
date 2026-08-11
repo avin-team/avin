@@ -746,38 +746,100 @@ const getEventReason = (command: OrderItemTransitionCommand): string | null => {
   }
 };
 
+const formatOrderItemStatusVi = (status: OrderItemStatus): string => {
+  switch (status) {
+    case "AWAITING_SELLER": {
+      return "Chờ người bán xác nhận";
+    }
+    case "IN_PROGRESS": {
+      return "Đang xử lý";
+    }
+    case "DELIVERED": {
+      return "Đã bàn giao";
+    }
+    case "IN_WARRANTY": {
+      return "Đang bảo hành";
+    }
+    case "CLOSED": {
+      return "Hoàn tất";
+    }
+    case "CANCELLED": {
+      return "Đã hủy";
+    }
+    case "REFUNDED": {
+      return "Đã hoàn tiền";
+    }
+    case "DISPUTED": {
+      return "Đang khiếu nại";
+    }
+    default: {
+      return status;
+    }
+  }
+};
+
 const getNotificationCopy = (
   command: OrderItemTransitionCommand,
   status: OrderItemStatus
 ): { body: string; title: string } => {
+  if (command.type === "START_FULFILLMENT") {
+    return {
+      body: "Người bán đã bắt đầu xử lý đơn hàng của bạn.",
+      title: "Đơn hàng đang xử lý",
+    };
+  }
   if (command.type === "OPEN_DISPUTE") {
     return {
-      body: "Buyer đã mở Dispute cho OrderItem này.",
-      title: "Dispute mới cần xử lý",
+      body: "Người mua đã gửi yêu cầu khiếu nại cho đơn hàng này.",
+      title: "Khiếu nại mới cần xử lý",
     };
   }
   if (command.type === "SUBMIT_DELIVERY") {
     return {
-      body: "Seller đã gửi DeliverySubmission mới.",
-      title: "OrderItem đã được giao",
+      body: "Người bán đã gửi thông tin bàn giao sản phẩm/dịch vụ.",
+      title: "Sản phẩm đã được bàn giao",
     };
   }
   if (command.type === "CONFIRM_DELIVERY") {
     return {
-      body: "Buyer đã xác nhận DeliverySubmission.",
-      title: "Buyer đã xác nhận giao hàng",
+      body: "Người mua đã xác nhận nhận hàng thành công.",
+      title: "Đã xác nhận nhận hàng",
+    };
+  }
+  if (command.type === "CANCEL_BY_BUYER") {
+    return {
+      body: "Người mua đã hủy đơn hàng này.",
+      title: "Đơn hàng đã hủy",
+    };
+  }
+  if (command.type === "CANCEL_BY_SELLER") {
+    return {
+      body: "Người bán đã hủy đơn hàng này.",
+      title: "Đơn hàng đã hủy",
     };
   }
   if (command.type === "CANCEL_BY_SYSTEM") {
     return {
-      body: "OrderItem đã được hủy do Seller Enforcement và khoản thanh toán đã được hoàn lại.",
-      title: "Đã bảo vệ khoản thanh toán của bạn",
+      body: "Đơn hàng đã được hệ thống hủy và hoàn tiền lại vào ví của bạn.",
+      title: "Đã bảo vệ khoản thanh toán",
+    };
+  }
+  if (command.type === "EXPIRE_DELIVERY_REVIEW") {
+    return {
+      body: "Hết thời gian kiểm tra, hệ thống đã tự động xác nhận hoàn tất bàn giao.",
+      title: "Tự động xác nhận giao hàng",
+    };
+  }
+  if (command.type === "EXPIRE_WARRANTY") {
+    return {
+      body: "Đơn hàng đã hoàn tất thời gian bảo hành thành công.",
+      title: "Hoàn tất bảo hành",
     };
   }
 
   return {
-    body: `OrderItem đã chuyển sang trạng thái ${status}.`,
-    title: "Cập nhật OrderItem",
+    body: `Đơn hàng của bạn đã chuyển sang trạng thái ${formatOrderItemStatusVi(status)}.`,
+    title: "Cập nhật đơn hàng",
   };
 };
 
@@ -787,7 +849,8 @@ const insertNotifications = async (
   eventId: string,
   command: OrderItemTransitionCommand,
   status: OrderItemStatus,
-  now: Date
+  now: Date,
+  actorUserId: string | null
 ): Promise<void> => {
   const recipients = [
     { targetPath: `/orders/${item.orderId}`, userId: item.buyerId },
@@ -808,6 +871,7 @@ const insertNotifications = async (
 
   const copy = getNotificationCopy(command, status);
   await createNotificationEvent(executor, {
+    actorUserId,
     body: copy.body,
     context: {
       orderId: item.orderId,
@@ -1433,7 +1497,8 @@ const executeTransition = ({
       event.id,
       command,
       transition.newStatus,
-      now
+      now,
+      actorId
     );
 
     return toCommandResult(item.id, event, true);

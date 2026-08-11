@@ -12,19 +12,7 @@ import {
   walletOutboxEvent,
 } from "@avin/db/schema/wallet";
 import { ORPCError } from "@orpc/server";
-import {
-  and,
-  count,
-  desc,
-  eq,
-  exists,
-  gte,
-  inArray,
-  lt,
-  not,
-  or,
-  sql,
-} from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
 
 import {
   createNotificationEvent,
@@ -644,125 +632,72 @@ export const getWalletTransactions = async (
     .orderBy(desc(sepayPaymentEvent.transactionAt), desc(sepayPaymentEvent.id))
     .limit(DEPOSIT_HISTORY_PAGE_SIZE + 1);
 
-  const hasAvailablePosting = exists(
+  const [transactionRows, pendingDepositRows] = await Promise.all([
     executor
-      .select({ id: ledgerPosting.id })
+      .select({
+        amount: ledgerTransaction.amount,
+        balanceAfter: ledgerPosting.balanceAfter,
+        createdAt: ledgerTransaction.createdAt,
+        creditAmount: ledgerPosting.creditAmount,
+        currency: ledgerTransaction.currency,
+        debitAmount: ledgerPosting.debitAmount,
+        depositPaymentCode: depositRequest.paymentCode,
+        depositRequestId: depositRequest.id,
+        id: ledgerTransaction.id,
+        reference: ledgerTransaction.reference,
+        type: ledgerTransaction.type,
+      })
       .from(ledgerPosting)
+      .innerJoin(
+        ledgerTransaction,
+        eq(ledgerPosting.transactionId, ledgerTransaction.id)
+      )
       .innerJoin(
         ledgerAccount,
         eq(ledgerPosting.ledgerAccountId, ledgerAccount.id)
       )
-      .where(
+      .leftJoin(
+        depositRequest,
         and(
-          eq(ledgerPosting.transactionId, ledgerTransaction.id),
-          eq(ledgerAccount.userId, userId),
-          eq(ledgerAccount.accountType, "USER_WALLET_AVAILABLE")
+          eq(depositRequest.creditedTransactionId, ledgerTransaction.id),
+          eq(depositRequest.userId, userId)
         )
       )
+      .where(
+        and(
+          eq(ledgerAccount.userId, userId),
+          eq(ledgerAccount.accountType, "USER_WALLET_AVAILABLE"),
+          transactionCursorCondition
+        )
+      )
+      .orderBy(desc(ledgerTransaction.createdAt), desc(ledgerTransaction.id))
+      .limit(DEPOSIT_HISTORY_PAGE_SIZE + 1),
+    observedDepositQuery,
+  ]);
+
+  const transactionCandidates: WalletHistoryCandidate[] = transactionRows.map(
+    (row) => {
+      const isDeposit = row.depositRequestId !== null;
+      const transactionId = isDeposit
+        ? `deposit:${row.depositRequestId}`
+        : `transaction:${row.id}`;
+
+      return {
+        createdAt: row.createdAt,
+        cursorId: row.id,
+        item: {
+          amount: row.creditAmount > 0 ? row.amount : -row.amount,
+          currency: row.currency,
+          id: transactionId,
+          paymentReference: row.depositPaymentCode ?? row.reference,
+          resultingAvailableBalance: row.balanceAfter,
+          status: row.type === "REVERSAL" ? "REVERSED" : "COMPLETED",
+          timestamp: row.createdAt.toISOString(),
+          type: transactionTypeLabels[row.type] ?? row.type,
+        },
+      };
+    }
   );
-
-  const [transactionRows, pendingDepositRows, heldOnlyRows] = await Promise.all(
-    [
-      executor
-        .select({
-          amount: ledgerTransaction.amount,
-          balanceAfter: ledgerPosting.balanceAfter,
-          createdAt: ledgerTransaction.createdAt,
-          creditAmount: ledgerPosting.creditAmount,
-          currency: ledgerTransaction.currency,
-          debitAmount: ledgerPosting.debitAmount,
-          depositPaymentCode: depositRequest.paymentCode,
-          depositRequestId: depositRequest.id,
-          id: ledgerTransaction.id,
-          reference: ledgerTransaction.reference,
-          type: ledgerTransaction.type,
-        })
-        .from(ledgerPosting)
-        .innerJoin(
-          ledgerTransaction,
-          eq(ledgerPosting.transactionId, ledgerTransaction.id)
-        )
-        .innerJoin(
-          ledgerAccount,
-          eq(ledgerPosting.ledgerAccountId, ledgerAccount.id)
-        )
-        .leftJoin(
-          depositRequest,
-          and(
-            eq(depositRequest.creditedTransactionId, ledgerTransaction.id),
-            eq(depositRequest.userId, userId)
-          )
-        )
-        .where(
-          and(
-            eq(ledgerAccount.userId, userId),
-            eq(ledgerAccount.accountType, "USER_WALLET_AVAILABLE"),
-            transactionCursorCondition
-          )
-        )
-        .orderBy(desc(ledgerTransaction.createdAt), desc(ledgerTransaction.id))
-        .limit(DEPOSIT_HISTORY_PAGE_SIZE + 1),
-      observedDepositQuery,
-      executor
-        .select({
-          amount: ledgerTransaction.amount,
-          balanceAfter: sql<number | null>`NULL`,
-          createdAt: ledgerTransaction.createdAt,
-          creditAmount: ledgerPosting.creditAmount,
-          currency: ledgerTransaction.currency,
-          debitAmount: ledgerPosting.debitAmount,
-          depositPaymentCode: sql<string | null>`NULL`,
-          depositRequestId: sql<string | null>`NULL`,
-          id: ledgerTransaction.id,
-          reference: ledgerTransaction.reference,
-          type: ledgerTransaction.type,
-        })
-        .from(ledgerAccount)
-        .innerJoin(
-          ledgerPosting,
-          eq(ledgerPosting.ledgerAccountId, ledgerAccount.id)
-        )
-        .innerJoin(
-          ledgerTransaction,
-          eq(ledgerPosting.transactionId, ledgerTransaction.id)
-        )
-        .where(
-          and(
-            eq(ledgerAccount.userId, userId),
-            eq(ledgerAccount.accountType, "USER_WALLET_HELD"),
-            transactionCursorCondition,
-            not(hasAvailablePosting)
-          )
-        )
-        .orderBy(desc(ledgerTransaction.createdAt), desc(ledgerTransaction.id))
-        .limit(DEPOSIT_HISTORY_PAGE_SIZE + 1),
-    ]
-  );
-
-  const transactionCandidates: WalletHistoryCandidate[] = [
-    ...transactionRows,
-    ...heldOnlyRows,
-  ].map((row) => {
-    const isDeposit = row.depositRequestId !== null;
-    const transactionId = isDeposit
-      ? `deposit:${row.depositRequestId}`
-      : `transaction:${row.id}`;
-
-    return {
-      createdAt: row.createdAt,
-      cursorId: row.id,
-      item: {
-        amount: row.creditAmount > 0 ? row.amount : -row.amount,
-        currency: row.currency,
-        id: transactionId,
-        paymentReference: row.depositPaymentCode ?? row.reference,
-        resultingAvailableBalance: row.balanceAfter,
-        status: row.type === "REVERSAL" ? "REVERSED" : "COMPLETED",
-        timestamp: row.createdAt.toISOString(),
-        type: transactionTypeLabels[row.type] ?? row.type,
-      },
-    };
-  });
   const pendingDepositCandidates: WalletHistoryCandidate[] =
     pendingDepositRows.map((row) => ({
       createdAt: row.createdAt,
@@ -799,7 +734,6 @@ export const getWalletTransactions = async (
   const pageRows = sortedCandidates.slice(0, DEPOSIT_HISTORY_PAGE_SIZE);
   const hasNextPage =
     transactionRows.length > DEPOSIT_HISTORY_PAGE_SIZE ||
-    heldOnlyRows.length > DEPOSIT_HISTORY_PAGE_SIZE ||
     pendingDepositRows.length > DEPOSIT_HISTORY_PAGE_SIZE ||
     sortedCandidates.length > DEPOSIT_HISTORY_PAGE_SIZE;
   const lastRow = pageRows.at(-1);
@@ -1100,18 +1034,18 @@ export const reverseLedgerTransaction = ({
     });
 
     await createNotificationEvent(transaction, {
-      body: "Một giao dịch tài chính liên quan đến ví của bạn đã được đảo.",
+      body: "Một giao dịch tài chính liên quan đến ví của bạn đã được điều chỉnh (hoàn tác).",
       context: {
         originalTransactionId: transactionId,
         reversalTransactionId: result.reversalId,
       },
       email: {
         htmlBody:
-          "<p>Một giao dịch tài chính liên quan đến ví của bạn đã được đảo.</p>",
+          "<p>Một giao dịch tài chính liên quan đến ví của bạn đã được điều chỉnh (hoàn tác).</p>",
         recipientUserIds: result.affectedUserIds,
-        subject: "Avin: Giao dịch tài chính đã được đảo",
+        subject: "Avin: Điều chỉnh giao dịch tài chính",
         textBody:
-          "Một giao dịch tài chính liên quan đến ví của bạn đã được đảo.",
+          "Một giao dịch tài chính liên quan đến ví của bạn đã được điều chỉnh (hoàn tác).",
       },
       eventType: "transaction.reversal_committed",
       recipients: [

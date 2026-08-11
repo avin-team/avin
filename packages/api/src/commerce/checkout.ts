@@ -598,19 +598,6 @@ export const createOrdersAndEscrowHolds = async (
       };
 
       await createNotificationEvent(transaction, {
-        body: "Đơn hàng của bạn đã được tạo và đang chờ người bán xác nhận.",
-        context: notificationContext,
-        eventType: "order_item.transition",
-        now,
-        recipients: [
-          { targetPath: `/orders/${createdOrder.id}`, userId: buyerId },
-        ],
-        sourceId: lifecycleEvent.id,
-        sourceType: "ORDER_ITEM_LIFECYCLE",
-        title: "Đặt hàng thành công",
-      });
-
-      await createNotificationEvent(transaction, {
         body: "Bạn có đơn hàng mới đang chờ xác nhận.",
         context: notificationContext,
         eventType: "order_item.transition",
