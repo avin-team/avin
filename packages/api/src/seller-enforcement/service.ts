@@ -10,6 +10,7 @@ import {
   sellerEnforcementRemediation,
   sellerEnforcementRemediationItem,
 } from "@avin/db/schema/seller-enforcement";
+import { userWallet } from "@avin/db/schema/wallet";
 import { ORPCError } from "@orpc/server";
 import { and, asc, desc, eq, inArray, isNotNull, lte } from "drizzle-orm";
 import { z } from "zod";
@@ -1505,11 +1506,13 @@ export const listAdminSellers = async (
   const [profiles, activeAppeals] = await Promise.all([
     database
       .select({
+        availableBalance: userWallet.availableBalance,
         avatarUrl: sellerProfile.avatarUrl,
         completedOrderCount: sellerProfile.completedOrderCount,
         createdAt: sellerProfile.createdAt,
         enforcementExpiresAt: sellerEnforcement.expiresAt,
         enforcementState: sellerEnforcement.state,
+        heldBalance: userWallet.heldBalance,
         id: sellerProfile.id,
         phone: sellerProfile.phone,
         ratingCount: sellerProfile.ratingCount,
@@ -1526,6 +1529,7 @@ export const listAdminSellers = async (
         sellerEnforcement,
         eq(sellerProfile.userId, sellerEnforcement.sellerId)
       )
+      .leftJoin(userWallet, eq(sellerProfile.userId, userWallet.userId))
       .orderBy(desc(sellerProfile.createdAt)),
     database
       .select({
@@ -1561,12 +1565,14 @@ export const listAdminSellers = async (
     result.push({
       activeListingsCount: 0,
       applicantName: p.userName || "Chủ gian hàng",
+      availableBalanceVnd: p.availableBalance ?? 0,
       averageRating: Number(p.ratingScore || "5.0") || 5,
       completedOrdersCount: p.completedOrderCount || 0,
       email: p.userEmail,
       enforcementStatus,
       expiresAt: p.enforcementExpiresAt,
       hasActiveAppeal: activeAppealsSet.has(p.userId),
+      heldBalanceVnd: p.heldBalance ?? 0,
       id: p.userId,
       joinedAt: p.createdAt.toISOString(),
       phone: p.phone || "",
