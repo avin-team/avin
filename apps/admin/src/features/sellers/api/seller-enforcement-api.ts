@@ -35,6 +35,10 @@ export const sellerRemediationItemsQueryOptions = (remediationId: string) =>
   });
 
 export const invalidateSellerEnforcementAdmin = (sellerId?: string) => {
+  // Always bust the seller list so enforcement status badges refresh
+  queryClient.invalidateQueries({
+    queryKey: orpc.sellerEnforcement.admin.listSellers.key(),
+  });
   if (sellerId) {
     queryClient.invalidateQueries({
       queryKey: orpc.sellerEnforcement.admin.get.key({ input: { sellerId } }),
@@ -130,3 +134,13 @@ export const useAppealEvidenceUrl = () =>
   useMutation(
     orpc.sellerEnforcement.admin.getAppealEvidenceUrl.mutationOptions()
   );
+
+export const adminSellerListQueryOptions = (input?: {
+  search?: string;
+  status?: "ALL" | "ACTIVE" | "SUSPENDED" | "BANNED";
+}) => orpc.sellerEnforcement.admin.listSellers.queryOptions({ input });
+
+export const useAdminSellerList = (input?: {
+  search?: string;
+  status?: "ALL" | "ACTIVE" | "SUSPENDED" | "BANNED";
+}) => useQuery(adminSellerListQueryOptions(input));

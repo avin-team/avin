@@ -15,6 +15,7 @@ import {
   getSellerEnforcementSellerAppeal,
   getSellerEnforcementSellerView,
   getSellerEnforcementView,
+  listAdminSellers,
   listSellerEnforcementActions,
   listSellerEnforcementAppeals,
   listSellerEnforcementSellerAppeals,
@@ -167,6 +168,17 @@ export const sellerEnforcementRouter = {
           sellerReason: input.sellerReason,
         })
       ),
+
+    listSellers: adminProcedure
+      .input(
+        z
+          .object({
+            search: z.string().trim().optional(),
+            status: z.enum(["ALL", "ACTIVE", "SUSPENDED", "BANNED"]).optional(),
+          })
+          .optional()
+      )
+      .handler(({ context, input }) => listAdminSellers(context.db, input)),
 
     remediationItems: adminProcedure
       .input(z.object({ remediationId: z.uuid() }))

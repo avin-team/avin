@@ -28,17 +28,22 @@ import {
   useLiftSellerEnforcement,
 } from "../api/seller-enforcement-api";
 import type {
-  Seller,
   SellerEnforcementReasonCode,
   SellerEnforcementStatus,
 } from "../types";
 import { REASON_CODE_LABELS } from "../workflow";
 
+interface SellerRef {
+  readonly enforcementStatus: SellerEnforcementStatus;
+  readonly id: string;
+  readonly storefrontName: string;
+}
+
 interface Props {
   readonly onOpenChange: (open: boolean) => void;
   readonly open: boolean;
-  readonly seller: Seller | null;
-  readonly targetStatus: SellerEnforcementStatus | null;
+  readonly seller: SellerRef | null;
+  readonly targetStatus?: SellerEnforcementStatus | null;
 }
 
 const REASON_OPTIONS: { label: string; value: SellerEnforcementReasonCode }[] =
@@ -68,13 +73,26 @@ export const EnforcementDialog = ({
   const applyMutation = useApplySellerEnforcement();
   const liftMutation = useLiftSellerEnforcement();
 
-  if (!seller || !targetStatus) {
+  if (!seller) {
     return null;
+  }
+
+  // Derive targetStatus when not explicitly passed
+  // Active → SUSPENDED, Suspended → BANNED, Banned → ACTIVE (lift)
+  let effectiveTargetStatus: SellerEnforcementStatus;
+  if (targetStatus) {
+    effectiveTargetStatus = targetStatus;
+  } else if (seller.enforcementStatus === "ACTIVE") {
+    effectiveTargetStatus = "SUSPENDED";
+  } else if (seller.enforcementStatus === "SUSPENDED") {
+    effectiveTargetStatus = "BANNED";
+  } else {
+    effectiveTargetStatus = "ACTIVE";
   }
 
   const isPending = applyMutation.isPending || liftMutation.isPending;
   const isDestructive =
-    targetStatus === "BANNED" || targetStatus === "SUSPENDED";
+    effectiveTargetStatus === "BANNED" || effectiveTargetStatus === "SUSPENDED";
 
   const handleConfirm = async () => {
     const trimmedReason = sellerReason.trim();
@@ -84,7 +102,7 @@ export const EnforcementDialog = ({
     }
 
     if (
-      targetStatus === "BANNED" &&
+      effectiveTargetStatus === "BANNED" &&
       (!confirmOrderItems || !confirmEscrowHolds || !confirmWithdrawals)
     ) {
       toast.error(
@@ -94,7 +112,7 @@ export const EnforcementDialog = ({
     }
 
     try {
-      await (targetStatus === "ACTIVE"
+      await (effectiveTargetStatus === "ACTIVE"
         ? liftMutation.mutateAsync({
             adminNote: adminNote.trim() || undefined,
             idempotencyKey: crypto.randomUUID(),
@@ -105,25 +123,35 @@ export const EnforcementDialog = ({
         : applyMutation.mutateAsync({
             adminNote: adminNote.trim() || undefined,
             confirmAffectedEscrowHolds:
-              targetStatus === "BANNED" ? confirmEscrowHolds : undefined,
+              effectiveTargetStatus === "BANNED"
+                ? confirmEscrowHolds
+                : undefined,
             confirmAffectedOrderItems:
-              targetStatus === "BANNED" ? confirmOrderItems : undefined,
+              effectiveTargetStatus === "BANNED"
+                ? confirmOrderItems
+                : undefined,
             confirmAffectedWithdrawals:
-              targetStatus === "BANNED" ? confirmWithdrawals : undefined,
+              effectiveTargetStatus === "BANNED"
+                ? confirmWithdrawals
+                : undefined,
             expiresAt:
-              targetStatus === "SUSPENDED" && expiresAt
+              effectiveTargetStatus === "SUSPENDED" && expiresAt
                 ? new Date(expiresAt)
                 : null,
             idempotencyKey: crypto.randomUUID(),
             reasonCode,
             sellerId: seller.id,
             sellerReason: trimmedReason,
-            state: targetStatus,
+            state: effectiveTargetStatus,
           }));
 
       // Update mock store for compatibility with mock views
       try {
-        updateSellerEnforcement(seller.id, targetStatus, trimmedReason);
+        updateSellerEnforcement(
+          seller.id,
+          effectiveTargetStatus,
+          trimmedReason
+        );
       } catch {
         // Mock fallback if seller is real backend id
       }
@@ -144,10 +172,10 @@ export const EnforcementDialog = ({
   };
 
   const renderTitle = () => {
-    if (targetStatus === "ACTIVE") {
+    if (effectiveTargetStatus === "ACTIVE") {
       return "Khôi phục trạng thái Hoạt Động (Lift Enforcement)";
     }
-    if (targetStatus === "SUSPENDED") {
+    if (effectiveTargetStatus === "SUSPENDED") {
       return "Tạm dừng hoạt động Seller (Suspend)";
     }
     return "Cấm vĩnh viễn Seller (Ban)";
@@ -158,7 +186,7 @@ export const EnforcementDialog = ({
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <div className="flex items-center gap-2">
-            {targetStatus === "BANNED" ? (
+            {effectiveTargetStatus === "BANNED" ? (
               <ProhibitIcon className="size-5 text-destructive" />
             ) : (
               <ShieldWarningIcon className="size-5 text-primary" />
@@ -229,7 +257,7 @@ export const EnforcementDialog = ({
             />
           </div>
 
-          {targetStatus === "SUSPENDED" ? (
+          {effectiveTargetStatus === "SUSPENDED" ? (
             <div className="grid gap-1.5">
               <Label htmlFor="expires-at">
                 Thời hạn tạm dừng (Tùy chọn, để trống nếu không xác định hạn)
@@ -248,7 +276,7 @@ export const EnforcementDialog = ({
             </div>
           ) : null}
 
-          {targetStatus === "BANNED" ? (
+          {effectiveTargetStatus === "BANNED" ? (
             <div className="space-y-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-xs">
               <p className="font-semibold text-destructive">
                 Xác nhận bắt buộc để Ban Seller (Hệ thống bảo vệ khách hàng):

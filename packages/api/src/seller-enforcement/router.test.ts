@@ -54,6 +54,7 @@ describe("Seller Enforcement backend router", () => {
       "getAppealEvidenceUrl",
       "history",
       "lift",
+      "listSellers",
       "remediationItems",
       "retryRemediation",
       "reviewAppeal",

@@ -1,7 +1,7 @@
 import { db } from "@avin/db";
 import { user } from "@avin/db/schema/auth";
 import { order, orderItem } from "@avin/db/schema/commerce";
-import { sellerApplication } from "@avin/db/schema/seller";
+import { sellerApplication, sellerProfile } from "@avin/db/schema/seller";
 import {
   sellerEnforcement,
   sellerEnforcementAction,
@@ -1466,4 +1466,115 @@ export const expireSellerEnforcements = async ({
     ...expired.filter((sellerId): sellerId is string => Boolean(sellerId))
   );
   return { expiredSellerIds };
+};
+
+const resolveEnforcementStatus = (
+  state: string | null,
+  expiresAt: Date | null,
+  now: Date
+): "ACTIVE" | "SUSPENDED" | "BANNED" => {
+  if (state === "BANNED") {
+    return "BANNED";
+  }
+  if (state === "SUSPENDED" && (!expiresAt || expiresAt > now)) {
+    return "SUSPENDED";
+  }
+  return "ACTIVE";
+};
+
+const matchesSearch = (
+  p: {
+    storefrontName: string;
+    userName: string;
+    userEmail: string;
+    phone: string | null;
+  },
+  search: string
+): boolean =>
+  [p.storefrontName, p.userName, p.userEmail, p.phone ?? ""].some((f) =>
+    f.toLowerCase().includes(search)
+  );
+
+export const listAdminSellers = async (
+  database: typeof db,
+  options?: {
+    search?: string;
+    status?: "ALL" | "ACTIVE" | "SUSPENDED" | "BANNED";
+  }
+) => {
+  const [profiles, activeAppeals] = await Promise.all([
+    database
+      .select({
+        avatarUrl: sellerProfile.avatarUrl,
+        completedOrderCount: sellerProfile.completedOrderCount,
+        createdAt: sellerProfile.createdAt,
+        enforcementExpiresAt: sellerEnforcement.expiresAt,
+        enforcementState: sellerEnforcement.state,
+        id: sellerProfile.id,
+        phone: sellerProfile.phone,
+        ratingCount: sellerProfile.ratingCount,
+        ratingScore: sellerProfile.ratingScore,
+        storeSlug: sellerProfile.storeSlug,
+        storefrontName: sellerProfile.storefrontName,
+        userEmail: user.email,
+        userId: user.id,
+        userName: user.name,
+      })
+      .from(sellerProfile)
+      .innerJoin(user, eq(sellerProfile.userId, user.id))
+      .leftJoin(
+        sellerEnforcement,
+        eq(sellerProfile.userId, sellerEnforcement.sellerId)
+      )
+      .orderBy(desc(sellerProfile.createdAt)),
+    database
+      .select({
+        sellerId: sellerEnforcementAppeal.sellerId,
+      })
+      .from(sellerEnforcementAppeal)
+      .where(
+        inArray(sellerEnforcementAppeal.status, ["SUBMITTED", "UNDER_REVIEW"])
+      ),
+  ]);
+  const activeAppealsSet = new Set(activeAppeals.map((a) => a.sellerId));
+
+  const now = new Date();
+  const search = options?.search?.trim().toLowerCase();
+  const statusFilter = options?.status ?? "ALL";
+
+  const result = [];
+  for (const p of profiles) {
+    const enforcementStatus = resolveEnforcementStatus(
+      p.enforcementState,
+      p.enforcementExpiresAt,
+      now
+    );
+
+    if (statusFilter !== "ALL" && enforcementStatus !== statusFilter) {
+      continue;
+    }
+
+    if (search && search.length > 0 && !matchesSearch(p, search)) {
+      continue;
+    }
+
+    result.push({
+      activeListingsCount: 0,
+      applicantName: p.userName || "Chủ gian hàng",
+      averageRating: Number(p.ratingScore || "5.0") || 5,
+      completedOrdersCount: p.completedOrderCount || 0,
+      email: p.userEmail,
+      enforcementStatus,
+      expiresAt: p.enforcementExpiresAt,
+      hasActiveAppeal: activeAppealsSet.has(p.userId),
+      id: p.userId,
+      joinedAt: p.createdAt.toISOString(),
+      phone: p.phone || "",
+      ratingCount: p.ratingCount || 0,
+      storeSlug: p.storeSlug,
+      storefrontName: p.storefrontName,
+    });
+  }
+
+  return result;
 };
