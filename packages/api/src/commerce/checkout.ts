@@ -27,6 +27,7 @@ import { ORPCError } from "@orpc/server";
 import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
 
 import { isListingPubliclyAvailable } from "../listing/listing-discovery";
+import { createNotificationEvent } from "../notifications/notification";
 import { COMMERCE_IMAGE_MAX_COUNT } from "../runtime/storage";
 import { isSellerEnforcementActive } from "../seller-enforcement/policy";
 import { recordBalancedLedgerTransaction } from "../wallet/ledger";
@@ -459,7 +460,7 @@ const prepareCheckoutItems = (
   return prepared;
 };
 
-const createOrdersAndEscrowHolds = async (
+export const createOrdersAndEscrowHolds = async (
   transaction: CommerceExecutor,
   checkoutId: string,
   buyerId: string,
@@ -563,24 +564,49 @@ const createOrdersAndEscrowHolds = async (
           );
       }
 
-      await transaction.insert(orderItemLifecycleEvent).values({
-        actorType: "BUYER",
-        actorUserId: buyerId,
-        artifactId: checkoutId,
-        artifactType: "CHECKOUT",
-        commandKey: `checkout:${checkoutId}`,
-        createdAt: now,
-        effectiveAt: now,
-        newStatus: "AWAITING_SELLER",
-        orderItemId: createdItem.id,
-        reason: "Checkout created OrderItem",
-      });
+      const [lifecycleEvent] = await transaction
+        .insert(orderItemLifecycleEvent)
+        .values({
+          actorType: "BUYER",
+          actorUserId: buyerId,
+          artifactId: checkoutId,
+          artifactType: "CHECKOUT",
+          commandKey: `checkout:${checkoutId}`,
+          createdAt: now,
+          effectiveAt: now,
+          newStatus: "AWAITING_SELLER",
+          orderItemId: createdItem.id,
+          reason: "Checkout created OrderItem",
+        })
+        .returning({ id: orderItemLifecycleEvent.id });
+
+      if (!lifecycleEvent) {
+        throw new Error("OrderItem lifecycle event was not created");
+      }
 
       await transaction.insert(escrowHold).values({
         amount: priceAmount,
         orderItemId: createdItem.id,
         purchaseTransactionId,
         status: "HELD",
+      });
+
+      await createNotificationEvent(transaction, {
+        body: "Bạn có đơn hàng mới đang chờ xác nhận.",
+        context: {
+          orderId: createdOrder.id,
+          orderItemId: createdItem.id,
+          status: "AWAITING_SELLER",
+        },
+        eventType: "order_item.transition",
+        now,
+        recipients: [
+          { targetPath: `/orders/${createdOrder.id}`, userId: buyerId },
+          { targetPath: `/orders/${createdOrder.id}`, userId: sellerId },
+        ],
+        sourceId: lifecycleEvent.id,
+        sourceType: "ORDER_ITEM_LIFECYCLE",
+        title: "Đơn hàng mới cần xác nhận",
       });
     }
   }

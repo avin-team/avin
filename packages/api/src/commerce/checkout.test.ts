@@ -1,13 +1,108 @@
-import { cartItem, checkout, order, orderItem } from "@avin/db/schema/commerce";
+import {
+  cartItem,
+  checkout,
+  checkoutAttachmentDraft,
+  order,
+  orderItem,
+  orderItemLifecycleEvent,
+} from "@avin/db/schema/commerce";
 import { describe, expect, it, vi } from "vitest";
 
 import type { CommerceExecutor } from "./cart";
-import { createCheckout } from "./checkout";
+import { createCheckout, createOrdersAndEscrowHolds } from "./checkout";
 import { fingerprintCheckoutRequest } from "./contracts";
+
+const { createNotificationEvent } = vi.hoisted(() => ({
+  createNotificationEvent: vi.fn(),
+}));
+
+vi.mock("../notifications/notification", () => ({
+  createNotificationEvent,
+}));
 
 type TransactionRunner = (tx: CommerceExecutor) => Promise<unknown>;
 
 describe("createCheckout", () => {
+  it("notifies both parties when checkout creates an item awaiting seller confirmation", async () => {
+    const now = new Date("2026-08-11T09:11:01.839Z");
+    const transaction = {
+      insert: vi.fn((table: unknown) => ({
+        values: vi.fn(() => {
+          if (table === order) {
+            return {
+              returning: vi.fn().mockResolvedValue([{ id: "order-1" }]),
+            };
+          }
+          if (table === orderItem) {
+            return {
+              returning: vi.fn().mockResolvedValue([{ id: "item-1" }]),
+            };
+          }
+          if (table === orderItemLifecycleEvent) {
+            return {
+              returning: vi
+                .fn()
+                .mockResolvedValue([{ id: "lifecycle-event-1" }]),
+            };
+          }
+          return Promise.resolve([]);
+        }),
+      })),
+      select: vi.fn(() => ({
+        from: vi.fn((table: unknown) => {
+          if (table === checkoutAttachmentDraft) {
+            return { where: vi.fn().mockResolvedValue([]) };
+          }
+          throw new Error("Unexpected select in checkout order creation test");
+        }),
+      })),
+    };
+
+    await createOrdersAndEscrowHolds(
+      transaction as unknown as CommerceExecutor,
+      "checkout-1",
+      "buyer-1",
+      "purchase-transaction-1",
+      [
+        {
+          buyerDescription: "",
+          contract: {
+            listingSnapshot: {},
+            priceAmount: 100_000,
+            processingTimeHours: 24,
+            servicePackageId: null,
+            servicePackageSnapshot: null,
+            warrantyPolicy: { kind: "UNTIL_CLOSED" },
+          },
+          row: {
+            listingId: "listing-1",
+            sellerId: "seller-1",
+          },
+        },
+      ] as never,
+      "checkout-key-1",
+      now
+    );
+
+    expect(createNotificationEvent).toHaveBeenCalledWith(transaction, {
+      body: "Bạn có đơn hàng mới đang chờ xác nhận.",
+      context: {
+        orderId: "order-1",
+        orderItemId: "item-1",
+        status: "AWAITING_SELLER",
+      },
+      eventType: "order_item.transition",
+      now,
+      recipients: [
+        { targetPath: "/orders/order-1", userId: "buyer-1" },
+        { targetPath: "/orders/order-1", userId: "seller-1" },
+      ],
+      sourceId: "lifecycle-event-1",
+      sourceType: "ORDER_ITEM_LIFECYCLE",
+      title: "Đơn hàng mới cần xác nhận",
+    });
+  });
+
   it("rejects non-BUYER roles with FORBIDDEN", async () => {
     const database = {
       transaction: vi.fn(async (runner: TransactionRunner) => {
