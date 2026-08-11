@@ -22,6 +22,7 @@ import { startSePayReconciliationSchedule } from "./jobs/sepay-reconciliation";
 import {
   createOrderChatAttachmentUploadRouter,
   createDisputeEvidenceUploadRouter,
+  createSellerEnforcementAppealEvidenceUploadRouter,
   createCheckoutAttachmentUploadRouter,
   createDeliveryAttachmentUploadRouter,
   handleUploadRequest,
@@ -39,6 +40,11 @@ const orderChatAttachmentUploadRouter = listingImageStorage
   : null;
 const disputeEvidenceUploadRouter = listingImageStorage
   ? createDisputeEvidenceUploadRouter(listingImageStorage.client)
+  : null;
+const sellerEnforcementAppealEvidenceUploadRouter = listingImageStorage
+  ? createSellerEnforcementAppealEvidenceUploadRouter(
+      listingImageStorage.client
+    )
   : null;
 const checkoutAttachmentUploadRouter = listingImageStorage
   ? createCheckoutAttachmentUploadRouter(listingImageStorage.client)
@@ -97,6 +103,22 @@ app.post("/api/dispute-evidence-upload", (c) => {
   }
 
   return handleUploadRequest(c.req.raw, disputeEvidenceUploadRouter);
+});
+
+app.post("/api/seller-enforcement-appeal-evidence-upload", (c) => {
+  if (!sellerEnforcementAppealEvidenceUploadRouter) {
+    return c.json(
+      {
+        error: "Seller Enforcement appeal evidence uploads are not configured",
+      },
+      503
+    );
+  }
+
+  return handleUploadRequest(
+    c.req.raw,
+    sellerEnforcementAppealEvidenceUploadRouter
+  );
 });
 
 app.post("/api/checkout-attachment-upload", (c) => {

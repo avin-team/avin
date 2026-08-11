@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { protectedProcedure, publicProcedure } from "../access/procedures";
 import { findSellerProfile } from "../seller-application/onboarding";
+import { assertMarketplaceSellerNotEnforced } from "../seller-enforcement/access";
 import { STORE_SLUG_PATTERN, storeProfileInputSchema } from "./profile";
 import type { PublicStoreProfile } from "./profile";
 import {
@@ -162,6 +163,7 @@ export const sellerStoreRouter = {
     .input(storeProfileInputSchema)
     .handler(async ({ context, input }) => {
       const userId = context.session.user.id;
+      await assertMarketplaceSellerNotEnforced(context.db, userId);
       const existingProfile = await findSellerProfile(context.db, userId);
 
       if (

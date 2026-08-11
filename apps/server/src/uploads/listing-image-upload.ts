@@ -2,12 +2,14 @@ import {
   assertEligibleSeller,
   canUploadListingImage,
 } from "@avin/api/listing/seller-workspace";
+import { assertMarketplaceSellerNotEnforced } from "@avin/api/seller-enforcement/access";
 import {
   createListingImageKey,
   createCheckoutAttachmentKey,
   createDeliveryAttachmentKey,
   createOrderChatAttachmentKey,
   createDisputeEvidenceKey,
+  createSellerEnforcementAppealEvidenceKey,
   createSellerBannerKey,
   createSellerLogoKey,
   LISTING_IMAGE_CONTENT_TYPES,
@@ -23,6 +25,10 @@ import {
   DISPUTE_EVIDENCE_MAX_BYTES,
   DISPUTE_EVIDENCE_MAX_COUNT,
   DISPUTE_EVIDENCE_UPLOAD_ROUTE,
+  SELLER_ENFORCEMENT_APPEAL_EVIDENCE_CONTENT_TYPES,
+  SELLER_ENFORCEMENT_APPEAL_EVIDENCE_MAX_BYTES,
+  SELLER_ENFORCEMENT_APPEAL_EVIDENCE_MAX_COUNT,
+  SELLER_ENFORCEMENT_APPEAL_EVIDENCE_UPLOAD_ROUTE,
   CHECKOUT_ATTACHMENT_UPLOAD_ROUTE,
   DELIVERY_ATTACHMENT_UPLOAD_ROUTE,
   COMMERCE_IMAGE_CONTENT_TYPES,
@@ -51,6 +57,9 @@ const sellerBannerClientMetadataSchema = z.object({});
 const orderChatAttachmentClientMetadataSchema = z.object({ orderId: z.uuid() });
 const disputeEvidenceClientMetadataSchema = z.object({
   itemId: z.uuid(),
+});
+const sellerEnforcementAppealEvidenceClientMetadataSchema = z.object({
+  actionId: z.uuid(),
 });
 const checkoutAttachmentClientMetadataSchema = z.object({
   checkoutKey: z.uuid(),
@@ -207,6 +216,14 @@ export const createListingImageUploadRouter = (
           throw new RejectUpload("Sign in before uploading a seller logo");
         }
 
+        try {
+          await assertMarketplaceSellerNotEnforced(db, session.user.id);
+        } catch {
+          throw new RejectUpload(
+            "Seller Enforcement đang chặn cập nhật Store profile"
+          );
+        }
+
         if (
           !SELLER_LOGO_CONTENT_TYPES.includes(
             file.type as (typeof SELLER_LOGO_CONTENT_TYPES)[number]
@@ -234,6 +251,14 @@ export const createListingImageUploadRouter = (
         const session = await auth.api.getSession({ headers: req.headers });
         if (!session) {
           throw new RejectUpload("Sign in before uploading a seller banner");
+        }
+
+        try {
+          await assertMarketplaceSellerNotEnforced(db, session.user.id);
+        } catch {
+          throw new RejectUpload(
+            "Seller Enforcement đang chặn cập nhật Store profile"
+          );
         }
 
         if (
@@ -388,6 +413,97 @@ export const createDisputeEvidenceUploadRouter = (
             cacheControl: "private, max-age=0",
             key: createDisputeEvidenceKey(
               clientMetadata.itemId,
+              session.user.id,
+              file.type
+            ),
+          }),
+        };
+      },
+    }),
+  },
+});
+
+export const createSellerEnforcementAppealEvidenceUploadRouter = (
+  client: Router["client"]
+): Router => ({
+  bucketName: ORDER_FILES_BUCKET,
+  client,
+  routes: {
+    [SELLER_ENFORCEMENT_APPEAL_EVIDENCE_UPLOAD_ROUTE]: route({
+      clientMetadataSchema: sellerEnforcementAppealEvidenceClientMetadataSchema,
+      fileTypes: [...SELLER_ENFORCEMENT_APPEAL_EVIDENCE_CONTENT_TYPES],
+      maxFileSize: SELLER_ENFORCEMENT_APPEAL_EVIDENCE_MAX_BYTES,
+      maxFiles: SELLER_ENFORCEMENT_APPEAL_EVIDENCE_MAX_COUNT,
+      multipleFiles: true,
+      onBeforeUpload: async ({ clientMetadata, files, req }) => {
+        const session = await auth.api.getSession({ headers: req.headers });
+        if (!session || session.user.role !== "SELLER") {
+          throw new RejectUpload(
+            "Only the owning Seller can upload appeal evidence"
+          );
+        }
+
+        const action = await db.query.sellerEnforcementAction.findFirst({
+          columns: {
+            createdAt: true,
+            effectiveAt: true,
+            newState: true,
+            sellerId: true,
+          },
+          where: (table, { eq }) => eq(table.id, clientMetadata.actionId),
+        });
+        if (
+          !action ||
+          action.sellerId !== session.user.id ||
+          action.newState === "CLEAR"
+        ) {
+          throw new RejectUpload(
+            "Enforcement action không nhận bằng chứng Appeal"
+          );
+        }
+
+        const latestAction = await db.query.sellerEnforcementAction.findFirst({
+          columns: { id: true },
+          orderBy: (table, { desc }) => [
+            desc(table.effectiveAt),
+            desc(table.createdAt),
+          ],
+          where: (table, { eq }) => eq(table.sellerId, session.user.id),
+        });
+        if (!latestAction || latestAction.id !== clientMetadata.actionId) {
+          throw new RejectUpload(
+            "Enforcement action đã được thay thế và không nhận bằng chứng Appeal"
+          );
+        }
+
+        const existingAppeal = await db.query.sellerEnforcementAppeal.findFirst(
+          {
+            columns: { id: true, status: true },
+            where: (table, { eq }) =>
+              eq(table.actionId, clientMetadata.actionId),
+          }
+        );
+        if (existingAppeal) {
+          throw new RejectUpload("Appeal đã được gửi");
+        }
+
+        for (const file of files) {
+          if (
+            !SELLER_ENFORCEMENT_APPEAL_EVIDENCE_CONTENT_TYPES.includes(
+              file.type as (typeof SELLER_ENFORCEMENT_APPEAL_EVIDENCE_CONTENT_TYPES)[number]
+            )
+          ) {
+            throw new RejectUpload(
+              "Loại tệp bằng chứng Appeal không được hỗ trợ"
+            );
+          }
+        }
+
+        return {
+          generateObjectInfo: ({ file }) => ({
+            cacheControl: "private, max-age=0",
+            key: createSellerEnforcementAppealEvidenceKey(
+              clientMetadata.actionId,
               session.user.id,
               file.type
             ),

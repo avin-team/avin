@@ -62,6 +62,9 @@ describe("Order Chat Logic", () => {
         findFirst: vi.fn().mockResolvedValue(null),
         findMany: vi.fn().mockResolvedValue([]),
       },
+      sellerEnforcement: {
+        findFirst: vi.fn().mockResolvedValue(null),
+      },
       user: {
         findFirst: vi.fn().mockResolvedValue({ banned: false, id: sellerId }),
       },
@@ -292,7 +295,7 @@ describe("Order Chat Logic", () => {
   });
   /* eslint-enable promise/prefer-await-to-callbacks */
 
-  it("rejects Banned seller from sending messages", async () => {
+  it("rejects marketplace-banned seller from sending messages", async () => {
     const mockDb = createMockDb({
       query: {
         order: {
@@ -300,6 +303,13 @@ describe("Order Chat Logic", () => {
             buyerId,
             id: orderId,
             sellerId,
+          }),
+        },
+        sellerEnforcement: {
+          findFirst: vi.fn().mockResolvedValue({
+            expiresAt: null,
+            sellerId,
+            state: "BANNED",
           }),
         },
         user: {
@@ -314,7 +324,7 @@ describe("Order Chat Logic", () => {
         input: { content: "I am seller", orderId },
         userId: sellerId,
       })
-    ).rejects.toThrow("Banned seller cannot access order chat");
+    ).rejects.toThrow("Banned seller cannot send order chat messages");
   });
 
   it("allows Admin to send message ONLY during an open dispute", async () => {

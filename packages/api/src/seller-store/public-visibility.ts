@@ -4,6 +4,7 @@ import { ORPCError } from "@orpc/server";
 import { eq } from "drizzle-orm";
 
 import type { Context } from "../runtime/context";
+import { getSellerEnforcement } from "../seller-enforcement/access";
 import {
   isSellerEnforced,
   isStoreProfileComplete,
@@ -50,7 +51,7 @@ export const getStoreVisibility = async (
   database: Context["db"],
   userId: string
 ): Promise<StoreVisibility> => {
-  const [profile, account, application] = await Promise.all([
+  const [profile, account, application, enforcement] = await Promise.all([
     database.query.sellerProfile.findFirst({
       where: eq(sellerProfile.userId, userId),
     }),
@@ -66,18 +67,36 @@ export const getStoreVisibility = async (
       orderBy: (table, { desc }) => [desc(table.createdAt)],
       where: eq(sellerApplication.userId, userId),
     }),
+    getSellerEnforcement(database, userId),
   ]);
+
+  const accountWithEnforcement = account
+    ? {
+        ...account,
+        sellerEnforcementExpiresAt: enforcement?.expiresAt ?? null,
+        sellerEnforcementState: enforcement?.state ?? "CLEAR",
+      }
+    : account;
 
   let reason: StoreVisibilityReason = "PUBLIC";
   if (!profile) {
     reason = "NO_PROFILE";
-  } else if (isSellerEnforced(account)) {
+  } else if (isSellerEnforced(accountWithEnforcement)) {
     reason = "ENFORCED";
   } else if (!isStoreProfileComplete(profile)) {
     reason = "INCOMPLETE_PROFILE";
-  } else if (account?.role !== "SELLER" || application?.status !== "APPROVED") {
+  } else if (
+    accountWithEnforcement?.role !== "SELLER" ||
+    application?.status !== "APPROVED"
+  ) {
     reason = "PENDING_APPROVAL";
-  } else if (!isStorePubliclyEligible({ account, application, profile })) {
+  } else if (
+    !isStorePubliclyEligible({
+      account: accountWithEnforcement,
+      application,
+      profile,
+    })
+  ) {
     reason = "PENDING_APPROVAL";
   }
 
@@ -114,7 +133,7 @@ export const isStoreSlugLocked = async (
     return false;
   }
 
-  const [account, application] = await Promise.all([
+  const [account, application, enforcement] = await Promise.all([
     database.query.user.findFirst({
       columns: {
         banExpires: true,
@@ -127,10 +146,17 @@ export const isStoreSlugLocked = async (
       orderBy: (table, { desc }) => [desc(table.createdAt)],
       where: eq(sellerApplication.userId, profile.userId),
     }),
+    getSellerEnforcement(database, profile.userId),
   ]);
 
   const isLocked = isStorePubliclyEligible({
-    account,
+    account: account
+      ? {
+          ...account,
+          sellerEnforcementExpiresAt: enforcement?.expiresAt ?? null,
+          sellerEnforcementState: enforcement?.state ?? "CLEAR",
+        }
+      : account,
     application,
     profile,
   });

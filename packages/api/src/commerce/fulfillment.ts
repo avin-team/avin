@@ -20,6 +20,7 @@ import type {
   ServicePackageSnapshot,
   WarrantyPolicySnapshot,
 } from "@avin/db/schema/commerce";
+import { sellerEnforcement } from "@avin/db/schema/seller-enforcement";
 import { userWallet } from "@avin/db/schema/wallet";
 import { ORPCError } from "@orpc/server";
 import {
@@ -27,13 +28,13 @@ import {
   asc,
   desc,
   eq,
-  gt,
   gte,
   inArray,
   isNotNull,
   isNull,
   lte,
   like,
+  notExists,
   or,
 } from "drizzle-orm";
 import { z } from "zod";
@@ -46,6 +47,7 @@ import {
   isDeliveryAttachmentKey,
 } from "../runtime/storage";
 import type { ManagedObjectStore } from "../runtime/storage";
+import { isSellerEnforcementActive } from "../seller-enforcement/policy";
 import { recordBalancedLedgerTransaction } from "../wallet/ledger";
 import {
   ensureSellerWalletAccounts,
@@ -157,8 +159,8 @@ export interface OrderItemContext {
   orderId: string;
   processingDeadlineAt: Date;
   servicePackage: ServicePackageSnapshot | null;
-  sellerBanExpires: Date | null;
-  sellerBanned: boolean;
+  sellerEnforcementExpiresAt: Date | null;
+  sellerEnforcementState: "BANNED" | "CLEAR" | "SUSPENDED" | null;
   sellerId: string;
   status: OrderItemStatus;
   warrantyExpiresAt: Date | null;
@@ -291,8 +293,8 @@ const getItemContext = async (
       listingId: orderItem.listingId,
       orderId: order.id,
       processingDeadlineAt: orderItem.processingDeadlineAt,
-      sellerBanExpires: user.banExpires,
-      sellerBanned: user.banned,
+      sellerEnforcementExpiresAt: sellerEnforcement.expiresAt,
+      sellerEnforcementState: sellerEnforcement.state,
       sellerId: order.sellerId,
       servicePackage: orderItem.servicePackageSnapshot,
       status: orderItem.status,
@@ -303,7 +305,7 @@ const getItemContext = async (
     .from(orderItem)
     .innerJoin(order, eq(order.id, orderItem.orderId))
     .innerJoin(escrowHold, eq(escrowHold.orderItemId, orderItem.id))
-    .innerJoin(user, eq(user.id, order.sellerId))
+    .leftJoin(sellerEnforcement, eq(sellerEnforcement.sellerId, order.sellerId))
     .where(eq(orderItem.id, itemId));
 
   const [item] = lock
@@ -567,8 +569,14 @@ const assertSellerCanAct = (
   }
   if (
     enforceSellerAvailability &&
-    (item.sellerBanned ||
-      (item.sellerBanExpires !== null && item.sellerBanExpires > now))
+    isSellerEnforcementActive(
+      {
+        expiresAt: item.sellerEnforcementExpiresAt,
+        state: item.sellerEnforcementState ?? "CLEAR",
+      },
+      now
+    ) &&
+    item.sellerEnforcementState === "BANNED"
   ) {
     throw new ORPCError("FORBIDDEN", {
       message: "Seller hiện không thể tiếp tục Fulfillment.",
@@ -602,7 +610,7 @@ const assertCommandActor = ({
     if (!actorId || actorType !== "SELLER") {
       return throwForbidden();
     }
-    assertSellerCanAct(item, actorId, now, false);
+    assertSellerCanAct(item, actorId, now, true);
     return;
   }
 
@@ -610,7 +618,7 @@ const assertCommandActor = ({
     if (!actorId || actorType !== "SELLER") {
       return throwForbidden();
     }
-    assertSellerCanAct(item, actorId, now, false);
+    assertSellerCanAct(item, actorId, now, true);
     return;
   }
 
@@ -1434,6 +1442,33 @@ export const cancelBySeller = ({
   });
 };
 
+export const cancelOrderItemForSellerEnforcement = ({
+  actionId,
+  database = db,
+  itemId,
+  now = new Date(),
+}: {
+  actionId: string;
+  database?: typeof db;
+  itemId: string;
+  now?: Date;
+}): Promise<OrderItemCommandResult> =>
+  executeTransition({
+    actorId: null,
+    actorType: "SYSTEM",
+    command: {
+      reason: "Seller Enforcement ban remediation",
+      type: "CANCEL_BY_SYSTEM",
+    },
+    commandKey: commandKeyFor(
+      "CANCEL_BY_SYSTEM",
+      `seller-enforcement:${actionId}:${itemId}`
+    ),
+    database,
+    itemId,
+    now,
+  });
+
 export const openDispute = ({
   buyerId,
   database = db,
@@ -1566,13 +1601,19 @@ export const cancelBannedSellerItems = async ({
     .select({ id: orderItem.id })
     .from(orderItem)
     .innerJoin(order, eq(order.id, orderItem.orderId))
-    .innerJoin(user, eq(user.id, order.sellerId))
+    .innerJoin(
+      sellerEnforcement,
+      eq(sellerEnforcement.sellerId, order.sellerId)
+    )
     .where(
       and(
         inArray(orderItem.status, ["AWAITING_SELLER", "IN_PROGRESS"]),
-        or(
-          eq(user.banned, true),
-          and(isNotNull(user.banExpires), gt(user.banExpires, now))
+        eq(sellerEnforcement.state, "BANNED"),
+        notExists(
+          database
+            .select({ id: dispute.id })
+            .from(dispute)
+            .where(eq(dispute.orderItemId, orderItem.id))
         )
       )
     )
@@ -1582,14 +1623,8 @@ export const cancelBannedSellerItems = async ({
   const cancelledItemIds: string[] = [];
   for (const item of bannedItems) {
     try {
-      await executeTransition({
-        actorId: null,
-        actorType: "SYSTEM",
-        command: {
-          reason: "Seller account is banned",
-          type: "CANCEL_BY_SYSTEM",
-        },
-        commandKey: commandKeyFor("CANCEL_BY_SYSTEM", `seller-ban:${item.id}`),
+      await cancelOrderItemForSellerEnforcement({
+        actionId: `legacy-seller-ban:${item.id}`,
         database,
         itemId: item.id,
         now,

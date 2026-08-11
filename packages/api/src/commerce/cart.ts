@@ -10,11 +10,13 @@ import type { WarrantyPolicy } from "@avin/db/schema/catalog";
 import { cart, cartItem } from "@avin/db/schema/commerce";
 import type { WarrantyPolicySnapshot } from "@avin/db/schema/commerce";
 import { sellerProfile } from "@avin/db/schema/seller";
+import { sellerEnforcement } from "@avin/db/schema/seller-enforcement";
 import { ORPCError } from "@orpc/server";
 import { and, asc, eq, inArray } from "drizzle-orm";
 
 import { isListingPubliclyAvailable } from "../listing/listing-discovery";
 import { selectAvailableServicePackage } from "../listing/service-packages";
+import { isSellerEnforcementActive } from "../seller-enforcement/policy";
 import { parseListingContract, parseServicePackageContract } from "./contracts";
 
 export interface CartPackageView {
@@ -157,8 +159,8 @@ export const getCart = async (
       selected: cartItem.selected,
       selectedPackageId: cartItem.servicePackageId,
       sellerAvatarUrl: sellerProfile.avatarUrl,
-      sellerBanExpires: userTable.banExpires,
-      sellerBanned: userTable.banned,
+      sellerEnforcementExpiresAt: sellerEnforcement.expiresAt,
+      sellerEnforcementState: sellerEnforcement.state,
       sellerId: userTable.id,
       sellerImage: userTable.image,
       sellerName: userTable.name,
@@ -172,6 +174,10 @@ export const getCart = async (
     .innerJoin(subCategory, eq(listing.categoryId, subCategory.id))
     .innerJoin(parentCategory, eq(subCategory.parentId, parentCategory.id))
     .innerJoin(userTable, eq(listing.sellerId, userTable.id))
+    .leftJoin(
+      sellerEnforcement,
+      eq(listing.sellerId, sellerEnforcement.sellerId)
+    )
     .leftJoin(sellerProfile, eq(listing.sellerId, sellerProfile.userId))
     .where(and(eq(cart.id, cartRow.id), eq(cart.userId, userId)))
     .orderBy(asc(cartItem.createdAt), asc(cartItem.id));
@@ -198,9 +204,13 @@ export const getCart = async (
 
   const items: CartItemView[] = [];
   for (const row of rows) {
-    const sellerAvailable =
-      !row.sellerBanned &&
-      (row.sellerBanExpires === null || row.sellerBanExpires <= now);
+    const sellerAvailable = !isSellerEnforcementActive(
+      {
+        expiresAt: row.sellerEnforcementExpiresAt,
+        state: row.sellerEnforcementState ?? "CLEAR",
+      },
+      now
+    );
     let available =
       sellerAvailable &&
       isListingPubliclyAvailable(

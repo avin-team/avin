@@ -84,6 +84,13 @@ describe("store profile contract", () => {
     ).toBe(true);
     expect(
       isStorePubliclyEligible({
+        account: { ...account, banned: true },
+        application: { status: "APPROVED" },
+        profile,
+      })
+    ).toBe(true);
+    expect(
+      isStorePubliclyEligible({
         account,
         application: { status: "PENDING_REVIEW" },
         profile,
@@ -91,7 +98,7 @@ describe("store profile contract", () => {
     ).toBe(false);
     expect(
       isStorePubliclyEligible({
-        account: { ...account, banned: true },
+        account: { ...account, sellerEnforcementState: "BANNED" },
         application: { status: "APPROVED" },
         profile,
       })
@@ -100,7 +107,8 @@ describe("store profile contract", () => {
       isStorePubliclyEligible({
         account: {
           ...account,
-          banExpires: new Date("2026-08-02T12:00:00.000Z"),
+          sellerEnforcementExpiresAt: new Date("2026-08-02T12:00:00.000Z"),
+          sellerEnforcementState: "SUSPENDED",
         },
         application: { status: "APPROVED" },
         now: new Date("2026-08-02T11:00:00.000Z"),
@@ -111,7 +119,8 @@ describe("store profile contract", () => {
       isStorePubliclyEligible({
         account: {
           ...account,
-          banExpires: new Date("2026-08-02T12:00:00.000Z"),
+          sellerEnforcementExpiresAt: new Date("2026-08-02T12:00:00.000Z"),
+          sellerEnforcementState: "SUSPENDED",
         },
         application: { status: "APPROVED" },
         now: new Date("2026-08-02T13:00:00.000Z"),

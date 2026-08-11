@@ -21,12 +21,14 @@ import {
   orderItemLifecycleEvent,
 } from "@avin/db/schema/commerce";
 import type { OrderItemStatus } from "@avin/db/schema/commerce";
+import { sellerEnforcement } from "@avin/db/schema/seller-enforcement";
 import { userWallet } from "@avin/db/schema/wallet";
 import { ORPCError } from "@orpc/server";
 import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
 
 import { isListingPubliclyAvailable } from "../listing/listing-discovery";
 import { COMMERCE_IMAGE_MAX_COUNT } from "../runtime/storage";
+import { isSellerEnforcementActive } from "../seller-enforcement/policy";
 import { recordBalancedLedgerTransaction } from "../wallet/ledger";
 import { ensureWalletAccounts } from "../wallet/service";
 import type { CommerceExecutor } from "./cart";
@@ -88,8 +90,8 @@ interface SelectedListingRow {
   servicePackageProcessingTimeHours: number | null;
   servicePackageStatus: "AVAILABLE" | "UNAVAILABLE" | null;
   servicePackageWarrantyPolicy: WarrantyPolicy | null;
-  sellerBanned: boolean;
-  sellerBanExpires: Date | null;
+  sellerEnforcementExpiresAt: Date | null;
+  sellerEnforcementState: "BANNED" | "CLEAR" | "SUSPENDED" | null;
   sellerId: string;
   warrantyDurationHours: number | null;
   warrantyTerms: string | null;
@@ -127,8 +129,8 @@ const getSelectedListingRows = async (
       parentCategoryStatus: parentCategory.status,
       processingTimeHours: listing.processingTimeHours,
       selectedPackageId: cartItem.servicePackageId,
-      sellerBanExpires: userTable.banExpires,
-      sellerBanned: userTable.banned,
+      sellerEnforcementExpiresAt: sellerEnforcement.expiresAt,
+      sellerEnforcementState: sellerEnforcement.state,
       sellerId: listing.sellerId,
       servicePackageDescription: servicePackage.description,
       servicePackageId: servicePackage.id,
@@ -146,7 +148,10 @@ const getSelectedListingRows = async (
     .innerJoin(listing, eq(cartItem.listingId, listing.id))
     .innerJoin(subCategory, eq(listing.categoryId, subCategory.id))
     .innerJoin(parentCategory, eq(subCategory.parentId, parentCategory.id))
-    .innerJoin(userTable, eq(listing.sellerId, userTable.id))
+    .leftJoin(
+      sellerEnforcement,
+      eq(listing.sellerId, sellerEnforcement.sellerId)
+    )
     .leftJoin(servicePackage, eq(cartItem.servicePackageId, servicePackage.id))
     .where(and(eq(cart.userId, userId), eq(cartItem.selected, true)))
     .orderBy(asc(cartItem.createdAt), asc(cartItem.id))
@@ -341,9 +346,13 @@ const prepareCheckoutItems = (
       throw new Error("Checkout request item was not found");
     }
 
-    const sellerAvailable =
-      !row.sellerBanned &&
-      (row.sellerBanExpires === null || row.sellerBanExpires <= now);
+    const sellerAvailable = !isSellerEnforcementActive(
+      {
+        expiresAt: row.sellerEnforcementExpiresAt,
+        state: row.sellerEnforcementState ?? "CLEAR",
+      },
+      now
+    );
     if (
       !sellerAvailable ||
       !isListingPubliclyAvailable(

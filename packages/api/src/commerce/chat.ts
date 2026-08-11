@@ -9,7 +9,7 @@ import {
 } from "@avin/api/storage";
 import { generateUuidV7 } from "@avin/db";
 import type { db } from "@avin/db";
-import { auditLog, user } from "@avin/db/schema/auth";
+import { auditLog } from "@avin/db/schema/auth";
 import {
   chatReadCursor,
   dispute,
@@ -38,6 +38,7 @@ import {
 
 import { createSupabaseAccessToken } from "../access/supabase-access-token";
 import type { MarketplaceSession } from "../runtime/context";
+import { getSellerEnforcement } from "../seller-enforcement/access";
 
 export const ORDER_MESSAGE_MAX_LENGTH = 2000;
 
@@ -162,7 +163,7 @@ export interface GetChatNotificationSummaryOptions {
   userId: string;
 }
 
-async function assertCanReadChat({
+function assertCanReadChat({
   database,
   orderRecord,
   userId,
@@ -172,17 +173,11 @@ async function assertCanReadChat({
   orderRecord: { buyerId: string; sellerId: string };
   userId: string;
   userRole?: string | null;
-}): Promise<{ isAdmin: boolean }> {
+}): { isAdmin: boolean } {
+  void database;
   const isAdmin = userRole === "ADMIN";
   if (userId === orderRecord.sellerId) {
-    const sellerUser = await database.query.user.findFirst({
-      where: eq(user.id, userId),
-    });
-    if (sellerUser?.banned) {
-      throw new ORPCError("FORBIDDEN", {
-        message: "Banned seller cannot access order chat",
-      });
-    }
+    return { isAdmin };
   } else if (userId !== orderRecord.buyerId && !isAdmin) {
     throw new ORPCError("FORBIDDEN", { message: "Not authorized" });
   }
@@ -391,12 +386,10 @@ async function resolveSenderRoleAndType({
   }
 
   if (userId === sellerId) {
-    const sellerUser = await database.query.user.findFirst({
-      where: eq(user.id, userId),
-    });
-    if (sellerUser?.banned) {
+    const enforcement = await getSellerEnforcement(database, userId);
+    if (enforcement?.state === "BANNED") {
       throw new ORPCError("FORBIDDEN", {
-        message: "Banned seller cannot access order chat",
+        message: "Banned seller cannot send order chat messages",
       });
     }
     return { messageType: "text", senderRole: "seller" };

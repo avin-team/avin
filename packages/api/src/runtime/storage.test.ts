@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   createListingImageKey,
   createDisputeEvidenceKey,
+  createSellerEnforcementAppealEvidenceKey,
   createOrderChatAttachmentKey,
   createCheckoutAttachmentKey,
   createDeliveryAttachmentKey,
@@ -11,6 +12,7 @@ import {
   createPublicMediaUrl,
   getManagedListingImageKeysToDelete,
   isDisputeEvidenceKey,
+  isSellerEnforcementAppealEvidenceKey,
   isOrderChatAttachmentKey,
   isCheckoutAttachmentKey,
   isDeliveryAttachmentKey,
@@ -235,5 +237,26 @@ describe("dispute evidence storage helpers", () => {
     expect(() =>
       createDisputeEvidenceKey(LISTING_ID, BUYER_ID, "image/gif", NEW_OBJECT_ID)
     ).toThrow("Unsupported dispute evidence type");
+  });
+});
+
+describe("Seller Enforcement appeal evidence storage helpers", () => {
+  it("creates and validates a private key scoped to the Appeal and Seller", () => {
+    const key = createSellerEnforcementAppealEvidenceKey(
+      LISTING_ID,
+      SELLER_ID,
+      "application/pdf",
+      NEW_OBJECT_ID
+    );
+
+    expect(key).toBe(
+      `seller-enforcement-appeals/${LISTING_ID}/${SELLER_ID}/${NEW_OBJECT_ID}.pdf`
+    );
+    expect(
+      isSellerEnforcementAppealEvidenceKey(key, LISTING_ID, SELLER_ID)
+    ).toBe(true);
+    expect(
+      isSellerEnforcementAppealEvidenceKey(key, LISTING_ID, BUYER_ID)
+    ).toBe(false);
   });
 });

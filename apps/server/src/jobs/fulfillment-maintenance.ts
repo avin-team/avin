@@ -1,9 +1,10 @@
 import { notifyDisputeResponseDeadlines } from "@avin/api/commerce/disputes";
 import {
-  cancelBannedSellerItems,
   expireDeliveryReviews,
   expireWarranties,
 } from "@avin/api/commerce/fulfillment";
+import { runSellerEnforcementRemediation } from "@avin/api/seller-enforcement/remediation";
+import { expireSellerEnforcements } from "@avin/api/seller-enforcement/service";
 import { db } from "@avin/db";
 
 const FULFILLMENT_MAINTENANCE_INTERVAL_MS = 60_000;
@@ -17,7 +18,10 @@ const getMaintenanceTaskName = (index: number): string => {
       return "warranty expiry";
     }
     case 2: {
-      return "banned Seller cancellation";
+      return "Seller Enforcement expiry";
+    }
+    case 3: {
+      return "Seller Enforcement remediation";
     }
     default: {
       return "dispute response deadline notification";
@@ -31,7 +35,8 @@ export const runFulfillmentMaintenance = async (
   const results = await Promise.allSettled([
     expireDeliveryReviews({ database: db, now }),
     expireWarranties({ database: db, now }),
-    cancelBannedSellerItems({ database: db, now }),
+    expireSellerEnforcements({ database: db, now }),
+    runSellerEnforcementRemediation({ database: db, now }),
     notifyDisputeResponseDeadlines({ database: db, now }),
   ]);
 

@@ -18,6 +18,7 @@ import {
   getManagedListingImageKeysToDelete,
   LISTING_IMAGE_MAX_COUNT,
 } from "../runtime/storage";
+import { getSellerEnforcement } from "../seller-enforcement/access";
 import { isSellerEnforced } from "../seller-store/profile";
 import { assertStoreProfileComplete } from "../seller-store/public-visibility";
 import {
@@ -67,15 +68,23 @@ export const getPrimaryListingImage = (
 ): string | null => images?.[0]?.trim() || thumbnailUrl?.trim() || null;
 
 export const assertEligibleSeller = async (userId: string): Promise<void> => {
-  const [account, application] = await Promise.all([
+  const [account, application, enforcement] = await Promise.all([
     db.query.user.findFirst({ where: eq(userTable.id, userId) }),
     db.query.sellerApplication.findFirst({
       orderBy: (table, { desc }) => [desc(table.createdAt)],
       where: eq(sellerApplication.userId, userId),
     }),
+    getSellerEnforcement(db, userId),
   ]);
 
-  const isEnforced = isSellerEnforced(account);
+  const isEnforced = isSellerEnforced(
+    account
+      ? {
+          sellerEnforcementExpiresAt: enforcement?.expiresAt,
+          sellerEnforcementState: enforcement?.state,
+        }
+      : null
+  );
 
   if (
     !account ||

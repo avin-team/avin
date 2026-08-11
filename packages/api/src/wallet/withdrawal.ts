@@ -5,6 +5,7 @@ import { user } from "@avin/db/schema/auth";
 import { escrowHold, order, orderItem } from "@avin/db/schema/commerce";
 import { bankAccountSchema, sellerApplication } from "@avin/db/schema/seller";
 import type { BankAccount } from "@avin/db/schema/seller";
+import { sellerEnforcement } from "@avin/db/schema/seller-enforcement";
 import {
   ledgerAccount,
   SELLER_WITHDRAWAL_MINIMUM_AMOUNT,
@@ -156,26 +157,17 @@ const assertSellerCanRequestWithdrawal = async (
 ): Promise<void> => {
   const [account] = await executor
     .select({
-      banExpires: user.banExpires,
-      banned: user.banned,
       role: user.role,
+      sellerEnforcementExpiresAt: sellerEnforcement.expiresAt,
+      sellerEnforcementState: sellerEnforcement.state,
     })
     .from(user)
+    .leftJoin(sellerEnforcement, eq(sellerEnforcement.sellerId, user.id))
     .where(eq(user.id, sellerId))
     .for("update")
     .limit(1);
 
-  if (
-    !account ||
-    account.role !== "SELLER" ||
-    isSellerEnforced(
-      {
-        banExpires: account.banExpires,
-        banned: account.banned,
-      },
-      now
-    )
-  ) {
+  if (!account || account.role !== "SELLER" || isSellerEnforced(account, now)) {
     throw new ORPCError("FORBIDDEN", {
       message: "Seller hiện không thể thực hiện thao tác rút tiền.",
     });
@@ -467,6 +459,7 @@ export const approveWithdrawalRequest = ({
     if (request.status === "APPROVED") {
       return mapWithdrawalRequest(request);
     }
+    await assertSellerCanRequestWithdrawal(transaction, request.sellerId, now);
     getWithdrawalStatusTransition(request.status, "APPROVE");
     const [updatedRequest] = await transaction
       .update(withdrawalRequest)
@@ -590,6 +583,7 @@ export const markWithdrawalRequestPaid = ({
       }
       return mapWithdrawalRequest(request);
     }
+    await assertSellerCanRequestWithdrawal(transaction, request.sellerId, now);
     getWithdrawalStatusTransition(request.status, "MARK_PAID");
 
     const accounts = await ensureSellerWalletAccounts(

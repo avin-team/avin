@@ -6,6 +6,8 @@ export const SELLER_LOGO_UPLOAD_ROUTE = "seller-logo";
 export const SELLER_BANNER_UPLOAD_ROUTE = "seller-banner";
 export const ORDER_CHAT_ATTACHMENT_UPLOAD_ROUTE = "order-chat-attachment";
 export const DISPUTE_EVIDENCE_UPLOAD_ROUTE = "dispute-evidence";
+export const SELLER_ENFORCEMENT_APPEAL_EVIDENCE_UPLOAD_ROUTE =
+  "seller-enforcement-appeal-evidence";
 export const CHECKOUT_ATTACHMENT_UPLOAD_ROUTE = "checkout-attachment";
 export const DELIVERY_ATTACHMENT_UPLOAD_ROUTE = "delivery-attachment";
 
@@ -61,6 +63,13 @@ export const DISPUTE_EVIDENCE_CONTENT_TYPES = [
   "image/webp",
   "text/plain",
 ] as const;
+
+export const SELLER_ENFORCEMENT_APPEAL_EVIDENCE_MAX_BYTES =
+  DISPUTE_EVIDENCE_MAX_BYTES;
+export const SELLER_ENFORCEMENT_APPEAL_EVIDENCE_MAX_COUNT =
+  DISPUTE_EVIDENCE_MAX_COUNT;
+export const SELLER_ENFORCEMENT_APPEAL_EVIDENCE_CONTENT_TYPES =
+  DISPUTE_EVIDENCE_CONTENT_TYPES;
 
 export const COMMERCE_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 export const COMMERCE_IMAGE_MAX_COUNT = 5;
@@ -201,6 +210,46 @@ export const isDisputeEvidenceKey = (
     return false;
   }
   const prefix = `orders/${orderItemId}/disputes/${userId}/`;
+  return new RegExp(
+    `^${prefix.replaceAll("/", "\\/")}[a-f0-9-]{36}\\.(?:pdf|jpg|png|webp|txt)$`,
+    "iu"
+  ).test(key);
+};
+
+export const createSellerEnforcementAppealEvidenceKey = (
+  actionId: string,
+  sellerId: string,
+  contentType: string,
+  objectId = crypto.randomUUID()
+): string => {
+  const extension =
+    DISPUTE_EVIDENCE_EXTENSIONS[
+      contentType as (typeof DISPUTE_EVIDENCE_CONTENT_TYPES)[number]
+    ];
+  if (!extension) {
+    throw new Error(
+      `Unsupported Seller Enforcement appeal evidence type: ${contentType}`
+    );
+  }
+  if (
+    !SAFE_PATH_SEGMENT.test(actionId) ||
+    !SAFE_PATH_SEGMENT.test(sellerId) ||
+    !SAFE_PATH_SEGMENT.test(objectId)
+  ) {
+    throw new Error("Invalid Seller Enforcement appeal evidence path segment");
+  }
+  return `seller-enforcement-appeals/${actionId}/${sellerId}/${objectId}.${extension}`;
+};
+
+export const isSellerEnforcementAppealEvidenceKey = (
+  key: string,
+  actionId: string,
+  sellerId: string
+): boolean => {
+  if (!SAFE_PATH_SEGMENT.test(actionId) || !SAFE_PATH_SEGMENT.test(sellerId)) {
+    return false;
+  }
+  const prefix = `seller-enforcement-appeals/${actionId}/${sellerId}/`;
   return new RegExp(
     `^${prefix.replaceAll("/", "\\/")}[a-f0-9-]{36}\\.(?:pdf|jpg|png|webp|txt)$`,
     "iu"

@@ -1,5 +1,4 @@
 import { db } from "@avin/db";
-import { user as userTable } from "@avin/db/schema/auth";
 import {
   listing,
   parentCategory,
@@ -7,6 +6,7 @@ import {
   subCategory,
 } from "@avin/db/schema/catalog";
 import { orderItem } from "@avin/db/schema/commerce";
+import { sellerEnforcement } from "@avin/db/schema/seller-enforcement";
 import { ORPCError } from "@orpc/server";
 import {
   and,
@@ -23,7 +23,10 @@ import type { SQL } from "drizzle-orm";
 import { z } from "zod";
 
 import { publicProcedure } from "../access/procedures";
-import { isSellerEnforced } from "../seller-store/profile";
+import {
+  getSellerEnforcement,
+  isMarketplaceSellerEnforced,
+} from "../seller-enforcement/access";
 import {
   getServicePackageSummaryPrice,
   sortAvailableServicePackages,
@@ -48,22 +51,25 @@ export const isListingPubliclyAvailable = (
   categoryStatus === "ACTIVE" &&
   parentCategoryStatus === "ACTIVE";
 
-const sellerAccountTableName = getTableName(userTable);
-const sellerAccountIdColumnName = userTable.id.name;
-const sellerAccountBannedColumnName = userTable.banned.name;
-const sellerAccountBanExpiresColumnName = userTable.banExpires.name;
+const sellerEnforcementTableName = getTableName(sellerEnforcement);
+const sellerEnforcementSellerIdColumnName = sellerEnforcement.sellerId.name;
+const sellerEnforcementStateColumnName = sellerEnforcement.state.name;
+const sellerEnforcementExpiresAtColumnName = sellerEnforcement.expiresAt.name;
 
 export const sellerIsNotEnforcedCondition = (now = new Date()): SQL<unknown> =>
   sql`
   NOT EXISTS (
     SELECT 1
-    FROM ${sql.identifier(sellerAccountTableName)} AS seller_account
-    WHERE seller_account.${sql.identifier(sellerAccountIdColumnName)} = ${listing.sellerId}
+    FROM ${sql.identifier(sellerEnforcementTableName)} AS seller_enforcement
+    WHERE seller_enforcement.${sql.identifier(sellerEnforcementSellerIdColumnName)} = ${listing.sellerId}
       AND (
-        seller_account.${sql.identifier(sellerAccountBannedColumnName)} = true
+        seller_enforcement.${sql.identifier(sellerEnforcementStateColumnName)} = 'BANNED'
         OR (
-          seller_account.${sql.identifier(sellerAccountBanExpiresColumnName)} IS NOT NULL
-          AND seller_account.${sql.identifier(sellerAccountBanExpiresColumnName)} > ${now}
+          seller_enforcement.${sql.identifier(sellerEnforcementStateColumnName)} = 'SUSPENDED'
+          AND (
+            seller_enforcement.${sql.identifier(sellerEnforcementExpiresAtColumnName)} IS NULL
+            OR seller_enforcement.${sql.identifier(sellerEnforcementExpiresAtColumnName)} > ${now}
+          )
         )
       )
   )
@@ -178,13 +184,7 @@ export const listingDiscoveryRouter = {
       const user = context.session?.user;
       const isAdmin = user?.role === "ADMIN";
       const isOwner = user?.id === found.sellerId;
-      const sellerAccount = await db.query.user.findFirst({
-        columns: {
-          banExpires: true,
-          banned: true,
-        },
-        where: eq(userTable.id, found.sellerId),
-      });
+      const sellerAccount = await getSellerEnforcement(db, found.sellerId);
       const isPubliclyAvailable = isListingPubliclyAvailable(
         found.status,
         found.category.status,
@@ -201,7 +201,7 @@ export const listingDiscoveryRouter = {
         !isOwner &&
         (!isPubliclyAvailable ||
           !hasAvailableServicePackage ||
-          isSellerEnforced(sellerAccount))
+          isMarketplaceSellerEnforced(sellerAccount))
       ) {
         throw new ORPCError("NOT_FOUND", {
           message: "Listing not found or unavailable",

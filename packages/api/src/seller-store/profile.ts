@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 import { slugify } from "../runtime/slug";
+import { isSellerEnforcementActive } from "../seller-enforcement/policy";
+import type { SellerEnforcementState } from "../seller-enforcement/policy";
 
 export const STORE_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 
@@ -47,6 +49,8 @@ export interface StorePublicEligibilityInput {
     banExpires?: Date | null;
     banned?: boolean | null;
     role?: string | null;
+    sellerEnforcementExpiresAt?: Date | null;
+    sellerEnforcementState?: SellerEnforcementState | null;
   } | null;
   application?: {
     status?: string | null;
@@ -69,10 +73,13 @@ export const isSellerEnforced = (
   account: StorePublicEligibilityInput["account"],
   now = new Date()
 ): boolean =>
-  account?.banned === true ||
-  (account?.banExpires !== null &&
-    account?.banExpires !== undefined &&
-    account.banExpires > now);
+  isSellerEnforcementActive(
+    {
+      expiresAt: account?.sellerEnforcementExpiresAt,
+      state: account?.sellerEnforcementState ?? "CLEAR",
+    },
+    now
+  );
 
 export const isStorePubliclyEligible = ({
   account,
