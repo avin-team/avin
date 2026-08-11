@@ -5,6 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { protectedProcedure, publicProcedure } from "../access/procedures";
+import { sellerIsNotEnforcedCondition } from "../listing/listing-discovery";
 import { findSellerProfile } from "../seller-application/onboarding";
 import { assertMarketplaceSellerNotEnforced } from "../seller-enforcement/access";
 import { STORE_SLUG_PATTERN, storeProfileInputSchema } from "./profile";
@@ -92,7 +93,8 @@ export const sellerStoreRouter = {
         orderBy: (table, { desc }) => [desc(table.createdAt)],
         where: and(
           eq(listing.sellerId, profile.userId),
-          eq(listing.status, "PUBLISHED")
+          eq(listing.status, "PUBLISHED"),
+          sellerIsNotEnforcedCondition()
         ),
         with: {
           category: {
