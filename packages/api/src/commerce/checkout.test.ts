@@ -23,7 +23,7 @@ vi.mock("../notifications/notification", () => ({
 type TransactionRunner = (tx: CommerceExecutor) => Promise<unknown>;
 
 describe("createCheckout", () => {
-  it("notifies both parties when checkout creates an item awaiting seller confirmation", async () => {
+  it("sends role-specific notifications when checkout awaits seller confirmation", async () => {
     const now = new Date("2026-08-11T09:11:01.839Z");
     const transaction = {
       insert: vi.fn((table: unknown) => ({
@@ -84,6 +84,21 @@ describe("createCheckout", () => {
       now
     );
 
+    expect(createNotificationEvent).toHaveBeenCalledTimes(2);
+    expect(createNotificationEvent).toHaveBeenCalledWith(transaction, {
+      body: "Đơn hàng của bạn đã được tạo và đang chờ người bán xác nhận.",
+      context: {
+        orderId: "order-1",
+        orderItemId: "item-1",
+        status: "AWAITING_SELLER",
+      },
+      eventType: "order_item.transition",
+      now,
+      recipients: [{ targetPath: "/orders/order-1", userId: "buyer-1" }],
+      sourceId: "lifecycle-event-1",
+      sourceType: "ORDER_ITEM_LIFECYCLE",
+      title: "Đặt hàng thành công",
+    });
     expect(createNotificationEvent).toHaveBeenCalledWith(transaction, {
       body: "Bạn có đơn hàng mới đang chờ xác nhận.",
       context: {
@@ -94,7 +109,6 @@ describe("createCheckout", () => {
       eventType: "order_item.transition",
       now,
       recipients: [
-        { targetPath: "/orders/order-1", userId: "buyer-1" },
         {
           targetPath: "/seller/store?section=orders",
           userId: "seller-1",

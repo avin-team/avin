@@ -591,17 +591,31 @@ export const createOrdersAndEscrowHolds = async (
         status: "HELD",
       });
 
+      const notificationContext = {
+        orderId: createdOrder.id,
+        orderItemId: createdItem.id,
+        status: "AWAITING_SELLER",
+      };
+
       await createNotificationEvent(transaction, {
-        body: "Bạn có đơn hàng mới đang chờ xác nhận.",
-        context: {
-          orderId: createdOrder.id,
-          orderItemId: createdItem.id,
-          status: "AWAITING_SELLER",
-        },
+        body: "Đơn hàng của bạn đã được tạo và đang chờ người bán xác nhận.",
+        context: notificationContext,
         eventType: "order_item.transition",
         now,
         recipients: [
           { targetPath: `/orders/${createdOrder.id}`, userId: buyerId },
+        ],
+        sourceId: lifecycleEvent.id,
+        sourceType: "ORDER_ITEM_LIFECYCLE",
+        title: "Đặt hàng thành công",
+      });
+
+      await createNotificationEvent(transaction, {
+        body: "Bạn có đơn hàng mới đang chờ xác nhận.",
+        context: notificationContext,
+        eventType: "order_item.transition",
+        now,
+        recipients: [
           {
             targetPath: "/seller/store?section=orders",
             userId: sellerId,
