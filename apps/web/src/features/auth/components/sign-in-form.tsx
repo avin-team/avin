@@ -14,12 +14,12 @@ import { toast } from "sonner";
 
 import { authClient } from "@/features/auth/api/auth-client";
 import { signInSchema } from "@/features/auth/schemas/auth-schemas";
-import { getPostAuthRoute } from "@/features/auth/utils/get-post-auth-route";
-import type { PostAuthRoute } from "@/features/auth/utils/get-post-auth-route";
+
+export type PostSignInRoute = "/" | "/seller/onboarding";
 
 interface SignInFormProps {
   expectedRole?: AccountRole;
-  redirectTo?: PostAuthRoute;
+  redirectTo?: PostSignInRoute;
 }
 
 export const SignInForm = ({ expectedRole, redirectTo }: SignInFormProps) => {
@@ -48,16 +48,8 @@ export const SignInForm = ({ expectedRole, redirectTo }: SignInFormProps) => {
         }
 
         toast.success("Đăng nhập thành công.");
-        const hasSeenSellerOnboarding =
-          "hasSeenSellerOnboarding" in result.data.user &&
-          typeof result.data.user.hasSeenSellerOnboarding === "boolean"
-            ? result.data.user.hasSeenSellerOnboarding
-            : undefined;
-
         await navigate({
-          to:
-            redirectTo ??
-            getPostAuthRoute(result.data.user.role, hasSeenSellerOnboarding),
+          to: redirectTo ?? "/",
         });
       } catch {
         toast.error("Không thể kết nối đến máy chủ. Vui lòng thử lại.");

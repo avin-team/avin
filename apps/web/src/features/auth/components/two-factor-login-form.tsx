@@ -14,7 +14,6 @@ import { toast } from "sonner";
 
 import { authClient } from "@/features/auth/api/auth-client";
 import { twoFactorCodeSchema } from "@/features/auth/schemas/auth-schemas";
-import { getPostAuthRoute } from "@/features/auth/utils/get-post-auth-route";
 
 export const TwoFactorLoginForm = () => {
   const navigate = useNavigate();
@@ -34,16 +33,7 @@ export const TwoFactorLoginForm = () => {
           return;
         }
 
-        const session = await authClient.getSession();
-        const user = session.data?.user;
-        const hasSeenOnboarding =
-          user &&
-          "hasSeenSellerOnboarding" in user &&
-          typeof user.hasSeenSellerOnboarding === "boolean"
-            ? user.hasSeenSellerOnboarding
-            : undefined;
-        const redirectTo = getPostAuthRoute(user?.role, hasSeenOnboarding);
-        await navigate({ to: redirectTo });
+        await navigate({ to: "/" });
       } catch {
         toast.error("Không thể xác minh lúc này. Vui lòng thử lại.");
       }

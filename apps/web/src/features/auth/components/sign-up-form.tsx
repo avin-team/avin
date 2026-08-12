@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { authClient } from "@/features/auth/api/auth-client";
 import { signUpSchema } from "@/features/auth/schemas/auth-schemas";
 import { getAuthCallbackUrl } from "@/features/auth/utils/get-auth-callback-url";
-import { getPostAuthRoute } from "@/features/auth/utils/get-post-auth-route";
+import { getPostSignUpRoute } from "@/features/auth/utils/get-post-sign-up-route";
 
 interface SignUpFormProps {
   role?: AccountRole;
@@ -34,7 +34,7 @@ export const SignUpForm = ({ role = ACCOUNT_ROLE.BUYER }: SignUpFormProps) => {
       try {
         const result = await authClient.signUp.email({
           callbackURL: getAuthCallbackUrl(
-            getPostAuthRoute(role),
+            getPostSignUpRoute(role),
             window.location.origin
           ),
           email: value.email,

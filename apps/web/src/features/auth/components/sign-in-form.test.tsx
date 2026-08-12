@@ -93,7 +93,7 @@ describe("SignInForm", () => {
       expect(mockNavigate).not.toHaveBeenCalled();
     });
 
-    it("navigates to seller onboarding when seller logs in for the first time without having seen onboarding", async () => {
+    it("does not force seller onboarding during sign-in", async () => {
       signInEmail.mockResolvedValue({
         data: {
           user: { hasSeenSellerOnboarding: false, role: ACCOUNT_ROLE.SELLER },
@@ -108,7 +108,7 @@ describe("SignInForm", () => {
         password: "password123",
       });
       expect(toastSuccess).toHaveBeenCalledWith("Đăng nhập thành công.");
-      expect(mockNavigate).toHaveBeenCalledWith({ to: "/seller/onboarding" });
+      expect(mockNavigate).toHaveBeenCalledWith({ to: "/" });
     });
 
     it("navigates to home when seller logs in and has already seen onboarding", async () => {

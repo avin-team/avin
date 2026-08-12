@@ -9,12 +9,12 @@ import {
 
 import { Shell } from "@/components/shell";
 import { SignInForm } from "@/features/auth/components/sign-in-form";
-import type { PostAuthRoute } from "@/features/auth/utils/get-post-auth-route";
+import type { PostSignInRoute } from "@/features/auth/components/sign-in-form";
 
 interface RoleSignInPageProps {
   description: string;
   expectedRole: AccountRole;
-  redirectTo: PostAuthRoute;
+  redirectTo: PostSignInRoute;
   title: string;
 }
 

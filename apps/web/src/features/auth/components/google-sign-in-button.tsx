@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { authClient } from "@/features/auth/api/auth-client";
 import { GoogleIcon } from "@/features/auth/components/icons/google-icon";
 import { getAuthCallbackUrl } from "@/features/auth/utils/get-auth-callback-url";
-import { getPostAuthRoute } from "@/features/auth/utils/get-post-auth-route";
+import { getPostSignUpRoute } from "@/features/auth/utils/get-post-sign-up-route";
 
 interface GoogleSignInButtonProps {
   role?: AccountRole;
@@ -29,7 +29,7 @@ export const GoogleSignInButton = ({
 
       // Where existing users go after Google sign-in
       const callbackURL = getAuthCallbackUrl(
-        getPostAuthRoute(mode === "sign-in" ? undefined : role),
+        mode === "sign-up" ? getPostSignUpRoute(role) : "/",
         origin
       );
 
