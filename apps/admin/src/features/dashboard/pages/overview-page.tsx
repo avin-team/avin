@@ -8,6 +8,12 @@ import {
   CardTitle,
 } from "@avin/ui/components/card";
 import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@avin/ui/components/chart";
+import type { ChartConfig } from "@avin/ui/components/chart";
+import {
   WarningCircleIcon,
   ArrowRightIcon,
   ClipboardTextIcon,
@@ -15,9 +21,15 @@ import {
   BankIcon,
   ShieldWarningIcon,
   StorefrontIcon,
+  GavelIcon,
+  TrendUpIcon,
+  CurrencyCircleDollarIcon,
+  CalendarBlankIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { useState } from "react";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import { Header } from "@/components/layout/header";
 import { Main } from "@/components/layout/main";
@@ -26,18 +38,81 @@ import { categoriesQueryOptions } from "@/features/categories/api/categories-api
 import type { ParentCategory } from "@/features/categories/types";
 import { countTotalSubCategories } from "@/features/categories/workflow";
 import { useAdminDisputes } from "@/features/disputes/api/disputes-api";
+import { useAdminListings } from "@/features/listings/api/listings-api";
 import { useSellerApplications } from "@/features/seller-applications/api/mock-seller-applications";
 import { ApplicationStatusBadge } from "@/features/seller-applications/components/application-status-badge";
 import { formatApplicationDate } from "@/features/seller-applications/utils";
 import { useSellers } from "@/features/sellers/api/mock-sellers";
 import { useAdminWithdrawals } from "@/features/withdrawals/api/withdrawals-api";
 
+const chartConfig = {
+  escrowHold: {
+    color: "var(--color-escrowHold, #3b82f6)",
+    label: "Dòng tiền Escrow (VND)",
+  },
+  revenue: {
+    color: "var(--color-revenue, #10b981)",
+    label: "Phí sàn thu được (VND)",
+  },
+} satisfies ChartConfig;
+
+const MOCK_7D_TREND = [
+  { date: "06/08", escrowHold: 18_500_000, revenue: 1_450_000 },
+  { date: "07/08", escrowHold: 22_000_000, revenue: 1_800_000 },
+  { date: "08/08", escrowHold: 27_500_000, revenue: 2_100_000 },
+  { date: "09/08", escrowHold: 24_000_000, revenue: 1_950_000 },
+  { date: "10/08", escrowHold: 31_000_000, revenue: 2_600_000 },
+  { date: "11/08", escrowHold: 29_500_000, revenue: 2_400_000 },
+  { date: "12/08", escrowHold: 35_800_000, revenue: 2_950_000 },
+];
+
+const MOCK_30D_TREND = [
+  { date: "14/07", escrowHold: 12_000_000, revenue: 950_000 },
+  { date: "17/07", escrowHold: 15_500_000, revenue: 1_200_000 },
+  { date: "20/07", escrowHold: 19_000_000, revenue: 1_500_000 },
+  { date: "23/07", escrowHold: 16_800_000, revenue: 1_350_000 },
+  { date: "26/07", escrowHold: 23_500_000, revenue: 1_900_000 },
+  { date: "29/07", escrowHold: 26_000_000, revenue: 2_150_000 },
+  { date: "01/08", escrowHold: 22_500_000, revenue: 1_800_000 },
+  { date: "04/08", escrowHold: 28_000_000, revenue: 2_300_000 },
+  { date: "07/08", escrowHold: 30_500_000, revenue: 2_500_000 },
+  { date: "10/08", escrowHold: 33_000_000, revenue: 2_750_000 },
+  { date: "12/08", escrowHold: 35_800_000, revenue: 2_950_000 },
+];
+
+const formatCurrencyVND = (value: number): string =>
+  `${value.toLocaleString("vi-VN")} ₫`;
+
+const formatShortCurrency = (value: number): string => {
+  if (value >= 1_000_000_000) {
+    return `${(value / 1_000_000_000).toFixed(1)}B ₫`;
+  }
+  if (value >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(1)}M ₫`;
+  }
+  return `${(value / 1000).toFixed(0)}K ₫`;
+};
+
+const renderTooltipFormatter = (
+  value: unknown,
+  name: unknown
+): React.ReactNode => (
+  <div className="flex items-center justify-between gap-4 w-full">
+    <span className="text-muted-foreground">
+      {name === "escrowHold" ? "Escrow Hold" : "Phí sàn"}
+    </span>
+    <span className="font-semibold">{formatCurrencyVND(Number(value))}</span>
+  </div>
+);
+
 export const OverviewPage = () => {
+  const [timeframe, setTimeframe] = useState<"7d" | "30d">("7d");
   const applications = useSellerApplications();
   const { data: categories = [] } = useQuery(categoriesQueryOptions());
   const sellers = useSellers();
   const { data: disputes = [] } = useAdminDisputes("OPEN");
   const { data: withdrawals = [] } = useAdminWithdrawals();
+  const { data: listings = [] } = useAdminListings();
 
   const pendingAppsCount = applications.filter(
     (a) => a.status === "PENDING_REVIEW"
@@ -58,10 +133,17 @@ export const OverviewPage = () => {
     {
       badge: pendingAppsCount > 0 ? "Bắt buộc" : undefined,
       count: `${pendingAppsCount} chờ duyệt`,
-      description: "Duyệt hồ sơ gian hàng mới (KYC & BankIcon)",
+      description: "Duyệt hồ sơ gian hàng mới (KYC & Bank)",
       icon: ClipboardTextIcon,
       title: "Duyệt hồ sơ Seller",
       url: "/seller-applications",
+    },
+    {
+      count: `${listings.length} Sản phẩm`,
+      description: "Kiểm duyệt & quản lý trạng thái hiển thị sản phẩm",
+      icon: GavelIcon,
+      title: "Duyệt sản phẩm",
+      url: "/listings",
     },
     {
       count: `${categories.length} Cha · ${totalSubCategories} Sub`,
@@ -102,6 +184,15 @@ export const OverviewPage = () => {
     )
     .slice(0, 3);
 
+  const trendData = timeframe === "7d" ? MOCK_7D_TREND : MOCK_30D_TREND;
+
+  const totalEscrowHold = trendData.reduce(
+    (sum, item) => sum + item.escrowHold,
+    0
+  );
+  const totalRevenue = trendData.reduce((sum, item) => sum + item.revenue, 0);
+  const totalPendingPayout = pendingWithdrawalsCount * 15_000_000 + 45_000_000;
+
   return (
     <>
       <Header fixed>
@@ -133,9 +224,7 @@ export const OverviewPage = () => {
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-semibold">{pendingAppsCount}</p>
-              <CardDescription>
-                Cần Admin kiểm tra KYC & BankIcon
-              </CardDescription>
+              <CardDescription>Cần Admin kiểm tra KYC & Bank</CardDescription>
             </CardContent>
           </Card>
 
@@ -178,6 +267,145 @@ export const OverviewPage = () => {
             </CardContent>
           </Card>
         </div>
+
+        <Card className="overflow-hidden">
+          <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b pb-4">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <TrendUpIcon className="size-5 text-primary" />
+                Thống kê Dòng tiền Escrow & Doanh thu sàn
+              </CardTitle>
+              <CardDescription>
+                Theo dõi biến động dòng tiền mua bán tạm giữ (Escrow Hold) và
+                hoa hồng thực thu.
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-1.5 rounded-lg border bg-muted/40 p-1">
+              <Button
+                size="xs"
+                variant={timeframe === "7d" ? "default" : "ghost"}
+                onClick={() => setTimeframe("7d")}
+                className="gap-1.5 text-xs"
+              >
+                <CalendarBlankIcon className="size-3.5" />7 ngày
+              </Button>
+              <Button
+                size="xs"
+                variant={timeframe === "30d" ? "default" : "ghost"}
+                onClick={() => setTimeframe("30d")}
+                className="gap-1.5 text-xs"
+              >
+                <CalendarBlankIcon className="size-3.5" />
+                30 ngày
+              </Button>
+            </div>
+          </CardHeader>
+
+          <CardContent className="pt-6 grid gap-6">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="rounded-xl border bg-card p-4 transition-all hover:shadow-xs">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <CurrencyCircleDollarIcon className="size-4 text-blue-500" />
+                  <span>Tổng Escrow đang giữ</span>
+                </div>
+                <p className="mt-2 text-2xl font-bold tracking-tight text-blue-600 dark:text-blue-400">
+                  {formatCurrencyVND(totalEscrowHold)}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Tạm giữ giao dịch đang xử lý / khiếu nại
+                </p>
+              </div>
+
+              <div className="rounded-xl border bg-card p-4 transition-all hover:shadow-xs">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <TrendUpIcon className="size-4 text-emerald-500" />
+                  <span>Phí sàn đã thu</span>
+                </div>
+                <p className="mt-2 text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
+                  {formatCurrencyVND(totalRevenue)}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Chiết khấu phán quyết & hoàn tất giao dịch
+                </p>
+              </div>
+
+              <div className="rounded-xl border bg-card p-4 transition-all hover:shadow-xs">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <BankIcon className="size-4 text-amber-500" />
+                  <span>Tiền rút chờ duyệt</span>
+                </div>
+                <p className="mt-2 text-2xl font-bold tracking-tight text-amber-600 dark:text-amber-400">
+                  {formatCurrencyVND(totalPendingPayout)}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Cần Admin rà soát Payout về tài khoản seller
+                </p>
+              </div>
+            </div>
+
+            <div className="h-[280px] w-full pt-2">
+              <ChartContainer config={chartConfig} className="h-full w-full">
+                <AreaChart
+                  data={trendData}
+                  margin={{ bottom: 0, left: 10, right: 10, top: 10 }}
+                >
+                  <defs>
+                    <linearGradient id="fillEscrow" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient
+                      id="fillRevenue"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis
+                    dataKey="date"
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                  />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={formatShortCurrency}
+                    width={60}
+                  />
+                  <ChartTooltip
+                    content={
+                      <ChartTooltipContent formatter={renderTooltipFormatter} />
+                    }
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="escrowHold"
+                    stroke="#3b82f6"
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#fillEscrow)"
+                    name="escrowHold"
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="#10b981"
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#fillRevenue)"
+                    name="revenue"
+                  />
+                </AreaChart>
+              </ChartContainer>
+            </div>
+          </CardContent>
+        </Card>
 
         <div>
           <h2 className="text-xl font-semibold tracking-tight mb-3">
