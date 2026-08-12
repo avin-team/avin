@@ -141,6 +141,15 @@ export const createAuth = (surface: AuthSurface = "storefront") => {
       },
     },
     trustedOrigins: env.CORS_ORIGIN,
+    user: {
+      additionalFields: {
+        hasSeenSellerOnboarding: {
+          defaultValue: false,
+          required: false,
+          type: "boolean",
+        },
+      },
+    },
   });
 };
 

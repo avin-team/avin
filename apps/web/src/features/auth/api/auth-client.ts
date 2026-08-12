@@ -17,4 +17,11 @@ export const authClient = createAuthClient({
       twoFactorPage: "/two-factor",
     }),
   ],
+  user: {
+    additionalFields: {
+      hasSeenSellerOnboarding: {
+        type: "boolean",
+      },
+    },
+  },
 });

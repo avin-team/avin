@@ -49,7 +49,13 @@ export const SignInForm = ({ expectedRole, redirectTo }: SignInFormProps) => {
 
         toast.success("Đăng nhập thành công.");
         await navigate({
-          to: redirectTo ?? getPostAuthRoute(result.data.user.role),
+          to:
+            redirectTo ??
+            getPostAuthRoute(
+              result.data.user.role,
+              (result.data.user as { hasSeenSellerOnboarding?: boolean })
+                .hasSeenSellerOnboarding
+            ),
         });
       } catch {
         toast.error("Không thể kết nối đến máy chủ. Vui lòng thử lại.");

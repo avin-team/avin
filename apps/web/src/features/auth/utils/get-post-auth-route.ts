@@ -1,3 +1,13 @@
-export type PostAuthRoute = "/";
+import { ACCOUNT_ROLE } from "@avin/auth/permissions";
 
-export const getPostAuthRoute = (_role?: string | null): PostAuthRoute => "/";
+export type PostAuthRoute = "/" | "/seller/onboarding";
+
+export const getPostAuthRoute = (
+  role?: string | null,
+  hasSeenSellerOnboarding?: boolean | null
+): PostAuthRoute => {
+  if (role === ACCOUNT_ROLE.SELLER && !hasSeenSellerOnboarding) {
+    return "/seller/onboarding";
+  }
+  return "/";
+};

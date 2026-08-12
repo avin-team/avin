@@ -9,6 +9,7 @@ describe("seller application router interface", () => {
       "adminGet",
       "adminList",
       "getProfile",
+      "markOnboardingSeen",
       "requestPhoneOtp",
       "submitApplication",
       "updateDraftProfile",

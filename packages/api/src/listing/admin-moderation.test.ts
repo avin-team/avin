@@ -60,6 +60,7 @@ const createContext = (
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       email: "admin@example.com",
       emailVerified: true,
+      hasSeenSellerOnboarding: false,
       id: userId,
       image: null,
       name: "Admin User",

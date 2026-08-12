@@ -309,6 +309,15 @@ export const sellerApplicationRouter = {
     };
   }),
 
+  markOnboardingSeen: protectedProcedure.handler(async ({ context }) => {
+    const userId = context.session.user.id;
+    await context.db
+      .update(user)
+      .set({ hasSeenSellerOnboarding: true })
+      .where(eq(user.id, userId));
+    return { success: true };
+  }),
+
   requestPhoneOtp: protectedProcedure
     .input(requestPhoneOtpInputSchema)
     .handler(async ({ context, input }) => {
@@ -459,6 +468,11 @@ export const sellerApplicationRouter = {
             message: "Không thể tạo hồ sơ người bán.",
           });
         }
+        await transaction
+          .update(user)
+          .set({ hasSeenSellerOnboarding: true })
+          .where(eq(user.id, userId));
+
         await createNotificationEvent(transaction, {
           body: "Hồ sơ người bán của bạn đã được gửi để duyệt.",
           context: { applicationId: newApp.id, status: newApp.status },

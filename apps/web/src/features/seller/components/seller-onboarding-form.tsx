@@ -33,6 +33,7 @@ import {
   WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -222,7 +223,27 @@ const SellerOnboardingFormContent = ({
   profile,
   refetchProfile,
 }: SellerOnboardingFormContentProps) => {
+  const navigate = useNavigate();
   const isApproved = application?.status === "APPROVED";
+
+  const markSeenMutation = useMutation(
+    orpc.sellerApplication.markOnboardingSeen.mutationOptions({
+      onSuccess: async () => {
+        toast.info(
+          "Bạn có thể quay lại hoàn tất thông tin người bán bất cứ lúc nào."
+        );
+        await navigate({ to: "/" });
+      },
+    })
+  );
+
+  const handleSkip = () => {
+    markSeenMutation.mutate(undefined, {
+      onError: async () => {
+        await navigate({ to: "/" });
+      },
+    });
+  };
 
   // Calculate default step: if approved or pending/rejected/changes_requested, default to step 3
   const initialStep = application?.status ? 3 : 1;
@@ -446,7 +467,7 @@ const SellerOnboardingFormContent = ({
 
   return (
     <div className="w-full max-w-5xl mx-auto py-4 sm:py-8 px-2 sm:px-4">
-      <div className="bg-card text-card-foreground rounded-2xl border border-border shadow-xl overflow-hidden min-h-[640px] grid grid-cols-1 lg:grid-cols-[300px_1fr]">
+      <div className="bg-card text-card-foreground rounded-2xl border border-border shadow-xl overflow-hidden min-h-160 grid grid-cols-1 lg:grid-cols-[300px_1fr]">
         {/* DESKTOP SIDEBAR (< lg hidden) */}
         <aside className="hidden lg:flex flex-col justify-between p-6 bg-muted/40 dark:bg-neutral-950 border-r border-border relative overflow-hidden">
           {/* Subtle dot grid background overlay */}
@@ -456,11 +477,22 @@ const SellerOnboardingFormContent = ({
           />
 
           {/* Top Header */}
-          <div className="relative z-10 pt-2">
-            <h2 className="font-bold text-lg leading-tight tracking-wide text-foreground">
-              Avin Seller
-            </h2>
-            <p className="text-xs text-muted-foreground">Onboarding Center</p>
+          <div className="relative z-10 pt-2 flex items-center justify-between">
+            <div>
+              <h2 className="font-bold text-lg leading-tight tracking-wide text-foreground">
+                Avin Seller
+              </h2>
+              <p className="text-xs text-muted-foreground">Onboarding Center</p>
+            </div>
+            <Button
+              className="text-xs h-8 text-muted-foreground hover:text-foreground"
+              disabled={markSeenMutation.isPending}
+              onClick={handleSkip}
+              type="button"
+              variant="ghost"
+            >
+              Để sau
+            </Button>
           </div>
 
           {/* Vertical Stepper Component (Centered vertically) */}
@@ -525,16 +557,27 @@ const SellerOnboardingFormContent = ({
               </span>
             </div>
 
-            {activeStep > 1 && (
-              <button
+            <div className="flex items-center gap-2">
+              <Button
+                className="text-xs h-7 text-muted-foreground hover:text-foreground"
+                disabled={markSeenMutation.isPending}
+                onClick={handleSkip}
                 type="button"
-                onClick={() => setActiveStep((prev) => Math.max(1, prev - 1))}
-                className="text-muted-foreground hover:text-foreground p-1 rounded-md transition-colors"
-                aria-label="Quay lại"
+                variant="ghost"
               >
-                <CaretLeftIcon className="w-5 h-5" />
-              </button>
-            )}
+                Để sau
+              </Button>
+              {activeStep > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setActiveStep((prev) => Math.max(1, prev - 1))}
+                  className="text-muted-foreground hover:text-foreground p-1 rounded-md transition-colors"
+                  aria-label="Quay lại"
+                >
+                  <CaretLeftIcon className="w-5 h-5" />
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center justify-between text-xs">

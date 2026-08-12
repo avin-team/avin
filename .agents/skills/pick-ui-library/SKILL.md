@@ -51,9 +51,9 @@ The split: if data points arrive live and the chart scrolls with time, use Livel
 
 ### Interaction & performance
 
-| Task | Library |
-| --- | --- |
-| Drag and drop | [dnd kit](https://dndkit.com) |
+| Task                                      | Library                          |
+| ----------------------------------------- | -------------------------------- |
+| Drag and drop                             | [dnd kit](https://dndkit.com)    |
 | Virtualization (long lists, large tables) | [Virtuoso](https://virtuoso.dev) |
 
 ### State & styling

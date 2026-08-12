@@ -2,12 +2,6 @@ import { ACCOUNT_ROLE } from "@avin/auth/permissions";
 import type { AccountRole } from "@avin/auth/permissions";
 import { Badge } from "@avin/ui/components/badge";
 import { Button } from "@avin/ui/components/button";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@avin/ui/components/tabs";
 import { cn } from "@avin/ui/lib/utils";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
@@ -86,6 +80,49 @@ export const AuthPage = () => {
     });
   };
 
+  const renderContent = () => {
+    if (activeTab === "sign-in") {
+      return (
+        <div className="flex flex-col gap-6 animate-in fade-in duration-300">
+          <GoogleSignInButton />
+          <AuthDivider>HOẶC</AuthDivider>
+          <SignInForm />
+        </div>
+      );
+    }
+
+    if (selectedRole === null) {
+      return <RoleSelectionStep onSelectRole={handleSelectRole} />;
+    }
+
+    return (
+      <div className="flex flex-col gap-6 animate-in fade-in duration-300">
+        <div className="flex items-center justify-between">
+          <Badge className="gap-1.5 px-2.5 py-1" variant="secondary">
+            <span className="text-muted-foreground">Vai trò:</span>
+            <span className="font-semibold text-foreground">
+              {selectedRole === ACCOUNT_ROLE.SELLER
+                ? "Người bán (Seller)"
+                : "Người mua (Buyer)"}
+            </span>
+          </Badge>
+          <Button
+            className="h-7 text-xs text-muted-foreground hover:text-foreground"
+            onClick={handleResetRole}
+            size="sm"
+            variant="ghost"
+          >
+            Thay đổi
+          </Button>
+        </div>
+
+        <GoogleSignInButton role={selectedRole} />
+        <AuthDivider>HOẶC</AuthDivider>
+        <SignUpForm role={selectedRole} />
+      </div>
+    );
+  };
+
   return (
     <Shell variant="centered">
       <section
@@ -101,61 +138,48 @@ export const AuthPage = () => {
         <DecorIcon position="top-left" />
         <DecorIcon position="bottom-right" />
 
-        <div className="flex w-full max-w-sm animate-in flex-col gap-8">
+        <div className="flex w-full max-w-sm animate-in flex-col gap-6">
           <header className="flex flex-col gap-1">
             <h1 className="font-bold text-2xl tracking-wide">
-              Chào mừng đến Avin
+              {activeTab === "sign-in"
+                ? "Chào mừng đến Avin"
+                : "Đăng ký tài khoản"}
             </h1>
             <p className="text-base text-muted-foreground">
               {getAuthSubtitle(activeTab, selectedRole)}
             </p>
           </header>
 
-          <Tabs onValueChange={handleTabChange} value={activeTab}>
-            <TabsList className="w-full">
-              <TabsTrigger value="sign-in">Đăng nhập</TabsTrigger>
-              <TabsTrigger value="sign-up">Đăng ký</TabsTrigger>
-            </TabsList>
-            <TabsContent value="sign-in">
-              <div className="flex flex-col gap-6 animate-in fade-in duration-300">
-                <GoogleSignInButton />
-                <AuthDivider>HOẶC</AuthDivider>
-                <SignInForm />
-              </div>
-            </TabsContent>
-            <TabsContent value="sign-up">
-              {selectedRole === null ? (
-                <RoleSelectionStep onSelectRole={handleSelectRole} />
-              ) : (
-                <div className="flex flex-col gap-6 animate-in fade-in duration-300">
-                  <div className="flex items-center justify-between">
-                    <Badge className="gap-1.5 px-2.5 py-1" variant="secondary">
-                      <span className="text-muted-foreground">Vai trò:</span>
-                      <span className="font-semibold text-foreground">
-                        {selectedRole === ACCOUNT_ROLE.SELLER
-                          ? "Người bán (Seller)"
-                          : "Người mua (Buyer)"}
-                      </span>
-                    </Badge>
-                    <Button
-                      className="h-7 text-xs text-muted-foreground hover:text-foreground"
-                      onClick={handleResetRole}
-                      size="sm"
-                      variant="ghost"
-                    >
-                      Thay đổi
-                    </Button>
-                  </div>
+          {renderContent()}
 
-                  <GoogleSignInButton role={selectedRole} />
-                  <AuthDivider>HOẶC</AuthDivider>
-                  <SignUpForm role={selectedRole} />
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
+          {/* Text link navigation at the bottom for mode switching */}
+          <div className="flex justify-center border-t border-border/50 pt-4 text-center text-sm">
+            {activeTab === "sign-in" ? (
+              <p className="text-muted-foreground">
+                Chưa có tài khoản?{" "}
+                <button
+                  className="font-semibold text-foreground underline underline-offset-4 hover:text-primary transition-colors cursor-pointer"
+                  onClick={() => handleTabChange("sign-up")}
+                  type="button"
+                >
+                  Đăng ký ngay
+                </button>
+              </p>
+            ) : (
+              <p className="text-muted-foreground">
+                Đã có tài khoản?{" "}
+                <button
+                  className="font-semibold text-foreground underline underline-offset-4 hover:text-primary transition-colors cursor-pointer"
+                  onClick={() => handleTabChange("sign-in")}
+                  type="button"
+                >
+                  Đăng nhập
+                </button>
+              </p>
+            )}
+          </div>
 
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground text-xs text-center">
             Khi tiếp tục, bạn đồng ý với Điều khoản dịch vụ và Chính sách bảo
             mật của Avin.
           </p>

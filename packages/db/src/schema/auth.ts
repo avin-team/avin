@@ -22,6 +22,9 @@ export const user = pgTable("user", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").default(false).notNull(),
+  hasSeenSellerOnboarding: boolean("has_seen_seller_onboarding")
+    .default(false)
+    .notNull(),
   id: text("id").primaryKey(),
   image: text("image"),
   name: text("name").notNull(),
