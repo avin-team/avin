@@ -63,6 +63,7 @@
     "db:studio": "turbo -F @avin/db db:studio",
     "db:generate": "turbo -F @avin/db db:generate",
     "db:migrate": "turbo -F @avin/db db:migrate",
+    "db:clear": "bun run --cwd packages/db db:clear",
     "check": "ultracite check",
     "fix": "ultracite fix && bun run scripts/fix-tailwind-canonical.ts",
     "prepare": "lefthook install"

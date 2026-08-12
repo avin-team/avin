@@ -213,6 +213,7 @@
       "name": "@avin/db",
       "dependencies": {
         "@avin/env": "workspace:*",
+        "@supabase/supabase-js": "catalog:",
         "dotenv": "catalog:",
         "drizzle-orm": "^0.45.2",
         "pg": "^8.22.0",
