@@ -327,6 +327,9 @@ export const listEmailDeliveryHealth = async ({
       lastAttemptAt: row.lastAttemptAt?.toISOString() ?? null,
       lastError: row.lastError,
       nextAttemptAt: row.nextAttemptAt?.toISOString() ?? null,
+      recipientUserId: row.recipientUserId,
+      sourceId: row.sourceId,
+      sourceType: row.sourceType,
       status: row.status,
       updatedAt: row.updatedAt.toISOString(),
     })

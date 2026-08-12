@@ -54,6 +54,7 @@ export default defineConfig({
     // rule cannot see that the heavy imports live in lazily-loaded modules.
     "react-doctor/prefer-dynamic-import": "off",
     "react-doctor/react-compiler-no-manual-memoization": "off",
+    "react/jsx-no-constructed-context-values": "off",
     // apps/admin/src/lib/cookies.ts is the single deliberate
     // document.cookie wrapper (replaces the js-cookie dependency).
     "unicorn/no-document-cookie": "off",

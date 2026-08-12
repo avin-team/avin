@@ -1,18 +1,11 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 
 import { getCookie, removeCookie, setCookie } from "@/lib/cookies";
 
 type Theme = "dark" | "light" | "system";
 type ResolvedTheme = Exclude<Theme, "system">;
 
-const DEFAULT_THEME = "dark";
+const DEFAULT_THEME = "system";
 const THEME_COOKIE_NAME = "vite-ui-theme";
 // 1 year
 const THEME_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
@@ -34,7 +27,7 @@ interface ThemeProviderState {
 const initialState: ThemeProviderState = {
   defaultTheme: DEFAULT_THEME,
   resetTheme: () => null,
-  resolvedTheme: "dark",
+  resolvedTheme: "light",
   setTheme: () => null,
   theme: DEFAULT_THEME,
 };
@@ -84,29 +77,23 @@ export const ThemeProvider = ({
     return () => mediaQuery.removeEventListener("change", handleChange);
   }, [theme, resolvedTheme]);
 
-  const handleSetTheme = useCallback(
-    (nextTheme: Theme) => {
-      setCookie(storageKey, nextTheme, THEME_COOKIE_MAX_AGE);
-      setTheme(nextTheme);
-    },
-    [storageKey]
-  );
+  const handleSetTheme = (nextTheme: Theme) => {
+    setCookie(storageKey, nextTheme, THEME_COOKIE_MAX_AGE);
+    setTheme(nextTheme);
+  };
 
-  const handleResetTheme = useCallback(() => {
+  const handleResetTheme = () => {
     removeCookie(storageKey);
     setTheme(DEFAULT_THEME);
-  }, [storageKey]);
+  };
 
-  const contextValue: ThemeProviderState = useMemo(
-    () => ({
-      defaultTheme,
-      resetTheme: handleResetTheme,
-      resolvedTheme,
-      setTheme: handleSetTheme,
-      theme,
-    }),
-    [defaultTheme, handleResetTheme, handleSetTheme, resolvedTheme, theme]
-  );
+  const contextValue: ThemeProviderState = {
+    defaultTheme,
+    resetTheme: handleResetTheme,
+    resolvedTheme,
+    setTheme: handleSetTheme,
+    theme,
+  };
 
   return <ThemeContext value={contextValue}>{children}</ThemeContext>;
 };

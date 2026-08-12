@@ -1,10 +1,4 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-} from "react";
+import { createContext, useContext, useState } from "react";
 
 import { getCookie, setCookie } from "@/lib/cookies";
 
@@ -50,37 +44,34 @@ export const LayoutProvider = ({ children }: LayoutProviderProps) => {
     return (saved as Variant) || DEFAULT_VARIANT;
   });
 
-  const handleSetCollapsible = useCallback((newCollapsible: Collapsible) => {
+  const handleSetCollapsible = (newCollapsible: Collapsible) => {
     setCollapsible(newCollapsible);
     setCookie(
       LAYOUT_COLLAPSIBLE_COOKIE_NAME,
       newCollapsible,
       LAYOUT_COOKIE_MAX_AGE
     );
-  }, []);
+  };
 
-  const handleSetVariant = useCallback((newVariant: Variant) => {
+  const handleSetVariant = (newVariant: Variant) => {
     setVariant(newVariant);
     setCookie(LAYOUT_VARIANT_COOKIE_NAME, newVariant, LAYOUT_COOKIE_MAX_AGE);
-  }, []);
+  };
 
-  const resetLayout = useCallback(() => {
+  const resetLayout = () => {
     handleSetCollapsible(DEFAULT_COLLAPSIBLE);
     handleSetVariant(DEFAULT_VARIANT);
-  }, [handleSetCollapsible, handleSetVariant]);
+  };
 
-  const contextValue: LayoutContextType = useMemo(
-    () => ({
-      collapsible,
-      defaultCollapsible: DEFAULT_COLLAPSIBLE,
-      defaultVariant: DEFAULT_VARIANT,
-      resetLayout,
-      setCollapsible: handleSetCollapsible,
-      setVariant: handleSetVariant,
-      variant,
-    }),
-    [collapsible, handleSetCollapsible, handleSetVariant, resetLayout, variant]
-  );
+  const contextValue: LayoutContextType = {
+    collapsible,
+    defaultCollapsible: DEFAULT_COLLAPSIBLE,
+    defaultVariant: DEFAULT_VARIANT,
+    resetLayout,
+    setCollapsible: handleSetCollapsible,
+    setVariant: handleSetVariant,
+    variant,
+  };
 
   return <LayoutContext value={contextValue}>{children}</LayoutContext>;
 };

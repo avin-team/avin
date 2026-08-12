@@ -79,6 +79,12 @@ const mapOrderItemSummary = (item: OrderItemRow): OrderItemSummary => ({
 });
 
 export interface SellerOrderView {
+  buyer?: {
+    email?: string | null;
+    id: string;
+    image?: string | null;
+    name?: string | null;
+  };
   buyerId: string;
   checkoutId: string;
   createdAt: string;
