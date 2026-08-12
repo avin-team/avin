@@ -1,4 +1,3 @@
-import { Badge } from "@avin/ui/components/badge";
 import { Button } from "@avin/ui/components/button";
 import {
   Card,
@@ -9,29 +8,20 @@ import {
 } from "@avin/ui/components/card";
 import {
   WarningCircleIcon,
-  ArrowRightIcon,
   ClipboardTextIcon,
-  FolderIcon,
   BankIcon,
-  ShieldWarningIcon,
   StorefrontIcon,
-  GavelIcon,
   TrendUpIcon,
   CurrencyCircleDollarIcon,
   CalendarBlankIcon,
 } from "@phosphor-icons/react";
-import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { lazy, Suspense, useState } from "react";
 
 import { Header } from "@/components/layout/header";
 import { Main } from "@/components/layout/main";
 import { ThemeSwitch } from "@/components/theme-switch";
-import { categoriesQueryOptions } from "@/features/categories/api/categories-api";
-import type { ParentCategory } from "@/features/categories/types";
-import { countTotalSubCategories } from "@/features/categories/workflow";
 import { useAdminDisputes } from "@/features/disputes/api/disputes-api";
-import { useAdminListings } from "@/features/listings/api/listings-api";
 import { useOperationsOverviewAnalytics } from "@/features/operations/api/operations-api";
 import { useAdminSellerApplications } from "@/features/seller-applications/api/seller-applications-api";
 import { ApplicationStatusBadge } from "@/features/seller-applications/components/application-status-badge";
@@ -75,13 +65,11 @@ const EscrowRevenueChart = lazy(async () => {
 export const OverviewPage = () => {
   const [timeframe, setTimeframe] = useState<"7d" | "30d">("7d");
   const { data: applications = [] } = useAdminSellerApplications();
-  const { data: categories = [] } = useQuery(categoriesQueryOptions());
   const { data: remoteSellers = [] } = useAdminSellerList();
   const mockSellers = useSellers();
   const sellers = remoteSellers.length > 0 ? remoteSellers : mockSellers;
   const { data: disputes = [] } = useAdminDisputes("OPEN");
   const { data: withdrawals = [] } = useAdminWithdrawals();
-  const { data: listings = [] } = useAdminListings();
   const { data: analytics } = useOperationsOverviewAnalytics(timeframe);
 
   const pendingAppsCount = applications.filter(
@@ -91,62 +79,6 @@ export const OverviewPage = () => {
   const pendingWithdrawalsCount = withdrawals.filter(
     (w) => w.status === "REQUESTED"
   ).length;
-  const enforcementAlertsCount = sellers.filter(
-    (s) => s.enforcementStatus !== "ACTIVE"
-  ).length;
-
-  const totalSubCategories = countTotalSubCategories(
-    categories as unknown as ParentCategory[]
-  );
-
-  const quickActionCards = [
-    {
-      badge: pendingAppsCount > 0 ? "Bắt buộc" : undefined,
-      count: `${pendingAppsCount} chờ duyệt`,
-      description: "Duyệt hồ sơ gian hàng mới (KYC & Bank)",
-      icon: ClipboardTextIcon,
-      title: "Duyệt hồ sơ Seller",
-      url: "/seller-applications",
-    },
-    {
-      count: `${listings.length} Sản phẩm`,
-      description: "Kiểm duyệt & quản lý trạng thái hiển thị sản phẩm",
-      icon: GavelIcon,
-      title: "Duyệt sản phẩm",
-      url: "/listings",
-    },
-    {
-      count: `${categories.length} Cha · ${totalSubCategories} Sub`,
-      description: "Phân loại 2 cấp & tỷ lệ chiết khấu sàn",
-      icon: FolderIcon,
-      title: "Danh mục & Chính sách",
-      url: "/categories",
-    },
-    {
-      badge: enforcementAlertsCount > 0 ? "Cảnh báo" : undefined,
-      count: `${sellers.length} Sellers · ${enforcementAlertsCount} Vi phạm`,
-      description: "Quản lý gian hàng & xử lý vi phạm",
-      icon: StorefrontIcon,
-      title: "Quản lý Seller & Vi phạm",
-      url: "/sellers",
-    },
-    {
-      badge: openDisputesCount > 0 ? "Ưu tiên" : undefined,
-      count: `${openDisputesCount} Đang mở`,
-      description: "Hòa giải tranh chấp & phán quyết Escrow",
-      icon: WarningCircleIcon,
-      title: "Hòa giải Tranh chấp",
-      url: "/disputes",
-    },
-    {
-      badge: pendingWithdrawalsCount > 0 ? "Cần xử lý" : undefined,
-      count: `${pendingWithdrawalsCount} Yêu cầu`,
-      description: "Duyệt yêu cầu rút tiền về ngân hàng",
-      icon: BankIcon,
-      title: "Yêu cầu Rút tiền",
-      url: "/withdrawals",
-    },
-  ];
 
   const recentApplications = applications
     .toSorted((left, right) =>
@@ -185,53 +117,78 @@ export const OverviewPage = () => {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card size="sm">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm">Tổng số Seller</CardTitle>
-              <StorefrontIcon className="size-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-semibold">{sellers.length}</p>
-              <CardDescription>Gian hàng trên hệ thống</CardDescription>
-            </CardContent>
-          </Card>
+          <Link className="block transition hover:opacity-95" to="/sellers">
+            <Card
+              className="h-full transition hover:border-primary/50"
+              size="sm"
+            >
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-sm">Tổng số Seller</CardTitle>
+                <StorefrontIcon className="size-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-semibold">{sellers.length}</p>
+                <CardDescription>Gian hàng trên hệ thống</CardDescription>
+              </CardContent>
+            </Card>
+          </Link>
 
-          <Card size="sm">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm">Hồ sơ Seller chờ duyệt</CardTitle>
-              <ClipboardTextIcon className="size-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-semibold">{pendingAppsCount}</p>
-              <CardDescription>Cần Admin kiểm tra KYC & Bank</CardDescription>
-            </CardContent>
-          </Card>
+          <Link
+            className="block transition hover:opacity-95"
+            to="/seller-applications"
+          >
+            <Card
+              className="h-full transition hover:border-primary/50"
+              size="sm"
+            >
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-sm">
+                  Hồ sơ Seller chờ duyệt
+                </CardTitle>
+                <ClipboardTextIcon className="size-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-semibold">{pendingAppsCount}</p>
+                <CardDescription>Cần Admin kiểm tra KYC & Bank</CardDescription>
+              </CardContent>
+            </Card>
+          </Link>
 
-          <Card size="sm">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm">Tranh chấp đang mở</CardTitle>
-              <WarningCircleIcon className="size-4 text-amber-500" />
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-semibold">{openDisputesCount}</p>
-              <CardDescription>Chờ Admin phân giải Escrow</CardDescription>
-            </CardContent>
-          </Card>
+          <Link className="block transition hover:opacity-95" to="/disputes">
+            <Card
+              className="h-full transition hover:border-primary/50"
+              size="sm"
+            >
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-sm">Tranh chấp đang mở</CardTitle>
+                <WarningCircleIcon className="size-4 text-amber-500" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-semibold">{openDisputesCount}</p>
+                <CardDescription>Chờ Admin phân giải Escrow</CardDescription>
+              </CardContent>
+            </Card>
+          </Link>
 
-          <Card size="sm">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm">
-                Yêu cầu rút tiền chờ duyệt
-              </CardTitle>
-              <BankIcon className="size-4 text-emerald-500" />
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-semibold">
-                {pendingWithdrawalsCount}
-              </p>
-              <CardDescription>Yêu cầu payout về ngân hàng</CardDescription>
-            </CardContent>
-          </Card>
+          <Link className="block transition hover:opacity-95" to="/withdrawals">
+            <Card
+              className="h-full transition hover:border-primary/50"
+              size="sm"
+            >
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-sm">
+                  Yêu cầu rút tiền chờ duyệt
+                </CardTitle>
+                <BankIcon className="size-4 text-emerald-500" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-semibold">
+                  {pendingWithdrawalsCount}
+                </p>
+                <CardDescription>Yêu cầu payout về ngân hàng</CardDescription>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
 
         <Card className="overflow-hidden">
@@ -248,18 +205,18 @@ export const OverviewPage = () => {
             </div>
             <div className="flex items-center gap-1.5 rounded-lg border bg-muted/40 p-1">
               <Button
+                className="gap-1.5 text-xs"
+                onClick={() => setTimeframe("7d")}
                 size="xs"
                 variant={timeframe === "7d" ? "default" : "ghost"}
-                onClick={() => setTimeframe("7d")}
-                className="gap-1.5 text-xs"
               >
                 <CalendarBlankIcon className="size-3.5" />7 ngày
               </Button>
               <Button
+                className="gap-1.5 text-xs"
+                onClick={() => setTimeframe("30d")}
                 size="xs"
                 variant={timeframe === "30d" ? "default" : "ghost"}
-                onClick={() => setTimeframe("30d")}
-                className="gap-1.5 text-xs"
               >
                 <CalendarBlankIcon className="size-3.5" />
                 30 ngày
@@ -269,7 +226,10 @@ export const OverviewPage = () => {
 
           <CardContent className="pt-6 grid gap-6">
             <div className="grid gap-4 sm:grid-cols-3">
-              <div className="rounded-xl border bg-card p-4 transition-all hover:shadow-xs">
+              <Link
+                className="rounded-xl border bg-card p-4 transition-all hover:border-primary/50 hover:shadow-xs cursor-pointer block"
+                to="/operations"
+              >
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <CurrencyCircleDollarIcon className="size-4 text-blue-500" />
                   <span>Tổng Escrow đang giữ</span>
@@ -280,9 +240,12 @@ export const OverviewPage = () => {
                 <p className="mt-1 text-xs text-muted-foreground">
                   Tạm giữ giao dịch đang xử lý / khiếu nại
                 </p>
-              </div>
+              </Link>
 
-              <div className="rounded-xl border bg-card p-4 transition-all hover:shadow-xs">
+              <Link
+                className="rounded-xl border bg-card p-4 transition-all hover:border-primary/50 hover:shadow-xs cursor-pointer block"
+                to="/operations"
+              >
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <TrendUpIcon className="size-4 text-emerald-500" />
                   <span>Phí sàn đã thu</span>
@@ -293,9 +256,12 @@ export const OverviewPage = () => {
                 <p className="mt-1 text-xs text-muted-foreground">
                   Chiết khấu phán quyết & hoàn tất giao dịch
                 </p>
-              </div>
+              </Link>
 
-              <div className="rounded-xl border bg-card p-4 transition-all hover:shadow-xs">
+              <Link
+                className="rounded-xl border bg-card p-4 transition-all hover:border-primary/50 hover:shadow-xs cursor-pointer block"
+                to="/withdrawals"
+              >
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <BankIcon className="size-4 text-amber-500" />
                   <span>Tiền rút chờ duyệt</span>
@@ -306,7 +272,7 @@ export const OverviewPage = () => {
                 <p className="mt-1 text-xs text-muted-foreground">
                   Cần Admin rà soát Payout về tài khoản seller
                 </p>
-              </div>
+              </Link>
             </div>
 
             <div className="h-70 w-full pt-2">
@@ -322,45 +288,6 @@ export const OverviewPage = () => {
             </div>
           </CardContent>
         </Card>
-
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight mb-3">
-            Các phân hệ quản trị chính
-          </h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {quickActionCards.map(
-              ({ title, description, count, url, icon: Icon, badge }) => (
-                <Card
-                  className="flex flex-col justify-between transition hover:border-primary/50"
-                  key={url}
-                >
-                  <CardHeader className="gap-2">
-                    <div className="flex items-center justify-between">
-                      <div className="size-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                        <Icon className="size-5" />
-                      </div>
-                      {badge && <Badge variant="destructive">{badge}</Badge>}
-                    </div>
-                    <CardTitle className="text-base mt-2">{title}</CardTitle>
-                    <CardDescription>{description}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-0 flex items-center justify-between border-t border-border/40 mt-4 py-3">
-                    <span className="text-xs font-medium text-muted-foreground">
-                      {count}
-                    </span>
-                    <Button
-                      render={<Link to={url} />}
-                      size="xs"
-                      variant="ghost"
-                    >
-                      Truy cập <ArrowRightIcon className="size-3.5" />
-                    </Button>
-                  </CardContent>
-                </Card>
-              )
-            )}
-          </div>
-        </div>
 
         <Card>
           <CardHeader className="flex flex-row items-start justify-between gap-4">

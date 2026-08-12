@@ -138,13 +138,12 @@ vi.mock("@/components/theme-switch", () => ({ ThemeSwitch: () => null }));
 describe("OverviewPage", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("renders overview title, escrow metrics, and quick action cards including Duyệt sản phẩm", () => {
+  it("renders overview title, top cards links, and escrow revenue chart section", () => {
     const html = renderToStaticMarkup(<OverviewPage />);
 
     expect(html).toContain("Bảng điều khiển Tổng quan");
     expect(html).toContain("Tổng số Seller");
-    expect(html).toContain("Duyệt sản phẩm");
-    expect(html).toContain("2 Sản phẩm");
+    expect(html).toContain("Hồ sơ Seller chờ duyệt");
     expect(html).toContain("Thống kê Dòng tiền Escrow &amp; Doanh thu sàn");
     expect(html).toContain("Tổng Escrow đang giữ");
     expect(html).toContain("Phí sàn đã thu");

@@ -327,18 +327,21 @@ export const listEmailDeliveryHealth = async ({
       lastAttemptAt: row.lastAttemptAt?.toISOString() ?? null,
       lastError: row.lastError,
       nextAttemptAt: row.nextAttemptAt?.toISOString() ?? null,
-      recipientUserId: row.recipientUserId,
-      sourceId: row.sourceId,
-      sourceType: row.sourceType,
+      status: row.status,
+      updatedAt: row.updatedAt.toISOString(),
+    })
+  );
+};
+
 export interface OverviewAnalyticsView {
   totalEscrowHold: number;
   totalPendingPayout: number;
   totalRevenue: number;
-  trend: Array<{
+  trend: {
     date: string;
     escrowHold: number;
     revenue: number;
-  }>;
+  }[];
 }
 
 export const getOverviewAnalytics = async ({
@@ -384,7 +387,7 @@ export const getOverviewAnalytics = async ({
 
   const trendMap = new Map<string, { escrowHold: number; revenue: number }>();
 
-  for (let i = 0; i < daysCount; i++) {
+  for (let i = 0; i < daysCount; i += 1) {
     const d = new Date(startDate);
     d.setDate(d.getDate() + i);
     const dateStr = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -404,7 +407,7 @@ export const getOverviewAnalytics = async ({
     }
   }
 
-  const trend = Array.from(trendMap.entries()).map(([date, values]) => ({
+  const trend = [...trendMap.entries()].map(([date, values]) => ({
     date,
     escrowHold: values.escrowHold,
     revenue: values.revenue,
@@ -417,4 +420,3 @@ export const getOverviewAnalytics = async ({
     trend,
   };
 };
-
