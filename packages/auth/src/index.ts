@@ -43,6 +43,23 @@ export const createAuth = (surface: AuthSurface = "storefront") => {
 
       schema,
     }),
+    databaseHooks: {
+      user: {
+        create: {
+          before: (data) => {
+            // Preserve the role sent from the client during sign-up.
+            // The admin plugin would otherwise reset it to defaultRole (BUYER).
+            // We only allow known marketplace roles.
+            const allowedRoles = Object.values(ACCOUNT_ROLE) as string[];
+            const requestedRole =
+              typeof data.role === "string" && allowedRoles.includes(data.role)
+                ? data.role
+                : ACCOUNT_ROLE.BUYER;
+            return { data: { ...data, role: requestedRole } };
+          },
+        },
+      },
+    },
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: true,

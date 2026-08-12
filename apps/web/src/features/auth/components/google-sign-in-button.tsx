@@ -12,10 +12,12 @@ import { getPostAuthRoute } from "@/features/auth/utils/get-post-auth-route";
 
 interface GoogleSignInButtonProps {
   role?: AccountRole;
+  mode?: "sign-in" | "sign-up";
 }
 
 export const GoogleSignInButton = ({
   role = ACCOUNT_ROLE.BUYER,
+  mode = "sign-up",
 }: GoogleSignInButtonProps) => {
   const [isPending, setIsPending] = useState(false);
 
@@ -23,12 +25,17 @@ export const GoogleSignInButton = ({
     setIsPending(true);
 
     try {
+      // For sign-in mode: append signInOnly=1 so the callback can detect
+      // if a brand-new account was accidentally created and handle it.
+      const postAuthPath =
+        mode === "sign-in"
+          ? `${getPostAuthRoute()}?signInOnly=1`
+          : getPostAuthRoute(role);
+
       const result = await authClient.signIn.social({
-        callbackURL: getAuthCallbackUrl(
-          getPostAuthRoute(role),
-          window.location.origin
-        ),
+        callbackURL: getAuthCallbackUrl(postAuthPath, window.location.origin),
         provider: "google",
+        ...(mode === "sign-up" && { role }),
       });
 
       if (result?.error) {

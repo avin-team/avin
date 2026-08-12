@@ -37,6 +37,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { authClient } from "@/features/auth/api/auth-client";
 import { orpc } from "@/utils/orpc";
 
 import { SellerLogoUploader } from "./seller-logo-uploader";
@@ -229,6 +230,7 @@ const SellerOnboardingFormContent = ({
   const markSeenMutation = useMutation(
     orpc.sellerApplication.markOnboardingSeen.mutationOptions({
       onSuccess: async () => {
+        await authClient.getSession();
         toast.info(
           "Bạn có thể quay lại hoàn tất thông tin người bán bất cứ lúc nào."
         );

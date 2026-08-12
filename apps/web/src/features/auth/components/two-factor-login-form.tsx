@@ -35,7 +35,14 @@ export const TwoFactorLoginForm = () => {
         }
 
         const session = await authClient.getSession();
-        const redirectTo = getPostAuthRoute(session.data?.user.role);
+        const user = session.data?.user;
+        const hasSeenOnboarding =
+          user &&
+          "hasSeenSellerOnboarding" in user &&
+          typeof user.hasSeenSellerOnboarding === "boolean"
+            ? user.hasSeenSellerOnboarding
+            : undefined;
+        const redirectTo = getPostAuthRoute(user?.role, hasSeenOnboarding);
         await navigate({ to: redirectTo });
       } catch {
         toast.error("Không thể xác minh lúc này. Vui lòng thử lại.");

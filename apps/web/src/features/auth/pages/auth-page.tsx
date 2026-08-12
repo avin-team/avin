@@ -4,7 +4,8 @@ import { Badge } from "@avin/ui/components/badge";
 import { Button } from "@avin/ui/components/button";
 import { cn } from "@avin/ui/lib/utils";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { Shell } from "@/components/shell";
 import { AuthDivider } from "@/features/auth/components/auth-divider";
@@ -47,6 +48,23 @@ export const AuthPage = () => {
 
   const activeTab = search.mode ?? "sign-in";
 
+  // Show error toast if redirected back after a failed Google sign-in attempt
+  // (user tried to sign in with Google but had no account — a new one was
+  // created, detected, and immediately deleted so they must register properly).
+  useEffect(() => {
+    if (search.googleError === "not_registered") {
+      toast.error(
+        "Bạn chưa có tài khoản. Vui lòng đăng ký trước khi đăng nhập bằng Google."
+      );
+      // Remove the error param from URL to avoid re-showing on refresh
+      void navigate({
+        replace: true,
+        search: ({ googleError: _, ...rest }) => rest,
+        to: "/login",
+      });
+    }
+  }, [search.googleError, navigate]);
+
   const handleTabChange = (value: string) => {
     void navigate({
       search: (prev) => ({
@@ -84,7 +102,7 @@ export const AuthPage = () => {
     if (activeTab === "sign-in") {
       return (
         <div className="flex flex-col gap-6 animate-in fade-in duration-300">
-          <GoogleSignInButton />
+          <GoogleSignInButton mode="sign-in" />
           <AuthDivider>HOẶC</AuthDivider>
           <SignInForm />
         </div>
