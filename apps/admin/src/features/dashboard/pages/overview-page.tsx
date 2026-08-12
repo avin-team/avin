@@ -185,6 +185,17 @@ export const OverviewPage = () => {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card size="sm">
             <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-sm">Tổng số Seller</CardTitle>
+              <StorefrontIcon className="size-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <p className="text-3xl font-semibold">{sellers.length}</p>
+              <CardDescription>Gian hàng trên hệ thống</CardDescription>
+            </CardContent>
+          </Card>
+
+          <Card size="sm">
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-sm">Hồ sơ Seller chờ duyệt</CardTitle>
               <ClipboardTextIcon className="size-4 text-muted-foreground" />
             </CardHeader>
@@ -217,19 +228,6 @@ export const OverviewPage = () => {
                 {pendingWithdrawalsCount}
               </p>
               <CardDescription>Yêu cầu payout về ngân hàng</CardDescription>
-            </CardContent>
-          </Card>
-
-          <Card size="sm">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm">
-                Seller bị Tạm dừng / Cấm
-              </CardTitle>
-              <ShieldWarningIcon className="size-4 text-destructive" />
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-semibold">{enforcementAlertsCount}</p>
-              <CardDescription>Cảnh báo vi phạm chính sách</CardDescription>
             </CardContent>
           </Card>
         </div>

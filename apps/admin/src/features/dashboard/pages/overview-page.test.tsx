@@ -140,6 +140,7 @@ describe("OverviewPage", () => {
     const html = renderToStaticMarkup(<OverviewPage />);
 
     expect(html).toContain("Bảng điều khiển Tổng quan");
+    expect(html).toContain("Tổng số Seller");
     expect(html).toContain("Duyệt sản phẩm");
     expect(html).toContain("2 Sản phẩm");
     expect(html).toContain("Thống kê Dòng tiền Escrow &amp; Doanh thu sàn");
