@@ -25,17 +25,40 @@ export const GoogleSignInButton = ({
     setIsPending(true);
 
     try {
-      // For sign-in mode: append signInOnly=1 so the callback can detect
-      // if a brand-new account was accidentally created and handle it.
-      const postAuthPath =
+      const { origin } = window.location;
+
+      // Where existing users go after Google sign-in
+      const callbackURL = getAuthCallbackUrl(
+        getPostAuthRoute(mode === "sign-in" ? undefined : role),
+        origin
+      );
+
+      // Where BRAND-NEW users go after Google creates their account.
+      // Sign-in mode: redirect back to login with an error —
+      //   the user hasn't registered yet, they need to sign up first.
+      // Sign-up mode: redirect to the post-auth route for their role.
+      const newUserCallbackURL =
         mode === "sign-in"
-          ? `${getPostAuthRoute()}?signInOnly=1`
-          : getPostAuthRoute(role);
+          ? getAuthCallbackUrl("/login?googleError=not_registered", origin)
+          : callbackURL;
 
       const result = await authClient.signIn.social({
-        callbackURL: getAuthCallbackUrl(postAuthPath, window.location.origin),
+        callbackURL,
+        // In sign-in mode: redirect unregistered users back to login
+        // with an error instead of the default error page.
+        errorCallbackURL:
+          mode === "sign-in"
+            ? getAuthCallbackUrl("/login?googleError=not_registered", origin)
+            : undefined,
+        newUserCallbackURL,
         provider: "google",
-        ...(mode === "sign-up" && { role }),
+        // Sign-up mode: allow account creation (server has
+        // disableImplicitSignUp: true) and pass the chosen role
+        // so the server databaseHooks can assign it.
+        ...(mode === "sign-up" && {
+          additionalData: { role },
+          requestSignUp: true,
+        }),
       });
 
       if (result?.error) {

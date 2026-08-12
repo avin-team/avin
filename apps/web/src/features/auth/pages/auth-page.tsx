@@ -38,6 +38,58 @@ const getAuthSubtitle = (tab: string, role: AccountRole | null): string => {
   return "Đăng ký tài khoản Avin an toàn.";
 };
 
+const getOAuthErrorMessage = (
+  error?: string,
+  errorDescription?: string
+): string => {
+  if (error === "access_denied") {
+    return "Đăng nhập Google đã bị hủy.";
+  }
+  if (error === "account_not_linked") {
+    return "Email này đã được sử dụng với phương thức đăng nhập khác.";
+  }
+  return (
+    errorDescription || "Không thể đăng nhập bằng Google. Vui lòng thử lại."
+  );
+};
+
+const getErrorFromParams = (
+  search: { error?: string; error_description?: string; googleError?: string },
+  urlParams: URLSearchParams | null
+): { shouldShowError: boolean; errorMessage: string } => {
+  const errorParam = search.error || urlParams?.get("error");
+  const errorDescParam =
+    search.error_description || urlParams?.get("error_description");
+  const googleErrorParam = search.googleError || urlParams?.get("googleError");
+
+  const normalizedError = errorParam?.toLowerCase() || "";
+  const isUnregisteredURL =
+    googleErrorParam === "not_registered" ||
+    normalizedError === "signup_disabled" ||
+    normalizedError === "sign_up_disabled" ||
+    normalizedError === "signup disabled";
+
+  if (isUnregisteredURL) {
+    return {
+      errorMessage:
+        "Bạn chưa có tài khoản. Vui lòng đăng ký trước khi đăng nhập bằng Google.",
+      shouldShowError: true,
+    };
+  }
+
+  if (errorParam) {
+    return {
+      errorMessage: getOAuthErrorMessage(
+        errorParam,
+        errorDescParam ?? undefined
+      ),
+      shouldShowError: true,
+    };
+  }
+
+  return { errorMessage: "", shouldShowError: false };
+};
+
 export const AuthPage = () => {
   const navigate = useNavigate();
   const search = useSearch({ from: "/(auth)/login" });
@@ -49,21 +101,41 @@ export const AuthPage = () => {
   const activeTab = search.mode ?? "sign-in";
 
   // Show error toast if redirected back after a failed Google sign-in attempt
-  // (user tried to sign in with Google but had no account — a new one was
-  // created, detected, and immediately deleted so they must register properly).
+  // (user tried to sign in via Google but has no account — disableImplicitSignUp
+  // blocked creation and redirected here via errorCallbackURL).
   useEffect(() => {
-    if (search.googleError === "not_registered") {
-      toast.error(
-        "Bạn chưa có tài khoản. Vui lòng đăng ký trước khi đăng nhập bằng Google."
-      );
-      // Remove the error param from URL to avoid re-showing on refresh
-      void navigate({
-        replace: true,
-        search: ({ googleError: _, ...rest }) => rest,
-        to: "/login",
-      });
+    const urlParams =
+      typeof window === "undefined"
+        ? null
+        : new URLSearchParams(window.location.search);
+
+    const { errorMessage, shouldShowError } = getErrorFromParams(
+      search,
+      urlParams
+    );
+
+    if (shouldShowError) {
+      // Small timeout ensures the toast system is fully mounted and ready
+      setTimeout(() => {
+        toast.error(errorMessage);
+      }, 100);
+
+      if (typeof window !== "undefined") {
+        // Clean up URL without triggering re-renders
+        const cleanUrl = new URL(window.location.href);
+        if (
+          cleanUrl.searchParams.has("error") ||
+          cleanUrl.searchParams.has("error_description") ||
+          cleanUrl.searchParams.has("googleError")
+        ) {
+          cleanUrl.searchParams.delete("error");
+          cleanUrl.searchParams.delete("error_description");
+          cleanUrl.searchParams.delete("googleError");
+          window.history.replaceState({}, "", cleanUrl.toString());
+        }
+      }
     }
-  }, [search.googleError, navigate]);
+  }, [search]);
 
   const handleTabChange = (value: string) => {
     void navigate({

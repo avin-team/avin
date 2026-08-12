@@ -8,6 +8,7 @@ import {
   APIError,
   createAuthMiddleware,
   getAuthoritativeSessionFromCtx,
+  getOAuthState,
 } from "better-auth/api";
 import { admin, twoFactor } from "better-auth/plugins";
 import { Resend } from "resend";
@@ -46,16 +47,24 @@ export const createAuth = (surface: AuthSurface = "storefront") => {
     databaseHooks: {
       user: {
         create: {
-          before: (data) => {
-            // Preserve the role sent from the client during sign-up.
-            // The admin plugin would otherwise reset it to defaultRole (BUYER).
-            // We only allow known marketplace roles.
+          before: async (data) => {
+            // For Google (OAuth) sign-up: the client passes the intended role
+            // via additionalData which is stored in the OAuth state.
+            // The admin plugin defaults to BUYER, so we override here
+            // for users who chose SELLER during registration.
+            let oauthState: Awaited<ReturnType<typeof getOAuthState>> = null;
+            try {
+              oauthState = await getOAuthState();
+            } catch {
+              // Not an OAuth flow (e.g. email sign-up) — ignore
+            }
+            const intendedRole =
+              typeof oauthState?.role === "string" ? oauthState.role : null;
             const allowedRoles = Object.values(ACCOUNT_ROLE) as string[];
-            const requestedRole =
-              typeof data.role === "string" && allowedRoles.includes(data.role)
-                ? data.role
-                : ACCOUNT_ROLE.BUYER;
-            return { data: { ...data, role: requestedRole } };
+            if (intendedRole && allowedRoles.includes(intendedRole)) {
+              return { data: { ...data, role: intendedRole } };
+            }
+            return { data };
           },
         },
       },
@@ -113,6 +122,28 @@ export const createAuth = (surface: AuthSurface = "storefront") => {
         });
       }),
       before: createAuthMiddleware(async (context) => {
+        // Preserve the client-sent role during email sign-up.
+        // The admin plugin defaults every new user to BUYER; we override
+        // that by re-injecting the validated role into the request body
+        // so the admin plugin picks it up correctly.
+        if (context.path === "/sign-up/email") {
+          const allowedRoles = Object.values(ACCOUNT_ROLE) as string[];
+          const bodyRole =
+            typeof context.body?.role === "string" ? context.body.role : null;
+          if (bodyRole && allowedRoles.includes(bodyRole)) {
+            return {
+              context: {
+                ...context,
+                body: {
+                  ...context.body,
+                  role: bodyRole,
+                },
+              },
+            };
+          }
+        }
+
+        // Admin 2FA enforcement
         const { request } = context;
         if (!context.path.startsWith("/admin/") || !request) {
           return;
@@ -138,6 +169,9 @@ export const createAuth = (surface: AuthSurface = "storefront") => {
         });
       }),
     },
+    onAPIError: {
+      errorURL: `${env.CORS_ORIGIN[0] ?? env.BETTER_AUTH_URL}/login`,
+    },
     plugins: [
       admin({
         ac: marketplaceAccessControl,
@@ -154,6 +188,11 @@ export const createAuth = (surface: AuthSurface = "storefront") => {
       google: {
         clientId: env.GOOGLE_CLIENT_ID,
         clientSecret: env.GOOGLE_CLIENT_SECRET,
+        // Prevent Google sign-in from silently creating accounts.
+        // The client must explicitly pass requestSignUp: true to allow
+        // new user creation (sign-up mode). Sign-in mode omits it,
+        // so unregistered users get an error instead of a new account.
+        disableImplicitSignUp: true,
         prompt: "select_account",
       },
     },

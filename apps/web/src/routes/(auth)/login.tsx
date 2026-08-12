@@ -4,6 +4,8 @@ import { z } from "zod";
 import { AuthPage } from "@/features/auth/pages/auth-page";
 
 const authSearchSchema = z.object({
+  error: z.string().optional(),
+  error_description: z.string().optional(),
   googleError: z.enum(["not_registered"]).optional(),
   mode: z.enum(["sign-in", "sign-up"]).optional(),
   role: z.enum(["buyer", "seller"]).optional(),
