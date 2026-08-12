@@ -1,17 +1,11 @@
-import { Badge } from "@avin/ui/components/badge";
-import {
-  WarningCircleIcon,
-  ArrowLeftIcon,
-  PackageIcon,
-  StarIcon,
-  StorefrontIcon,
-} from "@phosphor-icons/react";
+import { ArrowLeftIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "@tanstack/react-router";
 
 import { Shell } from "@/components/shell";
-import { formatVND } from "@/utils/format";
 import { orpc } from "@/utils/orpc";
+
+import { StorefrontView } from "../components/storefront-view";
 
 export const PublicStorePage = () => {
   const { slug } = useParams({ from: "/(public)/store/$slug" });
@@ -63,140 +57,13 @@ export const PublicStorePage = () => {
 
   return (
     <Shell variant="default">
-      <div className="space-y-8 py-8">
-        <Link
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
-          to="/category"
-        >
-          <ArrowLeftIcon className="size-4" />
-          Dịch vụ
-        </Link>
-
-        <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
-          <div className="relative h-48 overflow-hidden bg-linear-to-br from-primary/30 via-primary/10 to-muted sm:h-56">
-            {profile.bannerUrl ? (
-              <img
-                alt={`Ảnh bìa ${profile.storefrontName}`}
-                className="size-full object-cover"
-                loading="lazy"
-                src={profile.bannerUrl}
-              />
-            ) : null}
-            <div className="absolute inset-0 bg-linear-to-t from-black/45 to-transparent" />
-          </div>
-          <div className="relative px-6 pb-6 sm:px-8">
-            <div className="-mt-12 flex size-24 items-center justify-center overflow-hidden rounded-3xl border-4 border-card bg-primary text-primary-foreground shadow-lg">
-              {profile.avatarUrl ? (
-                <img
-                  alt={`Ảnh đại diện ${profile.storefrontName}`}
-                  className="size-full object-cover"
-                  loading="lazy"
-                  src={profile.avatarUrl}
-                />
-              ) : (
-                <StorefrontIcon className="size-10" />
-              )}
-            </div>
-            <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
-                  {profile.storefrontName}
-                </h1>
-                <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                  <span>/{profile.storeSlug}</span>
-                  <span>•</span>
-                  <span>
-                    Tham gia{" "}
-                    {new Date(profile.createdAt).toLocaleDateString("vi-VN", {
-                      month: "long",
-                      year: "numeric",
-                    })}
-                  </span>
-                  <span>•</span>
-                  <span className="flex items-center gap-1 font-semibold text-amber-500">
-                    <StarIcon className="size-3.5 fill-amber-500" />
-                    <span>
-                      {Number(profile.ratingScore) > 0
-                        ? `${Number(profile.ratingScore).toFixed(1)} (${profile.ratingCount} đánh giá)`
-                        : "Chưa có đánh giá"}
-                    </span>
-                  </span>
-                  <span>•</span>
-                  <span className="font-semibold text-foreground">
-                    {profile.completedOrderCount} đơn đã hoàn thành
-                  </span>
-                </div>
-                <p className="mt-4 max-w-2xl whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
-                  {profile.bio}
-                </p>
-              </div>
-              <Badge variant="outline">Gian hàng công khai</Badge>
-            </div>
-          </div>
-        </section>
-
-        <section className="space-y-4">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-bold">Sản phẩm</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {hasMore
-                  ? `Hiển thị ${listings.length} sản phẩm đầu tiên`
-                  : `${listings.length} sản phẩm đang được giới thiệu`}
-              </p>
-            </div>
-          </div>
-
-          {listings.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center">
-              <PackageIcon className="mx-auto size-10 text-muted-foreground" />
-              <h3 className="mt-4 font-semibold">Chưa có sản phẩm</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Gian hàng đã public và sẽ hiển thị sản phẩm tại đây khi có sản
-                phẩm phù hợp.
-              </p>
-            </div>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {listings.map((listing) => (
-                <Link
-                  className="group overflow-hidden rounded-2xl border border-border bg-card transition-shadow hover:shadow-lg"
-                  key={listing.id}
-                  params={{ id: listing.slug }}
-                  to="/listing/$id"
-                >
-                  <div className="aspect-video overflow-hidden bg-muted">
-                    {listing.thumbnailUrl ? (
-                      <img
-                        alt={listing.title ?? "Ảnh sản phẩm"}
-                        className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        loading="lazy"
-                        src={listing.thumbnailUrl}
-                      />
-                    ) : (
-                      <div className="flex size-full items-center justify-center bg-linear-to-br from-primary/10 to-muted">
-                        <PackageIcon className="size-10 text-primary/50" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="space-y-3 p-4">
-                    <Badge variant="secondary">
-                      {listing.type === "COURSE"
-                        ? "Khóa học online"
-                        : "Dịch vụ số"}
-                    </Badge>
-                    <h3 className="line-clamp-2 font-semibold transition-colors group-hover:text-primary">
-                      {listing.title ?? "Sản phẩm chưa đặt tên"}
-                    </h3>
-                    <p className="text-lg font-bold text-primary">
-                      {formatVND(listing.priceAmount ?? 0)}
-                    </p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </section>
+      <div className="py-8">
+        <StorefrontView
+          hasMore={hasMore}
+          listings={listings}
+          profile={profile}
+          showBackLink
+        />
       </div>
     </Shell>
   );

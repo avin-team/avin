@@ -278,44 +278,38 @@ export const StorefrontPreviewCard = ({
 }: StorefrontPreviewCardProps) => (
   <Card>
     <CardContent>
-      <div className="overflow-hidden rounded-xl border border-border">
-        <div className="relative flex h-28 items-center justify-center overflow-hidden bg-linear-to-br from-primary/30 via-primary/10 to-muted text-sm font-bold tracking-wide">
+      <div className="overflow-hidden rounded-2xl border border-border bg-card">
+        <div className="relative h-28 overflow-hidden bg-linear-to-br from-primary/30 via-primary/10 to-muted">
           {bannerUrl ? (
             <img
               alt="Banner gian hàng"
-              className="absolute inset-0 size-full object-cover"
+              className="size-full object-cover"
               src={bannerUrl}
             />
           ) : null}
-          <span className="relative px-4 text-center">
-            {name || "TÊN GIAN HÀNG"}
-          </span>
+          <div className="absolute inset-0 bg-linear-to-t from-black/40 to-transparent" />
         </div>
-        <div className="p-4">
-          <div className="-mt-10 flex size-14 items-center justify-center rounded-2xl border-4 border-card bg-primary text-primary-foreground">
+        <div className="relative p-4 pt-0">
+          <div className="-mt-7 flex size-14 items-center justify-center overflow-hidden rounded-2xl border-4 border-card bg-primary text-primary-foreground shadow-sm">
             {avatarUrl ? (
               <img
                 alt="Ảnh đại diện gian hàng"
-                className="size-full rounded-xl object-cover"
+                className="size-full object-cover"
                 src={avatarUrl}
               />
             ) : (
-              <StorefrontIcon className="size-6" data-icon="inline-start" />
+              <StorefrontIcon className="size-6" />
             )}
           </div>
-          <p className="mt-3 font-semibold">
+          <p className="mt-3 font-bold tracking-tight">
             {name || "Tên gian hàng của bạn"}
           </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {description || "Mô tả gian hàng sẽ hiển thị ở đây."}
-          </p>
-          <p className="mt-2 truncate text-[11px] text-muted-foreground">
+          <p className="mt-0.5 truncate text-xs font-medium text-muted-foreground">
             /{slug || "duong-dan-gian-hang"}
           </p>
-          <div className="mt-4 grid grid-cols-2 gap-2 text-center text-[11px] text-muted-foreground">
-            <div className="rounded-lg bg-muted/50 p-2">Hồ sơ gian hàng</div>
-            <div className="rounded-lg bg-muted/50 p-2">Bản xem trước</div>
-          </div>
+          <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
+            {description || "Mô tả gian hàng sẽ hiển thị ở đây."}
+          </p>
         </div>
       </div>
     </CardContent>
