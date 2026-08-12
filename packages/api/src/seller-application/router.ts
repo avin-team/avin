@@ -194,30 +194,42 @@ export const sellerApplicationRouter = {
       } as const;
 
       try {
-        const [app] = await context.db
-          .select()
+        const [record] = await context.db
+          .select({
+            app: sellerApplication,
+            profile: sellerProfile,
+          })
           .from(sellerApplication)
+          .leftJoin(
+            sellerProfile,
+            eq(sellerApplication.sellerProfileId, sellerProfile.id)
+          )
           .where(eq(sellerApplication.id, input.id))
           .limit(1);
 
-        if (!app) {
+        if (!record) {
           throw new ORPCError("NOT_FOUND", {
             message: "Hồ sơ đăng ký người bán không tồn tại",
           });
         }
 
+        const { app, profile } = record;
+        const storefrontName = profile?.storefrontName ?? app.storefrontName;
+        const phone = profile?.phone ?? app.phone;
+        const bankAccount = profile?.bankAccount ?? app.bankAccount;
+
         await context.audit.record({ ...auditEvent, outcome: "SUCCESS" });
         return {
           applicantName: app.applicantName,
-          bankAccount: app.bankAccount,
+          bankAccount,
           email: app.email,
           id: app.id,
-          phone: app.phone,
+          phone,
           reviewReason: app.reviewReason ?? undefined,
           revisionCount: app.revisionCount,
           sellerAgreementVersion: app.sellerAgreementVersion,
           status: app.status,
-          storefrontName: app.storefrontName,
+          storefrontName,
           submittedAt: app.createdAt.toISOString(),
         };
       } catch (error) {
@@ -233,22 +245,34 @@ export const sellerApplicationRouter = {
         input?.status && input.status !== "ALL" ? input.status : undefined;
       const searchQuery = input?.search?.trim().toLowerCase();
 
-      const apps = await context.db
-        .select()
+      const rows = await context.db
+        .select({
+          app: sellerApplication,
+          profile: sellerProfile,
+        })
         .from(sellerApplication)
+        .leftJoin(
+          sellerProfile,
+          eq(sellerApplication.sellerProfileId, sellerProfile.id)
+        )
         .orderBy(desc(sellerApplication.createdAt));
 
       const result = [];
-      for (const app of apps) {
+      for (const { app, profile } of rows) {
         if (statusFilter && app.status !== statusFilter) {
           continue;
         }
+
+        const storefrontName = profile?.storefrontName ?? app.storefrontName;
+        const phone = profile?.phone ?? app.phone;
+        const bankAccount = profile?.bankAccount ?? app.bankAccount;
+
         if (searchQuery && searchQuery.length > 0) {
           const matches = [
             app.applicantName,
             app.email,
-            app.storefrontName,
-            app.phone,
+            storefrontName,
+            phone,
           ].some((field) => field.toLowerCase().includes(searchQuery));
           if (!matches) {
             continue;
@@ -256,15 +280,15 @@ export const sellerApplicationRouter = {
         }
         result.push({
           applicantName: app.applicantName,
-          bankAccount: maskBankAccount(app.bankAccount),
+          bankAccount: maskBankAccount(bankAccount),
           email: app.email,
           id: app.id,
-          phone: app.phone,
+          phone,
           reviewReason: app.reviewReason ?? undefined,
           revisionCount: app.revisionCount,
           sellerAgreementVersion: app.sellerAgreementVersion,
           status: app.status,
-          storefrontName: app.storefrontName,
+          storefrontName,
           submittedAt: app.createdAt.toISOString(),
         });
       }
@@ -461,6 +485,7 @@ export const sellerApplicationRouter = {
 
       const existingProfile = await findSellerProfile(context.db, userId);
 
+      let profileResult;
       if (existingProfile) {
         const [updated] = await context.db
           .update(sellerProfile)
@@ -478,30 +503,45 @@ export const sellerApplicationRouter = {
 
         await isStoreSlugLocked(context.db, updated ?? null);
 
-        return updated;
+        profileResult = updated;
+      } else {
+        const storeSlug = await createAvailableStoreSlug(
+          context.db,
+          input.storefrontName
+        );
+        const [created] = await context.db
+          .insert(sellerProfile)
+          .values({
+            avatarUrl: input.avatarUrl,
+            bankAccount: input.bankAccount,
+            bio: input.bio,
+            phone: input.phone,
+            phoneVerified: Boolean(input.phone),
+            storeSlug,
+            storefrontName: input.storefrontName,
+            userId,
+          })
+          .returning();
+
+        await isStoreSlugLocked(context.db, created ?? null);
+
+        profileResult = created;
       }
 
-      const storeSlug = await createAvailableStoreSlug(
-        context.db,
-        input.storefrontName
-      );
-      const [created] = await context.db
-        .insert(sellerProfile)
-        .values({
-          avatarUrl: input.avatarUrl,
-          bankAccount: input.bankAccount,
-          bio: input.bio,
-          phone: input.phone,
-          phoneVerified: Boolean(input.phone),
-          storeSlug,
-          storefrontName: input.storefrontName,
-          userId,
-        })
-        .returning();
+      const latestApp = await findLatestSellerApplication(context.db, userId);
+      if (latestApp) {
+        await context.db
+          .update(sellerApplication)
+          .set({
+            bankAccount: input.bankAccount ?? latestApp.bankAccount,
+            phone: input.phone ?? latestApp.phone,
+            storefrontName: input.storefrontName,
+            updatedAt: new Date(),
+          })
+          .where(eq(sellerApplication.id, latestApp.id));
+      }
 
-      await isStoreSlugLocked(context.db, created ?? null);
-
-      return created;
+      return profileResult;
     }),
 
   verifyPhoneOtp: protectedProcedure

@@ -115,6 +115,7 @@ export const SellerLogoUploader = ({
   const isDisabled = disabled || upload.isPending;
   const dropzoneProps = {
     accept: ACCEPTED_IMAGE_TYPES,
+    browseHelperText: "",
     disabled,
     error: errorMessage,
     inputLabel: "Chọn logo gian hàng",

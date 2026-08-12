@@ -19,6 +19,7 @@ import {
   useNotifications,
   useNotificationUnreadCount,
 } from "../api/notifications-api";
+import { formatNotificationText, formatNotificationTitle } from "../utils";
 
 const RECENT_NOTIFICATION_LIMIT = 3;
 
@@ -126,14 +127,14 @@ export const NotificationButton = () => {
             >
               <div className="flex items-center gap-2">
                 <p className="min-w-0 flex-1 truncate text-sm font-semibold">
-                  {notification.title}
+                  {formatNotificationTitle(notification.title)}
                 </p>
                 {notification.readAt ? null : (
                   <span className="size-2 shrink-0 rounded-full bg-primary" />
                 )}
               </div>
               <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                {notification.body}
+                {formatNotificationText(notification.body)}
               </p>
             </a>
           ))}
