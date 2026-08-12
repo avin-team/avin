@@ -48,14 +48,16 @@ export const SignInForm = ({ expectedRole, redirectTo }: SignInFormProps) => {
         }
 
         toast.success("Đăng nhập thành công.");
+        const hasSeenSellerOnboarding =
+          "hasSeenSellerOnboarding" in result.data.user &&
+          typeof result.data.user.hasSeenSellerOnboarding === "boolean"
+            ? result.data.user.hasSeenSellerOnboarding
+            : undefined;
+
         await navigate({
           to:
             redirectTo ??
-            getPostAuthRoute(
-              result.data.user.role,
-              (result.data.user as { hasSeenSellerOnboarding?: boolean })
-                .hasSeenSellerOnboarding
-            ),
+            getPostAuthRoute(result.data.user.role, hasSeenSellerOnboarding),
         });
       } catch {
         toast.error("Không thể kết nối đến máy chủ. Vui lòng thử lại.");
