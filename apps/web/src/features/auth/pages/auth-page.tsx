@@ -118,9 +118,9 @@ export const AuthPage = () => {
             </TabsList>
             <TabsContent value="sign-in">
               <div className="flex flex-col gap-6 animate-in fade-in duration-300">
-                <SignInForm />
-                <AuthDivider>HOẶC</AuthDivider>
                 <GoogleSignInButton />
+                <AuthDivider>HOẶC</AuthDivider>
+                <SignInForm />
               </div>
             </TabsContent>
             <TabsContent value="sign-up">
@@ -147,9 +147,9 @@ export const AuthPage = () => {
                     </Button>
                   </div>
 
-                  <SignUpForm role={selectedRole} />
-                  <AuthDivider>HOẶC</AuthDivider>
                   <GoogleSignInButton role={selectedRole} />
+                  <AuthDivider>HOẶC</AuthDivider>
+                  <SignUpForm role={selectedRole} />
                 </div>
               )}
             </TabsContent>

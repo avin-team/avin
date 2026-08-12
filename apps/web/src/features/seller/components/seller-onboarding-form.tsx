@@ -76,6 +76,7 @@ interface SellerProfileData {
 
 interface SellerApplicationData {
   createdAt: string | Date;
+  id?: string;
   reviewReason?: string | null;
   revisionCount: number;
   status: SellerApplicationStatus | string;
