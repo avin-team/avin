@@ -19,7 +19,7 @@ import {
   publicProcedure,
 } from "../access/procedures";
 import { createNotificationEvent } from "../notifications/notification";
-import type { CommerceExecutor } from "./cart";
+import type { CommerceExecutor } from "./executor";
 import {
   calculateStarDistribution,
   canReviewOrderItem,

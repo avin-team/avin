@@ -9,7 +9,7 @@ import type {
 import { sellerProfile } from "@avin/db/schema/seller";
 import { asc, eq, inArray } from "drizzle-orm";
 
-import type { CommerceExecutor } from "./cart";
+import type { CommerceExecutor } from "./executor";
 
 export type { OrderItemStatus } from "@avin/db/schema/commerce";
 

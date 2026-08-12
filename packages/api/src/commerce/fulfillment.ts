@@ -18,14 +18,12 @@ import type {
   WarrantyPolicySnapshot,
 } from "@avin/db/schema/commerce";
 import { sellerEnforcement } from "@avin/db/schema/seller-enforcement";
-import { userWallet } from "@avin/db/schema/wallet";
 import { ORPCError } from "@orpc/server";
 import {
   and,
   asc,
   desc,
   eq,
-  gte,
   inArray,
   isNotNull,
   isNull,
@@ -49,18 +47,14 @@ import {
 } from "../runtime/storage";
 import type { ManagedObjectStore } from "../runtime/storage";
 import { isSellerEnforcementActive } from "../seller-enforcement/policy";
-import { recordBalancedLedgerTransaction } from "../wallet/ledger";
-import {
-  ensureSellerWalletAccounts,
-  ensureWalletAccounts,
-} from "../wallet/service";
-import type { CommerceExecutor } from "./cart";
-import { calculateEscrowReleaseAmounts } from "./commission";
 import {
   disputeEvidenceListSchema,
   getDisputeResponseDeadline,
 } from "./dispute-contracts";
 import type { DisputeEvidenceInput } from "./dispute-contracts";
+import { resolveEscrowHold } from "./escrow-resolution";
+import type { EscrowResolutionContext } from "./escrow-resolution";
+import type { CommerceExecutor } from "./executor";
 import { decideOrderItemTransition } from "./fulfillment-state";
 import type {
   OrderItemTransitionCommand,
@@ -88,7 +82,6 @@ const MAX_DUE_DELIVERY_REVIEWS = 100;
 const MAX_DUE_WARRANTY_EXPIRIES = 100;
 const REASON_MAX_LENGTH = 5000;
 const STORAGE_KEY_MAX_LENGTH = 512;
-const TRANSACTION_REFERENCE_SUFFIX_LENGTH = 12;
 
 const commandKeySchema = z.string().trim().min(1).max(COMMAND_KEY_MAX_LENGTH);
 
@@ -168,18 +161,6 @@ export interface OrderItemContext {
   warrantyPolicy: WarrantyPolicySnapshot;
   warrantyStartedAt: Date | null;
 }
-
-export type EscrowResolutionContext = Pick<
-  OrderItemContext,
-  | "buyerId"
-  | "commissionRatePercent"
-  | "escrowAmount"
-  | "escrowHoldId"
-  | "escrowHoldStatus"
-  | "id"
-  | "orderId"
-  | "sellerId"
->;
 
 interface ExistingLifecycleEvent {
   artifactId: string | null;
@@ -888,231 +869,6 @@ const insertNotifications = async (
   });
 };
 
-export const refundEscrow = async (
-  executor: FulfillmentExecutor,
-  item: EscrowResolutionContext,
-  now: Date
-): Promise<string> => {
-  if (item.escrowHoldStatus !== "HELD") {
-    throwConflict("EscrowHold không còn ở trạng thái HELD.");
-  }
-
-  const accounts = await ensureWalletAccounts(executor, item.buyerId);
-  const [wallet] = await executor
-    .select()
-    .from(userWallet)
-    .where(eq(userWallet.id, accounts.wallet.id))
-    .for("update")
-    .limit(1);
-  if (!wallet || wallet.heldBalance < item.escrowAmount) {
-    return throwConflict("Held Balance của Buyer không đủ để hoàn tiền.");
-  }
-
-  const [refundTransaction] = await Promise.all([
-    recordBalancedLedgerTransaction(executor, {
-      amount: item.escrowAmount,
-      description: `REFUND ORDER_ITEM ${item.id}`,
-      postings: [
-        {
-          accountId: accounts.heldAccount.id,
-          debitAmount: item.escrowAmount,
-        },
-        {
-          accountId: accounts.availableAccount.id,
-          creditAmount: item.escrowAmount,
-        },
-      ],
-      reference: `AVTX-REFUND-${item.id}-${crypto
-        .randomUUID()
-        .replaceAll("-", "")
-        .slice(0, TRANSACTION_REFERENCE_SUFFIX_LENGTH)
-        .toUpperCase()}`,
-      type: "REFUND",
-    }),
-    (async () => {
-      const [walletAfterUpdate] = await executor
-        .update(userWallet)
-        .set({
-          availableBalance: wallet.availableBalance + item.escrowAmount,
-          heldBalance: wallet.heldBalance - item.escrowAmount,
-          updatedAt: now,
-        })
-        .where(
-          and(
-            eq(userWallet.id, accounts.wallet.id),
-            gte(userWallet.heldBalance, item.escrowAmount)
-          )
-        )
-        .returning({
-          availableBalance: userWallet.availableBalance,
-          heldBalance: userWallet.heldBalance,
-        });
-      if (!walletAfterUpdate) {
-        throwConflict("Số dư Buyer vừa thay đổi. Vui lòng thử lại.");
-      }
-      return walletAfterUpdate;
-    })(),
-    (async () => {
-      const [updatedHold] = await executor
-        .update(escrowHold)
-        .set({ status: "REFUNDED", updatedAt: now })
-        .where(
-          and(
-            eq(escrowHold.id, item.escrowHoldId),
-            eq(escrowHold.status, "HELD")
-          )
-        )
-        .returning({ id: escrowHold.id });
-      if (!updatedHold) {
-        throwConflict("EscrowHold vừa được xử lý bởi một request khác.");
-      }
-      return updatedHold;
-    })(),
-  ]);
-
-  await createNotificationEvent(executor, {
-    body: `Khoản hoàn tiền ${item.escrowAmount.toLocaleString("vi-VN")} VND đã được ghi có vào ví của bạn.`,
-    context: {
-      amount: item.escrowAmount,
-      orderItemId: item.id,
-      transactionId: refundTransaction.id,
-    },
-    email: {
-      htmlBody: `<p>Khoản hoàn tiền ${item.escrowAmount.toLocaleString("vi-VN")} VND đã được ghi có vào ví của bạn.</p>`,
-      recipientUserIds: [item.buyerId],
-      subject: "Avin: Hoàn tiền thành công",
-      textBody: `Khoản hoàn tiền ${item.escrowAmount.toLocaleString("vi-VN")} VND đã được ghi có vào ví của bạn.`,
-    },
-    eventType: "transaction.refund_committed",
-    recipients: [
-      { targetPath: `/orders/${item.orderId}`, userId: item.buyerId },
-      ...(await listNotificationRecipientsByRole(executor, {
-        role: "ADMIN",
-        targetPath: "/disputes",
-      })),
-    ],
-    sourceId: refundTransaction.id,
-    sourceType: "LEDGER_TRANSACTION",
-    title: "Hoàn tiền thành công",
-  });
-
-  return refundTransaction.id;
-};
-
-export const releaseEscrow = async (
-  executor: FulfillmentExecutor,
-  item: EscrowResolutionContext,
-  now: Date
-): Promise<string> => {
-  if (item.escrowHoldStatus !== "HELD") {
-    throwConflict("EscrowHold không còn ở trạng thái HELD.");
-  }
-
-  const buyerAccounts = await ensureWalletAccounts(executor, item.buyerId);
-  const sellerAccounts = await ensureSellerWalletAccounts(
-    executor,
-    item.sellerId
-  );
-  const [buyerWallet] = await executor
-    .select()
-    .from(userWallet)
-    .where(eq(userWallet.id, buyerAccounts.wallet.id))
-    .for("update")
-    .limit(1);
-  if (!buyerWallet || buyerWallet.heldBalance < item.escrowAmount) {
-    throw new ORPCError("CONFLICT", {
-      message: "Held Balance của Buyer không đủ để giải ngân.",
-    });
-  }
-
-  const commissionRatePercent = Number(item.commissionRatePercent);
-  if (
-    !Number.isFinite(commissionRatePercent) ||
-    commissionRatePercent < 0 ||
-    commissionRatePercent > 100
-  ) {
-    throw new ORPCError("CONFLICT", {
-      message: "Commission rate của OrderItem không hợp lệ.",
-    });
-  }
-  const { commissionAmount, sellerProceeds } = calculateEscrowReleaseAmounts(
-    item.escrowAmount,
-    commissionRatePercent
-  );
-
-  const [releaseTransaction] = await Promise.all([
-    recordBalancedLedgerTransaction(executor, {
-      amount: item.escrowAmount,
-      description: `RELEASE ORDER_ITEM ${item.id}`,
-      postings: [
-        {
-          accountId: buyerAccounts.heldAccount.id,
-          debitAmount: item.escrowAmount,
-        },
-        ...(sellerProceeds > 0
-          ? [
-              {
-                accountId: sellerAccounts.availableAccount.id,
-                creditAmount: sellerProceeds,
-              },
-            ]
-          : []),
-        ...(commissionAmount > 0
-          ? [
-              {
-                accountId: sellerAccounts.platformCommissionAccount.id,
-                creditAmount: commissionAmount,
-              },
-            ]
-          : []),
-      ],
-      reference: `AVTX-RELEASE-${item.id}-${crypto
-        .randomUUID()
-        .replaceAll("-", "")
-        .slice(0, TRANSACTION_REFERENCE_SUFFIX_LENGTH)
-        .toUpperCase()}`,
-      type: "ESCROW_RELEASE",
-    }),
-    (async () => {
-      const [walletAfterUpdate] = await executor
-        .update(userWallet)
-        .set({
-          heldBalance: buyerWallet.heldBalance - item.escrowAmount,
-          updatedAt: now,
-        })
-        .where(
-          and(
-            eq(userWallet.id, buyerAccounts.wallet.id),
-            gte(userWallet.heldBalance, item.escrowAmount)
-          )
-        )
-        .returning({ heldBalance: userWallet.heldBalance });
-      if (!walletAfterUpdate) {
-        throwConflict("Held Balance của Buyer vừa thay đổi. Vui lòng thử lại.");
-      }
-      return walletAfterUpdate;
-    })(),
-    (async () => {
-      const [updatedHold] = await executor
-        .update(escrowHold)
-        .set({ status: "RELEASED", updatedAt: now })
-        .where(
-          and(
-            eq(escrowHold.id, item.escrowHoldId),
-            eq(escrowHold.status, "HELD")
-          )
-        )
-        .returning({ id: escrowHold.id });
-      if (!updatedHold) {
-        throwConflict("EscrowHold vừa được xử lý bởi một request khác.");
-      }
-      return updatedHold;
-    })(),
-  ]);
-
-  return releaseTransaction.id;
-};
-
 const applyItemUpdate = async (
   executor: FulfillmentExecutor,
   item: OrderItemContext,
@@ -1261,6 +1017,19 @@ interface TransitionArtifact {
   artifactType: string | null;
 }
 
+const toEscrowResolutionContext = (
+  item: OrderItemContext
+): EscrowResolutionContext => ({
+  buyerId: item.buyerId,
+  commissionRatePercent: item.commissionRatePercent,
+  escrowAmount: item.escrowAmount,
+  escrowHoldId: item.escrowHoldId,
+  escrowHoldStatus: item.escrowHoldStatus,
+  orderId: item.orderId,
+  orderItemId: item.id,
+  sellerId: item.sellerId,
+});
+
 const createTransitionArtifact = async ({
   actorId,
   command,
@@ -1316,12 +1085,22 @@ const createTransitionArtifact = async ({
     command.type === "CANCEL_BY_SELLER" ||
     command.type === "CANCEL_BY_SYSTEM"
   ) {
-    const artifactId = await refundEscrow(executor, item, now);
+    const artifactId = await resolveEscrowHold({
+      executor,
+      item: toEscrowResolutionContext(item),
+      now,
+      outcome: "REFUND",
+    });
     return { artifactId, artifactType: "REFUND_TRANSACTION" };
   }
 
   if (transition.newStatus === "CLOSED") {
-    const artifactId = await releaseEscrow(executor, item, now);
+    const artifactId = await resolveEscrowHold({
+      executor,
+      item: toEscrowResolutionContext(item),
+      now,
+      outcome: "RELEASE",
+    });
     await incrementCompletedOrderCounts(executor, {
       listingId: item.listingId,
       sellerId: item.sellerId,

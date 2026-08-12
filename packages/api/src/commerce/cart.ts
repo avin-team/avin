@@ -18,6 +18,7 @@ import { isListingPubliclyAvailable } from "../listing/listing-discovery";
 import { selectAvailableServicePackage } from "../listing/service-packages";
 import { isSellerEnforcementActive } from "../seller-enforcement/policy";
 import { parseListingContract, parseServicePackageContract } from "./contracts";
+import type { CommerceExecutor } from "./executor";
 
 export interface CartPackageView {
   description: string;
@@ -28,11 +29,6 @@ export interface CartPackageView {
   status: "AVAILABLE" | "UNAVAILABLE";
   warrantyPolicy: WarrantyPolicy;
 }
-
-export type CommerceExecutor = Pick<
-  typeof db,
-  "delete" | "insert" | "select" | "update"
->;
 
 export interface CartItemView {
   available: boolean;

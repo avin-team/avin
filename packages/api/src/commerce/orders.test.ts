@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { CommerceExecutor } from "./cart";
+import type { CommerceExecutor } from "./executor";
 import { getBuyerOrders } from "./orders";
 
 describe("getBuyerOrders", () => {

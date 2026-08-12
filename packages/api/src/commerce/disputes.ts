@@ -42,7 +42,6 @@ import {
   DISPUTE_EVIDENCE_MAX_COUNT,
   isDisputeEvidenceKey,
 } from "../runtime/storage";
-import type { CommerceExecutor } from "./cart";
 import { ORDER_MESSAGE_MAX_LENGTH } from "./chat";
 import {
   DISPUTE_ADMIN_SLA_HOURS,
@@ -54,8 +53,9 @@ import {
   cancelDisputeDecision,
   resolveDisputeDecision,
 } from "./dispute-workflow";
-import { refundEscrow, releaseEscrow } from "./fulfillment";
-import type { EscrowResolutionContext } from "./fulfillment";
+import { resolveEscrowHold } from "./escrow-resolution";
+import type { EscrowResolutionContext } from "./escrow-resolution";
+import type { CommerceExecutor } from "./executor";
 import { incrementCompletedOrderCounts } from "./review";
 
 const REASON_MAX_LENGTH = 5000;
@@ -1001,8 +1001,8 @@ const toEscrowResolutionContext = (
   escrowAmount: row.escrowAmount,
   escrowHoldId: row.escrowHoldId,
   escrowHoldStatus: row.escrowHoldStatus,
-  id: row.itemId,
   orderId: row.orderId,
+  orderItemId: row.itemId,
   sellerId: row.sellerId,
 });
 
@@ -1088,10 +1088,12 @@ export const resolveDispute = ({
       }
       throw error;
     }
-    const transactionId =
-      decision.escrowHoldStatus === "REFUNDED"
-        ? await refundEscrow(transaction, toEscrowResolutionContext(row), now)
-        : await releaseEscrow(transaction, toEscrowResolutionContext(row), now);
+    const transactionId = await resolveEscrowHold({
+      executor: transaction,
+      item: toEscrowResolutionContext(row),
+      now,
+      outcome: decision.escrowHoldStatus === "REFUNDED" ? "REFUND" : "RELEASE",
+    });
 
     if (adminMessage?.trim()) {
       await transaction.insert(orderMessage).values({

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { CommerceExecutor } from "./cart";
 import { getChatMessagesForOrders } from "./disputes";
+import type { CommerceExecutor } from "./executor";
 
 describe("getChatMessagesForOrders", () => {
   it("keeps image attachments on chat messages with no text", async () => {

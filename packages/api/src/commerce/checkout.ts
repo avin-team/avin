@@ -30,13 +30,13 @@ import { COMMERCE_IMAGE_MAX_COUNT } from "../runtime/storage";
 import { isSellerEnforcementActive } from "../seller-enforcement/policy";
 import { recordBalancedLedgerTransaction } from "../wallet/ledger";
 import { ensureWalletAccounts } from "../wallet/service";
-import type { CommerceExecutor } from "./cart";
 import type { CheckoutInput } from "./checkout-input";
 import {
   fingerprintCheckoutRequest,
   parseListingContract,
   parseServicePackageContract,
 } from "./contracts";
+import type { CommerceExecutor } from "./executor";
 
 export { checkoutInputSchema } from "./checkout-input";
 export type { CheckoutInput } from "./checkout-input";

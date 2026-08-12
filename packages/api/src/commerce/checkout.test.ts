@@ -8,9 +8,9 @@ import {
 } from "@avin/db/schema/commerce";
 import { describe, expect, it, vi } from "vitest";
 
-import type { CommerceExecutor } from "./cart";
 import { createCheckout, createOrdersAndEscrowHolds } from "./checkout";
 import { fingerprintCheckoutRequest } from "./contracts";
+import type { CommerceExecutor } from "./executor";
 
 const { createNotificationEvent } = vi.hoisted(() => ({
   createNotificationEvent: vi.fn(),
