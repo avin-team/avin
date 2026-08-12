@@ -14,16 +14,18 @@ vi.mock("@tanstack/react-router", () => ({
   ),
 }));
 
-vi.mock("@/features/seller-applications/api/mock-seller-applications", () => ({
-  useSellerApplications: () => [
-    {
-      applicantName: "Nguyen Van A",
-      id: "app-1",
-      status: "PENDING_REVIEW",
-      storefrontName: "Shop A",
-      submittedAt: "2026-08-10T10:00:00.000Z",
-    },
-  ],
+vi.mock("@/features/seller-applications/api/seller-applications-api", () => ({
+  useAdminSellerApplications: () => ({
+    data: [
+      {
+        applicantName: "Nguyen Van A",
+        id: "app-1",
+        status: "PENDING_REVIEW",
+        storefrontName: "Shop A",
+        submittedAt: "2026-08-10T10:00:00.000Z",
+      },
+    ],
+  }),
 }));
 
 vi.mock(
@@ -45,10 +47,28 @@ vi.mock("@/features/categories/workflow", () => ({
   countTotalSubCategories: () => 5,
 }));
 
-vi.mock("@/features/sellers/api/mock-sellers", () => ({
-  useSellers: () => [
-    { enforcementStatus: "SUSPENDED", id: "seller-1", name: "Shop B" },
-  ],
+vi.mock("@/features/sellers/api/seller-enforcement-api", () => ({
+  useAdminSellerList: () => ({
+    data: {
+      items: [
+        { enforcementStatus: "SUSPENDED", id: "seller-1", name: "Shop B" },
+      ],
+    },
+  }),
+}));
+
+vi.mock("@/features/operations/api/operations-api", () => ({
+  useOperationsOverviewAnalytics: () => ({
+    data: {
+      totalEscrowHold: 150_000_000,
+      totalPendingPayout: 45_000_000,
+      totalRevenue: 12_500_000,
+      trend: [
+        { date: "06/08", escrowHold: 18_500_000, revenue: 1_450_000 },
+        { date: "07/08", escrowHold: 22_000_000, revenue: 1_800_000 },
+      ],
+    },
+  }),
 }));
 
 vi.mock("@/features/disputes/api/disputes-api", () => ({
@@ -95,6 +115,10 @@ vi.mock("@avin/ui/components/chart", () => ({
   ),
   ChartTooltip: () => null,
   ChartTooltipContent: () => null,
+}));
+
+vi.mock("./escrow-revenue-chart", () => ({
+  EscrowRevenueChart: () => <div data-testid="escrow-revenue-chart" />,
 }));
 
 vi.mock("@/components/layout/header", () => ({

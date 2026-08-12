@@ -1,9 +1,14 @@
 import { db } from "@avin/db";
 import { auditLog } from "@avin/db/schema/auth";
 import { emailDelivery } from "@avin/db/schema/commerce";
-import { ledgerTransaction, sepayPaymentEvent } from "@avin/db/schema/wallet";
+import {
+  ledgerAccount,
+  ledgerTransaction,
+  sepayPaymentEvent,
+  withdrawalRequest,
+} from "@avin/db/schema/wallet";
 import { ORPCError } from "@orpc/server";
-import { and, desc, eq, lt, or } from "drizzle-orm";
+import { and, desc, eq, gte, lt, or } from "drizzle-orm";
 import type { AnyColumn } from "drizzle-orm";
 
 const DEFAULT_OPERATIONS_PAGE_SIZE = 25;
@@ -325,8 +330,91 @@ export const listEmailDeliveryHealth = async ({
       recipientUserId: row.recipientUserId,
       sourceId: row.sourceId,
       sourceType: row.sourceType,
-      status: row.status,
-      updatedAt: row.updatedAt.toISOString(),
-    })
+export interface OverviewAnalyticsView {
+  totalEscrowHold: number;
+  totalPendingPayout: number;
+  totalRevenue: number;
+  trend: Array<{
+    date: string;
+    escrowHold: number;
+    revenue: number;
+  }>;
+}
+
+export const getOverviewAnalytics = async ({
+  database = db,
+  timeframe = "7d",
+}: {
+  database?: typeof db;
+  timeframe?: "7d" | "30d";
+}): Promise<OverviewAnalyticsView> => {
+  const escrowAccounts = await database
+    .select({ balance: ledgerAccount.balanceAmount })
+    .from(ledgerAccount)
+    .where(eq(ledgerAccount.accountType, "ESCROW"));
+  const totalEscrowHold = escrowAccounts.reduce((sum, a) => sum + a.balance, 0);
+
+  const commissionAccounts = await database
+    .select({ balance: ledgerAccount.balanceAmount })
+    .from(ledgerAccount)
+    .where(eq(ledgerAccount.accountType, "PLATFORM_COMMISSION"));
+  const totalRevenue = commissionAccounts.reduce(
+    (sum, a) => sum + a.balance,
+    0
   );
+
+  const pendingWithdrawals = await database
+    .select({ amount: withdrawalRequest.amount })
+    .from(withdrawalRequest)
+    .where(eq(withdrawalRequest.status, "REQUESTED"));
+  const totalPendingPayout = pendingWithdrawals.reduce(
+    (sum, w) => sum + w.amount,
+    0
+  );
+
+  const daysCount = timeframe === "30d" ? 30 : 7;
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - (daysCount - 1));
+  startDate.setHours(0, 0, 0, 0);
+
+  const transactions = await database
+    .select()
+    .from(ledgerTransaction)
+    .where(gte(ledgerTransaction.createdAt, startDate));
+
+  const trendMap = new Map<string, { escrowHold: number; revenue: number }>();
+
+  for (let i = 0; i < daysCount; i++) {
+    const d = new Date(startDate);
+    d.setDate(d.getDate() + i);
+    const dateStr = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+    trendMap.set(dateStr, { escrowHold: 0, revenue: 0 });
+  }
+
+  for (const tx of transactions) {
+    const d = tx.createdAt;
+    const dateStr = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const entry = trendMap.get(dateStr);
+    if (entry) {
+      if (tx.type === "PURCHASE_HOLD") {
+        entry.escrowHold += tx.amount;
+      } else if (tx.type === "PLATFORM_COMMISSION") {
+        entry.revenue += tx.amount;
+      }
+    }
+  }
+
+  const trend = Array.from(trendMap.entries()).map(([date, values]) => ({
+    date,
+    escrowHold: values.escrowHold,
+    revenue: values.revenue,
+  }));
+
+  return {
+    totalEscrowHold,
+    totalPendingPayout,
+    totalRevenue,
+    trend,
+  };
 };
+

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { adminProcedure } from "../access/procedures";
 import { retryEmailDelivery } from "../notifications/email-delivery";
 import {
+  getOverviewAnalytics,
   listAuditLogs,
   listDepositReconciliation,
   listEmailDeliveryHealth,
@@ -35,6 +36,19 @@ export const operationsRouter = {
     )
     .handler(({ context, input }) =>
       listEmailDeliveryHealth({ database: context.db, input })
+    ),
+
+  overviewAnalytics: adminProcedure
+    .input(
+      z.object({
+        timeframe: z.enum(["7d", "30d"]).optional(),
+      })
+    )
+    .handler(({ context, input }) =>
+      getOverviewAnalytics({
+        database: context.db,
+        timeframe: input.timeframe,
+      })
     ),
 
   reconciliation: adminProcedure

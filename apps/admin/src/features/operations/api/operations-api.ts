@@ -69,6 +69,15 @@ export const useOperationsEmailDelivery = ({
     })
   );
 
+export const useOperationsOverviewAnalytics = (
+  timeframe: "7d" | "30d" = "7d"
+) =>
+  useQuery(
+    orpc.operations.overviewAnalytics.queryOptions({
+      input: { timeframe },
+    })
+  );
+
 export const useReconcileDeposit = () => {
   const queryClient = useQueryClient();
   return useMutation({

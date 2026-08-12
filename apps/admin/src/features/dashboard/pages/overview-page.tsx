@@ -8,12 +8,6 @@ import {
   CardTitle,
 } from "@avin/ui/components/card";
 import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@avin/ui/components/chart";
-import type { ChartConfig } from "@avin/ui/components/chart";
-import {
   WarningCircleIcon,
   ArrowRightIcon,
   ClipboardTextIcon,
@@ -28,8 +22,7 @@ import {
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { lazy, Suspense, useState } from "react";
 
 import { Header } from "@/components/layout/header";
 import { Main } from "@/components/layout/main";
@@ -39,22 +32,12 @@ import type { ParentCategory } from "@/features/categories/types";
 import { countTotalSubCategories } from "@/features/categories/workflow";
 import { useAdminDisputes } from "@/features/disputes/api/disputes-api";
 import { useAdminListings } from "@/features/listings/api/listings-api";
-import { useSellerApplications } from "@/features/seller-applications/api/mock-seller-applications";
+import { useOperationsOverviewAnalytics } from "@/features/operations/api/operations-api";
+import { useAdminSellerApplications } from "@/features/seller-applications/api/seller-applications-api";
 import { ApplicationStatusBadge } from "@/features/seller-applications/components/application-status-badge";
 import { formatApplicationDate } from "@/features/seller-applications/utils";
-import { useSellers } from "@/features/sellers/api/mock-sellers";
+import { useAdminSellerList } from "@/features/sellers/api/seller-enforcement-api";
 import { useAdminWithdrawals } from "@/features/withdrawals/api/withdrawals-api";
-
-const chartConfig = {
-  escrowHold: {
-    color: "var(--color-escrowHold, #3b82f6)",
-    label: "Dòng tiền Escrow (VND)",
-  },
-  revenue: {
-    color: "var(--color-revenue, #10b981)",
-    label: "Phí sàn thu được (VND)",
-  },
-} satisfies ChartConfig;
 
 const MOCK_7D_TREND = [
   { date: "06/08", escrowHold: 18_500_000, revenue: 1_450_000 },
@@ -83,36 +66,21 @@ const MOCK_30D_TREND = [
 const formatCurrencyVND = (value: number): string =>
   `${value.toLocaleString("vi-VN")} ₫`;
 
-const formatShortCurrency = (value: number): string => {
-  if (value >= 1_000_000_000) {
-    return `${(value / 1_000_000_000).toFixed(1)}B ₫`;
-  }
-  if (value >= 1_000_000) {
-    return `${(value / 1_000_000).toFixed(1)}M ₫`;
-  }
-  return `${(value / 1000).toFixed(0)}K ₫`;
-};
-
-const renderTooltipFormatter = (
-  value: unknown,
-  name: unknown
-): React.ReactNode => (
-  <div className="flex items-center justify-between gap-4 w-full">
-    <span className="text-muted-foreground">
-      {name === "escrowHold" ? "Escrow Hold" : "Phí sàn"}
-    </span>
-    <span className="font-semibold">{formatCurrencyVND(Number(value))}</span>
-  </div>
-);
+const EscrowRevenueChart = lazy(async () => {
+  const module = await import("./escrow-revenue-chart");
+  return { default: module.EscrowRevenueChart };
+});
 
 export const OverviewPage = () => {
   const [timeframe, setTimeframe] = useState<"7d" | "30d">("7d");
-  const applications = useSellerApplications();
+  const { data: applications = [] } = useAdminSellerApplications();
   const { data: categories = [] } = useQuery(categoriesQueryOptions());
-  const sellers = useSellers();
+  const { data: sellerListData } = useAdminSellerList();
+  const sellers = sellerListData?.items ?? [];
   const { data: disputes = [] } = useAdminDisputes("OPEN");
   const { data: withdrawals = [] } = useAdminWithdrawals();
   const { data: listings = [] } = useAdminListings();
+  const { data: analytics } = useOperationsOverviewAnalytics(timeframe);
 
   const pendingAppsCount = applications.filter(
     (a) => a.status === "PENDING_REVIEW"
@@ -184,14 +152,12 @@ export const OverviewPage = () => {
     )
     .slice(0, 3);
 
-  const trendData = timeframe === "7d" ? MOCK_7D_TREND : MOCK_30D_TREND;
+  const trendData =
+    analytics?.trend ?? (timeframe === "7d" ? MOCK_7D_TREND : MOCK_30D_TREND);
 
-  const totalEscrowHold = trendData.reduce(
-    (sum, item) => sum + item.escrowHold,
-    0
-  );
-  const totalRevenue = trendData.reduce((sum, item) => sum + item.revenue, 0);
-  const totalPendingPayout = pendingWithdrawalsCount * 15_000_000 + 45_000_000;
+  const totalEscrowHold = analytics?.totalEscrowHold ?? 0;
+  const totalRevenue = analytics?.totalRevenue ?? 0;
+  const totalPendingPayout = analytics?.totalPendingPayout ?? 0;
 
   return (
     <>
@@ -343,66 +309,16 @@ export const OverviewPage = () => {
               </div>
             </div>
 
-            <div className="h-[280px] w-full pt-2">
-              <ChartContainer config={chartConfig} className="h-full w-full">
-                <AreaChart
-                  data={trendData}
-                  margin={{ bottom: 0, left: 10, right: 10, top: 10 }}
-                >
-                  <defs>
-                    <linearGradient id="fillEscrow" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient
-                      id="fillRevenue"
-                      x1="0"
-                      y1="0"
-                      x2="0"
-                      y2="1"
-                    >
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis
-                    dataKey="date"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                  />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={formatShortCurrency}
-                    width={60}
-                  />
-                  <ChartTooltip
-                    content={
-                      <ChartTooltipContent formatter={renderTooltipFormatter} />
-                    }
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="escrowHold"
-                    stroke="#3b82f6"
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#fillEscrow)"
-                    name="escrowHold"
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="#10b981"
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#fillRevenue)"
-                    name="revenue"
-                  />
-                </AreaChart>
-              </ChartContainer>
+            <div className="h-70 w-full pt-2">
+              <Suspense
+                fallback={
+                  <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
+                    Đang tải biểu đồ...
+                  </div>
+                }
+              >
+                <EscrowRevenueChart data={trendData} />
+              </Suspense>
             </div>
           </CardContent>
         </Card>
