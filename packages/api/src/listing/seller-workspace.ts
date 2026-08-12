@@ -1,14 +1,12 @@
 import { db } from "@avin/db";
-import { user as userTable } from "@avin/db/schema/auth";
 import {
   listing,
   servicePackage,
   servicePackageDraftSchema,
   subCategory,
 } from "@avin/db/schema/catalog";
-import { sellerApplication, sellerProfile } from "@avin/db/schema/seller";
 import { ORPCError } from "@orpc/server";
-import { and, asc, eq, isNull, or } from "drizzle-orm";
+import { and, asc, eq, or } from "drizzle-orm";
 import { z } from "zod";
 
 import { protectedProcedure, sellerProcedure } from "../access/procedures";
@@ -22,16 +20,24 @@ import {
   getSellerEnforcement,
   isMarketplaceSellerEnforced,
 } from "../seller-enforcement/access";
-import { isSellerEnforced } from "../seller-store/profile";
-import { assertStoreProfileComplete } from "../seller-store/public-visibility";
+import { publishListing, resumeListing } from "./listing-publication";
 import {
-  assertServicePackagesPublishable,
+  assertCourseListingContract,
+  assertListingPresentation,
+  getPrimaryListingImage,
+} from "./listing-publication-contract";
+import { assertEligibleSeller as assertSellerListingAccess } from "./seller-listing-access";
+import {
   assertServicePackageNameUnique,
   parseServicePackageDraft,
-  toLegacyServicePackageDraft,
 } from "./service-packages";
 
-export const CURRENT_SELLER_AGREEMENT_VERSION = "v1.0";
+export { getPrimaryListingImage } from "./listing-publication-contract";
+export {
+  assertCourseListingContract as assertPublishable,
+  assertListingPresentation as assertServiceListingBasics,
+} from "./listing-publication-contract";
+export { CURRENT_SELLER_AGREEMENT_VERSION } from "./seller-listing-access";
 
 const listingTypeSchema = z.enum(["SERVICE", "COURSE"]);
 const listingStatusSchema = z.enum([
@@ -65,41 +71,8 @@ const makeSlug = (title: string | null | undefined): string => {
   return `${base || "listing"}-${crypto.randomUUID().slice(0, 8)}`;
 };
 
-export const getPrimaryListingImage = (
-  images: string[] | null | undefined,
-  thumbnailUrl: string | null | undefined
-): string | null => images?.[0]?.trim() || thumbnailUrl?.trim() || null;
-
 export const assertEligibleSeller = async (userId: string): Promise<void> => {
-  const [account, application, enforcement] = await Promise.all([
-    db.query.user.findFirst({ where: eq(userTable.id, userId) }),
-    db.query.sellerApplication.findFirst({
-      orderBy: (table, { desc }) => [desc(table.createdAt)],
-      where: eq(sellerApplication.userId, userId),
-    }),
-    getSellerEnforcement(db, userId),
-  ]);
-
-  const isEnforced = isSellerEnforced(
-    account
-      ? {
-          sellerEnforcementExpiresAt: enforcement?.expiresAt,
-          sellerEnforcementState: enforcement?.state,
-        }
-      : null
-  );
-
-  if (
-    !account ||
-    account.role !== "SELLER" ||
-    isEnforced ||
-    application?.status !== "APPROVED" ||
-    application.sellerAgreementVersion !== CURRENT_SELLER_AGREEMENT_VERSION
-  ) {
-    throw new ORPCError("FORBIDDEN", {
-      message: "Seller access is not available for this account",
-    });
-  }
+  await assertSellerListingAccess(db, userId);
 };
 
 export const assertActiveSubCategory = async (
@@ -204,196 +177,6 @@ const assertOwnedListing = async (
   return found;
 };
 
-// oxlint-disable-next-line complexity
-export const assertPublishable = (
-  draft: {
-    description: string | null;
-    images?: string[] | null;
-    priceAmount: number | null;
-    processingTimeHours: number | null;
-    slug: string;
-    thumbnailUrl: string | null;
-    title: string | null;
-    warrantyDurationHours: number | null;
-    warrantyTerms: string | null;
-  },
-  category: {
-    warrantyBounds: { minHours: number; maxHours: number };
-  }
-) => {
-  if (!draft.title?.trim()) {
-    throw new ORPCError("BAD_REQUEST", {
-      message: "Listing title is required",
-    });
-  }
-
-  if (!draft.description?.trim()) {
-    throw new ORPCError("BAD_REQUEST", {
-      message: "Listing description is required",
-    });
-  }
-
-  if (!draft.slug?.trim()) {
-    throw new ORPCError("BAD_REQUEST", {
-      message: "Listing slug is required",
-    });
-  }
-
-  if ((draft.images?.length ?? 0) > LISTING_IMAGE_MAX_COUNT) {
-    throw new ORPCError("BAD_REQUEST", {
-      message: `A listing can have at most ${LISTING_IMAGE_MAX_COUNT} images`,
-    });
-  }
-
-  if (
-    draft.priceAmount === null ||
-    draft.priceAmount === undefined ||
-    !Number.isInteger(draft.priceAmount) ||
-    draft.priceAmount <= 0
-  ) {
-    throw new ORPCError("BAD_REQUEST", {
-      message: "Listing price must be a positive integer VND amount",
-    });
-  }
-
-  if (
-    draft.processingTimeHours === null ||
-    draft.processingTimeHours === undefined ||
-    !Number.isInteger(draft.processingTimeHours) ||
-    draft.processingTimeHours <= 0
-  ) {
-    throw new ORPCError("BAD_REQUEST", {
-      message: "Processing Expectation (in hours) must be a positive integer",
-    });
-  }
-
-  const primaryImage = getPrimaryListingImage(draft.images, draft.thumbnailUrl);
-  if (!primaryImage) {
-    throw new ORPCError("BAD_REQUEST", {
-      message: "Listing must have a designated primary image",
-    });
-  }
-
-  if (
-    draft.warrantyDurationHours === null ||
-    draft.warrantyDurationHours === undefined ||
-    !Number.isInteger(draft.warrantyDurationHours)
-  ) {
-    throw new ORPCError("BAD_REQUEST", {
-      message: "Warranty duration in hours is required",
-    });
-  }
-
-  const { minHours, maxHours } = category.warrantyBounds;
-  if (
-    draft.warrantyDurationHours < minHours ||
-    draft.warrantyDurationHours > maxHours
-  ) {
-    throw new ORPCError("BAD_REQUEST", {
-      message: `Warranty duration (${draft.warrantyDurationHours}h) must be within category bounds (${minHours}h - ${maxHours}h)`,
-    });
-  }
-
-  if (!draft.warrantyTerms?.trim()) {
-    throw new ORPCError("BAD_REQUEST", {
-      message: "Warranty terms are required",
-    });
-  }
-};
-
-export const assertServiceListingBasics = (draft: {
-  description: string | null;
-  images?: string[] | null;
-  slug: string;
-  thumbnailUrl: string | null;
-  title: string | null;
-}): void => {
-  if (!draft.title?.trim()) {
-    throw new ORPCError("BAD_REQUEST", {
-      message: "Listing title is required",
-    });
-  }
-  if (!draft.description?.trim()) {
-    throw new ORPCError("BAD_REQUEST", {
-      message: "Listing description is required",
-    });
-  }
-  if (!draft.slug?.trim()) {
-    throw new ORPCError("BAD_REQUEST", {
-      message: "Listing slug is required",
-    });
-  }
-  if ((draft.images?.length ?? 0) > LISTING_IMAGE_MAX_COUNT) {
-    throw new ORPCError("BAD_REQUEST", {
-      message: `A listing can have at most ${LISTING_IMAGE_MAX_COUNT} images`,
-    });
-  }
-  if (!getPrimaryListingImage(draft.images, draft.thumbnailUrl)) {
-    throw new ORPCError("BAD_REQUEST", {
-      message: "Listing must have a designated primary image",
-    });
-  }
-};
-
-const getServicePackages = (listingId: string) =>
-  db.query.servicePackage.findMany({
-    orderBy: (table) => [asc(table.priceAmount), asc(table.name)],
-    where: eq(servicePackage.listingId, listingId),
-  });
-
-const ensureServicePackages = async (
-  listingItem: {
-    description: string | null;
-    id: string;
-    priceAmount: number | null;
-    processingTimeHours: number | null;
-    title: string | null;
-    warrantyDurationHours: number | null;
-    warrantyTerms: string | null;
-  },
-  category: { warrantyBounds: { maxHours: number; minHours: number } }
-) => {
-  const existing = await getServicePackages(listingItem.id);
-  if (existing.length > 0) {
-    return existing;
-  }
-
-  const legacyDraft = toLegacyServicePackageDraft(listingItem);
-  if (!legacyDraft) {
-    throw new ORPCError("BAD_REQUEST", {
-      message:
-        "A Service listing must define at least one package before publishing",
-    });
-  }
-  const packageDraft = parseServicePackageDraft(legacyDraft, category);
-  const [created] = await db
-    .insert(servicePackage)
-    .values({
-      listingId: listingItem.id,
-      ...packageDraft,
-    })
-    .returning();
-  if (!created) {
-    throw new Error("Initial Service package was not created");
-  }
-  return [created];
-};
-
-const markPackagesPublished = async (
-  listingId: string,
-  publishedAt: Date
-): Promise<void> => {
-  await db
-    .update(servicePackage)
-    .set({ firstPublishedAt: publishedAt, updatedAt: publishedAt })
-    .where(
-      and(
-        eq(servicePackage.listingId, listingId),
-        isNull(servicePackage.firstPublishedAt)
-      )
-    );
-};
-
 export const canAccessListingMedia = (
   user: { id: string; role?: string | null } | null | undefined,
   listingItem: {
@@ -440,6 +223,12 @@ const assertOwnedServicePackage = async (id: string, userId: string) => {
   }
   return found;
 };
+
+const getServicePackages = (listingId: string) =>
+  db.query.servicePackage.findMany({
+    orderBy: (table) => [asc(table.priceAmount), asc(table.name)],
+    where: eq(servicePackage.listingId, listingId),
+  });
 
 export const canUploadListingImage = (
   userId: string,
@@ -679,85 +468,23 @@ export const sellerWorkspaceRouter = {
 
   publish: sellerProcedure
     .input(z.object({ id: z.string() }))
-    .handler(async ({ context, input }) => {
-      await assertEligibleSeller(context.session.user.id);
-      const profile = await db.query.sellerProfile.findFirst({
-        where: eq(sellerProfile.userId, context.session.user.id),
-      });
-      assertStoreProfileComplete(profile);
-      const draft = await assertDraft(input.id, context.session.user.id);
-      const category = await assertActiveSubCategory(draft.categoryId);
-      if (draft.type === "SERVICE") {
-        assertServiceListingBasics(draft);
-        const packages = await ensureServicePackages(draft, category);
-        assertServicePackagesPublishable(packages, category);
-      } else {
-        assertPublishable(draft, category);
-      }
-
-      const primaryImage = getPrimaryListingImage(
-        draft.images,
-        draft.thumbnailUrl
-      );
-      const publishedAt = new Date();
-
-      const [updated] = await db
-        .update(listing)
-        .set({
-          status: "PUBLISHED",
-          thumbnailUrl: primaryImage,
-          updatedAt: publishedAt,
-        })
-        .where(eq(listing.id, draft.id))
-        .returning();
-      if (draft.type === "SERVICE") {
-        await markPackagesPublished(draft.id, publishedAt);
-      }
-      return updated;
-    }),
+    .handler(({ context, input }) =>
+      publishListing({
+        database: context.db,
+        listingId: input.id,
+        sellerId: context.session.user.id,
+      })
+    ),
 
   resume: sellerProcedure
     .input(z.object({ id: z.string() }))
-    .handler(async ({ context, input }) => {
-      await assertEligibleSeller(context.session.user.id);
-      const profile = await db.query.sellerProfile.findFirst({
-        where: eq(sellerProfile.userId, context.session.user.id),
-      });
-      assertStoreProfileComplete(profile);
-      const found = await assertOwnedListing(input.id, context.session.user.id);
-      if (found.status !== "PAUSED") {
-        throw new ORPCError("BAD_REQUEST", {
-          message: "Only paused listings can be resumed",
-        });
-      }
-      const category = await assertActiveSubCategory(found.categoryId);
-      if (found.type === "SERVICE") {
-        assertServiceListingBasics(found);
-        const packages = await ensureServicePackages(found, category);
-        assertServicePackagesPublishable(packages, category);
-      } else {
-        assertPublishable(found, category);
-      }
-
-      const primaryImage = getPrimaryListingImage(
-        found.images,
-        found.thumbnailUrl
-      );
-      const publishedAt = new Date();
-      const [updated] = await db
-        .update(listing)
-        .set({
-          status: "PUBLISHED",
-          thumbnailUrl: primaryImage,
-          updatedAt: publishedAt,
-        })
-        .where(eq(listing.id, found.id))
-        .returning();
-      if (found.type === "SERVICE") {
-        await markPackagesPublished(found.id, publishedAt);
-      }
-      return updated;
-    }),
+    .handler(({ context, input }) =>
+      resumeListing({
+        database: context.db,
+        listingId: input.id,
+        sellerId: context.session.user.id,
+      })
+    ),
 
   servicePackages: {
     create: sellerProcedure
@@ -978,9 +705,9 @@ export const sellerWorkspaceRouter = {
             : found.warrantyTerms,
         };
         if (publishableDraft.type === "SERVICE") {
-          assertServiceListingBasics(publishableDraft);
+          assertListingPresentation(publishableDraft);
         } else {
-          assertPublishable(publishableDraft, category);
+          assertCourseListingContract(publishableDraft, category);
         }
       }
 

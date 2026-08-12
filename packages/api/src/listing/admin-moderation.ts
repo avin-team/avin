@@ -1,24 +1,13 @@
 import { auditLog } from "@avin/db/schema/auth";
-import { listing, servicePackage } from "@avin/db/schema/catalog";
-import { sellerProfile } from "@avin/db/schema/seller";
+import { listing } from "@avin/db/schema/catalog";
 import { ORPCError } from "@orpc/server";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { adminProcedure } from "../access/procedures";
 import { createNotificationEvent } from "../notifications/notification";
 import type { Context } from "../runtime/context";
-import { assertStoreProfileComplete } from "../seller-store/public-visibility";
-import {
-  assertActiveSubCategory,
-  assertEligibleSeller,
-  assertPublishable,
-  assertServiceListingBasics,
-} from "./seller-workspace";
-import {
-  assertServicePackagesPublishable,
-  toLegacyServicePackageDraft,
-} from "./service-packages";
+import { restoreListing } from "./listing-publication";
 
 export const listingStatusSchema = z.enum([
   "DRAFT",
@@ -135,126 +124,42 @@ const moderateListing = async ({
 
   const nextStatus = getModerationTransition(found.status, action);
   const updatedAt = new Date();
-  let restoreCategory: Awaited<
-    ReturnType<typeof assertActiveSubCategory>
-  > | null = null;
-  let legacyServicePackage: ReturnType<typeof toLegacyServicePackageDraft> =
-    null;
+  const updated =
+    action === "RESTORE"
+      ? await restoreListing({ database: context.db, listingId: found.id })
+      : await context.db.transaction(async (transaction) => {
+          const [result] = await transaction
+            .update(listing)
+            .set({ status: nextStatus, updatedAt })
+            .where(eq(listing.id, found.id))
+            .returning();
+          if (!result) {
+            throw new ORPCError("NOT_FOUND", { message: "Listing not found" });
+          }
 
-  if (action === "RESTORE") {
-    await assertEligibleSeller(found.sellerId);
-    const profile = await context.db.query.sellerProfile.findFirst({
-      where: eq(sellerProfile.userId, found.sellerId),
-    });
-    assertStoreProfileComplete(profile);
-    const category = await assertActiveSubCategory(found.categoryId);
-    restoreCategory = category;
-    if (found.type === "SERVICE") {
-      assertServiceListingBasics(found);
-      const packages = await context.db.query.servicePackage.findMany({
-        where: eq(servicePackage.listingId, found.id),
-      });
-      if (packages.length === 0) {
-        legacyServicePackage = toLegacyServicePackageDraft(found);
-        if (!legacyServicePackage) {
-          throw new ORPCError("BAD_REQUEST", {
-            message:
-              "A Service listing must define at least one package before restore",
+          const notificationContent =
+            action === "ARCHIVE"
+              ? {
+                  body: "Sản phẩm/dịch vụ của bạn đã được lưu trữ.",
+                  eventType: "listing.archived" as const,
+                  title: "Sản phẩm/dịch vụ đã được lưu trữ",
+                }
+              : {
+                  body: "Sản phẩm/dịch vụ của bạn đã bị ẩn khỏi sàn.",
+                  eventType: "listing.hidden" as const,
+                  title: "Sản phẩm/dịch vụ đã bị ẩn",
+                };
+          await createNotificationEvent(transaction, {
+            ...notificationContent,
+            context: { listingId: result.id, status: result.status },
+            recipients: [
+              { targetPath: "/seller/store", userId: found.sellerId },
+            ],
+            sourceId: `${result.id}:${result.status}:${updatedAt.toISOString()}`,
+            sourceType: "LISTING",
           });
-        }
-      } else {
-        assertServicePackagesPublishable(packages, category);
-      }
-    } else {
-      assertPublishable(found, category);
-    }
-  }
-
-  const updated = await context.db.transaction(async (transaction) => {
-    if (action === "RESTORE" && found.type === "SERVICE") {
-      if (!restoreCategory) {
-        throw new Error("Restore category was not validated");
-      }
-
-      let packages = await transaction.query.servicePackage.findMany({
-        where: eq(servicePackage.listingId, found.id),
-      });
-      if (packages.length === 0) {
-        if (!legacyServicePackage) {
-          throw new ORPCError("BAD_REQUEST", {
-            message:
-              "A Service listing must define at least one package before restore",
-          });
-        }
-        await transaction.insert(servicePackage).values({
-          firstPublishedAt: updatedAt,
-          listingId: found.id,
-          ...legacyServicePackage,
+          return result;
         });
-        packages = await transaction.query.servicePackage.findMany({
-          where: eq(servicePackage.listingId, found.id),
-        });
-      }
-      assertServicePackagesPublishable(packages, restoreCategory);
-      await transaction
-        .update(servicePackage)
-        .set({ firstPublishedAt: updatedAt, updatedAt })
-        .where(
-          and(
-            eq(servicePackage.listingId, found.id),
-            isNull(servicePackage.firstPublishedAt)
-          )
-        );
-    }
-
-    const [result] = await transaction
-      .update(listing)
-      .set({ status: nextStatus, updatedAt })
-      .where(eq(listing.id, found.id))
-      .returning();
-
-    if (!result) {
-      throw new ORPCError("NOT_FOUND", { message: "Listing not found" });
-    }
-
-    let body: string;
-    let eventType: "listing.archived" | "listing.hidden" | "listing.restored";
-    let title: string;
-    switch (action) {
-      case "ARCHIVE": {
-        body = "Sản phẩm/dịch vụ của bạn đã được lưu trữ.";
-        eventType = "listing.archived";
-        title = "Sản phẩm/dịch vụ đã được lưu trữ";
-        break;
-      }
-      case "HIDE": {
-        body = "Sản phẩm/dịch vụ của bạn đã bị ẩn khỏi sàn.";
-        eventType = "listing.hidden";
-        title = "Sản phẩm/dịch vụ đã bị ẩn";
-        break;
-      }
-      case "RESTORE": {
-        body = "Sản phẩm/dịch vụ của bạn đã được khôi phục trên sàn.";
-        eventType = "listing.restored";
-        title = "Sản phẩm/dịch vụ đã được khôi phục";
-        break;
-      }
-      default: {
-        throw new Error(`Unsupported listing moderation action: ${action}`);
-      }
-    }
-    await createNotificationEvent(transaction, {
-      body,
-      context: { listingId: result.id, status: result.status },
-      eventType,
-      recipients: [{ targetPath: "/seller/store", userId: found.sellerId }],
-      sourceId: `${result.id}:${result.status}:${updatedAt.toISOString()}`,
-      sourceType: "LISTING",
-      title,
-    });
-
-    return result;
-  });
 
   await recordModerationAudit({
     action,

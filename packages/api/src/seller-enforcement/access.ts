@@ -27,7 +27,7 @@ const isSellerEnforcementQuery = (
 };
 
 const getSellerEnforcementQuery = (
-  database: Context["db"]
+  database: Pick<Context["db"], "query">
 ): SellerEnforcementQuery | undefined => {
   const queryContainer = Reflect.get(database, "query");
   if (typeof queryContainer !== "object" || queryContainer === null) {
@@ -39,7 +39,7 @@ const getSellerEnforcementQuery = (
 };
 
 export const getSellerEnforcement = async (
-  database: Context["db"],
+  database: Pick<Context["db"], "query">,
   sellerId: string
 ): Promise<MarketplaceSellerAccount | null> => {
   const query = getSellerEnforcementQuery(database);
