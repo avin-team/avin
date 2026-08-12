@@ -13,7 +13,14 @@ import {
   ArrowClockwiseIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
+import { AnimatePresence, useReducedMotion } from "motion/react";
+import * as m from "motion/react-m";
 import { useState } from "react";
+
+import {
+  SELLER_ONBOARDING_EASE_OUT,
+  SELLER_ONBOARDING_MOTION_DURATION,
+} from "./seller-onboarding-motion";
 
 export interface SellerLogoValue {
   name: string;
@@ -66,6 +73,7 @@ export const SellerLogoUploader = ({
   onLogoChange,
   onUploadingChange,
 }: SellerLogoUploaderProps) => {
+  const shouldReduceMotion = Boolean(useReducedMotion());
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
   const upload = useUploadFile({
     api: `${env.VITE_SERVER_URL}/api/upload`,
@@ -130,66 +138,114 @@ export const SellerLogoUploader = ({
 
   return (
     <div className="space-y-2">
-      {logoUrl ? (
-        <div className="group relative">
-          <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-muted/20 transition-colors group-hover:border-primary group-hover:bg-primary/5">
-            <img
-              alt={fileName ? `Logo ${fileName}` : "Xem trước logo gian hàng"}
-              className="aspect-square w-full object-cover"
-              src={logoUrl}
-            />
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 bg-background/0 transition-colors group-hover:bg-background/15"
-            />
-            {upload.isPending ? (
-              <div className="absolute inset-0 flex items-center justify-center bg-background/60">
-                <SpinnerIcon
-                  aria-label="Đang tải logo lên"
-                  className="size-6 animate-spin text-primary"
+      <div className="grid">
+        <AnimatePresence initial={false} mode="sync">
+          {logoUrl ? (
+            <m.div
+              animate={{ opacity: 1, transform: "scale(1)" }}
+              className="group relative col-start-1 row-start-1"
+              exit={{
+                opacity: shouldReduceMotion ? 0.85 : 0,
+                transform: shouldReduceMotion ? "scale(1)" : "scale(0.97)",
+              }}
+              initial={{
+                opacity: shouldReduceMotion ? 0.85 : 0,
+                transform: shouldReduceMotion ? "scale(1)" : "scale(0.97)",
+              }}
+              key="preview"
+              transition={{
+                duration: shouldReduceMotion
+                  ? SELLER_ONBOARDING_MOTION_DURATION.reduced
+                  : SELLER_ONBOARDING_MOTION_DURATION.standard,
+                ease: shouldReduceMotion
+                  ? "linear"
+                  : SELLER_ONBOARDING_EASE_OUT,
+              }}
+            >
+              <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-muted/20 transition-colors group-hover:border-primary group-hover:bg-primary/5">
+                <img
+                  alt={
+                    fileName ? `Logo ${fileName}` : "Xem trước logo gian hàng"
+                  }
+                  className="aspect-square w-full object-cover"
+                  src={logoUrl}
                 />
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 bg-background/0 transition-colors group-hover:bg-background/15"
+                />
+                {upload.isPending ? (
+                  <div className="absolute inset-0 flex items-center justify-center bg-background/60">
+                    <SpinnerIcon
+                      aria-label="Đang tải logo lên"
+                      className="size-6 animate-spin text-primary"
+                    />
+                  </div>
+                ) : null}
               </div>
-            ) : null}
-          </div>
-          <FileDropzone
-            {...dropzoneProps}
-            className="sr-only"
-            label="Thay logo"
-            renderTrigger={({ open }) => (
-              <div className="pointer-events-none absolute right-2 top-2 z-10 flex gap-1 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100">
-                <Button
-                  aria-label="Thay logo"
-                  disabled={isDisabled}
-                  onClick={open}
-                  size="icon-sm"
-                  title="Thay logo"
-                  type="button"
-                  variant="secondary"
-                >
-                  <ArrowClockwiseIcon />
-                </Button>
-                <Button
-                  aria-label="Xóa logo"
-                  disabled={isDisabled}
-                  onClick={handleRemove}
-                  size="icon-sm"
-                  title="Xóa logo"
-                  type="button"
-                  variant="secondary"
-                >
-                  <TrashIcon />
-                </Button>
-              </div>
-            )}
-          />
-        </div>
-      ) : (
-        <FileDropzone
-          {...dropzoneProps}
-          className="aspect-square min-h-0 p-3"
-          label="Thêm logo"
-        />
-      )}
+              <FileDropzone
+                {...dropzoneProps}
+                className="sr-only"
+                label="Thay logo"
+                renderTrigger={({ open }) => (
+                  <div className="pointer-events-none absolute right-2 top-2 z-10 flex gap-1 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100">
+                    <Button
+                      aria-label="Thay logo"
+                      disabled={isDisabled}
+                      onClick={open}
+                      size="icon-sm"
+                      title="Thay logo"
+                      type="button"
+                      variant="secondary"
+                    >
+                      <ArrowClockwiseIcon />
+                    </Button>
+                    <Button
+                      aria-label="Xóa logo"
+                      disabled={isDisabled}
+                      onClick={handleRemove}
+                      size="icon-sm"
+                      title="Xóa logo"
+                      type="button"
+                      variant="secondary"
+                    >
+                      <TrashIcon />
+                    </Button>
+                  </div>
+                )}
+              />
+            </m.div>
+          ) : (
+            <m.div
+              animate={{ opacity: 1, transform: "scale(1)" }}
+              className="col-start-1 row-start-1"
+              exit={{
+                opacity: shouldReduceMotion ? 0.85 : 0,
+                transform: shouldReduceMotion ? "scale(1)" : "scale(0.97)",
+              }}
+              initial={{
+                opacity: shouldReduceMotion ? 0.85 : 0,
+                transform: shouldReduceMotion ? "scale(1)" : "scale(0.97)",
+              }}
+              key="empty"
+              transition={{
+                duration: shouldReduceMotion
+                  ? SELLER_ONBOARDING_MOTION_DURATION.reduced
+                  : SELLER_ONBOARDING_MOTION_DURATION.standard,
+                ease: shouldReduceMotion
+                  ? "linear"
+                  : SELLER_ONBOARDING_EASE_OUT,
+              }}
+            >
+              <FileDropzone
+                {...dropzoneProps}
+                className="aspect-square min-h-0 p-3"
+                label="Thêm logo"
+              />
+            </m.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 };
