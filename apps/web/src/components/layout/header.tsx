@@ -1,10 +1,14 @@
+import { ACCOUNT_ROLE } from "@avin/auth/permissions";
 import { cn } from "@avin/ui/lib/utils";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as m from "motion/react-m";
 import { useEffect, useRef, useState } from "react";
 
+import { getHeaderActionVisibility } from "@/components/layout/header-action-visibility";
 import { ModeToggle } from "@/components/mode-toggle";
 import { siteConfig } from "@/config/site";
+import { authClient } from "@/features/auth/api/auth-client";
 import { UserMenu } from "@/features/auth/components/user-menu";
 import { ChatButton } from "@/features/chat/components/chat-button";
 import { CartButton } from "@/features/commerce/components/cart-button";
@@ -12,6 +16,7 @@ import { OrdersButton } from "@/features/commerce/components/orders-button";
 import { NotificationButton } from "@/features/notifications/components/notification-button";
 import { SellerStoreButton } from "@/features/seller/components/seller-store-button";
 import { WalletButton } from "@/features/wallet/components/wallet-button";
+import { orpc } from "@/utils/orpc";
 
 import { MainNav } from "./main-nav";
 import { MobileNav, MobileNavTrigger } from "./mobile-nav";
@@ -37,6 +42,18 @@ export const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const { data: session } = authClient.useSession();
+  const role = session?.user.role;
+  const isSeller = role === ACCOUNT_ROLE.SELLER;
+  const sellerProfileQuery = useQuery({
+    ...orpc.sellerApplication.getProfile.queryOptions(),
+    enabled: isSeller,
+  });
+  const { showChat, showSellerStore } = getHeaderActionVisibility(
+    role,
+    Boolean(sellerProfileQuery.data?.profile),
+    sellerProfileQuery.data?.application?.status === "APPROVED"
+  );
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -113,9 +130,9 @@ export const Header = () => {
 
               <OrdersButton />
 
-              <SellerStoreButton />
+              {showSellerStore ? <SellerStoreButton /> : null}
 
-              <ChatButton />
+              {showChat ? <ChatButton /> : null}
 
               <NotificationButton />
 

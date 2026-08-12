@@ -24,6 +24,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 
+import { canAccessSellerFeatures } from "@/components/layout/header-action-visibility";
 import { authClient } from "@/features/auth/api/auth-client";
 import { orpc } from "@/utils/orpc";
 
@@ -33,7 +34,7 @@ export const UserMenu = () => {
   const isSeller = session?.user.role === ACCOUNT_ROLE.SELLER;
 
   const profileQuery = useQuery({
-    ...orpc.sellerStore.getProfile.queryOptions(),
+    ...orpc.sellerApplication.getProfile.queryOptions(),
     enabled: Boolean(isSeller),
   });
 
@@ -61,6 +62,10 @@ export const UserMenu = () => {
   }
 
   const profile = profileQuery.data?.profile;
+  const canViewStore = canAccessSellerFeatures(
+    Boolean(profile),
+    profileQuery.data?.application?.status === "APPROVED"
+  );
   const storeUrl = profile?.storeSlug
     ? `/store/${profile.storeSlug}`
     : "/seller/store-preview";
@@ -118,12 +123,15 @@ export const UserMenu = () => {
             <DropdownMenuItem
               onClick={async () => {
                 await navigate({
-                  to: profile?.storeSlug ? storeUrl : "/seller/onboarding",
+                  to:
+                    canViewStore && profile?.storeSlug
+                      ? storeUrl
+                      : "/seller/onboarding",
                 });
               }}
             >
               <StorefrontIcon className="me-2 size-4" />
-              {profile?.storeSlug
+              {canViewStore && profile?.storeSlug
                 ? "Xem gian hàng"
                 : "Hoàn tất đăng ký Người bán"}
             </DropdownMenuItem>
