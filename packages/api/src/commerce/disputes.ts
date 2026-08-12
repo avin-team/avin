@@ -1,5 +1,3 @@
-/* eslint-disable no-await-in-loop, react-doctor/async-await-in-loop */
-
 import { ORDER_FILES_BUCKET } from "@avin/api/storage";
 import { db, generateUuidV7 } from "@avin/db";
 import { auditLog, user } from "@avin/db/schema/auth";

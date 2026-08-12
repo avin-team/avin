@@ -105,7 +105,6 @@ describe("SePay event processing", () => {
       })),
     };
     // This fake mirrors Drizzle's transaction callback boundary.
-    /* eslint-disable promise/prefer-await-to-callbacks */
     const database = {
       transaction: (
         callback: (executor: typeof transaction) => Promise<unknown>

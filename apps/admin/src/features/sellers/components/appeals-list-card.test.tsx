@@ -1,3 +1,4 @@
+import { createElement } from "react";
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -82,21 +83,21 @@ vi.mock("@avin/ui/components/button", () => ({
 }));
 
 vi.mock("@avin/ui/components/card", () => {
-  // eslint-disable-next-line unicorn/consistent-function-scoping
-  const Container = ({
+  const containerTag = "section";
+  const CardContainer = ({
     children,
     className,
   }: {
     children: ReactNode;
     className?: string;
-  }) => <section className={className}>{children}</section>;
+  }) => createElement(containerTag, { className }, children);
   return {
-    Card: Container,
-    CardContent: Container,
+    Card: CardContainer,
+    CardContent: CardContainer,
     CardDescription: ({ children }: { children: ReactNode }) => (
       <p>{children}</p>
     ),
-    CardHeader: Container,
+    CardHeader: CardContainer,
     CardTitle: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
   };
 });

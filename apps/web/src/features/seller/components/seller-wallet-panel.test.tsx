@@ -1,4 +1,5 @@
 import { cleanup, render, screen } from "@testing-library/react";
+import { createElement } from "react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -62,17 +63,16 @@ vi.mock("@avin/ui/components/button", () => ({
 }));
 
 vi.mock("@avin/ui/components/card", () => {
-  // eslint-disable-next-line unicorn/consistent-function-scoping
-  const Container = ({ children }: { children: ReactNode }) => (
-    <section>{children}</section>
-  );
+  const containerTag = "section";
+  const CardContainer = ({ children }: { children: ReactNode }) =>
+    createElement(containerTag, null, children);
   return {
-    Card: Container,
-    CardContent: Container,
+    Card: CardContainer,
+    CardContent: CardContainer,
     CardDescription: ({ children }: { children: ReactNode }) => (
       <p>{children}</p>
     ),
-    CardHeader: Container,
+    CardHeader: CardContainer,
     CardTitle: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
   };
 });

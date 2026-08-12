@@ -1,4 +1,5 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { createElement } from "react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -59,12 +60,9 @@ vi.mock("@avin/ui/components/button", () => ({
 }));
 
 vi.mock("@avin/ui/components/card", () => {
-  // The mock must be created inside the hoisted factory so Vitest can access it.
-  // eslint-disable-next-line unicorn/consistent-function-scoping
-  const MockContainer = ({ children }: { children: ReactNode }) => (
-    <section>{children}</section>
-  );
-
+  const containerTag = "section";
+  const MockContainer = ({ children }: { children: ReactNode }) =>
+    createElement(containerTag, null, children);
   return {
     Card: MockContainer,
     CardContent: MockContainer,

@@ -1,5 +1,3 @@
-/* eslint-disable no-await-in-loop, react-doctor/async-await-in-loop */
-
 import { db } from "@avin/db";
 import { user } from "@avin/db/schema/auth";
 import { escrowHold, order, orderItem } from "@avin/db/schema/commerce";

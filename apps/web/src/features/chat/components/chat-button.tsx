@@ -1,5 +1,3 @@
-/* eslint-disable react-doctor/effect-needs-cleanup */
-
 import {
   Avatar,
   AvatarFallback,

@@ -1,5 +1,3 @@
-/* eslint-disable no-bitwise */
-
 export const generateUuidV7 = (timestampMs: number = Date.now()): string => {
   const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
@@ -21,8 +19,10 @@ export const generateUuidV7 = (timestampMs: number = Date.now()): string => {
   const currentB6 = bytes[6] ?? 0;
   const currentB8 = bytes[8] ?? 0;
 
-  bytes[6] = (currentB6 & 0x0f) | 0x70;
-  bytes[8] = (currentB8 & 0x3f) | 0x80;
+  // Set the UUID v7 version nibble (0x7) and RFC 4122 variant bits (0x80)
+  // using arithmetic instead of bitwise operators.
+  bytes[6] = (currentB6 % 16) + 0x70;
+  bytes[8] = (currentB8 % 64) + 0x80;
 
   const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(
     ""

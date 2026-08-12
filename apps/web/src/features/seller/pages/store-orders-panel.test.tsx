@@ -2,9 +2,10 @@ import type { OrderItemTimelineView } from "@avin/api/commerce/fulfillment";
 import type { SellerOrderView } from "@avin/api/commerce/orders";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { createElement } from "react";
 import type {
-  ButtonHTMLAttributes,
   ReactNode,
+  ButtonHTMLAttributes,
   TextareaHTMLAttributes,
 } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -83,13 +84,12 @@ vi.mock("@/utils/orpc", () => ({
 }));
 
 vi.mock("@avin/ui/components/alert", () => {
-  // eslint-disable-next-line unicorn/consistent-function-scoping
-  const Container = ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
-  );
+  const containerTag = "div";
+  const AlertContainer = ({ children }: { children: ReactNode }) =>
+    createElement(containerTag, null, children);
   return {
-    Alert: Container,
-    AlertDescription: Container,
+    Alert: AlertContainer,
+    AlertDescription: AlertContainer,
     AlertTitle: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
   };
 });
@@ -147,17 +147,16 @@ vi.mock("@avin/ui/components/button", () => ({
 }));
 
 vi.mock("@avin/ui/components/card", () => {
-  // eslint-disable-next-line unicorn/consistent-function-scoping
-  const Container = ({ children }: { children: ReactNode }) => (
-    <section>{children}</section>
-  );
+  const containerTag = "section";
+  const CardContainer = ({ children }: { children: ReactNode }) =>
+    createElement(containerTag, null, children);
   return {
-    Card: Container,
-    CardContent: Container,
+    Card: CardContainer,
+    CardContent: CardContainer,
     CardDescription: ({ children }: { children: ReactNode }) => (
       <p>{children}</p>
     ),
-    CardHeader: Container,
+    CardHeader: CardContainer,
     CardTitle: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
   };
 });

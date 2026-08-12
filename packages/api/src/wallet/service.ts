@@ -1,5 +1,3 @@
-/* eslint-disable no-await-in-loop, react-doctor/async-await-in-loop */
-
 import { db } from "@avin/db";
 import { user } from "@avin/db/schema/auth";
 import {
@@ -780,36 +778,40 @@ export const creditDepositForEvent = async (
   }
 
   const transactionReference = createTransactionReference();
-  const transaction = await recordBalancedLedgerTransaction(executor, {
-    amount: event.amount,
-    description: `SePay deposit ${event.paymentCode ?? event.providerEventId}`,
-    postings: [
-      {
-        accountId: accounts.platformAccount.id,
-        debitAmount: event.amount,
-      },
-      {
-        accountId: accounts.availableAccount.id,
-        creditAmount: event.amount,
-      },
-    ],
-    reference: transactionReference,
-    type: "DEPOSIT",
-  });
-  // The ledger transaction must be recorded before the materialized wallet balance.
-  // eslint-disable-next-line react-doctor/server-sequential-independent-await
-  const [updatedWallet] = await executor
-    .update(userWallet)
-    .set({
-      availableBalance: sql`${userWallet.availableBalance} + ${event.amount}`,
-      updatedAt: new Date(),
-    })
-    .where(eq(userWallet.id, wallet.id))
-    .returning({ availableBalance: userWallet.availableBalance });
+  const [transaction, updatedWallet] = await Promise.all([
+    recordBalancedLedgerTransaction(executor, {
+      amount: event.amount,
+      description: `SePay deposit ${event.paymentCode ?? event.providerEventId}`,
+      postings: [
+        {
+          accountId: accounts.platformAccount.id,
+          debitAmount: event.amount,
+        },
+        {
+          accountId: accounts.availableAccount.id,
+          creditAmount: event.amount,
+        },
+      ],
+      reference: transactionReference,
+      type: "DEPOSIT",
+    }),
+    (async () => {
+      // The ledger transaction must be recorded before the materialized wallet balance.
+      const [walletAfterUpdate] = await executor
+        .update(userWallet)
+        .set({
+          availableBalance: sql`${userWallet.availableBalance} + ${event.amount}`,
+          updatedAt: new Date(),
+        })
+        .where(eq(userWallet.id, wallet.id))
+        .returning({ availableBalance: userWallet.availableBalance });
 
-  if (!updatedWallet) {
-    throw new Error("User wallet balance was not updated");
-  }
+      if (!walletAfterUpdate) {
+        throw new Error("User wallet balance was not updated");
+      }
+      return walletAfterUpdate;
+    })(),
+  ]);
   const availablePosting = transaction.postings.find(
     (posting) => posting.accountId === accounts.availableAccount.id
   );
@@ -872,6 +874,44 @@ export const creditDepositForEvent = async (
     transactionReference: transaction.reference,
     userId: request.userId,
   };
+};
+
+const assertWalletDeltaAvailable = async (
+  transaction: WalletExecutor,
+  userId: string,
+  delta: { available: number; held: number }
+): Promise<void> => {
+  const [wallet] = await transaction
+    .select()
+    .from(userWallet)
+    .where(eq(userWallet.userId, userId))
+    .for("update")
+    .limit(1);
+  if (
+    !wallet ||
+    wallet.availableBalance + delta.available < 0 ||
+    wallet.heldBalance + delta.held < 0
+  ) {
+    throw new ORPCError("CONFLICT", {
+      message:
+        "Không thể tự động đảo giao dịch vì số dư ví hiện tại không đủ. Cần xử lý vận hành riêng.",
+    });
+  }
+};
+
+const applyWalletDelta = async (
+  transaction: WalletExecutor,
+  userId: string,
+  delta: { available: number; held: number }
+): Promise<void> => {
+  await transaction
+    .update(userWallet)
+    .set({
+      availableBalance: sql`${userWallet.availableBalance} + ${delta.available}`,
+      heldBalance: sql`${userWallet.heldBalance} + ${delta.held}`,
+      updatedAt: new Date(),
+    })
+    .where(eq(userWallet.userId, userId));
 };
 
 export const reverseLedgerTransactionInTransaction = async (
@@ -965,22 +1005,7 @@ export const reverseLedgerTransactionInTransaction = async (
   );
 
   for (const [userId, delta] of walletEntries) {
-    const [wallet] = await transaction
-      .select()
-      .from(userWallet)
-      .where(eq(userWallet.userId, userId))
-      .for("update")
-      .limit(1);
-    if (
-      !wallet ||
-      wallet.availableBalance + delta.available < 0 ||
-      wallet.heldBalance + delta.held < 0
-    ) {
-      throw new ORPCError("CONFLICT", {
-        message:
-          "Không thể tự động đảo giao dịch vì số dư ví hiện tại không đủ. Cần xử lý vận hành riêng.",
-      });
-    }
+    await assertWalletDeltaAvailable(transaction, userId, delta);
   }
 
   const reversal = await recordBalancedLedgerTransaction(transaction, {
@@ -997,14 +1022,7 @@ export const reverseLedgerTransactionInTransaction = async (
   });
 
   for (const [userId, delta] of walletEntries) {
-    await transaction
-      .update(userWallet)
-      .set({
-        availableBalance: sql`${userWallet.availableBalance} + ${delta.available}`,
-        heldBalance: sql`${userWallet.heldBalance} + ${delta.held}`,
-        updatedAt: new Date(),
-      })
-      .where(eq(userWallet.userId, userId));
+    await applyWalletDelta(transaction, userId, delta);
   }
 
   return {

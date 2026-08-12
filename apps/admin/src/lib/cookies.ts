@@ -35,7 +35,6 @@ export const setCookie = (
     return;
   }
 
-  // eslint-disable-next-line unicorn/no-document-cookie
   document.cookie = `${name}=${value}; path=/; max-age=${maxAge}`;
 };
 
@@ -47,6 +46,5 @@ export const removeCookie = (name: string): void => {
     return;
   }
 
-  // eslint-disable-next-line unicorn/no-document-cookie
   document.cookie = `${name}=; path=/; max-age=0`;
 };

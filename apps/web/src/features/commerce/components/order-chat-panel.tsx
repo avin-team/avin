@@ -1,5 +1,3 @@
-/* eslint-disable react-doctor/effect-needs-cleanup */
-
 import type { OrderItemStatus } from "@avin/api/commerce/orders";
 import {
   isOrderChatAttachmentContentType,
@@ -95,6 +93,461 @@ const getBubbleVariant = (
     return "destructive";
   }
   return "muted";
+};
+
+const validateAttachmentSelection = (
+  attachmentDrafts: AttachmentDraft[],
+  files: File[]
+): string | null => {
+  if (files.length === 0) {
+    return null;
+  }
+  if (
+    attachmentDrafts.length + files.length >
+    ORDER_CHAT_ATTACHMENT_MAX_COUNT
+  ) {
+    return "Mỗi tin nhắn chỉ được đính kèm tối đa 5 tệp";
+  }
+
+  const invalidFile = files.find(
+    (file) =>
+      !isOrderChatAttachmentContentType(file.type) ||
+      file.size > ORDER_CHAT_ATTACHMENT_MAX_BYTES
+  );
+  if (invalidFile) {
+    return `Tệp không hợp lệ hoặc quá 20 MB: ${invalidFile.name}`;
+  }
+
+  const totalSize =
+    attachmentDrafts.reduce(
+      (total, attachment) => total + attachment.byteSize,
+      0
+    ) + files.reduce((total, file) => total + file.size, 0);
+  if (totalSize > ORDER_CHAT_ATTACHMENT_MAX_TOTAL_BYTES) {
+    return "Tổng tệp đính kèm không được quá 50 MB";
+  }
+  return null;
+};
+
+const mergeUploadResult = (
+  setAttachmentDrafts: React.Dispatch<React.SetStateAction<AttachmentDraft[]>>,
+  setFailedAttachmentDrafts: React.Dispatch<
+    React.SetStateAction<FailedAttachmentDraft[]>
+  >,
+  attachments: AttachmentDraft[],
+  failedFiles: { error: { message: string }; raw: File }[],
+  partialErrorToast?: string
+): void => {
+  if (attachments.length > 0) {
+    setAttachmentDrafts((currentAttachments) => [
+      ...currentAttachments,
+      ...attachments,
+    ]);
+  }
+  if (failedFiles.length > 0) {
+    setFailedAttachmentDrafts((current) => [
+      ...current,
+      ...failedFiles.map((file) => ({
+        file: file.raw,
+        message: file.error.message,
+      })),
+    ]);
+    if (partialErrorToast) {
+      toast.error(partialErrorToast);
+    }
+  }
+};
+
+const renderChatMessage = (
+  msg: {
+    attachments: {
+      byteSize: number | null;
+      contentType: string;
+      fileName: string;
+      id: string;
+      url?: string | null;
+    }[];
+    content: string | null;
+    createdAt: Date | string;
+    id: string;
+    senderRole: string;
+    type: string;
+  },
+  sellerName: string,
+  loadAttachmentUrl: (attachmentId: string) => Promise<string>
+) => {
+  if (msg.type === "system") {
+    return (
+      <MessageScrollerItem key={msg.id} className="flex justify-center">
+        <span className="text-[10px] text-muted-foreground bg-muted/60 border border-border/50 rounded-full px-3 py-1">
+          {msg.content}
+        </span>
+      </MessageScrollerItem>
+    );
+  }
+
+  const isBuyer = msg.senderRole === "buyer";
+
+  return (
+    <MessageScrollerItem key={msg.id}>
+      <Message align={isBuyer ? "end" : "start"}>
+        {!isBuyer && (
+          <MessageAvatar>
+            <Avatar size="sm" className="size-7">
+              <AvatarFallback className="text-[10px] font-semibold bg-primary/10 text-primary">
+                {msg.senderRole === "admin"
+                  ? "AD"
+                  : sellerName.slice(0, 2).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          </MessageAvatar>
+        )}
+        <MessageContent>
+          {msg.content ? (
+            <Bubble
+              variant={getBubbleVariant(msg.senderRole)}
+              align={isBuyer ? "end" : "start"}
+            >
+              <BubbleContent>{msg.content}</BubbleContent>
+            </Bubble>
+          ) : null}
+          {msg.attachments.length > 0 && (
+            <OrderChatMessageAttachments
+              attachments={msg.attachments}
+              getAttachmentUrl={loadAttachmentUrl}
+            />
+          )}
+          <MessageFooter className="text-[10px] text-muted-foreground">
+            {new Date(msg.createdAt).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </MessageFooter>
+        </MessageContent>
+      </Message>
+    </MessageScrollerItem>
+  );
+};
+
+const useOrderChatAttachments = ({
+  attachmentDrafts,
+  attachmentUpload,
+  createAttachmentMutation,
+  discardAttachmentMutation,
+  orderId,
+  setAttachmentDrafts,
+  setFailedAttachmentDrafts,
+}: {
+  attachmentDrafts: AttachmentDraft[];
+  attachmentUpload: ReturnType<typeof useUploadFiles>;
+  createAttachmentMutation: {
+    mutateAsync: (input: {
+      byteSize: number;
+      contentType: string;
+      fileName: string;
+      orderId: string;
+      storageKey: string;
+    }) => Promise<{ id: string }>;
+  };
+  discardAttachmentMutation: {
+    mutateAsync: (input: { attachmentId: string }) => Promise<unknown>;
+  };
+  orderId: string;
+  setAttachmentDrafts: React.Dispatch<React.SetStateAction<AttachmentDraft[]>>;
+  setFailedAttachmentDrafts: React.Dispatch<
+    React.SetStateAction<FailedAttachmentDraft[]>
+  >;
+}): {
+  createAttachmentDrafts: (
+    uploadedFiles: { objectInfo: { key: string }; raw: File }[]
+  ) => Promise<AttachmentDraft[]>;
+  handleFilesSelected: (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => Promise<void>;
+  removeAttachmentDraft: (attachment: AttachmentDraft) => Promise<void>;
+  retryFailedAttachment: (
+    failedAttachment: FailedAttachmentDraft
+  ) => Promise<void>;
+} => {
+  const createAttachmentDrafts = (
+    uploadedFiles: { objectInfo: { key: string }; raw: File }[]
+  ): Promise<AttachmentDraft[]> =>
+    Promise.all(
+      uploadedFiles.map(async (uploadedFile) => {
+        const attachment = await createAttachmentMutation.mutateAsync({
+          byteSize: uploadedFile.raw.size,
+          contentType: uploadedFile.raw.type || "application/octet-stream",
+          fileName: uploadedFile.raw.name,
+          orderId,
+          storageKey: uploadedFile.objectInfo.key,
+        });
+        return {
+          byteSize: uploadedFile.raw.size,
+          id: attachment.id,
+          name: uploadedFile.raw.name,
+        };
+      })
+    );
+
+  const handleFilesSelected = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ): Promise<void> => {
+    const files = [...(event.target.files ?? [])];
+    event.target.value = "";
+    const validationError = validateAttachmentSelection(
+      attachmentDrafts,
+      files
+    );
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
+
+    try {
+      const result = await attachmentUpload.uploadAsync(files, {
+        metadata: { orderId },
+      });
+      const attachments = await createAttachmentDrafts(result.files);
+      mergeUploadResult(
+        setAttachmentDrafts,
+        setFailedAttachmentDrafts,
+        attachments,
+        result.failedFiles,
+        "Một số tệp đính kèm chưa tải lên được"
+      );
+    } catch {
+      toast.error("Không thể tải tệp đính kèm lên");
+    }
+  };
+
+  const removeAttachmentDraft = async (
+    attachment: AttachmentDraft
+  ): Promise<void> => {
+    try {
+      await discardAttachmentMutation.mutateAsync({
+        attachmentId: attachment.id,
+      });
+      setAttachmentDrafts((current) =>
+        current.filter((draft) => draft.id !== attachment.id)
+      );
+    } catch {
+      toast.error("Không thể xoá tệp đính kèm");
+    }
+  };
+
+  const retryFailedAttachment = async (
+    failedAttachment: FailedAttachmentDraft
+  ): Promise<void> => {
+    setFailedAttachmentDrafts((current) =>
+      current.filter((draft) => draft !== failedAttachment)
+    );
+
+    try {
+      const result = await attachmentUpload.uploadAsync(
+        [failedAttachment.file],
+        {
+          metadata: { orderId },
+        }
+      );
+      const attachments = await createAttachmentDrafts(result.files);
+      mergeUploadResult(
+        setAttachmentDrafts,
+        setFailedAttachmentDrafts,
+        attachments,
+        result.failedFiles
+      );
+    } catch {
+      setFailedAttachmentDrafts((current) => [...current, failedAttachment]);
+    }
+  };
+
+  return {
+    createAttachmentDrafts,
+    handleFilesSelected,
+    removeAttachmentDraft,
+    retryFailedAttachment,
+  };
+};
+
+const renderAttachmentStrip = (
+  attachmentUpload: ReturnType<typeof useUploadFiles>,
+  attachmentDrafts: AttachmentDraft[],
+  failedAttachmentDrafts: FailedAttachmentDraft[],
+  discardAttachmentMutation: { isPending: boolean },
+  removeAttachmentDraft: (attachment: AttachmentDraft) => Promise<void>,
+  retryFailedAttachment: (
+    failedAttachment: FailedAttachmentDraft
+  ) => Promise<void>
+) => {
+  if (
+    !attachmentUpload.isPending &&
+    attachmentDrafts.length === 0 &&
+    failedAttachmentDrafts.length === 0
+  ) {
+    return null;
+  }
+  return (
+    <div className="border-t border-border/40 px-3 py-2">
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {attachmentUpload.isPending &&
+          attachmentUpload.progresses.map((upload) => (
+            <div
+              className="w-36 shrink-0 rounded-xl border border-border/60 bg-muted/30 px-2 py-1.5 text-xs"
+              key={upload.objectInfo.key}
+            >
+              <p className="truncate font-medium">{upload.name}</p>
+              <p className="text-muted-foreground">
+                Đang tải {Math.round(upload.progress * 100)}%
+              </p>
+            </div>
+          ))}
+        {attachmentDrafts.map((attachment) => (
+          <div
+            className="flex w-44 shrink-0 items-center gap-2 rounded-xl border border-border/60 bg-muted/30 px-2 py-1.5 text-xs"
+            key={attachment.id}
+          >
+            <FileIcon aria-hidden="true" className="size-4 shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium">{attachment.name}</p>
+              <p className="text-muted-foreground">
+                {formatOrderChatAttachmentSize(attachment.byteSize)}
+              </p>
+            </div>
+            <Button
+              aria-label={`Xoá tệp ${attachment.name}`}
+              disabled={discardAttachmentMutation.isPending}
+              onClick={() => void removeAttachmentDraft(attachment)}
+              size="icon-xs"
+              type="button"
+              variant="ghost"
+            >
+              <TrashIcon aria-hidden="true" />
+            </Button>
+          </div>
+        ))}
+        {failedAttachmentDrafts.map((failedAttachment) => (
+          <div
+            className="flex w-52 shrink-0 items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-2 py-1.5 text-xs"
+            key={`${failedAttachment.file.name}-${failedAttachment.file.lastModified}`}
+          >
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium">
+                {failedAttachment.file.name}
+              </p>
+              <p className="truncate text-destructive">
+                {failedAttachment.message}
+              </p>
+            </div>
+            <Button
+              onClick={() => void retryFailedAttachment(failedAttachment)}
+              size="xs"
+              type="button"
+              variant="ghost"
+            >
+              Thử lại
+            </Button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const useOrderChatRealtimeChannel = ({
+  broadcastTyping,
+  orderId,
+  queryClient,
+  recoverMessagesAfter,
+  realtimeToken,
+  refetchRealtimeToken,
+  typingIndicatorTimeoutRef,
+  channelRef,
+  setIsOtherParticipantPresent,
+  setIsOtherTyping,
+}: {
+  broadcastTyping: (typing: boolean) => void;
+  orderId: string;
+  queryClient: ReturnType<typeof useQueryClient>;
+  recoverMessagesAfter: () => Promise<void>;
+  realtimeToken:
+    | {
+        accessToken?: string;
+        channel?: string;
+      }
+    | undefined;
+  refetchRealtimeToken: () => Promise<unknown>;
+  typingIndicatorTimeoutRef: React.MutableRefObject<ReturnType<
+    typeof setTimeout
+  > | null>;
+  channelRef: React.MutableRefObject<ReturnType<
+    typeof supabasePublic.channel
+  > | null>;
+  setIsOtherParticipantPresent: (value: boolean) => void;
+  setIsOtherTyping: (value: boolean) => void;
+}): void => {
+  React.useEffect(() => {
+    const accessToken = realtimeToken?.accessToken;
+    const channelName = realtimeToken?.channel;
+    if (!accessToken || !channelName) {
+      return;
+    }
+
+    supabasePublic.realtime.setAuth(accessToken);
+    const channel = supabasePublic
+      .channel(channelName, { config: { private: true } })
+      .on("broadcast", { event: "new_message" }, () => {
+        void recoverMessagesAfter();
+      })
+      .on("broadcast", { event: "typing" }, (payload) => {
+        setIsOtherTyping(Boolean(payload.payload.typing));
+        if (typingIndicatorTimeoutRef.current) {
+          clearTimeout(typingIndicatorTimeoutRef.current);
+        }
+        if (payload.payload.typing) {
+          typingIndicatorTimeoutRef.current = setTimeout(() => {
+            setIsOtherTyping(false);
+          }, TYPING_INDICATOR_TIMEOUT_MS);
+        }
+      })
+      .on("presence", { event: "sync" }, () => {
+        const participants = Object.keys(channel.presenceState());
+        setIsOtherParticipantPresent(participants.length > 1);
+      })
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          void channel.track({ typing: false });
+          void recoverMessagesAfter();
+          return;
+        }
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          void refetchRealtimeToken();
+        }
+      });
+    channelRef.current = channel;
+
+    return () => {
+      broadcastTyping(false);
+      if (typingIndicatorTimeoutRef.current) {
+        clearTimeout(typingIndicatorTimeoutRef.current);
+      }
+      channelRef.current = null;
+      setIsOtherTyping(false);
+      setIsOtherParticipantPresent(false);
+      void supabasePublic.removeChannel(channel);
+    };
+  }, [
+    broadcastTyping,
+    orderId,
+    queryClient,
+    recoverMessagesAfter,
+    refetchRealtimeToken,
+    realtimeToken?.accessToken,
+    realtimeToken?.channel,
+    typingIndicatorTimeoutRef,
+    channelRef,
+    setIsOtherParticipantPresent,
+    setIsOtherTyping,
+  ]);
 };
 
 interface OrderChatHeaderProps {
@@ -245,7 +698,6 @@ const OrderChatHeader = ({
 );
 
 // Attachment upload and realtime chat state intentionally share this component.
-// eslint-disable-next-line complexity
 export const OrderChatPanel = ({
   heightClass = "h-110",
   orderId,
@@ -444,66 +896,18 @@ export const OrderChatPanel = ({
     });
   }, []);
 
-  React.useEffect(() => {
-    const accessToken = realtimeToken?.accessToken;
-    const channelName = realtimeToken?.channel;
-    if (!accessToken || !channelName) {
-      return;
-    }
-
-    supabasePublic.realtime.setAuth(accessToken);
-    const channel = supabasePublic
-      .channel(channelName, { config: { private: true } })
-      .on("broadcast", { event: "new_message" }, () => {
-        void recoverMessagesAfter();
-      })
-      .on("broadcast", { event: "typing" }, (payload) => {
-        setIsOtherTyping(Boolean(payload.payload.typing));
-        if (typingIndicatorTimeoutRef.current) {
-          clearTimeout(typingIndicatorTimeoutRef.current);
-        }
-        if (payload.payload.typing) {
-          typingIndicatorTimeoutRef.current = setTimeout(() => {
-            setIsOtherTyping(false);
-          }, TYPING_INDICATOR_TIMEOUT_MS);
-        }
-      })
-      .on("presence", { event: "sync" }, () => {
-        const participants = Object.keys(channel.presenceState());
-        setIsOtherParticipantPresent(participants.length > 1);
-      })
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          void channel.track({ typing: false });
-          void recoverMessagesAfter();
-          return;
-        }
-        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-          void refetchRealtimeToken();
-        }
-      });
-    channelRef.current = channel;
-
-    return () => {
-      broadcastTyping(false);
-      if (typingIndicatorTimeoutRef.current) {
-        clearTimeout(typingIndicatorTimeoutRef.current);
-      }
-      channelRef.current = null;
-      setIsOtherTyping(false);
-      setIsOtherParticipantPresent(false);
-      void supabasePublic.removeChannel(channel);
-    };
-  }, [
+  useOrderChatRealtimeChannel({
     broadcastTyping,
+    channelRef,
     orderId,
     queryClient,
-    messagesQueryOptions.queryKey,
+    realtimeToken,
     recoverMessagesAfter,
     refetchRealtimeToken,
-    realtimeToken?.accessToken,
-    realtimeToken?.channel,
-  ]);
+    setIsOtherParticipantPresent,
+    setIsOtherTyping,
+    typingIndicatorTimeoutRef,
+  });
 
   React.useEffect(() => {
     const expiresInSeconds = realtimeToken?.expiresInSeconds;
@@ -542,132 +946,16 @@ export const OrderChatPanel = ({
     broadcastTyping(Boolean(nextValue.trim()));
   };
 
-  const createAttachmentDrafts = (
-    uploadedFiles: { objectInfo: { key: string }; raw: File }[]
-  ): Promise<AttachmentDraft[]> =>
-    Promise.all(
-      uploadedFiles.map(async (uploadedFile) => {
-        const attachment = await createAttachmentMutation.mutateAsync({
-          byteSize: uploadedFile.raw.size,
-          contentType: uploadedFile.raw.type || "application/octet-stream",
-          fileName: uploadedFile.raw.name,
-          orderId,
-          storageKey: uploadedFile.objectInfo.key,
-        });
-        return {
-          byteSize: uploadedFile.raw.size,
-          id: attachment.id,
-          name: uploadedFile.raw.name,
-        };
-      })
-    );
-
-  const handleFilesSelected = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ): Promise<void> => {
-    const files = [...(event.target.files ?? [])];
-    event.target.value = "";
-    if (files.length === 0) {
-      return;
-    }
-
-    if (
-      attachmentDrafts.length + files.length >
-      ORDER_CHAT_ATTACHMENT_MAX_COUNT
-    ) {
-      toast.error("Mỗi tin nhắn chỉ được đính kèm tối đa 5 tệp");
-      return;
-    }
-
-    const invalidFile = files.find(
-      (file) =>
-        !isOrderChatAttachmentContentType(file.type) ||
-        file.size > ORDER_CHAT_ATTACHMENT_MAX_BYTES
-    );
-    if (invalidFile) {
-      toast.error(`Tệp không hợp lệ hoặc quá 20 MB: ${invalidFile.name}`);
-      return;
-    }
-
-    const totalSize =
-      attachmentDrafts.reduce(
-        (total, attachment) => total + attachment.byteSize,
-        0
-      ) + files.reduce((total, file) => total + file.size, 0);
-    if (totalSize > ORDER_CHAT_ATTACHMENT_MAX_TOTAL_BYTES) {
-      toast.error("Tổng tệp đính kèm không được quá 50 MB");
-      return;
-    }
-
-    try {
-      const result = await attachmentUpload.uploadAsync(files, {
-        metadata: { orderId },
-      });
-      const attachments = await createAttachmentDrafts(result.files);
-      setAttachmentDrafts((currentAttachments) => [
-        ...currentAttachments,
-        ...attachments,
-      ]);
-      if (result.failedFiles.length > 0) {
-        setFailedAttachmentDrafts((current) => [
-          ...current,
-          ...result.failedFiles.map((file) => ({
-            file: file.raw,
-            message: file.error.message,
-          })),
-        ]);
-        toast.error("Một số tệp đính kèm chưa tải lên được");
-      }
-    } catch {
-      toast.error("Không thể tải tệp đính kèm lên");
-    }
-  };
-
-  const removeAttachmentDraft = async (
-    attachment: AttachmentDraft
-  ): Promise<void> => {
-    try {
-      await discardAttachmentMutation.mutateAsync({
-        attachmentId: attachment.id,
-      });
-      setAttachmentDrafts((current) =>
-        current.filter((draft) => draft.id !== attachment.id)
-      );
-    } catch {
-      toast.error("Không thể xoá tệp đính kèm");
-    }
-  };
-
-  const retryFailedAttachment = async (
-    failedAttachment: FailedAttachmentDraft
-  ): Promise<void> => {
-    setFailedAttachmentDrafts((current) =>
-      current.filter((draft) => draft !== failedAttachment)
-    );
-
-    try {
-      const result = await attachmentUpload.uploadAsync(
-        [failedAttachment.file],
-        {
-          metadata: { orderId },
-        }
-      );
-      const attachments = await createAttachmentDrafts(result.files);
-      setAttachmentDrafts((current) => [...current, ...attachments]);
-
-      if (result.failedFiles.length > 0) {
-        setFailedAttachmentDrafts((current) => [
-          ...current,
-          ...result.failedFiles.map((file) => ({
-            file: file.raw,
-            message: file.error.message,
-          })),
-        ]);
-      }
-    } catch {
-      setFailedAttachmentDrafts((current) => [...current, failedAttachment]);
-    }
-  };
+  const { handleFilesSelected, removeAttachmentDraft, retryFailedAttachment } =
+    useOrderChatAttachments({
+      attachmentDrafts,
+      attachmentUpload,
+      createAttachmentMutation,
+      discardAttachmentMutation,
+      orderId,
+      setAttachmentDrafts,
+      setFailedAttachmentDrafts,
+    });
 
   const loadAttachmentUrl = React.useCallback(
     async (attachmentId: string): Promise<string> => {
@@ -717,62 +1005,9 @@ export const OrderChatPanel = ({
                 </MessageScrollerItem>
               )}
 
-              {displayMessages.map((msg) => {
-                if (msg.type === "system") {
-                  return (
-                    <MessageScrollerItem
-                      key={msg.id}
-                      className="flex justify-center"
-                    >
-                      <span className="text-[10px] text-muted-foreground bg-muted/60 border border-border/50 rounded-full px-3 py-1">
-                        {msg.content}
-                      </span>
-                    </MessageScrollerItem>
-                  );
-                }
-
-                const isBuyer = msg.senderRole === "buyer";
-
-                return (
-                  <MessageScrollerItem key={msg.id}>
-                    <Message align={isBuyer ? "end" : "start"}>
-                      {!isBuyer && (
-                        <MessageAvatar>
-                          <Avatar size="sm" className="size-7">
-                            <AvatarFallback className="text-[10px] font-semibold bg-primary/10 text-primary">
-                              {msg.senderRole === "admin"
-                                ? "AD"
-                                : sellerName.slice(0, 2).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                        </MessageAvatar>
-                      )}
-                      <MessageContent>
-                        {msg.content ? (
-                          <Bubble
-                            variant={getBubbleVariant(msg.senderRole)}
-                            align={isBuyer ? "end" : "start"}
-                          >
-                            <BubbleContent>{msg.content}</BubbleContent>
-                          </Bubble>
-                        ) : null}
-                        {msg.attachments.length > 0 && (
-                          <OrderChatMessageAttachments
-                            attachments={msg.attachments}
-                            getAttachmentUrl={loadAttachmentUrl}
-                          />
-                        )}
-                        <MessageFooter className="text-[10px] text-muted-foreground">
-                          {new Date(msg.createdAt).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </MessageFooter>
-                      </MessageContent>
-                    </Message>
-                  </MessageScrollerItem>
-                );
-              })}
+              {displayMessages.map((msg) =>
+                renderChatMessage(msg, sellerName, loadAttachmentUrl)
+              )}
               {isOtherTyping && (
                 <MessageScrollerItem className="flex justify-start">
                   <Message align="start">
@@ -855,72 +1090,13 @@ export const OrderChatPanel = ({
           <PaperPlaneRightIcon className="h-3.5 w-3.5" />
         </Button>
       </form>
-      {(attachmentUpload.isPending ||
-        attachmentDrafts.length > 0 ||
-        failedAttachmentDrafts.length > 0) && (
-        <div className="border-t border-border/40 px-3 py-2">
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {attachmentUpload.isPending &&
-              attachmentUpload.progresses.map((upload) => (
-                <div
-                  className="w-36 shrink-0 rounded-xl border border-border/60 bg-muted/30 px-2 py-1.5 text-xs"
-                  key={upload.objectInfo.key}
-                >
-                  <p className="truncate font-medium">{upload.name}</p>
-                  <p className="text-muted-foreground">
-                    Đang tải {Math.round(upload.progress * 100)}%
-                  </p>
-                </div>
-              ))}
-            {attachmentDrafts.map((attachment) => (
-              <div
-                className="flex w-44 shrink-0 items-center gap-2 rounded-xl border border-border/60 bg-muted/30 px-2 py-1.5 text-xs"
-                key={attachment.id}
-              >
-                <FileIcon aria-hidden="true" className="size-4 shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{attachment.name}</p>
-                  <p className="text-muted-foreground">
-                    {formatOrderChatAttachmentSize(attachment.byteSize)}
-                  </p>
-                </div>
-                <Button
-                  aria-label={`Xoá tệp ${attachment.name}`}
-                  disabled={discardAttachmentMutation.isPending}
-                  onClick={() => void removeAttachmentDraft(attachment)}
-                  size="icon-xs"
-                  type="button"
-                  variant="ghost"
-                >
-                  <TrashIcon aria-hidden="true" />
-                </Button>
-              </div>
-            ))}
-            {failedAttachmentDrafts.map((failedAttachment) => (
-              <div
-                className="flex w-52 shrink-0 items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-2 py-1.5 text-xs"
-                key={`${failedAttachment.file.name}-${failedAttachment.file.lastModified}`}
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">
-                    {failedAttachment.file.name}
-                  </p>
-                  <p className="truncate text-destructive">
-                    {failedAttachment.message}
-                  </p>
-                </div>
-                <Button
-                  onClick={() => void retryFailedAttachment(failedAttachment)}
-                  size="xs"
-                  type="button"
-                  variant="ghost"
-                >
-                  Thử lại
-                </Button>
-              </div>
-            ))}
-          </div>
-        </div>
+      {renderAttachmentStrip(
+        attachmentUpload,
+        attachmentDrafts,
+        failedAttachmentDrafts,
+        discardAttachmentMutation,
+        removeAttachmentDraft,
+        retryFailedAttachment
       )}
     </div>
   );

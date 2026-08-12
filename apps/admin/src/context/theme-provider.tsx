@@ -1,4 +1,11 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import { getCookie, removeCookie, setCookie } from "@/lib/cookies";
 
@@ -77,31 +84,33 @@ export const ThemeProvider = ({
     return () => mediaQuery.removeEventListener("change", handleChange);
   }, [theme, resolvedTheme]);
 
-  const handleSetTheme = (nextTheme: Theme) => {
-    setCookie(storageKey, nextTheme, THEME_COOKIE_MAX_AGE);
-    setTheme(nextTheme);
-  };
+  const handleSetTheme = useCallback(
+    (nextTheme: Theme) => {
+      setCookie(storageKey, nextTheme, THEME_COOKIE_MAX_AGE);
+      setTheme(nextTheme);
+    },
+    [storageKey]
+  );
 
-  const handleResetTheme = () => {
+  const handleResetTheme = useCallback(() => {
     removeCookie(storageKey);
     setTheme(DEFAULT_THEME);
-  };
+  }, [storageKey]);
 
-  const contextValue: ThemeProviderState = {
-    defaultTheme,
-    resetTheme: handleResetTheme,
-    resolvedTheme,
-    setTheme: handleSetTheme,
-    theme,
-  };
-
-  return (
-    // eslint-disable-next-line react/jsx-no-constructed-context-values
-    <ThemeContext value={contextValue}>{children}</ThemeContext>
+  const contextValue: ThemeProviderState = useMemo(
+    () => ({
+      defaultTheme,
+      resetTheme: handleResetTheme,
+      resolvedTheme,
+      setTheme: handleSetTheme,
+      theme,
+    }),
+    [defaultTheme, handleResetTheme, handleSetTheme, resolvedTheme, theme]
   );
+
+  return <ThemeContext value={contextValue}>{children}</ThemeContext>;
 };
 
-// eslint-disable-next-line react-doctor/only-export-components
 export const useTheme = () => {
   const context = useContext(ThemeContext);
 

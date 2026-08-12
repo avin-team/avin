@@ -1,5 +1,3 @@
-/* eslint-disable no-await-in-loop */
-
 import { db } from "@avin/db";
 import { order, orderItem } from "@avin/db/schema/commerce";
 import type { OrderItemStatus } from "@avin/db/schema/commerce";

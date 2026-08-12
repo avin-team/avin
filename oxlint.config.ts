@@ -40,8 +40,22 @@ export default defineConfig({
   rules: {
     "@workspace/select-requires-items": "error",
     "github/filenames-match-regex": "off",
+    "no-await-in-loop": "off",
+    "promise/avoid-new": "off",
+    "promise/prefer-await-to-callbacks": "off",
+    "react-doctor/async-await-in-loop": "off",
+    // Supabase realtime channel subscriptions are torn down via
+    // channel.unsubscribe()/removeChannel() in effect cleanups, but the
+    // rule's static analysis cannot match those release calls.
+    "react-doctor/effect-needs-cleanup": "off",
     "react-doctor/nextjs-no-img-element": "off",
     "react-doctor/no-giant-component": "off",
+    // Charts are already code-split behind React.lazy() boundaries; the
+    // rule cannot see that the heavy imports live in lazily-loaded modules.
+    "react-doctor/prefer-dynamic-import": "off",
     "react-doctor/react-compiler-no-manual-memoization": "off",
+    // apps/admin/src/lib/cookies.ts is the single deliberate
+    // document.cookie wrapper (replaces the js-cookie dependency).
+    "unicorn/no-document-cookie": "off",
   },
 });

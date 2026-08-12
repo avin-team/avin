@@ -1,5 +1,3 @@
-/* eslint-disable no-await-in-loop, react-doctor/async-await-in-loop */
-
 import type { db } from "@avin/db";
 import {
   ledgerAccount,
@@ -69,6 +67,48 @@ const updateLedgerAccountBalance = async (
   return updated.balanceAmount;
 };
 
+const recordLedgerPosting = async (
+  executor: WalletExecutor,
+  transaction: { id: string },
+  posting: { accountId: string; creditAmount: number; debitAmount: number }
+): Promise<RecordedLedgerTransaction["postings"][number]> => {
+  const [account] = await executor
+    .select({
+      balanceAmount: ledgerAccount.balanceAmount,
+      balanceSide: ledgerAccount.balanceSide,
+    })
+    .from(ledgerAccount)
+    .where(eq(ledgerAccount.id, posting.accountId))
+    .limit(1);
+
+  if (!account) {
+    throw new Error("Ledger account was not found");
+  }
+
+  const balanceAfter = await updateLedgerAccountBalance(
+    executor,
+    posting.accountId,
+    account.balanceSide,
+    posting.debitAmount,
+    posting.creditAmount
+  );
+
+  await executor.insert(ledgerPosting).values({
+    balanceAfter,
+    creditAmount: posting.creditAmount,
+    debitAmount: posting.debitAmount,
+    ledgerAccountId: posting.accountId,
+    transactionId: transaction.id,
+  });
+
+  return {
+    accountId: posting.accountId,
+    balanceAfter,
+    creditAmount: posting.creditAmount,
+    debitAmount: posting.debitAmount,
+  };
+};
+
 export const recordBalancedLedgerTransaction = async (
   executor: WalletExecutor,
   input: LedgerTransactionInput
@@ -121,41 +161,9 @@ export const recordBalancedLedgerTransaction = async (
 
   const recordedPostings: RecordedLedgerTransaction["postings"] = [];
   for (const posting of postings) {
-    const [account] = await executor
-      .select({
-        balanceAmount: ledgerAccount.balanceAmount,
-        balanceSide: ledgerAccount.balanceSide,
-      })
-      .from(ledgerAccount)
-      .where(eq(ledgerAccount.id, posting.accountId))
-      .limit(1);
-
-    if (!account) {
-      throw new Error("Ledger account was not found");
-    }
-
-    const balanceAfter = await updateLedgerAccountBalance(
-      executor,
-      posting.accountId,
-      account.balanceSide,
-      posting.debitAmount,
-      posting.creditAmount
+    recordedPostings.push(
+      await recordLedgerPosting(executor, transaction, posting)
     );
-
-    await executor.insert(ledgerPosting).values({
-      balanceAfter,
-      creditAmount: posting.creditAmount,
-      debitAmount: posting.debitAmount,
-      ledgerAccountId: posting.accountId,
-      transactionId: transaction.id,
-    });
-
-    recordedPostings.push({
-      accountId: posting.accountId,
-      balanceAfter,
-      creditAmount: posting.creditAmount,
-      debitAmount: posting.debitAmount,
-    });
   }
 
   return {

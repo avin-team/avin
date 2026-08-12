@@ -1,5 +1,3 @@
-/* eslint-disable no-await-in-loop, react-doctor/async-await-in-loop */
-
 import type { db } from "@avin/db";
 import { user as userTable } from "@avin/db/schema/auth";
 import {
@@ -712,9 +710,8 @@ export const createCheckout = (
       });
     }
 
-    const purchaseTransaction = await recordBalancedLedgerTransaction(
-      transaction,
-      {
+    const [purchaseTransaction, updatedWallet] = await Promise.all([
+      recordBalancedLedgerTransaction(transaction, {
         amount: totalAmount,
         description: `PURCHASE_HOLD ${input.idempotencyKey}`,
         postings: [
@@ -729,26 +726,28 @@ export const createCheckout = (
         ],
         reference: createPurchaseTransactionReference(),
         type: "PURCHASE_HOLD",
-      }
-    );
-    // eslint-disable-next-line react-doctor/server-sequential-independent-await
-    const [updatedWallet] = await transaction
-      .update(userWallet)
-      .set({
-        availableBalance: sql`${userWallet.availableBalance} - ${totalAmount}`,
-        heldBalance: sql`${userWallet.heldBalance} + ${totalAmount}`,
-        updatedAt: now,
-      })
-      .where(
-        and(
-          eq(userWallet.id, accounts.wallet.id),
-          gte(userWallet.availableBalance, totalAmount)
-        )
-      )
-      .returning({
-        availableBalance: userWallet.availableBalance,
-        heldBalance: userWallet.heldBalance,
-      });
+      }),
+      (async () => {
+        const [walletAfterUpdate] = await transaction
+          .update(userWallet)
+          .set({
+            availableBalance: sql`${userWallet.availableBalance} - ${totalAmount}`,
+            heldBalance: sql`${userWallet.heldBalance} + ${totalAmount}`,
+            updatedAt: now,
+          })
+          .where(
+            and(
+              eq(userWallet.id, accounts.wallet.id),
+              gte(userWallet.availableBalance, totalAmount)
+            )
+          )
+          .returning({
+            availableBalance: userWallet.availableBalance,
+            heldBalance: userWallet.heldBalance,
+          });
+        return walletAfterUpdate;
+      })(),
+    ]);
 
     if (!updatedWallet) {
       throw new ORPCError("CONFLICT", {

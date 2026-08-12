@@ -158,10 +158,8 @@ export const SellerListPage = () => {
                 <TableBody>
                   {isPending
                     ? Array.from({ length: 4 }).map((_, i) => (
-                        // eslint-disable-next-line react/no-array-index-key
                         <TableRow key={i}>
                           {Array.from({ length: 6 }).map((__, j) => (
-                            // eslint-disable-next-line react/no-array-index-key
                             <TableCell key={j}>
                               <Skeleton className="h-5 w-full" />
                             </TableCell>

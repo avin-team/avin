@@ -269,7 +269,6 @@ describe("Order Chat Logic", () => {
     });
   });
 
-  /* eslint-disable promise/prefer-await-to-callbacks */
   it("preserves the database receiver when using a transaction", async () => {
     const mockDb = createMockDb() as unknown as MockDatabase & {
       transaction: <Result>(

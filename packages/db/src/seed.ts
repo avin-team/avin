@@ -1,4 +1,3 @@
-/* eslint-disable no-await-in-loop */
 import { db } from "./index";
 import { parentCategory, subCategory } from "./schema/catalog";
 

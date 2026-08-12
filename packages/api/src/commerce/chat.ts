@@ -1,5 +1,3 @@
-/* eslint-disable func-style */
-
 import {
   isOrderChatAttachmentKey,
   isOrderChatAttachmentContentType,
@@ -164,7 +162,7 @@ export interface GetChatNotificationSummaryOptions {
   userId: string;
 }
 
-function assertCanReadChat({
+const assertCanReadChat = ({
   database,
   orderRecord,
   userId,
@@ -174,7 +172,7 @@ function assertCanReadChat({
   orderRecord: { buyerId: string; sellerId: string };
   userId: string;
   userRole?: string | null;
-}): { isAdmin: boolean } {
+}): { isAdmin: boolean } => {
   void database;
   const isAdmin = userRole === "ADMIN";
   if (userId === orderRecord.sellerId) {
@@ -184,7 +182,7 @@ function assertCanReadChat({
   }
 
   return { isAdmin };
-}
+};
 
 const assertSellerChatMutationAllowed = async (
   database: typeof db,
@@ -214,12 +212,12 @@ interface ConversationParticipantProfile {
   storefrontName?: string | null;
 }
 
-function buildConversationParticipant(
+const buildConversationParticipant = (
   isBuyer: boolean,
   seller: { id: string; image: string | null; name: string },
   buyer: { id: string; image: string | null; name: string },
   profile?: ConversationParticipantProfile
-) {
+) => {
   if (isBuyer) {
     return {
       avatarUrl: profile?.avatarUrl ?? null,
@@ -238,13 +236,13 @@ function buildConversationParticipant(
     storeSlug: null,
     storefrontName: null,
   };
-}
+};
 
-export async function listConversations({
+export const listConversations = async ({
   database,
   limit,
   userId,
-}: ListConversationsOptions) {
+}: ListConversationsOptions) => {
   const orders = await database.query.order.findMany({
     limit,
     orderBy: [desc(order.createdAt)],
@@ -345,12 +343,12 @@ export async function listConversations({
       };
     })
   );
-}
+};
 
-export async function getChatNotificationSummary({
+export const getChatNotificationSummary = async ({
   database,
   userId,
-}: GetChatNotificationSummaryOptions) {
+}: GetChatNotificationSummaryOptions) => {
   const [[unreadResult], conversations] = await Promise.all([
     database
       .select({ value: count() })
@@ -384,9 +382,9 @@ export async function getChatNotificationSummary({
     conversations,
     unreadCount: Number(unreadResult?.value ?? 0),
   };
-}
+};
 
-async function resolveSenderRoleAndType({
+const resolveSenderRoleAndType = async ({
   buyerId,
   database,
   orderId,
@@ -403,7 +401,7 @@ async function resolveSenderRoleAndType({
 }): Promise<{
   messageType: "text" | "system" | "admin_mediation";
   senderRole: "buyer" | "seller" | "admin";
-}> {
+}> => {
   const enforcement =
     userRole === "SELLER" || userId === sellerId
       ? await getSellerEnforcement(database, userId)
@@ -447,14 +445,14 @@ async function resolveSenderRoleAndType({
   }
 
   throw new ORPCError("FORBIDDEN", { message: "Not authorized" });
-}
+};
 
-export async function sendMessage({
+export const sendMessage = async ({
   database,
   input,
   userId,
   userRole,
-}: SendMessageOptions) {
+}: SendMessageOptions) => {
   const content = input.content?.trim() || null;
   const attachmentFileIds = input.attachmentFileIds ?? [];
 
@@ -586,13 +584,13 @@ export async function sendMessage({
   }
 
   return await insertMessageAndAttachments(database);
-}
+};
 
-export async function createAttachment({
+export const createAttachment = async ({
   database,
   input,
   user: actor,
-}: CreateAttachmentOptions) {
+}: CreateAttachmentOptions) => {
   const existingOrder = await database.query.order.findFirst({
     where: eq(order.id, input.orderId),
   });
@@ -662,7 +660,7 @@ export async function createAttachment({
   }
 
   return attachment;
-}
+};
 
 const deleteOrderChatAttachmentObject = async (
   storageKey: string
@@ -688,11 +686,11 @@ const deleteOrderChatAttachmentObject = async (
   }
 };
 
-export async function discardAttachment({
+export const discardAttachment = async ({
   database,
   input,
   user: actor,
-}: DiscardAttachmentOptions): Promise<void> {
+}: DiscardAttachmentOptions): Promise<void> => {
   const attachment = await database.query.orderFile.findFirst({
     where: eq(orderFile.id, input.attachmentId),
   });
@@ -750,16 +748,16 @@ export async function discardAttachment({
   }
 
   await deleteOrderChatAttachmentObject(discardedAttachment.storageKey);
-}
+};
 
 const ORDER_CHAT_DRAFT_ATTACHMENT_RETENTION_MS = 24 * 60 * 60 * 1000;
 const ORDER_CHAT_DRAFT_ATTACHMENT_CLEANUP_LIMIT = 100;
 
-export async function cleanupOrderChatDraftAttachments({
+export const cleanupOrderChatDraftAttachments = async ({
   database,
   deleteObject = deleteOrderChatAttachmentObject,
   now = new Date(),
-}: CleanupOrderChatDraftAttachmentsOptions): Promise<number> {
+}: CleanupOrderChatDraftAttachmentsOptions): Promise<number> => {
   const expiry = new Date(
     now.getTime() - ORDER_CHAT_DRAFT_ATTACHMENT_RETENTION_MS
   );
@@ -790,14 +788,14 @@ export async function cleanupOrderChatDraftAttachments({
   );
 
   return deletedAttachments.filter(Boolean).length;
-}
+};
 
-export async function getAttachmentUrl({
+export const getAttachmentUrl = async ({
   database,
   input,
   userId,
   userRole,
-}: GetAttachmentUrlOptions): Promise<{ url: string }> {
+}: GetAttachmentUrlOptions): Promise<{ url: string }> => {
   const attachment = await database.query.orderFile.findFirst({
     where: eq(orderFile.id, input.attachmentId),
   });
@@ -856,14 +854,14 @@ export async function getAttachmentUrl({
     : `/storage/v1${result.signedURL}`;
 
   return { url: new URL(signedPath, env.SUPABASE_URL).toString() };
-}
+};
 
-export async function listMessages({
+export const listMessages = async ({
   database,
   input,
   userId,
   userRole,
-}: ListMessagesOptions) {
+}: ListMessagesOptions) => {
   const existingOrder = await database.query.order.findFirst({
     where: eq(order.id, input.orderId),
   });
@@ -930,14 +928,14 @@ export async function listMessages({
     messages: processedMessages,
     nextCursor,
   };
-}
+};
 
-export async function getAfterMessages({
+export const getAfterMessages = async ({
   database,
   input,
   userId,
   userRole,
-}: GetAfterMessagesOptions) {
+}: GetAfterMessagesOptions) => {
   const existingOrder = await database.query.order.findFirst({
     where: eq(order.id, input.orderId),
   });
@@ -989,13 +987,13 @@ export async function getAfterMessages({
     }
     return msg;
   });
-}
+};
 
-export async function markChatRead({
+export const markChatRead = async ({
   database,
   input,
   userId,
-}: MarkReadOptions) {
+}: MarkReadOptions) => {
   const existingOrder = await database.query.order.findFirst({
     where: eq(order.id, input.orderId),
   });
@@ -1027,9 +1025,9 @@ export async function markChatRead({
     });
 
   return { success: true };
-}
+};
 
-export async function getUnreadCount({
+export const getUnreadCount = async ({
   database,
   orderId,
   userId,
@@ -1037,7 +1035,7 @@ export async function getUnreadCount({
   database: typeof db;
   orderId: string;
   userId: string;
-}) {
+}) => {
   const existingOrder = await database.query.order.findFirst({
     where: eq(order.id, orderId),
   });
@@ -1075,13 +1073,13 @@ export async function getUnreadCount({
     .where(and(...whereConditions));
 
   return { unreadCount: Number(res?.value ?? 0) };
-}
+};
 
-export async function redactMessage({
+export const redactMessage = async ({
   adminUserId,
   database,
   input,
-}: RedactMessageOptions) {
+}: RedactMessageOptions) => {
   const existingMessage = await database.query.orderMessage.findFirst({
     where: eq(orderMessage.id, input.messageId),
   });
@@ -1100,15 +1098,15 @@ export async function redactMessage({
     .returning();
 
   return updated;
-}
+};
 
-export async function getRealtimeToken({
+export const getRealtimeToken = async ({
   createAccessToken = createSupabaseAccessToken,
   database,
   input,
   userId,
   userRole,
-}: GetRealtimeTokenOptions) {
+}: GetRealtimeTokenOptions) => {
   const existingOrder = await database.query.order.findFirst({
     where: eq(order.id, input.orderId),
   });
@@ -1134,13 +1132,13 @@ export async function getRealtimeToken({
     channel: `order:${input.orderId}`,
     expiresInSeconds: 600,
   };
-}
+};
 
-export async function getNotificationRealtimeToken({
+export const getNotificationRealtimeToken = async ({
   createAccessToken = createSupabaseAccessToken,
   userId,
   userRole,
-}: GetNotificationRealtimeTokenOptions) {
+}: GetNotificationRealtimeTokenOptions) => {
   const accessToken = await createAccessToken({
     id: userId,
     role: userRole,
@@ -1153,4 +1151,4 @@ export async function getNotificationRealtimeToken({
     channel: `inbox:${inboxRole}:${userId}`,
     expiresInSeconds: 600,
   };
-}
+};

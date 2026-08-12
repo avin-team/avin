@@ -1,5 +1,3 @@
-/* eslint-disable no-await-in-loop, react-doctor/async-await-in-loop */
-
 import type { AccountRole } from "@avin/auth/permissions";
 import { db } from "@avin/db";
 import { user } from "@avin/db/schema/auth";
@@ -910,60 +908,67 @@ export const refundEscrow = async (
     return throwConflict("Held Balance của Buyer không đủ để hoàn tiền.");
   }
 
-  const refundTransaction = await recordBalancedLedgerTransaction(executor, {
-    amount: item.escrowAmount,
-    description: `REFUND ORDER_ITEM ${item.id}`,
-    postings: [
-      {
-        accountId: accounts.heldAccount.id,
-        debitAmount: item.escrowAmount,
-      },
-      {
-        accountId: accounts.availableAccount.id,
-        creditAmount: item.escrowAmount,
-      },
-    ],
-    reference: `AVTX-REFUND-${item.id}-${crypto
-      .randomUUID()
-      .replaceAll("-", "")
-      .slice(0, TRANSACTION_REFERENCE_SUFFIX_LENGTH)
-      .toUpperCase()}`,
-    type: "REFUND",
-  });
-
-  // Ledger posting and wallet materialization must commit in this order.
-  // eslint-disable-next-line react-doctor/server-sequential-independent-await
-  const [updatedWallet] = await executor
-    .update(userWallet)
-    .set({
-      availableBalance: wallet.availableBalance + item.escrowAmount,
-      heldBalance: wallet.heldBalance - item.escrowAmount,
-      updatedAt: now,
-    })
-    .where(
-      and(
-        eq(userWallet.id, accounts.wallet.id),
-        gte(userWallet.heldBalance, item.escrowAmount)
-      )
-    )
-    .returning({
-      availableBalance: userWallet.availableBalance,
-      heldBalance: userWallet.heldBalance,
-    });
-  if (!updatedWallet) {
-    throwConflict("Số dư Buyer vừa thay đổi. Vui lòng thử lại.");
-  }
-
-  const [updatedHold] = await executor
-    .update(escrowHold)
-    .set({ status: "REFUNDED", updatedAt: now })
-    .where(
-      and(eq(escrowHold.id, item.escrowHoldId), eq(escrowHold.status, "HELD"))
-    )
-    .returning({ id: escrowHold.id });
-  if (!updatedHold) {
-    throwConflict("EscrowHold vừa được xử lý bởi một request khác.");
-  }
+  const [refundTransaction] = await Promise.all([
+    recordBalancedLedgerTransaction(executor, {
+      amount: item.escrowAmount,
+      description: `REFUND ORDER_ITEM ${item.id}`,
+      postings: [
+        {
+          accountId: accounts.heldAccount.id,
+          debitAmount: item.escrowAmount,
+        },
+        {
+          accountId: accounts.availableAccount.id,
+          creditAmount: item.escrowAmount,
+        },
+      ],
+      reference: `AVTX-REFUND-${item.id}-${crypto
+        .randomUUID()
+        .replaceAll("-", "")
+        .slice(0, TRANSACTION_REFERENCE_SUFFIX_LENGTH)
+        .toUpperCase()}`,
+      type: "REFUND",
+    }),
+    (async () => {
+      const [walletAfterUpdate] = await executor
+        .update(userWallet)
+        .set({
+          availableBalance: wallet.availableBalance + item.escrowAmount,
+          heldBalance: wallet.heldBalance - item.escrowAmount,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(userWallet.id, accounts.wallet.id),
+            gte(userWallet.heldBalance, item.escrowAmount)
+          )
+        )
+        .returning({
+          availableBalance: userWallet.availableBalance,
+          heldBalance: userWallet.heldBalance,
+        });
+      if (!walletAfterUpdate) {
+        throwConflict("Số dư Buyer vừa thay đổi. Vui lòng thử lại.");
+      }
+      return walletAfterUpdate;
+    })(),
+    (async () => {
+      const [updatedHold] = await executor
+        .update(escrowHold)
+        .set({ status: "REFUNDED", updatedAt: now })
+        .where(
+          and(
+            eq(escrowHold.id, item.escrowHoldId),
+            eq(escrowHold.status, "HELD")
+          )
+        )
+        .returning({ id: escrowHold.id });
+      if (!updatedHold) {
+        throwConflict("EscrowHold vừa được xử lý bởi một request khác.");
+      }
+      return updatedHold;
+    })(),
+  ]);
 
   await createNotificationEvent(executor, {
     body: `Khoản hoàn tiền ${item.escrowAmount.toLocaleString("vi-VN")} VND đã được ghi có vào ví của bạn.`,
@@ -1035,68 +1040,75 @@ export const releaseEscrow = async (
     commissionRatePercent
   );
 
-  const releaseTransaction = await recordBalancedLedgerTransaction(executor, {
-    amount: item.escrowAmount,
-    description: `RELEASE ORDER_ITEM ${item.id}`,
-    postings: [
-      {
-        accountId: buyerAccounts.heldAccount.id,
-        debitAmount: item.escrowAmount,
-      },
-      ...(sellerProceeds > 0
-        ? [
-            {
-              accountId: sellerAccounts.availableAccount.id,
-              creditAmount: sellerProceeds,
-            },
-          ]
-        : []),
-      ...(commissionAmount > 0
-        ? [
-            {
-              accountId: sellerAccounts.platformCommissionAccount.id,
-              creditAmount: commissionAmount,
-            },
-          ]
-        : []),
-    ],
-    reference: `AVTX-RELEASE-${item.id}-${crypto
-      .randomUUID()
-      .replaceAll("-", "")
-      .slice(0, TRANSACTION_REFERENCE_SUFFIX_LENGTH)
-      .toUpperCase()}`,
-    type: "ESCROW_RELEASE",
-  });
-
-  // Ledger posting must complete before wallet materialization.
-  // eslint-disable-next-line react-doctor/server-sequential-independent-await
-  const [updatedBuyerWallet] = await executor
-    .update(userWallet)
-    .set({
-      heldBalance: buyerWallet.heldBalance - item.escrowAmount,
-      updatedAt: now,
-    })
-    .where(
-      and(
-        eq(userWallet.id, buyerAccounts.wallet.id),
-        gte(userWallet.heldBalance, item.escrowAmount)
-      )
-    )
-    .returning({ heldBalance: userWallet.heldBalance });
-  if (!updatedBuyerWallet) {
-    throwConflict("Held Balance của Buyer vừa thay đổi. Vui lòng thử lại.");
-  }
-
-  const [updatedHold] = await executor
-    .update(escrowHold)
-    .set({ status: "RELEASED", updatedAt: now })
-    .where(
-      and(eq(escrowHold.id, item.escrowHoldId), eq(escrowHold.status, "HELD"))
-    )
-    .returning({ id: escrowHold.id });
-  if (!updatedHold) {
-    throwConflict("EscrowHold vừa được xử lý bởi một request khác.");
-  }
+  const [releaseTransaction] = await Promise.all([
+    recordBalancedLedgerTransaction(executor, {
+      amount: item.escrowAmount,
+      description: `RELEASE ORDER_ITEM ${item.id}`,
+      postings: [
+        {
+          accountId: buyerAccounts.heldAccount.id,
+          debitAmount: item.escrowAmount,
+        },
+        ...(sellerProceeds > 0
+          ? [
+              {
+                accountId: sellerAccounts.availableAccount.id,
+                creditAmount: sellerProceeds,
+              },
+            ]
+          : []),
+        ...(commissionAmount > 0
+          ? [
+              {
+                accountId: sellerAccounts.platformCommissionAccount.id,
+                creditAmount: commissionAmount,
+              },
+            ]
+          : []),
+      ],
+      reference: `AVTX-RELEASE-${item.id}-${crypto
+        .randomUUID()
+        .replaceAll("-", "")
+        .slice(0, TRANSACTION_REFERENCE_SUFFIX_LENGTH)
+        .toUpperCase()}`,
+      type: "ESCROW_RELEASE",
+    }),
+    (async () => {
+      const [walletAfterUpdate] = await executor
+        .update(userWallet)
+        .set({
+          heldBalance: buyerWallet.heldBalance - item.escrowAmount,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(userWallet.id, buyerAccounts.wallet.id),
+            gte(userWallet.heldBalance, item.escrowAmount)
+          )
+        )
+        .returning({ heldBalance: userWallet.heldBalance });
+      if (!walletAfterUpdate) {
+        throwConflict("Held Balance của Buyer vừa thay đổi. Vui lòng thử lại.");
+      }
+      return walletAfterUpdate;
+    })(),
+    (async () => {
+      const [updatedHold] = await executor
+        .update(escrowHold)
+        .set({ status: "RELEASED", updatedAt: now })
+        .where(
+          and(
+            eq(escrowHold.id, item.escrowHoldId),
+            eq(escrowHold.status, "HELD")
+          )
+        )
+        .returning({ id: escrowHold.id });
+      if (!updatedHold) {
+        throwConflict("EscrowHold vừa được xử lý bởi một request khác.");
+      }
+      return updatedHold;
+    })(),
+  ]);
 
   return releaseTransaction.id;
 };

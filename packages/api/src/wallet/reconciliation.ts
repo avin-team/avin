@@ -1,5 +1,3 @@
-/* eslint-disable no-await-in-loop, react-doctor/async-await-in-loop */
-
 import { db } from "@avin/db";
 
 import { processSePayEvent } from "./processor";

@@ -24,7 +24,3 @@ export const ApplicationStatusBadge = ({
 }: {
   readonly status: SellerApplicationStatus;
 }) => <Badge variant={STATUS_VARIANTS[status]}>{STATUS_LABELS[status]}</Badge>;
-
-// eslint-disable-next-line react-doctor/only-export-components
-export const getApplicationStatusLabel = (status: SellerApplicationStatus) =>
-  STATUS_LABELS[status];

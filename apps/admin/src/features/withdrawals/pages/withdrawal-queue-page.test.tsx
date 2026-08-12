@@ -1,3 +1,4 @@
+import { createElement } from "react";
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -52,14 +53,13 @@ vi.mock("@avin/ui/components/button", () => ({
   ),
 }));
 vi.mock("@avin/ui/components/card", () => {
-  // eslint-disable-next-line unicorn/consistent-function-scoping
-  const Container = ({ children }: { children: ReactNode }) => (
-    <section>{children}</section>
-  );
+  const containerTag = "section";
+  const CardContainer = ({ children }: { children: ReactNode }) =>
+    createElement(containerTag, null, children);
   return {
-    Card: Container,
-    CardContent: Container,
-    CardHeader: Container,
+    Card: CardContainer,
+    CardContent: CardContainer,
+    CardHeader: CardContainer,
     CardTitle: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
   };
 });
@@ -69,17 +69,16 @@ vi.mock("@avin/ui/components/input", () => ({
   ),
 }));
 vi.mock("@avin/ui/components/table", () => {
-  // eslint-disable-next-line unicorn/consistent-function-scoping
-  const Container = ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
-  );
+  const containerTag = "div";
+  const TableContainer = ({ children }: { children: ReactNode }) =>
+    createElement(containerTag, null, children);
   return {
-    Table: Container,
-    TableBody: Container,
-    TableCell: Container,
-    TableHead: Container,
-    TableHeader: Container,
-    TableRow: Container,
+    Table: TableContainer,
+    TableBody: TableContainer,
+    TableCell: TableContainer,
+    TableHead: TableContainer,
+    TableHeader: TableContainer,
+    TableRow: TableContainer,
   };
 });
 vi.mock("@avin/ui/components/badge", () => ({
