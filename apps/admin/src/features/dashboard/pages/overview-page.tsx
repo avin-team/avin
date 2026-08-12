@@ -36,6 +36,7 @@ import { useOperationsOverviewAnalytics } from "@/features/operations/api/operat
 import { useAdminSellerApplications } from "@/features/seller-applications/api/seller-applications-api";
 import { ApplicationStatusBadge } from "@/features/seller-applications/components/application-status-badge";
 import { formatApplicationDate } from "@/features/seller-applications/utils";
+import { useSellers } from "@/features/sellers/api/mock-sellers";
 import { useAdminSellerList } from "@/features/sellers/api/seller-enforcement-api";
 import { useAdminWithdrawals } from "@/features/withdrawals/api/withdrawals-api";
 
@@ -75,8 +76,9 @@ export const OverviewPage = () => {
   const [timeframe, setTimeframe] = useState<"7d" | "30d">("7d");
   const { data: applications = [] } = useAdminSellerApplications();
   const { data: categories = [] } = useQuery(categoriesQueryOptions());
-  const { data: sellerListData } = useAdminSellerList();
-  const sellers = sellerListData?.items ?? [];
+  const { data: remoteSellers = [] } = useAdminSellerList();
+  const mockSellers = useSellers();
+  const sellers = remoteSellers.length > 0 ? remoteSellers : mockSellers;
   const { data: disputes = [] } = useAdminDisputes("OPEN");
   const { data: withdrawals = [] } = useAdminWithdrawals();
   const { data: listings = [] } = useAdminListings();

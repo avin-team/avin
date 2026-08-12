@@ -47,13 +47,15 @@ vi.mock("@/features/categories/workflow", () => ({
   countTotalSubCategories: () => 5,
 }));
 
+vi.mock("@/features/sellers/api/mock-sellers", () => ({
+  useSellers: () => [
+    { enforcementStatus: "SUSPENDED", id: "seller-1", name: "Shop B" },
+  ],
+}));
+
 vi.mock("@/features/sellers/api/seller-enforcement-api", () => ({
   useAdminSellerList: () => ({
-    data: {
-      items: [
-        { enforcementStatus: "SUSPENDED", id: "seller-1", name: "Shop B" },
-      ],
-    },
+    data: [{ enforcementStatus: "SUSPENDED", id: "seller-1", name: "Shop B" }],
   }),
 }));
 
