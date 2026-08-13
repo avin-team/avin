@@ -119,7 +119,7 @@ export const CategoryCarousel = ({ categories }: CategoryCarouselProps) => {
                       <br />
                       <span className="text-primary">{category.name}</span>
                     </h1>
-                    <p className="mt-5 max-w-xl text-muted-foreground">
+                    <p className="mt-5 max-w-xl truncate text-muted-foreground">
                       {category.description ??
                         "Khám phá các giải pháp phù hợp từ những người bán đã được Avin xác minh."}
                     </p>

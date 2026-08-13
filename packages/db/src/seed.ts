@@ -1,3 +1,5 @@
+import { eq as equals } from "drizzle-orm";
+
 import { db } from "./index";
 import { parentCategory, subCategory } from "./schema/catalog";
 
@@ -93,7 +95,7 @@ const SEED_DATA: ParentCategoryInput[] = [
       "Mở khóa tài khoản, tăng Follower thực và xác minh Tích xanh Instagram",
     name: "Dịch vụ Instagram",
     slug: "dich-vu-instagram",
-    sortOrder: 2,
+    sortOrder: 4,
     subs: [
       {
         commissionRatePercent: "5.00",
@@ -131,7 +133,7 @@ const SEED_DATA: ParentCategoryInput[] = [
       "Hỗ trợ bật kiếm tiền, kháng gậy bản quyền và tăng Subcribers/Views",
     name: "Dịch vụ YouTube",
     slug: "dich-vu-youtube",
-    sortOrder: 3,
+    sortOrder: 2,
     subs: [
       {
         commissionRatePercent: "6.00",
@@ -169,7 +171,7 @@ const SEED_DATA: ParentCategoryInput[] = [
       "Gỡ phạt TikTok Shop, kháng khóa tài khoản và tăng trưởng kênh TikTok",
     name: "Dịch vụ TikTok",
     slug: "dich-vu-tiktok",
-    sortOrder: 4,
+    sortOrder: 3,
     subs: [
       {
         commissionRatePercent: "6.00",
@@ -250,6 +252,13 @@ export const seedCategories = async (): Promise<void> => {
     let parent = await db.query.parentCategory.findFirst({
       where: (t, { eq }) => eq(t.slug, parentData.slug),
     });
+
+    if (parent) {
+      await db
+        .update(parentCategory)
+        .set({ sortOrder: parentData.sortOrder })
+        .where(equals(parentCategory.id, parent.id));
+    }
 
     if (!parent) {
       const [inserted] = await db
