@@ -19,6 +19,7 @@ import type { ReactNode } from "react";
 import { toast } from "sonner";
 
 import { Shell } from "@/components/shell";
+import { AuthActionGuard } from "@/features/auth/components/auth-action-guard";
 import { ListingMediaGallery } from "@/features/catalog/components/listing-media-gallery";
 import { ListingReviewsSection } from "@/features/catalog/components/listing-reviews-section";
 import { ServicePackageSelector } from "@/features/catalog/components/service-package-selector";
@@ -577,46 +578,45 @@ export const ListingDetailPage = () => {
                   </RenderWhen>
 
                   {/* Action CTA */}
-                  <div className="space-y-3">
-                    <button
-                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 px-6 font-bold text-sm text-primary-foreground shadow-md transition-all hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/20 active:scale-[0.98]"
-                      disabled={
+                  <AuthActionGuard>
+                    {({ isSessionPending, runAuthenticatedAction }) => {
+                      const isPurchaseActionDisabled =
+                        isSessionPending ||
                         addToCartMutation.isPending ||
-                        (isService && !selectedPackage)
-                      }
-                      onClick={() => {
-                        if (listing) {
+                        (isService && !selectedPackage);
+                      const addListingToCart = (): void => {
+                        runAuthenticatedAction(() => {
                           addToCartMutation.mutate({
                             listingId: listing.id,
                             packageId: selectedPackage?.id,
                           });
-                        }
-                      }}
-                      type="button"
-                    >
-                      <span>Mua ngay</span>
-                    </button>
+                        });
+                      };
 
-                    <button
-                      className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-primary/20 bg-primary/5 py-3.5 px-6 font-bold text-sm text-primary transition-all hover:bg-primary/10 active:scale-[0.98]"
-                      disabled={
-                        addToCartMutation.isPending ||
-                        (isService && !selectedPackage)
-                      }
-                      onClick={() => {
-                        if (listing) {
-                          addToCartMutation.mutate({
-                            listingId: listing.id,
-                            packageId: selectedPackage?.id,
-                          });
-                        }
-                      }}
-                      type="button"
-                    >
-                      <ShoppingCartIcon className="h-4 w-4" />
-                      <span>{addToCartLabel}</span>
-                    </button>
-                  </div>
+                      return (
+                        <div className="space-y-3">
+                          <button
+                            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 px-6 font-bold text-sm text-primary-foreground shadow-md transition-all hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/20 active:scale-[0.98]"
+                            disabled={isPurchaseActionDisabled}
+                            onClick={addListingToCart}
+                            type="button"
+                          >
+                            <span>Mua ngay</span>
+                          </button>
+
+                          <button
+                            className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-primary/20 bg-primary/5 py-3.5 px-6 font-bold text-sm text-primary transition-all hover:bg-primary/10 active:scale-[0.98]"
+                            disabled={isPurchaseActionDisabled}
+                            onClick={addListingToCart}
+                            type="button"
+                          >
+                            <ShoppingCartIcon className="h-4 w-4" />
+                            <span>{addToCartLabel}</span>
+                          </button>
+                        </div>
+                      );
+                    }}
+                  </AuthActionGuard>
 
                   {/* Trust badges */}
                   <div className="space-y-2 text-xs text-muted-foreground pt-4 border-t border-border/40">
