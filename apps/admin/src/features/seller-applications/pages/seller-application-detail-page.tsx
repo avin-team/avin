@@ -19,12 +19,6 @@ import { toast } from "sonner";
 import { Header } from "@/components/layout/header";
 import { Main } from "@/components/layout/main";
 import { ThemeSwitch } from "@/components/theme-switch";
-import type { getSellerApplication } from "@/features/seller-applications/api/mock-seller-applications";
-import {
-  decideSellerApplication,
-  resubmitSellerApplicationForReview,
-  useSellerApplications,
-} from "@/features/seller-applications/api/mock-seller-applications";
 import { ApplicationStatusBadge } from "@/features/seller-applications/components/application-status-badge";
 import { ReviewDecisionDialog } from "@/features/seller-applications/components/review-decision-dialog";
 import type { SellerApplicationDecision } from "@/features/seller-applications/types";
@@ -49,28 +43,26 @@ const DetailField = ({
   </div>
 );
 
-const getSellerApplicationFromSnapshot = (
-  applications: readonly ReturnType<typeof getSellerApplication>[],
-  applicationId: string
-) => applications.find((application) => application?.id === applicationId);
-
 export const SellerApplicationDetailPage = () => {
   const { applicationId } = useParams({
     from: "/_authenticated/seller-applications/$applicationId",
   });
-  const { data: remoteApplication } = useAdminSellerApplication(applicationId);
-  const mockApplications = useSellerApplications();
-  const mockApplication = getSellerApplicationFromSnapshot(
-    mockApplications,
-    applicationId
-  );
-  const application = remoteApplication ?? mockApplication;
+  const { data: application, isPending } =
+    useAdminSellerApplication(applicationId);
 
   const [showBankAccount, setShowBankAccount] = useState(false);
   const [decision, setDecision] = useState<SellerApplicationDecision | null>(
     null
   );
   const decideMutation = useAdminDecideSellerApplication();
+
+  if (isPending) {
+    return (
+      <Main className="flex flex-1 items-center justify-center">
+        <p className="text-sm text-muted-foreground">Đang tải hồ sơ...</p>
+      </Main>
+    );
+  }
 
   if (!application) {
     return (
@@ -102,19 +94,9 @@ export const SellerApplicationDetailPage = () => {
       { decision, id: application.id, reason },
       {
         onError: (error) => {
-          try {
-            decideSellerApplication(application.id, decision, reason);
-            toast.success("Cập nhật hồ sơ đăng ký thành công", {
-              description: "Hàng đợi xét duyệt đã được cập nhật.",
-            });
-            setDecision(null);
-          } catch {
-            toast.error(
-              error instanceof Error
-                ? error.message
-                : "Không thể cập nhật hồ sơ"
-            );
-          }
+          toast.error(
+            error instanceof Error ? error.message : "Không thể cập nhật hồ sơ"
+          );
         },
         onSuccess: () => {
           toast.success("Cập nhật hồ sơ đăng ký thành công", {
@@ -124,19 +106,6 @@ export const SellerApplicationDetailPage = () => {
         },
       }
     );
-  };
-
-  const handleResubmit = () => {
-    try {
-      resubmitSellerApplicationForReview(application.id);
-      toast.success("Đã trả hồ sơ về hàng đợi xét duyệt", {
-        description: "Hồ sơ đang chờ xét duyệt từ Admin.",
-      });
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Không thể trả lại hồ sơ"
-      );
-    }
   };
 
   const renderActionButtons = () => {
@@ -160,13 +129,6 @@ export const SellerApplicationDetailPage = () => {
             Từ chối hồ sơ
           </Button>
         </>
-      );
-    }
-    if (application.status === "CHANGES_REQUESTED") {
-      return (
-        <Button onClick={handleResubmit} variant="outline">
-          Trả về hàng đợi chờ duyệt
-        </Button>
       );
     }
     return (

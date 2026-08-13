@@ -33,7 +33,6 @@ import { format } from "date-fns";
 import { useReducer } from "react";
 import { toast } from "sonner";
 
-import { updateSellerEnforcement } from "../api/mock-sellers";
 import {
   useApplySellerEnforcement,
   useLiftSellerEnforcement,
@@ -225,17 +224,6 @@ export const EnforcementDialog = ({
             sellerReason: trimmedReason,
             state: effectiveTargetStatus,
           }));
-
-      // Update mock store for compatibility with mock views
-      try {
-        updateSellerEnforcement(
-          seller.id,
-          effectiveTargetStatus,
-          trimmedReason
-        );
-      } catch {
-        // Mock fallback if seller is real backend id
-      }
 
       toast.success("Cập nhật trạng thái gian hàng thành công", {
         description: `Đã áp dụng chế tài cho ${seller.storefrontName}`,

@@ -26,33 +26,8 @@ import { useOperationsOverviewAnalytics } from "@/features/operations/api/operat
 import { useAdminSellerApplications } from "@/features/seller-applications/api/seller-applications-api";
 import { ApplicationStatusBadge } from "@/features/seller-applications/components/application-status-badge";
 import { formatApplicationDate } from "@/features/seller-applications/utils";
-import { useSellers } from "@/features/sellers/api/mock-sellers";
 import { useAdminSellerList } from "@/features/sellers/api/seller-enforcement-api";
 import { useAdminWithdrawals } from "@/features/withdrawals/api/withdrawals-api";
-
-const MOCK_7D_TREND = [
-  { date: "06/08", escrowHold: 18_500_000, revenue: 1_450_000 },
-  { date: "07/08", escrowHold: 22_000_000, revenue: 1_800_000 },
-  { date: "08/08", escrowHold: 27_500_000, revenue: 2_100_000 },
-  { date: "09/08", escrowHold: 24_000_000, revenue: 1_950_000 },
-  { date: "10/08", escrowHold: 31_000_000, revenue: 2_600_000 },
-  { date: "11/08", escrowHold: 29_500_000, revenue: 2_400_000 },
-  { date: "12/08", escrowHold: 35_800_000, revenue: 2_950_000 },
-];
-
-const MOCK_30D_TREND = [
-  { date: "14/07", escrowHold: 12_000_000, revenue: 950_000 },
-  { date: "17/07", escrowHold: 15_500_000, revenue: 1_200_000 },
-  { date: "20/07", escrowHold: 19_000_000, revenue: 1_500_000 },
-  { date: "23/07", escrowHold: 16_800_000, revenue: 1_350_000 },
-  { date: "26/07", escrowHold: 23_500_000, revenue: 1_900_000 },
-  { date: "29/07", escrowHold: 26_000_000, revenue: 2_150_000 },
-  { date: "01/08", escrowHold: 22_500_000, revenue: 1_800_000 },
-  { date: "04/08", escrowHold: 28_000_000, revenue: 2_300_000 },
-  { date: "07/08", escrowHold: 30_500_000, revenue: 2_500_000 },
-  { date: "10/08", escrowHold: 33_000_000, revenue: 2_750_000 },
-  { date: "12/08", escrowHold: 35_800_000, revenue: 2_950_000 },
-];
 
 const formatCurrencyVND = (value: number): string =>
   `${value.toLocaleString("vi-VN")} ₫`;
@@ -65,9 +40,7 @@ const EscrowRevenueChart = lazy(async () => {
 export const OverviewPage = () => {
   const [timeframe, setTimeframe] = useState<"7d" | "30d">("7d");
   const { data: applications = [] } = useAdminSellerApplications();
-  const { data: remoteSellers = [] } = useAdminSellerList();
-  const mockSellers = useSellers();
-  const sellers = remoteSellers.length > 0 ? remoteSellers : mockSellers;
+  const { data: sellers = [] } = useAdminSellerList();
   const { data: disputes = [] } = useAdminDisputes("OPEN");
   const { data: withdrawals = [] } = useAdminWithdrawals();
   const { data: analytics } = useOperationsOverviewAnalytics(timeframe);
@@ -86,8 +59,7 @@ export const OverviewPage = () => {
     )
     .slice(0, 3);
 
-  const trendData =
-    analytics?.trend ?? (timeframe === "7d" ? MOCK_7D_TREND : MOCK_30D_TREND);
+  const trendData = analytics?.trend ?? [];
 
   const totalEscrowHold = analytics?.totalEscrowHold ?? 0;
   const totalRevenue = analytics?.totalRevenue ?? 0;

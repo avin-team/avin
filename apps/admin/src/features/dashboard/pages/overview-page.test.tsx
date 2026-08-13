@@ -47,16 +47,12 @@ vi.mock("@/features/categories/workflow", () => ({
   countTotalSubCategories: () => 5,
 }));
 
-vi.mock("@/features/sellers/api/mock-sellers", () => ({
-  useSellers: () => [
-    { enforcementStatus: "SUSPENDED", id: "seller-1", name: "Shop B" },
-  ],
+const { adminSellerList } = vi.hoisted(() => ({
+  adminSellerList: { data: [{ id: "seller-1" }] as { id: string }[] },
 }));
 
 vi.mock("@/features/sellers/api/seller-enforcement-api", () => ({
-  useAdminSellerList: () => ({
-    data: [{ enforcementStatus: "SUSPENDED", id: "seller-1", name: "Shop B" }],
-  }),
+  useAdminSellerList: () => adminSellerList,
 }));
 
 vi.mock("@/features/operations/api/operations-api", () => ({
@@ -147,5 +143,15 @@ describe("OverviewPage", () => {
     expect(html).toContain("Thống kê Dòng tiền Escrow &amp; Doanh thu sàn");
     expect(html).toContain("Tổng Escrow đang giữ");
     expect(html).toContain("Phí sàn đã thu");
+  });
+
+  it("shows zero sellers when the real seller list is empty", () => {
+    adminSellerList.data = [];
+
+    const html = renderToStaticMarkup(<OverviewPage />);
+
+    expect(html).toMatch(
+      /Tổng số Seller[\s\S]*?text-3xl font-semibold">0<\/p>/u
+    );
   });
 });

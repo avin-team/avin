@@ -29,7 +29,6 @@ import { Header } from "@/components/layout/header";
 import { Main } from "@/components/layout/main";
 import { ThemeSwitch } from "@/components/theme-switch";
 
-import { useSellerApplications as useMockSellerApplications } from "../api/mock-seller-applications";
 import { useAdminSellerApplications } from "../api/seller-applications-api";
 import { ApplicationStatusBadge } from "../components/application-status-badge";
 import type { SellerApplicationStatus } from "../types";
@@ -49,28 +48,10 @@ export const SellerApplicationQueuePage = () => {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
 
-  const { data: remoteApplications } = useAdminSellerApplications({
+  const { data: applications = [], isPending } = useAdminSellerApplications({
     search: query,
     status: statusFilter,
   });
-  const mockApplications = useMockSellerApplications();
-
-  const normalizedQuery = query.trim().toLowerCase();
-  const mockFiltered = mockApplications.filter((application) => {
-    const matchesStatus =
-      statusFilter === "ALL" || application.status === statusFilter;
-    const matchesQuery =
-      normalizedQuery.length === 0 ||
-      [
-        application.applicantName,
-        application.email,
-        application.storefrontName,
-      ].some((field) => field.toLowerCase().includes(normalizedQuery));
-
-    return matchesStatus && matchesQuery;
-  });
-
-  const filteredApplications = remoteApplications ?? mockFiltered;
 
   return (
     <>
@@ -97,7 +78,7 @@ export const SellerApplicationQueuePage = () => {
               <ClipboardTextIcon className="size-4 text-primary" />
               Danh sách Hồ sơ Đăng ký{" "}
               <span className="text-muted-foreground">
-                ({filteredApplications.length})
+                ({isPending ? "..." : applications.length})
               </span>
             </CardTitle>
             <div className="flex flex-col gap-2 sm:flex-row">
@@ -150,7 +131,7 @@ export const SellerApplicationQueuePage = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredApplications.map((app) => (
+                  {applications.map((app) => (
                     <TableRow key={app.id}>
                       <TableCell>
                         <div>
@@ -206,7 +187,7 @@ export const SellerApplicationQueuePage = () => {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {filteredApplications.length === 0 && (
+                  {!isPending && applications.length === 0 && (
                     <TableRow>
                       <TableCell
                         className="h-28 text-center text-muted-foreground"
