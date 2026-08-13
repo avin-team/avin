@@ -177,6 +177,117 @@ const assertOwnedListing = async (
   return found;
 };
 
+type DraftFields = z.infer<typeof draftFieldsSchema>;
+type OwnedListing = Awaited<ReturnType<typeof assertOwnedListing>>;
+
+const getNextListingMedia = (
+  found: OwnedListing,
+  input: DraftFields
+): {
+  hasImagesInput: boolean;
+  hasThumbnailInput: boolean;
+  nextImages: string[];
+  nextThumbnailUrl: string | null;
+} => {
+  const hasImagesInput = Object.hasOwn(input, "images");
+  const hasThumbnailInput = Object.hasOwn(input, "thumbnailUrl");
+  const nextImages = hasImagesInput ? (input.images ?? []) : found.images;
+  let nextThumbnailUrl = found.thumbnailUrl;
+  if (hasImagesInput) {
+    nextThumbnailUrl = getPrimaryListingImage(nextImages, null);
+  } else if (hasThumbnailInput && nextImages.length === 0) {
+    nextThumbnailUrl = input.thumbnailUrl ?? null;
+  }
+  return {
+    hasImagesInput,
+    hasThumbnailInput,
+    nextImages,
+    nextThumbnailUrl,
+  };
+};
+
+const assertUpdatedPublishedListingIsValid = async (
+  found: OwnedListing,
+  input: DraftFields,
+  nextImages: string[],
+  nextThumbnailUrl: string | null
+): Promise<void> => {
+  if (found.status !== "PUBLISHED") {
+    return;
+  }
+  const category = await assertActiveSubCategory(
+    input.categoryId ?? found.categoryId
+  );
+  const publishableDraft = { ...found, images: nextImages, nextThumbnailUrl };
+  if (Object.hasOwn(input, "description")) {
+    publishableDraft.description = input.description ?? null;
+  }
+  if (Object.hasOwn(input, "priceAmount")) {
+    publishableDraft.priceAmount = input.priceAmount ?? null;
+  }
+  if (Object.hasOwn(input, "processingTimeHours")) {
+    publishableDraft.processingTimeHours = input.processingTimeHours ?? null;
+  }
+  if (Object.hasOwn(input, "title")) {
+    publishableDraft.title = input.title ?? null;
+  }
+  if (Object.hasOwn(input, "warrantyDurationHours")) {
+    publishableDraft.warrantyDurationHours =
+      input.warrantyDurationHours ?? null;
+  }
+  if (Object.hasOwn(input, "warrantyTerms")) {
+    publishableDraft.warrantyTerms = input.warrantyTerms ?? null;
+  }
+  publishableDraft.thumbnailUrl = nextThumbnailUrl;
+  publishableDraft.type = input.type ?? found.type;
+
+  if (publishableDraft.type === "SERVICE") {
+    assertListingPresentation(publishableDraft);
+  } else {
+    assertCourseListingContract(publishableDraft, category);
+  }
+};
+
+const getListingDraftUpdates = (
+  input: DraftFields,
+  media: ReturnType<typeof getNextListingMedia>
+): Partial<typeof listing.$inferInsert> => {
+  const updates: Partial<typeof listing.$inferInsert> = {
+    updatedAt: new Date(),
+  };
+  if (input.categoryId) {
+    updates.categoryId = input.categoryId;
+  }
+  if (Object.hasOwn(input, "description")) {
+    updates.description = input.description;
+  }
+  if (media.hasImagesInput) {
+    updates.images = media.nextImages;
+  }
+  if (Object.hasOwn(input, "priceAmount")) {
+    updates.priceAmount = input.priceAmount;
+  }
+  if (Object.hasOwn(input, "processingTimeHours")) {
+    updates.processingTimeHours = input.processingTimeHours;
+  }
+  if (media.hasImagesInput || media.hasThumbnailInput) {
+    updates.thumbnailUrl = media.nextThumbnailUrl;
+  }
+  if (Object.hasOwn(input, "title")) {
+    updates.title = input.title;
+  }
+  if (input.type) {
+    updates.type = input.type;
+  }
+  if (Object.hasOwn(input, "warrantyDurationHours")) {
+    updates.warrantyDurationHours = input.warrantyDurationHours;
+  }
+  if (Object.hasOwn(input, "warrantyTerms")) {
+    updates.warrantyTerms = input.warrantyTerms;
+  }
+  return updates;
+};
+
 export const canAccessListingMedia = (
   user: { id: string; role?: string | null } | null | undefined,
   listingItem: {
@@ -652,7 +763,6 @@ export const sellerWorkspaceRouter = {
 
   updateDraft: sellerProcedure
     .input(draftFieldsSchema.extend({ id: z.string() }))
-    // oxlint-disable-next-line complexity
     .handler(async ({ context, input }) => {
       await assertEligibleSeller(context.session.user.id);
       const found = await assertOwnedListing(input.id, context.session.user.id);
@@ -667,83 +777,23 @@ export const sellerWorkspaceRouter = {
         await assertActiveSubCategory(input.categoryId);
       }
 
-      const hasImagesInput = Object.hasOwn(input, "images");
-      const hasThumbnailInput = Object.hasOwn(input, "thumbnailUrl");
-      const nextImages = hasImagesInput ? (input.images ?? []) : found.images;
-      let nextThumbnailUrl = found.thumbnailUrl;
-      if (hasImagesInput) {
-        nextThumbnailUrl = getPrimaryListingImage(nextImages, null);
-      } else if (hasThumbnailInput && nextImages.length === 0) {
-        nextThumbnailUrl = input.thumbnailUrl ?? null;
-      }
-
-      if (found.status === "PUBLISHED") {
-        const targetCategoryId = input.categoryId ?? found.categoryId;
-        const category = await assertActiveSubCategory(targetCategoryId);
-        const publishableDraft = {
-          ...found,
-          description: Object.hasOwn(input, "description")
-            ? (input.description ?? null)
-            : found.description,
-          images: nextImages,
-          priceAmount: Object.hasOwn(input, "priceAmount")
-            ? (input.priceAmount ?? null)
-            : found.priceAmount,
-          processingTimeHours: Object.hasOwn(input, "processingTimeHours")
-            ? (input.processingTimeHours ?? null)
-            : found.processingTimeHours,
-          thumbnailUrl: nextThumbnailUrl,
-          title: Object.hasOwn(input, "title")
-            ? (input.title ?? null)
-            : found.title,
-          type: input.type ?? found.type,
-          warrantyDurationHours: Object.hasOwn(input, "warrantyDurationHours")
-            ? (input.warrantyDurationHours ?? null)
-            : found.warrantyDurationHours,
-          warrantyTerms: Object.hasOwn(input, "warrantyTerms")
-            ? (input.warrantyTerms ?? null)
-            : found.warrantyTerms,
-        };
-        if (publishableDraft.type === "SERVICE") {
-          assertListingPresentation(publishableDraft);
-        } else {
-          assertCourseListingContract(publishableDraft, category);
-        }
-      }
+      const media = getNextListingMedia(found, input);
+      await assertUpdatedPublishedListingIsValid(
+        found,
+        input,
+        media.nextImages,
+        media.nextThumbnailUrl
+      );
 
       const [updated] = await db
         .update(listing)
-        .set({
-          ...(input.categoryId ? { categoryId: input.categoryId } : {}),
-          ...(Object.hasOwn(input, "description")
-            ? { description: input.description }
-            : {}),
-          ...(hasImagesInput ? { images: nextImages } : {}),
-          ...(Object.hasOwn(input, "priceAmount")
-            ? { priceAmount: input.priceAmount }
-            : {}),
-          ...(Object.hasOwn(input, "processingTimeHours")
-            ? { processingTimeHours: input.processingTimeHours }
-            : {}),
-          ...(hasImagesInput || hasThumbnailInput
-            ? { thumbnailUrl: nextThumbnailUrl }
-            : {}),
-          ...(Object.hasOwn(input, "title") ? { title: input.title } : {}),
-          ...(input.type ? { type: input.type } : {}),
-          ...(Object.hasOwn(input, "warrantyDurationHours")
-            ? { warrantyDurationHours: input.warrantyDurationHours }
-            : {}),
-          ...(Object.hasOwn(input, "warrantyTerms")
-            ? { warrantyTerms: input.warrantyTerms }
-            : {}),
-          updatedAt: new Date(),
-        })
+        .set(getListingDraftUpdates(input, media))
         .where(eq(listing.id, found.id))
         .returning();
 
       await cleanupUnreferencedListingImages(context.storage, {
-        nextImages,
-        nextThumbnailUrl,
+        nextImages: media.nextImages,
+        nextThumbnailUrl: media.nextThumbnailUrl,
         previousImages: found.images,
         previousThumbnailUrl: found.thumbnailUrl,
       });

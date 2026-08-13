@@ -54,7 +54,6 @@ export const assertListingPresentation = (
   }
 };
 
-// oxlint-disable-next-line complexity
 export const assertCourseListingContract = (
   listingItem: CourseContract,
   category: PublicationCategory

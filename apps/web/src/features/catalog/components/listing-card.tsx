@@ -42,7 +42,85 @@ export interface ListingCardProps extends ComponentPropsWithoutRef<"div"> {
   variant?: "grid" | "list";
 }
 
-// oxlint-disable-next-line complexity
+const ListingThumbnail = ({
+  isService,
+  listing,
+}: {
+  isService: boolean;
+  listing: ListingCardProps["listing"];
+}) => {
+  if (listing.thumbnailUrl) {
+    return (
+      <img
+        alt={listing.title}
+        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+        src={listing.thumbnailUrl}
+      />
+    );
+  }
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center bg-linear-to-br from-primary/10 via-muted/30 to-background p-4 text-center">
+      {isService ? (
+        <WrenchIcon className="h-8 w-8 text-primary/70" />
+      ) : (
+        <BookOpenIcon className="h-8 w-8 text-primary/70" />
+      )}
+      <span className="mt-1 text-xs font-medium text-muted-foreground">
+        {isService ? "Dịch vụ số" : "Khóa học online"}
+      </span>
+    </div>
+  );
+};
+
+const CategoryOverlay = ({
+  category,
+}: {
+  category: ListingCardProps["listing"]["category"];
+}) => {
+  if (!category) {
+    return null;
+  }
+  return (
+    <div className="absolute inset-x-0 bottom-0 flex items-end bg-linear-to-t from-black/85 via-black/40 to-transparent p-2.5 pt-6">
+      <span className="truncate text-[11px] font-semibold text-white/95 drop-shadow-xs">
+        {category.name}
+      </span>
+    </div>
+  );
+};
+
+const RatingSummary = ({
+  hasRating,
+  ratingCount,
+  ratingScore,
+  soldCount,
+}: {
+  hasRating: boolean;
+  ratingCount: number;
+  ratingScore: number;
+  soldCount: number;
+}) => (
+  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+    {hasRating ? (
+      <div className="flex items-center gap-1 font-semibold text-amber-500 dark:text-amber-400">
+        <StarIcon className="h-3.5 w-3.5 shrink-0 fill-amber-400 text-amber-400" />
+        <span>{ratingScore.toFixed(1)}</span>
+        <span className="font-normal text-muted-foreground">
+          ({ratingCount})
+        </span>
+      </div>
+    ) : (
+      <span className="font-normal text-muted-foreground">
+        Chưa có đánh giá
+      </span>
+    )}
+    <span className="text-border">•</span>
+    <span className="font-medium text-muted-foreground">
+      Đã xử lý {soldCount}
+    </span>
+  </div>
+);
+
 export const ListingCard = ({
   className,
   listing,
@@ -56,14 +134,11 @@ export const ListingCard = ({
   const ratingScore = listing.ratingScore ?? 0;
   const ratingCount = listing.ratingCount ?? 0;
   const soldCount = listing.soldCount ?? listing.completedOrdersCount ?? 0;
+  const listingPathId = listing.slug ?? listing.id;
 
   if (variant === "list") {
     return (
-      <Link
-        className="block"
-        params={{ id: listing.slug ?? listing.id }}
-        to="/listing/$id"
-      >
+      <Link className="block" params={{ id: listingPathId }} to="/listing/$id">
         <m.div
           className={className}
           transition={{ duration: 0.2 }}
@@ -72,33 +147,10 @@ export const ListingCard = ({
           <div className="group relative flex flex-col sm:flex-row items-stretch justify-between overflow-hidden rounded-2xl border border-border/60 bg-card p-4 shadow-xs backdrop-blur-md transition-all duration-300 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 gap-4">
             {/* Thumbnail Image with Category Overlay */}
             <div className="relative aspect-video w-full sm:w-52 shrink-0 overflow-hidden rounded-xl bg-muted/40">
-              {listing.thumbnailUrl ? (
-                <img
-                  alt={listing.title ?? "Thumbnail"}
-                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  src={listing.thumbnailUrl}
-                />
-              ) : (
-                <div className="flex h-full w-full flex-col items-center justify-center bg-linear-to-br from-primary/10 via-muted/30 to-background p-4 text-center">
-                  {isService ? (
-                    <WrenchIcon className="h-7 w-7 text-primary/70" />
-                  ) : (
-                    <BookOpenIcon className="h-7 w-7 text-primary/70" />
-                  )}
-                  <span className="mt-1 text-[11px] font-medium text-muted-foreground">
-                    {isService ? "Dịch vụ số" : "Khóa học online"}
-                  </span>
-                </div>
-              )}
+              <ListingThumbnail isService={isService} listing={listing} />
 
               {/* Category Overlay (Gradient text overlay) */}
-              {listing.category && (
-                <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/85 via-black/40 to-transparent p-2.5 pt-6 flex items-end">
-                  <span className="text-[11px] font-semibold text-white/95 drop-shadow-xs truncate">
-                    {listing.category.name}
-                  </span>
-                </div>
-              )}
+              <CategoryOverlay category={listing.category} />
             </div>
 
             {/* Content Middle */}
@@ -145,25 +197,12 @@ export const ListingCard = ({
               </span>
 
               {/* Rating ⭐ & Total Sold */}
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                {hasRating ? (
-                  <div className="flex items-center gap-1 font-semibold text-amber-500 dark:text-amber-400">
-                    <StarIcon className="h-3.5 w-3.5 fill-amber-400 text-amber-400 shrink-0" />
-                    <span>{ratingScore.toFixed(1)}</span>
-                    <span className="text-muted-foreground font-normal">
-                      ({ratingCount})
-                    </span>
-                  </div>
-                ) : (
-                  <span className="text-muted-foreground font-normal">
-                    Chưa có đánh giá
-                  </span>
-                )}
-                <span className="text-border">•</span>
-                <span className="font-medium text-muted-foreground">
-                  Đã xử lý {soldCount}
-                </span>
-              </div>
+              <RatingSummary
+                hasRating={hasRating}
+                ratingCount={ratingCount}
+                ratingScore={ratingScore}
+                soldCount={soldCount}
+              />
 
               <div className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground shadow-xs group-hover:opacity-90 transition-all mt-1">
                 <span>Xem chi tiết</span>
@@ -180,7 +219,7 @@ export const ListingCard = ({
   return (
     <Link
       className="block h-full"
-      params={{ id: listing.slug ?? listing.id }}
+      params={{ id: listingPathId }}
       to="/listing/$id"
     >
       <m.div
@@ -191,33 +230,10 @@ export const ListingCard = ({
         <div className="group relative flex h-full flex-col justify-between overflow-hidden rounded-2xl border border-border/60 bg-card shadow-xs backdrop-blur-md transition-all duration-300 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/5">
           {/* Full Width Edge-to-Edge Thumbnail */}
           <div className="relative aspect-video w-full overflow-hidden bg-muted/40">
-            {listing.thumbnailUrl ? (
-              <img
-                alt={listing.title ?? "Thumbnail"}
-                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                src={listing.thumbnailUrl}
-              />
-            ) : (
-              <div className="flex h-full w-full flex-col items-center justify-center bg-linear-to-br from-primary/10 via-muted/30 to-background p-4 text-center">
-                {isService ? (
-                  <WrenchIcon className="h-8 w-8 text-primary/70" />
-                ) : (
-                  <BookOpenIcon className="h-8 w-8 text-primary/70" />
-                )}
-                <span className="mt-1 text-xs font-medium text-muted-foreground">
-                  {isService ? "Dịch vụ số" : "Khóa học online"}
-                </span>
-              </div>
-            )}
+            <ListingThumbnail isService={isService} listing={listing} />
 
             {/* Category Overlay Text (On top of thumbnail with gradient backdrop) */}
-            {listing.category && (
-              <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/85 via-black/40 to-transparent p-2.5 pt-6 flex items-end">
-                <span className="text-[11px] font-semibold text-white/95 drop-shadow-xs truncate">
-                  {listing.category.name}
-                </span>
-              </div>
-            )}
+            <CategoryOverlay category={listing.category} />
           </div>
 
           {/* Card Body Content */}
@@ -263,23 +279,12 @@ export const ListingCard = ({
                   {formatVND(listing.priceAmount ?? 0)}
                 </span>
                 {/* Rating ⭐ & Total Sold at bottom with price */}
-                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-0.5">
-                  {hasRating ? (
-                    <div className="flex items-center gap-0.5 font-semibold text-amber-500 dark:text-amber-400">
-                      <StarIcon className="h-3 w-3 fill-amber-400 text-amber-400 shrink-0" />
-                      <span>{ratingScore.toFixed(1)}</span>
-                      <span className="text-muted-foreground font-normal">
-                        ({ratingCount})
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-muted-foreground font-normal">
-                      Chưa có đánh giá
-                    </span>
-                  )}
-                  <span className="text-border">•</span>
-                  <span className="truncate">Đã xử lý {soldCount}</span>
-                </div>
+                <RatingSummary
+                  hasRating={hasRating}
+                  ratingCount={ratingCount}
+                  ratingScore={ratingScore}
+                  soldCount={soldCount}
+                />
               </div>
 
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all shrink-0">

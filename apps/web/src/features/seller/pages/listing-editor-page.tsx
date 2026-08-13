@@ -1048,7 +1048,156 @@ const EMPTY_NEW_LISTING: ListingEditorListing = {
   warrantyTerms: null,
 };
 
-// oxlint-disable-next-line complexity
+const getInitialListingEditorForm = (
+  listing: ListingEditorListing
+): ListingEditorForm => ({
+  categoryId: listing.categoryId,
+  description: listing.description ?? "",
+  images: listing.images ?? [],
+  priceAmount:
+    listing.type === "COURSE" ? (listing.priceAmount?.toString() ?? "") : "",
+  processingTimeHours:
+    listing.type === "COURSE"
+      ? (listing.processingTimeHours?.toString() ?? "")
+      : "",
+  thumbnailUrl: listing.thumbnailUrl ?? "",
+  title: listing.title ?? "",
+  type: listing.type,
+  warrantyDurationHours:
+    listing.type === "COURSE"
+      ? (listing.warrantyDurationHours?.toString() ?? "")
+      : "",
+  warrantyTerms: listing.type === "COURSE" ? (listing.warrantyTerms ?? "") : "",
+});
+
+const getDraftCreationState = (
+  form: ListingEditorForm,
+  parentCategoryId: string,
+  isNew: boolean,
+  draftId: string | null
+) => {
+  const hasValidDraftType = isListingType(form.type);
+  const hasDraftCategory = Boolean(form.categoryId);
+  const hasNewListingContent = Boolean(
+    form.type ||
+    parentCategoryId ||
+    form.categoryId ||
+    form.title.trim() ||
+    form.description.trim() ||
+    form.priceAmount.trim() ||
+    form.processingTimeHours.trim() ||
+    form.images.length > 0 ||
+    form.thumbnailUrl.trim() ||
+    form.warrantyDurationHours.trim() ||
+    form.warrantyTerms.trim()
+  );
+  return {
+    canCreateDraft: isNew && !draftId && hasValidDraftType && hasDraftCategory,
+    hasDraftCategory,
+    hasValidDraftType,
+    isNewFormDirty: isNew && !draftId && hasNewListingContent,
+  };
+};
+
+const countAvailablePackages = (
+  packages: { status: "AVAILABLE" | "UNAVAILABLE" }[] | undefined
+): number =>
+  packages?.filter((packageItem) => packageItem.status === "AVAILABLE")
+    .length ?? 0;
+
+const hasPendingEditorAction = (actions: boolean[]): boolean =>
+  actions.some(Boolean);
+
+const getEditorPresentation = ({
+  canCreateDraft,
+  currentStepIndex,
+  draftId,
+  editorStepCount,
+  form,
+  isActionPending,
+  isArchived,
+  isNew,
+  listingStatus,
+  saveStatus,
+}: {
+  canCreateDraft: boolean;
+  currentStepIndex: number;
+  draftId: string | null;
+  editorStepCount: number;
+  form: ListingEditorForm;
+  isActionPending: boolean;
+  isArchived: boolean;
+  isNew: boolean;
+  listingStatus: ListingStatus;
+  saveStatus: SaveStatus;
+}) => {
+  const primaryActionAvailable =
+    listingStatus === "DRAFT" || listingStatus === "PAUSED";
+  const isUncreatedDraft = isNew && !draftId;
+  return {
+    editorDescription: isUncreatedDraft
+      ? "Chọn loại sản phẩm và danh mục, sau đó bấm “Tiếp theo” để lưu bản nháp."
+      : "Hoàn thiện từng bước theo tốc độ của bạn. Bấm “Lưu” khi muốn giữ lại thay đổi.",
+    editorStatusLabel: isNew ? "Bản nháp mới" : STATUS_LABELS[listingStatus],
+    editorTitle: form.title || (isNew ? "Sản phẩm mới" : "Đặt tên sản phẩm"),
+    editorTypeLabel: isNew ? "Tạo sản phẩm" : getEditorTypeLabel(form.type),
+    isNextStepDisabled:
+      isActionPending ||
+      (isUncreatedDraft && !canCreateDraft) ||
+      currentStepIndex === editorStepCount - 1,
+    primaryActionAvailable,
+    primaryActionLabel:
+      listingStatus === "PAUSED" ? "Đăng bán lại" : "Đăng bán sản phẩm",
+    saveButtonDisabled:
+      isActionPending ||
+      isArchived ||
+      saveStatus === "saved" ||
+      (isUncreatedDraft && !canCreateDraft),
+    saveButtonLabel:
+      isUncreatedDraft || listingStatus === "DRAFT"
+        ? "Lưu bản nháp"
+        : "Lưu thay đổi",
+  };
+};
+
+const getInitialEditorState = (
+  categories: EditorCategory[],
+  listing: ListingEditorListing,
+  isNew: boolean
+) => ({
+  draftId: isNew ? null : listing.id,
+  parentCategoryId:
+    categories.find((category) => category.id === listing.categoryId)
+      ?.parentId ?? "",
+  saveStatus: (isNew ? "unsaved" : "saved") as SaveStatus,
+});
+
+const getServicePackageQueryState = (
+  draftId: string | null,
+  listingType: ListingEditorForm["type"]
+) => ({
+  enabled: Boolean(draftId && listingType === "SERVICE"),
+  listingId: draftId ?? "new",
+});
+
+const RenderWhen = ({
+  children,
+  when,
+}: {
+  children: ReactNode;
+  when: boolean;
+}) => (when ? children : null);
+
+const getSaveButtonText = (
+  saveStatus: SaveStatus,
+  defaultLabel: string
+): string => (saveStatus === "saving" ? "Đang lưu…" : defaultLabel);
+
+const getPublishedEditorGuidance = (isPublished: boolean): string =>
+  isPublished
+    ? "Thay đổi chỉ được lưu khi bạn bấm Lưu thay đổi."
+    : "Bạn có thể quay lại bất kỳ bước nào sau.";
+
 const ListingEditorFormPage = ({
   categories: categoryOptions,
   listing,
@@ -1060,40 +1209,23 @@ const ListingEditorFormPage = ({
 }) => {
   const navigate = useNavigate({ from: "/seller/listings/$id" });
   const queryClient = useQueryClient();
-  const initialCategory = categoryOptions.find(
-    (category) => category.id === listing.categoryId
+  const initialForm = getInitialListingEditorForm(listing);
+  const initialEditorState = getInitialEditorState(
+    categoryOptions,
+    listing,
+    isNew
   );
-  const initialForm: ListingEditorForm = {
-    categoryId: listing.categoryId,
-    description: listing.description ?? "",
-    images: listing.images ?? [],
-    priceAmount:
-      listing.type === "COURSE" ? (listing.priceAmount?.toString() ?? "") : "",
-    processingTimeHours:
-      listing.type === "COURSE"
-        ? (listing.processingTimeHours?.toString() ?? "")
-        : "",
-    thumbnailUrl: listing.thumbnailUrl ?? "",
-    title: listing.title ?? "",
-    type: listing.type,
-    warrantyDurationHours:
-      listing.type === "COURSE"
-        ? (listing.warrantyDurationHours?.toString() ?? "")
-        : "",
-    warrantyTerms:
-      listing.type === "COURSE" ? (listing.warrantyTerms ?? "") : "",
-  };
   const [parentCategoryId, setParentCategoryId] = useState(
-    initialCategory?.parentId ?? ""
+    initialEditorState.parentCategoryId
   );
   const [draftId, setDraftId] = useState<string | null>(
-    isNew ? null : listing.id
+    initialEditorState.draftId
   );
   const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
   const pendingNavigationSectionRef = useRef<StoreSection | null>(null);
   const [hasCreateAttempt, setHasCreateAttempt] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>(
-    isNew ? "unsaved" : "saved"
+    initialEditorState.saveStatus
   );
   const [isImageUploading, setIsImageUploading] = useState(false);
   const pendingImageUploadsRef = useRef<string[]>([]);
@@ -1150,18 +1282,21 @@ const ListingEditorFormPage = ({
   const form = useStore(editorForm.store, (state) => state.values);
   const editorStepOrder = getListingEditorStepOrder(form.type);
   const editorSteps = getEditorSteps(form.type);
+  const servicePackageQueryState = getServicePackageQueryState(
+    draftId,
+    form.type
+  );
   const servicePackagesQuery = useQuery({
-    ...servicePackagesQueryOptions(draftId ?? "new"),
-    enabled: Boolean(draftId && form.type === "SERVICE"),
+    ...servicePackagesQueryOptions(servicePackageQueryState.listingId),
+    enabled: servicePackageQueryState.enabled,
   });
-  const servicePackageCount =
-    servicePackagesQuery.data?.filter(
-      (packageItem) => packageItem.status === "AVAILABLE"
-    ).length ?? 0;
-  const hasValidDraftType = isListingType(form.type);
-  const hasDraftCategory = Boolean(form.categoryId);
-  const canCreateDraft =
-    isNew && !draftId && hasValidDraftType && hasDraftCategory;
+  const servicePackageCount = countAvailablePackages(servicePackagesQuery.data);
+  const {
+    canCreateDraft,
+    hasDraftCategory,
+    hasValidDraftType,
+    isNewFormDirty,
+  } = getDraftCreationState(form, parentCategoryId, isNew, draftId);
   const selectedCategory = categoryOptions.find(
     (category) => category.id === form.categoryId
   );
@@ -1177,20 +1312,6 @@ const ListingEditorFormPage = ({
       : getFirstIncompleteEditorStepIndex(readinessItems, editorStepOrder)
   );
   const currentStepIndex = Math.min(activeStepIndex, editorSteps.length - 1);
-  const hasNewListingContent = Boolean(
-    form.type ||
-    parentCategoryId ||
-    form.categoryId ||
-    form.title.trim() ||
-    form.description.trim() ||
-    form.priceAmount.trim() ||
-    form.processingTimeHours.trim() ||
-    form.images.length > 0 ||
-    form.thumbnailUrl.trim() ||
-    form.warrantyDurationHours.trim() ||
-    form.warrantyTerms.trim()
-  );
-  const isNewFormDirty = isNew && !draftId && hasNewListingContent;
   const createDraftMutation = useMutation(
     orpc.listing.sellerWorkspace.createDraft.mutationOptions({
       onError: () => {
@@ -1299,13 +1420,14 @@ const ListingEditorFormPage = ({
     editorForm.setFieldValue("categoryId", nextCategoryId);
   };
 
-  const isActionPending =
-    createDraftMutation.isPending ||
-    discardImageUploadsMutation.isPending ||
-    isImageUploading ||
-    updateDraftMutation.isPending ||
-    publishMutation.isPending ||
-    resumeMutation.isPending;
+  const isActionPending = hasPendingEditorAction([
+    createDraftMutation.isPending,
+    discardImageUploadsMutation.isPending,
+    isImageUploading,
+    updateDraftMutation.isPending,
+    publishMutation.isPending,
+    resumeMutation.isPending,
+  ]);
 
   const saveNow = async (): Promise<boolean> => {
     if (isNew && !draftId) {
@@ -1447,21 +1569,28 @@ const ListingEditorFormPage = ({
     setActiveStepIndex((index) => Math.min(index + 1, editorSteps.length - 1));
   };
 
-  const primaryActionLabel =
-    listingStatus === "PAUSED" ? "Đăng bán lại" : "Đăng bán sản phẩm";
-  const primaryActionAvailable =
-    listingStatus === "DRAFT" || listingStatus === "PAUSED";
-  let saveButtonLabel = "Lưu thay đổi";
-  if (isNew && !draftId) {
-    saveButtonLabel = "Lưu bản nháp";
-  } else if (listingStatus === "DRAFT") {
-    saveButtonLabel = "Lưu bản nháp";
-  }
-  const saveButtonDisabled =
-    isActionPending ||
-    isArchived ||
-    saveStatus === "saved" ||
-    (isNew && !draftId && !canCreateDraft);
+  const {
+    editorDescription,
+    editorStatusLabel,
+    editorTitle,
+    editorTypeLabel,
+    isNextStepDisabled,
+    primaryActionAvailable,
+    primaryActionLabel,
+    saveButtonDisabled,
+    saveButtonLabel,
+  } = getEditorPresentation({
+    canCreateDraft,
+    currentStepIndex,
+    draftId,
+    editorStepCount: editorSteps.length,
+    form,
+    isActionPending,
+    isArchived,
+    isNew,
+    listingStatus,
+    saveStatus,
+  });
   const saveIndicatorClass = getSaveIndicatorClass(saveStatus);
   const saveStatusLabel = getNewSaveStatusLabel(
     saveStatus,
@@ -1469,25 +1598,20 @@ const ListingEditorFormPage = ({
     draftId,
     canCreateDraft
   );
-  const editorTypeLabel = isNew
-    ? "Tạo sản phẩm"
-    : getEditorTypeLabel(form.type);
-  const editorStatusLabel = isNew
-    ? "Bản nháp mới"
-    : STATUS_LABELS[listingStatus];
-  const editorTitle =
-    form.title || (isNew ? "Sản phẩm mới" : "Đặt tên sản phẩm");
-  const editorDescription =
-    isNew && !draftId
-      ? "Chọn loại sản phẩm và danh mục, sau đó bấm “Tiếp theo” để lưu bản nháp."
-      : "Hoàn thiện từng bước theo tốc độ của bạn. Bấm “Lưu” khi muốn giữ lại thay đổi.";
   const isActiveStepLocked = isEditorStepLocked(currentStepIndex);
-  const isEditorStepDisabled =
-    isArchived || isActionPending || isActiveStepLocked;
-  const isNextStepDisabled =
-    isActionPending ||
-    (isNew && !draftId && !canCreateDraft) ||
-    currentStepIndex === editorSteps.length - 1;
+  const isEditorStepDisabled = hasPendingEditorAction([
+    isArchived,
+    isActionPending,
+    isActiveStepLocked,
+  ]);
+  const primaryActionDisabled = hasPendingEditorAction([
+    isActionPending,
+    isArchived,
+    !isReadyToPublish,
+    isHidden,
+  ]);
+  const saveButtonText = getSaveButtonText(saveStatus, saveButtonLabel);
+  const publishedEditorGuidance = getPublishedEditorGuidance(isPublished);
   const handleStoreNavigation = (section: StoreSection) => {
     void handleNavigateFromEditor(section);
   };
@@ -1607,7 +1731,7 @@ const ListingEditorFormPage = ({
             })}
           </nav>
 
-          {isHidden ? (
+          <RenderWhen when={isHidden}>
             <Alert>
               <WarningCircleIcon className="size-4" />
               <AlertTitle>Sản phẩm này đang bị Avin ẩn</AlertTitle>
@@ -1616,8 +1740,8 @@ const ListingEditorFormPage = ({
                 kiểm duyệt kiểm soát.
               </AlertDescription>
             </Alert>
-          ) : null}
-          {isArchived ? (
+          </RenderWhen>
+          <RenderWhen when={isArchived}>
             <Alert>
               <WarningCircleIcon className="size-4" />
               <AlertTitle>Sản phẩm này đã được lưu trữ</AlertTitle>
@@ -1626,16 +1750,16 @@ const ListingEditorFormPage = ({
                 chỉnh sửa hoặc khôi phục.
               </AlertDescription>
             </Alert>
-          ) : null}
-          {!isNew && saveStatus === "error" ? (
+          </RenderWhen>
+          <RenderWhen when={!isNew && saveStatus === "error"}>
             <Alert variant="destructive">
               <WarningCircleIcon className="size-4" />
               <AlertTitle>Không thể lưu thay đổi mới nhất</AlertTitle>
               <AlertDescription>Kiểm tra kết nối rồi thử lại.</AlertDescription>
             </Alert>
-          ) : null}
+          </RenderWhen>
 
-          {isNew && saveStatus === "error" ? (
+          <RenderWhen when={isNew && saveStatus === "error"}>
             <Alert variant="destructive">
               <WarningCircleIcon className="size-4" />
               <AlertTitle>Chưa thể tạo bản nháp</AlertTitle>
@@ -1651,7 +1775,7 @@ const ListingEditorFormPage = ({
                 </Button>
               </AlertDescription>
             </Alert>
-          ) : null}
+          </RenderWhen>
 
           <div className="xl:hidden">
             <ReadinessPanel
@@ -1702,18 +1826,22 @@ const ListingEditorFormPage = ({
                     onImageUploadingChange={setIsImageUploading}
                     onParentCategoryChange={handleParentCategoryChange}
                     parentCategoryId={parentCategoryId}
-                    listingId={draftId ?? "new"}
+                    listingId={servicePackageQueryState.listingId}
                     stepId={activeStep.id}
                   />
-                  {form.type === "SERVICE" && activeStep.id === "packages" ? (
+                  <RenderWhen
+                    when={
+                      form.type === "SERVICE" && activeStep.id === "packages"
+                    }
+                  >
                     <div className="mt-6">
                       <ServicePackageManager
                         categoryBounds={selectedCategory?.warrantyBounds}
                         disabled={isEditorStepDisabled}
-                        listingId={draftId ?? "new"}
+                        listingId={servicePackageQueryState.listingId}
                       />
                     </div>
-                  ) : null}
+                  </RenderWhen>
                 </CardContent>
                 <CardFooter className="justify-between border-t border-border/60">
                   <Button
@@ -1729,12 +1857,7 @@ const ListingEditorFormPage = ({
                   {currentStepIndex === editorSteps.length - 1 &&
                   primaryActionAvailable ? (
                     <Button
-                      disabled={
-                        isActionPending ||
-                        isArchived ||
-                        !isReadyToPublish ||
-                        isHidden
-                      }
+                      disabled={primaryActionDisabled}
                       onClick={handlePrimaryAction}
                     >
                       <RocketIcon />
@@ -1772,9 +1895,7 @@ const ListingEditorFormPage = ({
                   </p>
                   <div className="flex items-center gap-2 rounded-xl bg-muted/50 p-3">
                     <CheckCircleIcon className="size-4 shrink-0 text-primary" />
-                    {isPublished
-                      ? "Thay đổi chỉ được lưu khi bạn bấm Lưu thay đổi."
-                      : "Bạn có thể quay lại bất kỳ bước nào sau."}
+                    {publishedEditorGuidance}
                   </div>
                 </CardContent>
               </Card>
@@ -1793,7 +1914,7 @@ const ListingEditorFormPage = ({
                 variant="outline"
               >
                 <FloppyDiskIcon />
-                {saveStatus === "saving" ? "Đang lưu…" : saveButtonLabel}
+                {saveButtonText}
               </Button>
               <Button
                 disabled={isActionPending || isArchived}
@@ -1802,25 +1923,20 @@ const ListingEditorFormPage = ({
               >
                 Quay lại sản phẩm
               </Button>
-              {primaryActionAvailable ? (
+              <RenderWhen when={primaryActionAvailable}>
                 <Button
-                  disabled={
-                    isActionPending ||
-                    isArchived ||
-                    !isReadyToPublish ||
-                    isHidden
-                  }
+                  disabled={primaryActionDisabled}
                   onClick={handlePrimaryAction}
                 >
                   <RocketIcon />
                   {primaryActionLabel}
                 </Button>
-              ) : null}
-              {!isReadyToPublish && primaryActionAvailable ? (
+              </RenderWhen>
+              <RenderWhen when={!isReadyToPublish && primaryActionAvailable}>
                 <span className="basis-full text-right text-[11px] text-muted-foreground sm:basis-auto">
                   Hoàn tất checklist để tiếp tục.
                 </span>
-              ) : null}
+              </RenderWhen>
             </div>
           </div>
         </div>

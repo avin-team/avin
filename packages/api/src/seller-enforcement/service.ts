@@ -746,7 +746,142 @@ const createRemediation = async (
 
 export const createSellerEnforcementRemediation = createRemediation;
 
-// oxlint-disable-next-line complexity
+type EnforcementTransition = NonNullable<
+  (typeof sellerEnforcementAction.$inferInsert)["actionType"]
+>;
+
+const assertBanImpactConfirmed = (
+  nextState: SellerEnforcementState,
+  actionType: EnforcementTransition | undefined,
+  confirmations: {
+    escrowHolds: boolean;
+    orderItems: boolean;
+    withdrawals: boolean;
+  }
+): void => {
+  if (
+    nextState === "BANNED" &&
+    actionType !== "REASON_CORRECTED" &&
+    (!confirmations.orderItems ||
+      !confirmations.escrowHolds ||
+      !confirmations.withdrawals)
+  ) {
+    throw new ORPCError("BAD_REQUEST", {
+      message:
+        "Banning requires confirmation of affected OrderItems, EscrowHolds, and WithdrawalRequests",
+    });
+  }
+};
+
+const resolveEnforcementTransition = (
+  actionType: EnforcementTransition | undefined,
+  previousState: SellerEnforcementState,
+  nextState: SellerEnforcementState
+): EnforcementTransition => {
+  if (actionType === "REASON_CORRECTED") {
+    return actionType;
+  }
+  if (actionType) {
+    return actionType;
+  }
+  try {
+    return getSellerEnforcementTransition(previousState, nextState);
+  } catch (error) {
+    return toOrpcError(error);
+  }
+};
+
+const assertEnforcementTransitionAllowed = (
+  transition: EnforcementTransition,
+  previousState: SellerEnforcementState,
+  nextState: SellerEnforcementState,
+  allowOverturn: boolean
+): void => {
+  if (
+    transition === "REASON_CORRECTED" &&
+    (previousState === "CLEAR" || previousState !== nextState)
+  ) {
+    throw new ORPCError("CONFLICT", {
+      message: "Only an active enforcement reason can be corrected",
+    });
+  }
+  if (
+    transition === "EXPIRE" &&
+    (previousState !== "SUSPENDED" || nextState !== "CLEAR")
+  ) {
+    throw new ORPCError("CONFLICT", {
+      message: "Only an active suspension can expire",
+    });
+  }
+  if (
+    transition === "LIFT" &&
+    (previousState !== "SUSPENDED" || nextState !== "CLEAR")
+  ) {
+    throw new ORPCError("CONFLICT", {
+      message: "Only a suspension can be lifted",
+    });
+  }
+  if (
+    transition === "OVERTURN" &&
+    (!allowOverturn || previousState !== "BANNED" || nextState !== "CLEAR")
+  ) {
+    throw new ORPCError("CONFLICT", {
+      message: "A ban can only be cleared by an appeal or correction",
+    });
+  }
+};
+
+const resolveEnforcementExpiry = (
+  transition: EnforcementTransition,
+  currentExpiry: Date | null | undefined,
+  nextState: SellerEnforcementState,
+  requestedExpiry: Date | null | undefined,
+  now: Date
+): Date | null => {
+  if (transition === "REASON_CORRECTED") {
+    return currentExpiry ?? null;
+  }
+  if (nextState === "CLEAR") {
+    return null;
+  }
+  return validateExpiry(nextState, requestedExpiry, now);
+};
+
+const getEnforcementMessage = (nextState: SellerEnforcementState): string => {
+  if (nextState === "CLEAR") {
+    return "Hạn chế tài khoản người bán của bạn đã được gỡ bỏ.";
+  }
+  if (nextState === "SUSPENDED") {
+    return "Tài khoản người bán của bạn đang bị tạm đình chỉ do vi phạm quy định.";
+  }
+  return "Tài khoản người bán của bạn đã bị khóa vĩnh viễn do vi phạm quy định.";
+};
+
+const getEnforcementNotificationCopy = (nextState: SellerEnforcementState) => {
+  if (nextState === "CLEAR") {
+    return {
+      eventType: "seller_enforcement.lifted" as const,
+      subject: "Avin: Đã gỡ bỏ hạn chế tài khoản người bán",
+      title: "Đã gỡ bỏ hạn chế tài khoản",
+    };
+  }
+  return {
+    eventType: "seller_enforcement.applied" as const,
+    subject: "Avin: Cập nhật xử lý vi phạm tài khoản người bán",
+    title: "Thông báo xử lý vi phạm tài khoản",
+  };
+};
+
+const getSupersededActionId = (
+  transition: EnforcementTransition,
+  previousActionId: string | undefined
+): string | null => {
+  if (transition === "REASON_CORRECTED" || transition === "OVERTURN") {
+    return previousActionId ?? null;
+  }
+  return null;
+};
+
 export const changeSellerEnforcement = async ({
   actionType,
   actorUserId,
@@ -792,7 +927,6 @@ export const changeSellerEnforcement = async ({
     targetPath: string;
     userId: string;
   }[] = [];
-  // oxlint-disable-next-line complexity
   const remediationAction = await database.transaction(async (transaction) => {
     let remediationActionId: string | null = null;
     const [existingAction] = await transaction
@@ -817,18 +951,11 @@ export const changeSellerEnforcement = async ({
       return;
     }
 
-    if (
-      nextState === "BANNED" &&
-      actionType !== "REASON_CORRECTED" &&
-      (!confirmAffectedOrderItems ||
-        !confirmAffectedEscrowHolds ||
-        !confirmAffectedWithdrawals)
-    ) {
-      throw new ORPCError("BAD_REQUEST", {
-        message:
-          "Banning requires confirmation of affected OrderItems, EscrowHolds, and WithdrawalRequests",
-      });
-    }
+    assertBanImpactConfirmed(nextState, actionType, {
+      escrowHolds: confirmAffectedEscrowHolds,
+      orderItems: confirmAffectedOrderItems,
+      withdrawals: confirmAffectedWithdrawals,
+    });
 
     await (actionType === "EXPIRE"
       ? lockSellerAccount(transaction, sellerId)
@@ -886,60 +1013,24 @@ export const changeSellerEnforcement = async ({
         userId: buyerId,
       }));
     }
-    const transition =
-      actionType === "REASON_CORRECTED"
-        ? "REASON_CORRECTED"
-        : (actionType ??
-          (() => {
-            try {
-              return getSellerEnforcementTransition(previousState, nextState);
-            } catch (error) {
-              return toOrpcError(error);
-            }
-          })());
-
-    if (
-      transition === "REASON_CORRECTED" &&
-      (previousState === "CLEAR" || previousState !== nextState)
-    ) {
-      throw new ORPCError("CONFLICT", {
-        message: "Only an active enforcement reason can be corrected",
-      });
-    }
-
-    if (
-      transition === "EXPIRE" &&
-      (previousState !== "SUSPENDED" || nextState !== "CLEAR")
-    ) {
-      throw new ORPCError("CONFLICT", {
-        message: "Only an active suspension can expire",
-      });
-    }
-    if (
-      transition === "LIFT" &&
-      (previousState !== "SUSPENDED" || nextState !== "CLEAR")
-    ) {
-      throw new ORPCError("CONFLICT", {
-        message: "Only a suspension can be lifted",
-      });
-    }
-    if (
-      transition === "OVERTURN" &&
-      (!allowOverturn || previousState !== "BANNED" || nextState !== "CLEAR")
-    ) {
-      throw new ORPCError("CONFLICT", {
-        message: "A ban can only be cleared by an appeal or correction",
-      });
-    }
-
-    let nextExpiresAt: Date | null;
-    if (transition === "REASON_CORRECTED") {
-      nextExpiresAt = current?.expiresAt ?? null;
-    } else if (nextState === "CLEAR") {
-      nextExpiresAt = null;
-    } else {
-      nextExpiresAt = validateExpiry(nextState, expiresAt, now);
-    }
+    const transition = resolveEnforcementTransition(
+      actionType,
+      previousState,
+      nextState
+    );
+    assertEnforcementTransitionAllowed(
+      transition,
+      previousState,
+      nextState,
+      allowOverturn
+    );
+    const nextExpiresAt = resolveEnforcementExpiry(
+      transition,
+      current?.expiresAt,
+      nextState,
+      expiresAt,
+      now
+    );
     const [action] = await transaction
       .insert(sellerEnforcementAction)
       .values({
@@ -954,10 +1045,10 @@ export const changeSellerEnforcement = async ({
         reasonCode,
         sellerId,
         sellerReason: normalizedReason,
-        supersedesActionId:
-          transition === "REASON_CORRECTED" || transition === "OVERTURN"
-            ? previousAction?.id
-            : null,
+        supersedesActionId: getSupersededActionId(
+          transition,
+          previousAction?.id
+        ),
       })
       .returning();
     if (!action) {
@@ -1001,18 +1092,8 @@ export const changeSellerEnforcement = async ({
       });
     }
 
-    let enforcementMessage: string;
-    if (nextState === "CLEAR") {
-      enforcementMessage = "Hạn chế tài khoản người bán của bạn đã được gỡ bỏ.";
-    } else if (nextState === "SUSPENDED") {
-      enforcementMessage =
-        "Tài khoản người bán của bạn đang bị tạm đình chỉ do vi phạm quy định.";
-    } else if (nextState === "BANNED") {
-      enforcementMessage =
-        "Tài khoản người bán của bạn đã bị khóa vĩnh viễn do vi phạm quy định.";
-    } else {
-      enforcementMessage = `Tài khoản người bán của bạn đã được cập nhật trạng thái (${nextState}).`;
-    }
+    const enforcementMessage = getEnforcementMessage(nextState);
+    const notificationCopy = getEnforcementNotificationCopy(nextState);
 
     await createNotificationEvent(transaction, {
       body: enforcementMessage,
@@ -1024,16 +1105,10 @@ export const changeSellerEnforcement = async ({
       email: {
         htmlBody: `<p>${enforcementMessage}</p>`,
         recipientUserIds: [sellerId],
-        subject:
-          nextState === "CLEAR"
-            ? "Avin: Đã gỡ bỏ hạn chế tài khoản người bán"
-            : "Avin: Cập nhật xử lý vi phạm tài khoản người bán",
+        subject: notificationCopy.subject,
         textBody: enforcementMessage,
       },
-      eventType:
-        nextState === "CLEAR"
-          ? "seller_enforcement.lifted"
-          : "seller_enforcement.applied",
+      eventType: notificationCopy.eventType,
       recipients: [
         { targetPath: "/seller/store", userId: sellerId },
         ...(await listNotificationRecipientsByRole(transaction, {
@@ -1043,10 +1118,7 @@ export const changeSellerEnforcement = async ({
       ],
       sourceId: action.id,
       sourceType: "SELLER_ENFORCEMENT_ACTION",
-      title:
-        nextState === "CLEAR"
-          ? "Đã gỡ bỏ hạn chế tài khoản"
-          : "Thông báo xử lý vi phạm tài khoản",
+      title: notificationCopy.title,
     });
 
     if (affectedBuyerRecipients.length > 0) {
@@ -1177,7 +1249,6 @@ export const submitSellerEnforcementAppeal = ({
   sellerId: string;
   sellerReason: string;
 }): Promise<typeof sellerEnforcementAppeal.$inferSelect> =>
-  // oxlint-disable-next-line complexity
   database.transaction(async (transaction) => {
     const normalizedKey = idempotencyKey.trim();
     const normalizedReason = sellerReason.trim();
@@ -1286,7 +1357,49 @@ export const submitSellerEnforcementAppeal = ({
     return appeal;
   });
 
-// oxlint-disable-next-line complexity
+const assertAppealReviewStatus = (
+  outcome: "UNDER_REVIEW" | "UPHELD" | "OVERTURNED",
+  status: (typeof sellerEnforcementAppeal.$inferSelect)["status"]
+): void => {
+  if (outcome === "UNDER_REVIEW" && status !== "SUBMITTED") {
+    throw new ORPCError("CONFLICT", {
+      message: "This appeal is already under review or resolved",
+    });
+  }
+  if (outcome !== "UNDER_REVIEW" && status !== "UNDER_REVIEW") {
+    throw new ORPCError("CONFLICT", {
+      message: "This appeal has already been resolved",
+    });
+  }
+};
+
+const normalizeAdminNote = (
+  adminNote: string | null | undefined
+): string | null => adminNote?.trim() || null;
+
+const assertAppealedActionIsCurrent = async (
+  transaction: EnforcementExecutor,
+  appealedAction: typeof sellerEnforcementAction.$inferSelect | undefined,
+  latestAction: typeof sellerEnforcementAction.$inferSelect | null
+): Promise<{
+  appealedAction: typeof sellerEnforcementAction.$inferSelect;
+  latestAction: typeof sellerEnforcementAction.$inferSelect;
+}> => {
+  if (!appealedAction || appealedAction.newState === "CLEAR" || !latestAction) {
+    throw new ORPCError("CONFLICT", {
+      message: "This appeal has been superseded by a newer decision",
+    });
+  }
+  if (
+    !(await isAppealActionCurrent(transaction, appealedAction, latestAction))
+  ) {
+    throw new ORPCError("CONFLICT", {
+      message: "This appeal has been superseded by a newer decision",
+    });
+  }
+  return { appealedAction, latestAction };
+};
+
 export const reviewSellerEnforcementAppeal = ({
   adminNote,
   appealId,
@@ -1306,7 +1419,6 @@ export const reviewSellerEnforcementAppeal = ({
   reviewerUserId: string;
   now?: Date;
 }): Promise<typeof sellerEnforcementAppeal.$inferSelect> =>
-  // oxlint-disable-next-line complexity
   database.transaction(async (transaction) => {
     const [appealSnapshot] = await transaction
       .select()
@@ -1329,16 +1441,7 @@ export const reviewSellerEnforcementAppeal = ({
     if (!appeal) {
       throw new ORPCError("NOT_FOUND", { message: "Appeal not found" });
     }
-    if (outcome === "UNDER_REVIEW" && appeal.status !== "SUBMITTED") {
-      throw new ORPCError("CONFLICT", {
-        message: "This appeal is already under review or resolved",
-      });
-    }
-    if (outcome !== "UNDER_REVIEW" && appeal.status !== "UNDER_REVIEW") {
-      throw new ORPCError("CONFLICT", {
-        message: "This appeal has already been resolved",
-      });
-    }
+    assertAppealReviewStatus(outcome, appeal.status);
 
     const [[appealedAction], latestAction] = await Promise.all([
       transaction
@@ -1348,28 +1451,17 @@ export const reviewSellerEnforcementAppeal = ({
         .limit(1),
       getLatestAction(transaction, appeal.sellerId),
     ]);
-    if (
-      !appealedAction ||
-      appealedAction.newState === "CLEAR" ||
-      !latestAction
-    ) {
-      throw new ORPCError("CONFLICT", {
-        message: "This appeal has been superseded by a newer decision",
-      });
-    }
-    if (
-      !(await isAppealActionCurrent(transaction, appealedAction, latestAction))
-    ) {
-      throw new ORPCError("CONFLICT", {
-        message: "This appeal has been superseded by a newer decision",
-      });
-    }
+    const currentAppealDecision = await assertAppealedActionIsCurrent(
+      transaction,
+      appealedAction,
+      latestAction
+    );
 
     if (outcome === "UNDER_REVIEW") {
       const [updatedAppeal] = await transaction
         .update(sellerEnforcementAppeal)
         .set({
-          adminNote: adminNote?.trim() || null,
+          adminNote: normalizeAdminNote(adminNote),
           reviewerUserId,
           status: "UNDER_REVIEW",
           updatedAt: now,
@@ -1399,7 +1491,7 @@ export const reviewSellerEnforcementAppeal = ({
       if (
         !current ||
         current.state === "CLEAR" ||
-        current.state !== appealedAction.newState
+        current.state !== currentAppealDecision.appealedAction.newState
       ) {
         throw new ORPCError("CONFLICT", {
           message: "The appealed enforcement is no longer active",
@@ -1411,7 +1503,7 @@ export const reviewSellerEnforcementAppeal = ({
         .values({
           actionType: "OVERTURN",
           actorUserId: reviewerUserId,
-          adminNote: adminNote?.trim() || null,
+          adminNote: normalizeAdminNote(adminNote),
           effectiveAt: now,
           idempotencyKey: `appeal:${appeal.id}:overturn`,
           newState: "CLEAR",
@@ -1419,7 +1511,7 @@ export const reviewSellerEnforcementAppeal = ({
           reasonCode,
           sellerId: appeal.sellerId,
           sellerReason: normalizedOutcomeReason,
-          supersedesActionId: latestAction.id,
+          supersedesActionId: currentAppealDecision.latestAction.id,
         })
         .returning();
       if (!action) {
@@ -1435,7 +1527,7 @@ export const reviewSellerEnforcementAppeal = ({
     const [updatedAppeal] = await transaction
       .update(sellerEnforcementAppeal)
       .set({
-        adminNote: adminNote?.trim() || null,
+        adminNote: normalizeAdminNote(adminNote),
         outcomeReason: normalizedOutcomeReason,
         reviewedAt: now,
         reviewerUserId,

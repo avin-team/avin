@@ -128,14 +128,12 @@ const getTimedWarranty = (
   return { durationHours: policy.durationHours, terms: policy.terms };
 };
 
-// oxlint-disable-next-line complexity
-export const getCart = async (
+const selectCartRows = (
   executor: CommerceExecutor,
-  userId: string,
-  now = new Date()
-): Promise<CartView> => {
-  const cartRow = await getOrCreateCart(executor, userId);
-  const rows = await executor
+  cartId: string,
+  userId: string
+) =>
+  executor
     .select({
       cartItemId: cartItem.id,
       categoryId: subCategory.id,
@@ -175,8 +173,165 @@ export const getCart = async (
       eq(listing.sellerId, sellerEnforcement.sellerId)
     )
     .leftJoin(sellerProfile, eq(listing.sellerId, sellerProfile.userId))
-    .where(and(eq(cart.id, cartRow.id), eq(cart.userId, userId)))
+    .where(and(eq(cart.id, cartId), eq(cart.userId, userId)))
     .orderBy(asc(cartItem.createdAt), asc(cartItem.id));
+
+type CartRow = Awaited<ReturnType<typeof selectCartRows>>[number];
+type PackageRow = typeof servicePackage.$inferSelect;
+
+const getCartItemContract = (
+  row: CartRow,
+  listingPackages: PackageRow[],
+  now: Date
+) => {
+  const sellerAvailable = !isSellerEnforcementActive(
+    {
+      expiresAt: row.sellerEnforcementExpiresAt,
+      state: row.sellerEnforcementState ?? "CLEAR",
+    },
+    now
+  );
+  let available =
+    sellerAvailable &&
+    isListingPubliclyAvailable(
+      row.listingStatus,
+      row.categoryStatus,
+      row.parentCategoryStatus
+    );
+  const availablePackages = listingPackages.filter(
+    (packageRow) => packageRow.status === "AVAILABLE"
+  );
+  const selectedPackage = getSelectedServicePackage(
+    row.listingType,
+    row.selectedPackageId,
+    listingPackages,
+    availablePackages
+  );
+  let contract = null as ReturnType<typeof parseListingContract> | null;
+  const listingSource = {
+    categoryId: row.categoryId,
+    description: row.description,
+    images: row.images,
+    sellerId: row.sellerId,
+    slug: row.listingSlug,
+    thumbnailUrl: row.listingThumbnailUrl,
+    title: row.listingTitle,
+    type: row.listingType,
+  };
+  if (available && row.listingType === "SERVICE") {
+    if (!selectedPackage || selectedPackage.status !== "AVAILABLE") {
+      available = false;
+    } else {
+      contract = parseServicePackageContract(
+        listingSource,
+        selectedPackage,
+        row.commissionRatePercent
+      );
+    }
+  } else if (available) {
+    contract = parseListingContract(
+      {
+        ...listingSource,
+        priceAmount: row.listingPriceAmount,
+        processingTimeHours: row.processingTimeHours,
+        warrantyDurationHours: row.warrantyDurationHours,
+        warrantyTerms: row.warrantyTerms,
+      },
+      row.commissionRatePercent
+    );
+  }
+  return { available, availablePackages, contract, selectedPackage };
+};
+
+const getCartItemWarranty = (
+  row: CartRow,
+  contract: ReturnType<typeof parseListingContract> | null,
+  selectedPackage: PackageRow | undefined
+) =>
+  getTimedWarranty(contract?.warrantyPolicy) ??
+  getTimedWarranty(selectedPackage?.warrantyPolicy) ??
+  (row.warrantyDurationHours !== null && row.warrantyTerms
+    ? {
+        durationHours: row.warrantyDurationHours,
+        terms: row.warrantyTerms,
+      }
+    : null);
+
+const getCartItemProcessingTime = (
+  row: CartRow,
+  contract: ReturnType<typeof parseListingContract> | null,
+  selectedPackage: PackageRow | undefined
+): number | null =>
+  contract?.processingTimeHours ??
+  selectedPackage?.processingTimeHours ??
+  row.processingTimeHours;
+
+const toCartItemView = (
+  row: CartRow,
+  packagesByListing: Map<string, PackageRow[]>,
+  now: Date
+): CartItemView => {
+  const listingPackages = (packagesByListing.get(row.listingId) ?? []).toSorted(
+    (left, right) =>
+      left.priceAmount - right.priceAmount ||
+      left.name.localeCompare(right.name)
+  );
+  const { available, availablePackages, contract, selectedPackage } =
+    getCartItemContract(row, listingPackages, now);
+  const timedWarranty = getCartItemWarranty(row, contract, selectedPackage);
+  const summaryPrice =
+    row.listingType === "SERVICE"
+      ? (availablePackages[0]?.priceAmount ?? null)
+      : row.listingPriceAmount;
+
+  return {
+    available,
+    cartItemId: row.cartItemId,
+    contractFingerprint: contract?.fingerprint ?? null,
+    listing: {
+      categoryId: row.categoryId,
+      description: row.description,
+      id: row.listingId,
+      images: row.images ?? [],
+      priceAmount: contract?.priceAmount ?? summaryPrice,
+      processingTimeHours: getCartItemProcessingTime(
+        row,
+        contract,
+        selectedPackage
+      ),
+      servicePackages: listingPackages.map((packageRow) => ({
+        description: packageRow.description,
+        id: packageRow.id,
+        name: packageRow.name,
+        priceAmount: packageRow.priceAmount,
+        processingTimeHours: packageRow.processingTimeHours,
+        status: packageRow.status,
+        warrantyPolicy: packageRow.warrantyPolicy,
+      })),
+      slug: row.listingSlug,
+      thumbnailUrl: row.listingThumbnailUrl,
+      title: row.listingTitle,
+      type: row.listingType,
+      warrantyDurationHours: timedWarranty?.durationHours ?? null,
+      warrantyTerms: timedWarranty?.terms ?? null,
+    },
+    selected: row.selected,
+    selectedPackageId: selectedPackage?.id ?? row.selectedPackageId,
+    seller: {
+      id: row.sellerId,
+      image: row.sellerAvatarUrl ?? row.sellerImage,
+      name: row.sellerStorefrontName ?? row.sellerName,
+    },
+  };
+};
+
+export const getCart = async (
+  executor: CommerceExecutor,
+  userId: string,
+  now = new Date()
+): Promise<CartView> => {
+  const cartRow = await getOrCreateCart(executor, userId);
+  const rows = await selectCartRows(executor, cartRow.id, userId);
 
   const serviceListingIds: string[] = [];
   for (const row of rows) {
@@ -198,129 +353,7 @@ export const getCart = async (
     packagesByListing.set(packageRow.listingId, packages);
   }
 
-  const items: CartItemView[] = [];
-  for (const row of rows) {
-    const sellerAvailable = !isSellerEnforcementActive(
-      {
-        expiresAt: row.sellerEnforcementExpiresAt,
-        state: row.sellerEnforcementState ?? "CLEAR",
-      },
-      now
-    );
-    let available =
-      sellerAvailable &&
-      isListingPubliclyAvailable(
-        row.listingStatus,
-        row.categoryStatus,
-        row.parentCategoryStatus
-      );
-    const listingSource = {
-      categoryId: row.categoryId,
-      description: row.description,
-      images: row.images,
-      sellerId: row.sellerId,
-      slug: row.listingSlug,
-      thumbnailUrl: row.listingThumbnailUrl,
-      title: row.listingTitle,
-      type: row.listingType,
-    };
-    const listingPackages = (
-      packagesByListing.get(row.listingId) ?? []
-    ).toSorted(
-      (left, right) =>
-        left.priceAmount - right.priceAmount ||
-        left.name.localeCompare(right.name)
-    );
-    const availablePackages = listingPackages.filter(
-      (packageRow) => packageRow.status === "AVAILABLE"
-    );
-    const selectedPackage = getSelectedServicePackage(
-      row.listingType,
-      row.selectedPackageId,
-      listingPackages,
-      availablePackages
-    );
-    let contract = null as ReturnType<typeof parseListingContract> | null;
-    if (available && row.listingType === "SERVICE") {
-      if (!selectedPackage || selectedPackage.status !== "AVAILABLE") {
-        available = false;
-      } else {
-        contract = parseServicePackageContract(
-          {
-            ...listingSource,
-          },
-          selectedPackage,
-          row.commissionRatePercent
-        );
-      }
-    } else if (available) {
-      contract = parseListingContract(
-        {
-          ...listingSource,
-          priceAmount: row.listingPriceAmount,
-          processingTimeHours: row.processingTimeHours,
-          warrantyDurationHours: row.warrantyDurationHours,
-          warrantyTerms: row.warrantyTerms,
-        },
-        row.commissionRatePercent
-      );
-    }
-    const selectedPolicy = selectedPackage?.warrantyPolicy;
-    const timedWarranty =
-      getTimedWarranty(contract?.warrantyPolicy) ??
-      getTimedWarranty(selectedPolicy) ??
-      (row.warrantyDurationHours !== null && row.warrantyTerms
-        ? {
-            durationHours: row.warrantyDurationHours,
-            terms: row.warrantyTerms,
-          }
-        : null);
-    const warrantyDurationHours = timedWarranty?.durationHours ?? null;
-    const warrantyTerms = timedWarranty?.terms ?? null;
-    const summaryPrice =
-      row.listingType === "SERVICE"
-        ? (availablePackages[0]?.priceAmount ?? null)
-        : row.listingPriceAmount;
-
-    items.push({
-      available,
-      cartItemId: row.cartItemId,
-      contractFingerprint: contract?.fingerprint ?? null,
-      listing: {
-        categoryId: row.categoryId,
-        description: row.description,
-        id: row.listingId,
-        images: row.images ?? [],
-        priceAmount: contract?.priceAmount ?? summaryPrice,
-        processingTimeHours:
-          contract?.processingTimeHours ??
-          selectedPackage?.processingTimeHours ??
-          row.processingTimeHours,
-        servicePackages: listingPackages.map((packageRow) => ({
-          description: packageRow.description,
-          id: packageRow.id,
-          name: packageRow.name,
-          priceAmount: packageRow.priceAmount,
-          processingTimeHours: packageRow.processingTimeHours,
-          status: packageRow.status,
-          warrantyPolicy: packageRow.warrantyPolicy,
-        })),
-        slug: row.listingSlug,
-        thumbnailUrl: row.listingThumbnailUrl,
-        title: row.listingTitle,
-        type: row.listingType,
-        warrantyDurationHours,
-        warrantyTerms,
-      },
-      selected: row.selected,
-      selectedPackageId: selectedPackage?.id ?? row.selectedPackageId,
-      seller: {
-        id: row.sellerId,
-        image: row.sellerAvatarUrl ?? row.sellerImage,
-        name: row.sellerStorefrontName ?? row.sellerName,
-      },
-    });
-  }
+  const items = rows.map((row) => toCartItemView(row, packagesByListing, now));
 
   const selectedItems = items.filter((item) => item.selected);
   return {

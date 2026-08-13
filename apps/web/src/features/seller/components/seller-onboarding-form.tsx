@@ -38,6 +38,7 @@ import { AnimatePresence, useReducedMotion } from "motion/react";
 import type { Variants } from "motion/react";
 import * as m from "motion/react-m";
 import { useState } from "react";
+import type { ReactNode } from "react";
 import { toast } from "sonner";
 
 import { authClient } from "@/features/auth/api/auth-client";
@@ -262,13 +263,92 @@ const STEPS_INFO = [
   },
 ];
 
+const getStepContentVariants = (shouldReduceMotion: boolean): Variants => ({
+  center: {
+    opacity: 1,
+    transform: "translateX(0px)",
+    transition: {
+      duration: shouldReduceMotion
+        ? SELLER_ONBOARDING_MOTION_DURATION.reduced
+        : SELLER_ONBOARDING_MOTION_DURATION.entrance,
+      ease: shouldReduceMotion ? "linear" : SELLER_ONBOARDING_EASE_OUT,
+    },
+  },
+  enter: (direction: number) => ({
+    opacity: shouldReduceMotion ? 0.88 : 0,
+    transform: shouldReduceMotion
+      ? "translateX(0px)"
+      : `translateX(${direction * STEP_TRANSITION_OFFSET_PX}px)`,
+  }),
+  exit: (direction: number) => ({
+    opacity: shouldReduceMotion ? 0.88 : 0,
+    transform: shouldReduceMotion
+      ? "translateX(0px)"
+      : `translateX(${-direction * STEP_TRANSITION_OFFSET_PX}px)`,
+    transition: {
+      duration: shouldReduceMotion
+        ? SELLER_ONBOARDING_MOTION_DURATION.reduced
+        : SELLER_ONBOARDING_MOTION_DURATION.standard,
+      ease: shouldReduceMotion ? "linear" : SELLER_ONBOARDING_EASE_OUT,
+    },
+  }),
+});
+
+const getInitialProfileFields = (
+  profile: SellerProfileData | null | undefined
+) => ({
+  avatarUrl: profile?.avatarUrl ?? "",
+  bio: profile?.bio ?? "",
+  phone: profile?.phone ?? "",
+  storefrontName: profile?.storefrontName ?? "",
+});
+
+const getInitialBankFields = (
+  profile: SellerProfileData | null | undefined
+) => ({
+  accountName: profile?.bankAccount?.accountName ?? "",
+  accountNumber: profile?.bankAccount?.accountNumber ?? "",
+  bankName: profile?.bankAccount?.bankName ?? "",
+});
+
+const isOnboardingStepCompleted = (
+  step: number,
+  activeStep: number,
+  isStep1Completed: boolean,
+  isStep2Completed: boolean,
+  applicationStatus: string | undefined
+): boolean => {
+  if (step === 1) {
+    return isStep1Completed && activeStep > 1;
+  }
+  if (step === 2) {
+    return isStep2Completed && activeStep > 2;
+  }
+  return applicationStatus === "APPROVED";
+};
+
+const RenderWhen = ({
+  children,
+  when,
+}: {
+  children: ReactNode;
+  when: boolean;
+}) => (when ? children : null);
+
+const isApprovedApplication = (
+  application: SellerApplicationData | null | undefined
+): boolean => application?.status === "APPROVED";
+
+const getInitialOnboardingStep = (
+  application: SellerApplicationData | null | undefined
+): number => (application?.status ? 3 : 1);
+
 interface SellerOnboardingFormContentProps {
   application?: SellerApplicationData | null;
   profile?: SellerProfileData | null;
   refetchProfile: () => void;
 }
 
-// oxlint-disable-next-line complexity
 const SellerOnboardingFormContent = ({
   application,
   profile,
@@ -276,7 +356,7 @@ const SellerOnboardingFormContent = ({
 }: SellerOnboardingFormContentProps) => {
   const navigate = useNavigate();
   const shouldReduceMotion = Boolean(useReducedMotion());
-  const isApproved = application?.status === "APPROVED";
+  const isApproved = isApprovedApplication(application);
 
   const markSeenMutation = useMutation(
     orpc.sellerApplication.markOnboardingSeen.mutationOptions({
@@ -299,7 +379,7 @@ const SellerOnboardingFormContent = ({
   };
 
   // Calculate default step: if approved or pending/rejected/changes_requested, default to step 3
-  const initialStep = application?.status ? 3 : 1;
+  const initialStep = getInitialOnboardingStep(application);
   const [activeStep, setActiveStep] = useState(initialStep);
   const [stepDirection, setStepDirection] = useState(1);
 
@@ -312,57 +392,26 @@ const SellerOnboardingFormContent = ({
     setActiveStep(targetStep);
   };
 
-  const stepContentVariants: Variants = {
-    center: {
-      opacity: 1,
-      transform: "translateX(0px)",
-      transition: {
-        duration: shouldReduceMotion
-          ? SELLER_ONBOARDING_MOTION_DURATION.reduced
-          : SELLER_ONBOARDING_MOTION_DURATION.entrance,
-        ease: shouldReduceMotion ? "linear" : SELLER_ONBOARDING_EASE_OUT,
-      },
-    },
-    enter: (direction: number) => ({
-      opacity: shouldReduceMotion ? 0.88 : 0,
-      transform: shouldReduceMotion
-        ? "translateX(0px)"
-        : `translateX(${direction * STEP_TRANSITION_OFFSET_PX}px)`,
-    }),
-    exit: (direction: number) => ({
-      opacity: shouldReduceMotion ? 0.88 : 0,
-      transform: shouldReduceMotion
-        ? "translateX(0px)"
-        : `translateX(${-direction * STEP_TRANSITION_OFFSET_PX}px)`,
-      transition: {
-        duration: shouldReduceMotion
-          ? SELLER_ONBOARDING_MOTION_DURATION.reduced
-          : SELLER_ONBOARDING_MOTION_DURATION.standard,
-        ease: shouldReduceMotion ? "linear" : SELLER_ONBOARDING_EASE_OUT,
-      },
-    }),
-  };
+  const stepContentVariants = getStepContentVariants(shouldReduceMotion);
 
   // Draft profile form state
+  const initialProfileFields = getInitialProfileFields(profile);
+  const initialBankFields = getInitialBankFields(profile);
   const [storefrontName, setStorefrontName] = useState(
-    profile?.storefrontName ?? ""
+    initialProfileFields.storefrontName
   );
-  const [avatarUrl, setAvatarUrl] = useState(profile?.avatarUrl ?? "");
+  const [avatarUrl, setAvatarUrl] = useState(initialProfileFields.avatarUrl);
   const [avatarName, setAvatarName] = useState("");
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
-  const [bio, setBio] = useState(profile?.bio ?? "");
-  const [phoneInput, setPhoneInput] = useState(profile?.phone ?? "");
+  const [bio, setBio] = useState(initialProfileFields.bio);
+  const [phoneInput, setPhoneInput] = useState(initialProfileFields.phone);
 
   // Bank details & agreement state
-  const [bankName, setBankName] = useState(
-    profile?.bankAccount?.bankName ?? ""
-  );
+  const [bankName, setBankName] = useState(initialBankFields.bankName);
   const [accountNumber, setAccountNumber] = useState(
-    profile?.bankAccount?.accountNumber ?? ""
+    initialBankFields.accountNumber
   );
-  const [accountName, setAccountName] = useState(
-    profile?.bankAccount?.accountName ?? ""
-  );
+  const [accountName, setAccountName] = useState(initialBankFields.accountName);
   const [agreementAccepted, setAgreementAccepted] = useState(
     Boolean(application?.createdAt)
   );
@@ -544,14 +593,13 @@ const SellerOnboardingFormContent = ({
   };
 
   const renderStepIndicatorContent = (stepNum: number) => {
-    let isCompleted = false;
-    if (stepNum === 1) {
-      isCompleted = isStep1Completed && activeStep > 1;
-    } else if (stepNum === 2) {
-      isCompleted = isStep2Completed && activeStep > 2;
-    } else {
-      isCompleted = application?.status === "APPROVED";
-    }
+    const isCompleted = isOnboardingStepCompleted(
+      stepNum,
+      activeStep,
+      isStep1Completed,
+      isStep2Completed,
+      application?.status
+    );
 
     const indicatorKey = isCompleted ? "completed" : `step-${stepNum}`;
 
@@ -631,11 +679,13 @@ const SellerOnboardingFormContent = ({
                     key={s.step}
                     step={s.step}
                     disabled={isStepDisabled(s.step)}
-                    completed={
-                      (s.step === 1 && isStep1Completed && activeStep > 1) ||
-                      (s.step === 2 && isStep2Completed && activeStep > 2) ||
-                      (s.step === 3 && application?.status === "APPROVED")
-                    }
+                    completed={isOnboardingStepCompleted(
+                      s.step,
+                      activeStep,
+                      isStep1Completed,
+                      isStep2Completed,
+                      application?.status
+                    )}
                     className="group/step cursor-pointer"
                   >
                     <StepperTrigger className="w-full text-left gap-3 focus:outline-none disabled:cursor-not-allowed">
@@ -690,7 +740,7 @@ const SellerOnboardingFormContent = ({
               >
                 Để sau
               </Button>
-              {activeStep > 1 && (
+              <RenderWhen when={activeStep > 1}>
                 <button
                   type="button"
                   onClick={() => changeActiveStep(Math.max(1, activeStep - 1))}
@@ -699,7 +749,7 @@ const SellerOnboardingFormContent = ({
                 >
                   <CaretLeftIcon className="w-5 h-5" />
                 </button>
-              )}
+              </RenderWhen>
             </div>
           </div>
 
@@ -724,11 +774,13 @@ const SellerOnboardingFormContent = ({
                   <StepperItem
                     step={s.step}
                     disabled={isStepDisabled(s.step)}
-                    completed={
-                      (s.step === 1 && isStep1Completed && activeStep > 1) ||
-                      (s.step === 2 && isStep2Completed && activeStep > 2) ||
-                      (s.step === 3 && application?.status === "APPROVED")
-                    }
+                    completed={isOnboardingStepCompleted(
+                      s.step,
+                      activeStep,
+                      isStep1Completed,
+                      isStep2Completed,
+                      application?.status
+                    )}
                   >
                     <StepperTrigger className="p-1 disabled:cursor-not-allowed">
                       <StepperIndicator className="w-6 h-6 text-xs rounded-full border border-border bg-background text-muted-foreground group-data-[state=active]/step:bg-primary group-data-[state=active]/step:text-primary-foreground group-data-[state=completed]/step:bg-emerald-500 group-data-[state=completed]/step:text-white">
@@ -786,7 +838,7 @@ const SellerOnboardingFormContent = ({
           <div className="grid">
             <AnimatePresence custom={stepDirection} initial={false} mode="sync">
               {/* STEP 1 CONTENT */}
-              {activeStep === 1 && (
+              <RenderWhen when={activeStep === 1}>
                 <m.div
                   animate="center"
                   className="col-start-1 row-start-1 space-y-6"
@@ -804,7 +856,7 @@ const SellerOnboardingFormContent = ({
                       Cung cấp các thông tin cơ bản về tên thương hiệu, logo và
                       liên hệ của bạn.
                     </p>
-                    {isApproved && (
+                    <RenderWhen when={isApproved}>
                       <Badge
                         variant="outline"
                         className="mt-2 text-emerald-600 border-emerald-500/30 dark:text-emerald-400"
@@ -812,7 +864,7 @@ const SellerOnboardingFormContent = ({
                         <CheckCircleIcon className="w-3.5 h-3.5 mr-1" /> Đã
                         duyệt (Chỉ xem)
                       </Badge>
-                    )}
+                    </RenderWhen>
                   </div>
 
                   <form
@@ -908,19 +960,19 @@ const SellerOnboardingFormContent = ({
                           updateDraftMutation.isPending || isUploadingLogo
                         }
                       >
-                        {updateDraftMutation.isPending && (
+                        <RenderWhen when={updateDraftMutation.isPending}>
                           <SpinnerIcon className="w-4 h-4 mr-2 animate-spin" />
-                        )}
+                        </RenderWhen>
                         {getStep1ButtonText()}
                         <ArrowRightIcon className="w-4 h-4 ml-2" />
                       </Button>
                     </div>
                   </form>
                 </m.div>
-              )}
+              </RenderWhen>
 
               {/* STEP 2 CONTENT */}
-              {activeStep === 2 && (
+              <RenderWhen when={activeStep === 2}>
                 <m.div
                   animate="center"
                   className="col-start-1 row-start-1 space-y-6"
@@ -938,7 +990,7 @@ const SellerOnboardingFormContent = ({
                       Cung cấp tài khoản nhận doanh thu và xác nhận Thỏa thuận
                       Người bán trên Avin.
                     </p>
-                    {isApproved && (
+                    <RenderWhen when={isApproved}>
                       <Badge
                         variant="outline"
                         className="mt-2 text-emerald-600 border-emerald-500/30 dark:text-emerald-400"
@@ -946,7 +998,7 @@ const SellerOnboardingFormContent = ({
                         <CheckCircleIcon className="w-3.5 h-3.5 mr-1" /> Đã
                         duyệt (Chỉ xem)
                       </Badge>
-                    )}
+                    </RenderWhen>
                   </div>
 
                   <form
@@ -1088,18 +1140,18 @@ const SellerOnboardingFormContent = ({
                           (!agreementAccepted && !isApproved)
                         }
                       >
-                        {submitAppMutation.isPending && (
+                        <RenderWhen when={submitAppMutation.isPending}>
                           <SpinnerIcon className="w-4 h-4 mr-2 animate-spin" />
-                        )}
+                        </RenderWhen>
                         {getSubmitButtonText()}
                       </Button>
                     </div>
                   </form>
                 </m.div>
-              )}
+              </RenderWhen>
 
               {/* STEP 3 CONTENT */}
-              {activeStep === 3 && (
+              <RenderWhen when={activeStep === 3}>
                 <m.div
                   animate="center"
                   className="col-start-1 row-start-1 space-y-6"
@@ -1152,7 +1204,7 @@ const SellerOnboardingFormContent = ({
                     </Button>
                   </div>
                 </m.div>
-              )}
+              </RenderWhen>
             </AnimatePresence>
           </div>
         </main>

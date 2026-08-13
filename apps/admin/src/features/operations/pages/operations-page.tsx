@@ -112,6 +112,10 @@ const NextPageButton = ({
 const formatDate = (value: string): string =>
   new Date(value).toLocaleString("vi-VN");
 
+const getOptionalFilter = <T extends string>(
+  value: T | "ALL"
+): T | undefined => (value === "ALL" ? undefined : value);
+
 const QueryState = ({
   isError,
   isPending,
@@ -143,7 +147,6 @@ const QueryState = ({
   return null;
 };
 
-// oxlint-disable-next-line complexity
 export const OperationsPage = () => {
   const [tab, setTab] = useState("reconciliation");
   const [reconciliationStatus, setReconciliationStatus] =
@@ -160,27 +163,20 @@ export const OperationsPage = () => {
   >({});
   const reconciliationQuery = useOperationsReconciliation({
     cursor: cursors.reconciliation,
-    status:
-      reconciliationStatus === "ALL"
-        ? undefined
-        : (reconciliationStatus as ReconciliationStatus),
+    status: getOptionalFilter<ReconciliationStatus>(reconciliationStatus),
   });
   const transactionsQuery = useOperationsTransactions({
     cursor: cursors.transactions,
-    type:
-      transactionType === "ALL"
-        ? undefined
-        : (transactionType as TransactionType),
+    type: getOptionalFilter<TransactionType>(transactionType),
   });
   const auditQuery = useOperationsAuditLog({
     action: auditAction.trim() || undefined,
     cursor: cursors.audit,
-    outcome: auditOutcome === "ALL" ? undefined : auditOutcome,
+    outcome: getOptionalFilter<"FAILURE" | "SUCCESS">(auditOutcome),
   });
   const emailQuery = useOperationsEmailDelivery({
     cursor: cursors.email,
-    status:
-      emailStatus === "ALL" ? undefined : (emailStatus as EmailDeliveryStatus),
+    status: getOptionalFilter<EmailDeliveryStatus>(emailStatus),
   });
   const reconcileMutation = useReconcileDeposit();
   const retryMutation = useRetryEmailDelivery();

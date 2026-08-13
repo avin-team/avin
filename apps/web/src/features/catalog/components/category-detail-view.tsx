@@ -1,4 +1,3 @@
-/* oxlint-disable complexity */
 import {
   Select,
   SelectContent,
@@ -79,6 +78,85 @@ export interface CategoryDetailViewProps {
   sortBy: SortByOption;
 }
 
+const CategoryListingsContent = ({
+  isError,
+  isLoading,
+  listingsData,
+  onPageChange,
+  onRefetch,
+  search,
+  viewMode,
+}: Pick<
+  CategoryDetailViewProps,
+  | "isError"
+  | "isLoading"
+  | "listingsData"
+  | "onPageChange"
+  | "onRefetch"
+  | "search"
+> & { viewMode: "grid" | "list" }) => {
+  if (isLoading) {
+    return <ListingGridSkeleton />;
+  }
+  if (isError) {
+    return (
+      <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-8 text-center">
+        <WarningCircleIcon className="mx-auto h-8 w-8 text-destructive" />
+        <p className="mt-2 text-sm font-medium text-destructive">
+          Không thể tải sản phẩm. Vui lòng thử lại.
+        </p>
+        <button
+          className="mt-4 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-all hover:opacity-90"
+          onClick={onRefetch}
+          type="button"
+        >
+          Tải lại
+        </button>
+      </div>
+    );
+  }
+  if (!listingsData || listingsData.items.length === 0) {
+    return (
+      <ListingEmptyState
+        description={
+          search
+            ? `Không tìm thấy dịch vụ nào cho từ khóa "${search}"`
+            : "Chưa có dịch vụ nào trong mục này."
+        }
+      />
+    );
+  }
+  return (
+    <div className="space-y-6">
+      <div
+        className={
+          viewMode === "list"
+            ? "space-y-4"
+            : "grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3"
+        }
+      >
+        {listingsData.items.map((item) => (
+          <ListingCard key={item.id} listing={item} variant={viewMode} />
+        ))}
+      </div>
+      <Pagination
+        currentPage={listingsData.page}
+        onPageChange={onPageChange}
+        total={listingsData.total}
+        totalPages={listingsData.totalPages}
+      />
+    </div>
+  );
+};
+
+const getActiveSubCategory = (
+  parentCategory: CategoryDetailViewProps["parentCategory"],
+  selectedSubSlug: string | undefined
+) =>
+  parentCategory?.subCategories?.find(
+    (subCategory) => subCategory.slug === selectedSubSlug
+  );
+
 export const CategoryDetailView = ({
   categoryLoading: _categoryLoading,
   isError,
@@ -96,9 +174,7 @@ export const CategoryDetailView = ({
   sortBy,
 }: CategoryDetailViewProps) => {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const activeSub = parentCategory?.subCategories?.find(
-    (s) => s.slug === selectedSubSlug
-  );
+  const activeSub = getActiveSubCategory(parentCategory, selectedSubSlug);
 
   return (
     <div className="space-y-6 py-6">
@@ -319,60 +395,15 @@ export const CategoryDetailView = ({
           </div>
 
           {/* Listings Content */}
-          {isLoading && <ListingGridSkeleton />}
-
-          {isError && (
-            <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-8 text-center">
-              <WarningCircleIcon className="mx-auto h-8 w-8 text-destructive" />
-              <p className="mt-2 text-sm font-medium text-destructive">
-                Không thể tải sản phẩm. Vui lòng thử lại.
-              </p>
-              <button
-                className="mt-4 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90 transition-all"
-                onClick={onRefetch}
-                type="button"
-              >
-                Tải lại
-              </button>
-            </div>
-          )}
-
-          {listingsData && listingsData.items.length > 0 && (
-            <div className="space-y-6">
-              <div
-                className={
-                  viewMode === "list"
-                    ? "space-y-4"
-                    : "grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
-                }
-              >
-                {listingsData.items.map((item) => (
-                  <ListingCard
-                    key={item.id}
-                    listing={item}
-                    variant={viewMode}
-                  />
-                ))}
-              </div>
-
-              <Pagination
-                currentPage={listingsData.page}
-                onPageChange={onPageChange}
-                total={listingsData.total}
-                totalPages={listingsData.totalPages}
-              />
-            </div>
-          )}
-
-          {listingsData && listingsData.items.length === 0 && (
-            <ListingEmptyState
-              description={
-                search
-                  ? `Không tìm thấy dịch vụ nào cho từ khóa "${search}"`
-                  : "Chưa có dịch vụ nào trong mục này."
-              }
-            />
-          )}
+          <CategoryListingsContent
+            isError={isError}
+            isLoading={isLoading}
+            listingsData={listingsData}
+            onPageChange={onPageChange}
+            onRefetch={onRefetch}
+            search={search}
+            viewMode={viewMode}
+          />
         </main>
       </div>
     </div>

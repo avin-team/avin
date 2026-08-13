@@ -331,7 +331,82 @@ const assertSelectedItemsMatchRequest = (
   return requestedItems;
 };
 
-// oxlint-disable-next-line complexity
+const getCheckoutContract = (
+  row: SelectedListingRow,
+  requestedItem: CheckoutItemInput
+): ReturnType<typeof parseListingContract> => {
+  if (row.listingType === "SERVICE") {
+    if (
+      requestedItem.packageId &&
+      requestedItem.packageId !== row.selectedPackageId
+    ) {
+      throw new ORPCError("CONFLICT", {
+        message:
+          "Selected Service package changed. Update the Cart and try again.",
+      });
+    }
+    if (
+      !row.selectedPackageId ||
+      row.servicePackageId !== row.selectedPackageId ||
+      row.servicePackageListingId !== row.listingId ||
+      !row.servicePackageName ||
+      !row.servicePackageDescription ||
+      row.servicePackagePriceAmount === null ||
+      row.servicePackageProcessingTimeHours === null ||
+      row.servicePackageStatus !== "AVAILABLE" ||
+      !row.servicePackageWarrantyPolicy
+    ) {
+      throw new ORPCError("CONFLICT", {
+        message:
+          "A Service package must be selected before this Listing can be purchased.",
+      });
+    }
+    return parseServicePackageContract(
+      {
+        categoryId: row.categoryId,
+        description: row.description,
+        images: row.images,
+        sellerId: row.sellerId,
+        slug: row.listingSlug,
+        thumbnailUrl: row.listingThumbnailUrl,
+        title: row.listingTitle,
+        type: row.listingType,
+      },
+      {
+        description: row.servicePackageDescription,
+        id: row.servicePackageId,
+        name: row.servicePackageName,
+        priceAmount: row.servicePackagePriceAmount,
+        processingTimeHours: row.servicePackageProcessingTimeHours,
+        warrantyPolicy: row.servicePackageWarrantyPolicy,
+      },
+      row.commissionRatePercent
+    );
+  }
+  if (requestedItem.packageId) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Course listings do not have Service packages.",
+    });
+  }
+  return parseListingContract(
+    {
+      categoryId: row.categoryId,
+      description: row.description,
+      images: row.images,
+      priceAmount: row.listingPriceAmount,
+      processingTimeHours: row.processingTimeHours,
+      sellerId: row.sellerId,
+      slug: row.listingSlug,
+      thumbnailUrl: row.listingThumbnailUrl,
+      title: row.listingTitle,
+      type: row.listingType,
+      warrantyDurationHours: row.warrantyDurationHours,
+      warrantyTerms: row.warrantyTerms,
+    },
+    row.commissionRatePercent
+  );
+};
+
 const prepareCheckoutItems = (
   rows: SelectedListingRow[],
   requestedItems: Map<string, CheckoutItemInput>,
@@ -365,78 +440,7 @@ const prepareCheckoutItems = (
       });
     }
 
-    let contract: ReturnType<typeof parseListingContract>;
-    if (row.listingType === "SERVICE") {
-      if (
-        requestedItem.packageId &&
-        requestedItem.packageId !== row.selectedPackageId
-      ) {
-        throw new ORPCError("CONFLICT", {
-          message:
-            "Selected Service package changed. Update the Cart and try again.",
-        });
-      }
-      if (
-        !row.selectedPackageId ||
-        row.servicePackageId !== row.selectedPackageId ||
-        row.servicePackageListingId !== row.listingId ||
-        !row.servicePackageName ||
-        !row.servicePackageDescription ||
-        row.servicePackagePriceAmount === null ||
-        row.servicePackageProcessingTimeHours === null ||
-        row.servicePackageStatus !== "AVAILABLE" ||
-        !row.servicePackageWarrantyPolicy
-      ) {
-        throw new ORPCError("CONFLICT", {
-          message:
-            "A Service package must be selected before this Listing can be purchased.",
-        });
-      }
-      contract = parseServicePackageContract(
-        {
-          categoryId: row.categoryId,
-          description: row.description,
-          images: row.images,
-          sellerId: row.sellerId,
-          slug: row.listingSlug,
-          thumbnailUrl: row.listingThumbnailUrl,
-          title: row.listingTitle,
-          type: row.listingType,
-        },
-        {
-          description: row.servicePackageDescription,
-          id: row.servicePackageId,
-          name: row.servicePackageName,
-          priceAmount: row.servicePackagePriceAmount,
-          processingTimeHours: row.servicePackageProcessingTimeHours,
-          warrantyPolicy: row.servicePackageWarrantyPolicy,
-        },
-        row.commissionRatePercent
-      );
-    } else {
-      if (requestedItem.packageId) {
-        throw new ORPCError("BAD_REQUEST", {
-          message: "Course listings do not have Service packages.",
-        });
-      }
-      contract = parseListingContract(
-        {
-          categoryId: row.categoryId,
-          description: row.description,
-          images: row.images,
-          priceAmount: row.listingPriceAmount,
-          processingTimeHours: row.processingTimeHours,
-          sellerId: row.sellerId,
-          slug: row.listingSlug,
-          thumbnailUrl: row.listingThumbnailUrl,
-          title: row.listingTitle,
-          type: row.listingType,
-          warrantyDurationHours: row.warrantyDurationHours,
-          warrantyTerms: row.warrantyTerms,
-        },
-        row.commissionRatePercent
-      );
-    }
+    const contract = getCheckoutContract(row, requestedItem);
 
     if (
       contract.fingerprint !== requestedItem.contractFingerprint &&
@@ -614,13 +618,30 @@ export const createOrdersAndEscrowHolds = async (
   }
 };
 
+const applyEnforcementSnapshots = (
+  selectedRows: SelectedListingRow[],
+  enforcementRows: {
+    expiresAt: SelectedListingRow["sellerEnforcementExpiresAt"];
+    sellerId: string;
+    state: SelectedListingRow["sellerEnforcementState"];
+  }[]
+): void => {
+  const enforcementBySeller = new Map(
+    enforcementRows.map((enforcement) => [enforcement.sellerId, enforcement])
+  );
+  for (const selectedRow of selectedRows) {
+    const enforcement = enforcementBySeller.get(selectedRow.sellerId);
+    selectedRow.sellerEnforcementExpiresAt = enforcement?.expiresAt ?? null;
+    selectedRow.sellerEnforcementState = enforcement?.state ?? null;
+  }
+};
+
 export const createCheckout = (
   database: typeof db,
   userId: string,
   input: CheckoutInput,
   now = new Date()
 ): Promise<CheckoutResult> =>
-  // oxlint-disable-next-line complexity
   database.transaction(async (transaction) => {
     const [account] = await transaction
       .select({ id: userTable.id, role: userTable.role })
@@ -676,14 +697,7 @@ export const createCheckout = (
       })
       .from(sellerEnforcement)
       .where(inArray(sellerEnforcement.sellerId, sellerIds));
-    const enforcementBySeller = new Map(
-      enforcementRows.map((enforcement) => [enforcement.sellerId, enforcement])
-    );
-    for (const selectedRow of selectedRows) {
-      const enforcement = enforcementBySeller.get(selectedRow.sellerId);
-      selectedRow.sellerEnforcementExpiresAt = enforcement?.expiresAt ?? null;
-      selectedRow.sellerEnforcementState = enforcement?.state ?? null;
-    }
+    applyEnforcementSnapshots(selectedRows, enforcementRows);
 
     const requestedItems = assertSelectedItemsMatchRequest(selectedRows, input);
     const preparedItems = prepareCheckoutItems(

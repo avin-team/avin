@@ -61,7 +61,13 @@ import { formatVND } from "@/utils/format";
 import { getErrorMessage } from "@/utils/get-error-message";
 import { orpc } from "@/utils/orpc";
 
-// oxlint-disable-next-line complexity
+const getConfirmationMessage = (
+  warrantyPolicy: BuyerOrderView["items"][number]["warrantyPolicy"]
+): string =>
+  isNoWarrantyPolicy(warrantyPolicy)
+    ? "Đã xác nhận bàn giao. Tiền tạm giữ đã được giải ngân."
+    : "Đã xác nhận bàn giao. Warranty đã bắt đầu.";
+
 export const BuyerOrderItemCard = ({
   item,
 }: {
@@ -107,11 +113,7 @@ export const BuyerOrderItemCard = ({
       },
       onSuccess: async () => {
         await invalidateItem();
-        toast.success(
-          isNoWarrantyPolicy(item.warrantyPolicy)
-            ? "Đã xác nhận bàn giao. Tiền tạm giữ đã được giải ngân."
-            : "Đã xác nhận bàn giao. Warranty đã bắt đầu."
-        );
+        toast.success(getConfirmationMessage(item.warrantyPolicy));
       },
     })
   );
@@ -179,25 +181,41 @@ export const BuyerOrderItemCard = ({
     validators: { onSubmit: buyerDisputeSchema },
   });
 
-  const current = timelineQuery.data?.current;
-  const status = current?.status ?? item.status;
-  const processingDeadlineAt =
-    current?.processingDeadlineAt ?? item.processingDeadlineAt;
-  const deliveryReviewDeadlineAt =
-    current?.deliveryReviewDeadlineAt ?? item.deliveryReviewDeadlineAt;
-  const warrantyExpiresAt =
-    current?.warrantyExpiresAt ?? item.warrantyExpiresAt;
-  const canConfirm = canBuyerConfirmDelivery(status, deliveryReviewDeadlineAt);
-  const canCancel = canBuyerCancel(status);
-  const canDispute =
-    canBuyerOpenDispute({
+  const resolveOrderState = () => {
+    const current = timelineQuery.data?.current;
+    const status = current?.status ?? item.status;
+    const processingDeadlineAt =
+      current?.processingDeadlineAt ?? item.processingDeadlineAt;
+    const deliveryReviewDeadlineAt =
+      current?.deliveryReviewDeadlineAt ?? item.deliveryReviewDeadlineAt;
+    const warrantyExpiresAt =
+      current?.warrantyExpiresAt ?? item.warrantyExpiresAt;
+    return {
+      canCancel: canBuyerCancel(status),
+      canCancelDispute:
+        status === "DISPUTED" && timelineQuery.data?.dispute?.status === "OPEN",
+      canConfirm: canBuyerConfirmDelivery(status, deliveryReviewDeadlineAt),
+      canDispute:
+        canBuyerOpenDispute({
+          deliveryReviewDeadlineAt,
+          processingDeadlineAt,
+          status,
+          warrantyExpiresAt,
+        }) && !timelineQuery.data?.dispute,
       deliveryReviewDeadlineAt,
       processingDeadlineAt,
       status,
-      warrantyExpiresAt,
-    }) && !timelineQuery.data?.dispute;
-  const canCancelDispute =
-    status === "DISPUTED" && timelineQuery.data?.dispute?.status === "OPEN";
+    };
+  };
+  const {
+    canCancel,
+    canCancelDispute,
+    canConfirm,
+    canDispute,
+    deliveryReviewDeadlineAt,
+    processingDeadlineAt,
+    status,
+  } = resolveOrderState();
   const timelineContent = (() => {
     if (timelineQuery.isPending) {
       return (

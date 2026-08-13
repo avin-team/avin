@@ -98,6 +98,21 @@ const getEscrowReleaseMessage = (
   return "Sẽ giải ngân khi hoàn tất đơn hàng";
 };
 
+const getSellerOrderActionState = (
+  status: SellerOrderView["items"][number]["status"],
+  isBanned: boolean
+) => ({
+  canCancel:
+    (status === "AWAITING_SELLER" || status === "IN_PROGRESS") && !isBanned,
+  canDeliver: status === "IN_PROGRESS" && !isBanned,
+  canStart: status === "AWAITING_SELLER" && !isBanned,
+  showBanNotice:
+    isBanned && (status === "AWAITING_SELLER" || status === "IN_PROGRESS"),
+});
+
+const formatOptionalOrderDate = (value: string | null | undefined): string =>
+  value ? formatOrderDate(value) : "—";
+
 const SellerDeliveryForm = ({
   itemId,
   onCompleted,
@@ -248,7 +263,6 @@ const SellerDeliveryForm = ({
   );
 };
 
-// oxlint-disable-next-line complexity
 export const SellerOrderItemCard = ({
   item,
 }: {
@@ -342,17 +356,33 @@ export const SellerOrderItemCard = ({
   const { data: enforcement } = useSellerEnforcement();
   const isBanned = enforcement?.state === "BANNED";
 
-  const current = timelineQuery.data?.current;
-  const status = current?.status ?? item.status;
-  const warrantyExpiresAt =
-    current?.warrantyExpiresAt ?? item.warrantyExpiresAt;
-  const deliveryReviewDeadlineAt =
-    current?.deliveryReviewDeadlineAt ?? item.deliveryReviewDeadlineAt;
-  const canCancel =
-    (status === "AWAITING_SELLER" || status === "IN_PROGRESS") && !isBanned;
-  const currentDispute = timelineQuery.data?.dispute;
-  const canSubmitSellerEvidence =
-    status === "DISPUTED" && currentDispute?.status === "OPEN";
+  const resolveOrderState = () => {
+    const current = timelineQuery.data?.current;
+    const status = current?.status ?? item.status;
+    return {
+      ...getSellerOrderActionState(status, isBanned),
+      canSubmitSellerEvidence:
+        status === "DISPUTED" && timelineQuery.data?.dispute?.status === "OPEN",
+      current,
+      currentDispute: timelineQuery.data?.dispute,
+      deliveryReviewDeadlineAt:
+        current?.deliveryReviewDeadlineAt ?? item.deliveryReviewDeadlineAt,
+      status,
+      warrantyExpiresAt: current?.warrantyExpiresAt ?? item.warrantyExpiresAt,
+    };
+  };
+  const {
+    canCancel,
+    canDeliver,
+    canStart,
+    canSubmitSellerEvidence,
+    current,
+    currentDispute,
+    deliveryReviewDeadlineAt,
+    showBanNotice,
+    status,
+    warrantyExpiresAt,
+  } = resolveOrderState();
   const timelineContent = (() => {
     if (timelineQuery.isPending) {
       return (
@@ -495,7 +525,7 @@ export const SellerOrderItemCard = ({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {status === "AWAITING_SELLER" && !isBanned ? (
+          {canStart ? (
             <Button
               disabled={startMutation.isPending}
               onClick={() => void handleStart()}
@@ -518,12 +548,11 @@ export const SellerOrderItemCard = ({
           ) : null}
         </div>
 
-        {status === "IN_PROGRESS" && !isBanned ? (
+        {canDeliver ? (
           <SellerDeliveryForm itemId={item.id} onCompleted={invalidateItem} />
         ) : null}
 
-        {isBanned &&
-        (status === "AWAITING_SELLER" || status === "IN_PROGRESS") ? (
+        {showBanNotice ? (
           <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-xs text-destructive">
             Tài khoản Seller đang trong chế độ Banned. Các thao tác bắt đầu, bàn
             giao hoặc hủy đơn đã bị vô hiệu hóa.
@@ -542,7 +571,7 @@ export const SellerOrderItemCard = ({
                 </p>
                 <p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-300">
                   Hạn phản hồi:{" "}
-                  {formatOrderDate(currentDispute.responseDeadlineAt)}
+                  {formatOptionalOrderDate(currentDispute?.responseDeadlineAt)}
                 </p>
               </div>
               <Button
@@ -556,7 +585,7 @@ export const SellerOrderItemCard = ({
             {sellerEvidenceOpen ? (
               <div className="mt-4 grid gap-3">
                 <DisputeEvidenceUploader
-                  existingEvidenceCount={currentDispute.evidence.length}
+                  existingEvidenceCount={currentDispute?.evidence.length ?? 0}
                   itemId={item.id}
                   onEvidenceChange={setSellerEvidence}
                 />

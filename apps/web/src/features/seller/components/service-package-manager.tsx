@@ -74,7 +74,6 @@ const STATUS_ITEMS = [
 const getErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback;
 
-// oxlint-disable-next-line complexity
 export const ServicePackageManager = ({
   categoryBounds,
   disabled,

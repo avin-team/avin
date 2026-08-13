@@ -27,16 +27,10 @@ export type ListingForCart = Pick<
   servicePackages?: ListingDetail["servicePackages"];
 };
 
-// oxlint-disable-next-line complexity
-export const addCartItemOptimistically = (
-  cart: CartView | undefined,
+const createOptimisticCartItem = (
   listing: ListingForCart,
   selectedPackageId?: string | null
-): CartView | undefined => {
-  if (cart?.items.some((item) => item.listing.id === listing.id)) {
-    return cart;
-  }
-
+): CartView["items"][number] => {
   const servicePackages = listing.servicePackages ?? [];
   const selectedPackage = servicePackages.find(
     (packageItem) => packageItem.id === selectedPackageId
@@ -47,7 +41,7 @@ export const addCartItemOptimistically = (
     warrantyTerms = (packageWarranty as { terms?: string }).terms ?? null;
   }
 
-  const optimisticItem: CartView["items"][number] = {
+  return {
     available: true,
     cartItemId: `optimistic-${listing.id}`,
     contractFingerprint: null,
@@ -78,14 +72,26 @@ export const addCartItemOptimistically = (
       name: listing.seller.name,
     },
   };
+};
+
+export const addCartItemOptimistically = (
+  cart: CartView | undefined,
+  listing: ListingForCart,
+  selectedPackageId?: string | null
+): CartView | undefined => {
+  if (cart?.items.some((item) => item.listing.id === listing.id)) {
+    return cart;
+  }
+
+  const optimisticItem = createOptimisticCartItem(listing, selectedPackageId);
+  const optimisticPrice = optimisticItem.listing.priceAmount ?? 0;
 
   if (!cart) {
     return {
       id: "optimistic-cart",
       items: [optimisticItem],
       selectedCount: 1,
-      selectedTotalAmount:
-        selectedPackage?.priceAmount ?? listing.priceAmount ?? 0,
+      selectedTotalAmount: optimisticPrice,
     };
   }
 
@@ -93,9 +99,7 @@ export const addCartItemOptimistically = (
     ...cart,
     items: [...cart.items, optimisticItem],
     selectedCount: cart.selectedCount + 1,
-    selectedTotalAmount:
-      cart.selectedTotalAmount +
-      (selectedPackage?.priceAmount ?? listing.priceAmount ?? 0),
+    selectedTotalAmount: cart.selectedTotalAmount + optimisticPrice,
   };
 };
 

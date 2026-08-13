@@ -121,7 +121,106 @@ const mergeTransactionPages = (
   return merged;
 };
 
-// oxlint-disable-next-line complexity
+const getBalanceContent = (
+  balance: number | undefined,
+  isError: boolean,
+  isLoading: boolean,
+  className: string
+): ReactNode => {
+  if (isError) {
+    return unavailableBalance;
+  }
+  if (isLoading) {
+    return balanceSkeleton;
+  }
+  return <p className={className}>{formatVND(balance ?? 0)}</p>;
+};
+
+const TransactionList = ({
+  isError,
+  isLoading,
+  onRetry,
+  transactions,
+}: {
+  isError: boolean;
+  isLoading: boolean;
+  onRetry: () => void;
+  transactions: WalletTransaction[];
+}) => {
+  if (isError) {
+    return (
+      <div className="flex flex-col items-start gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-5">
+        <p className="text-sm text-destructive">
+          Không thể tải lịch sử giao dịch. Vui lòng thử lại.
+        </p>
+        <Button onClick={onRetry} size="sm" variant="outline">
+          Thử lại
+        </Button>
+      </div>
+    );
+  }
+  if (isLoading && transactions.length === 0) {
+    return (
+      <div className="space-y-3">
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-12 w-full" />
+      </div>
+    );
+  }
+  if (transactions.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed border-border p-8 text-center">
+        <p className="font-medium">Chưa có giao dịch nào</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Khi hệ thống nhận được một khoản chuyển hoặc ví phát sinh giao dịch,
+          thông tin sẽ xuất hiện ở đây.
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="divide-y divide-border">
+      {transactions.map((transaction) => (
+        <div
+          className="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between"
+          key={transaction.id}
+        >
+          <div>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <p className="font-medium">{transaction.type}</p>
+              <p
+                className={`text-xs font-medium ${getTransactionStatusClassName(transaction.status)}`}
+              >
+                {getTransactionStatusLabel(transaction)}
+              </p>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {new Date(transaction.timestamp).toLocaleString("vi-VN")} ·{" "}
+              {transaction.paymentReference}
+            </p>
+            {transaction.status === "ATTENTION" ? (
+              <p className="mt-1 text-xs text-amber-500">
+                Kiểm tra số tiền và nội dung chuyển khoản, sau đó liên hệ Avin
+                nếu cần.
+              </p>
+            ) : null}
+          </div>
+          <div className="text-left sm:text-right">
+            <p className={getTransactionAmountClassName(transaction)}>
+              {transaction.amount >= 0 ? "+" : "−"}
+              {formatTransactionAmount(transaction)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {getTransactionBalanceLabel(transaction)}
+            </p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 export const WalletPage = () => {
   const [loadedCursors, setLoadedCursors] = useState<(string | undefined)[]>([
     undefined,
@@ -172,107 +271,18 @@ export const WalletPage = () => {
 
   const summary = summaryQuery.data;
   const nextCursor = transactionsQuery?.data?.nextCursor ?? null;
-  let availableBalanceContent: ReactNode;
-  let heldBalanceContent: ReactNode;
-
-  if (summaryQuery.isError) {
-    availableBalanceContent = unavailableBalance;
-    heldBalanceContent = unavailableBalance;
-  } else if (summaryQuery.isLoading) {
-    availableBalanceContent = balanceSkeleton;
-    heldBalanceContent = balanceSkeleton;
-  } else {
-    availableBalanceContent = (
-      <p className="text-3xl font-bold text-primary">
-        {formatVND(summary?.availableBalance ?? 0)}
-      </p>
-    );
-    heldBalanceContent = (
-      <p className="text-3xl font-bold">
-        {formatVND(summary?.heldBalance ?? 0)}
-      </p>
-    );
-  }
-
-  let transactionContent: ReactNode;
-
-  if (transactionsQuery?.isError) {
-    transactionContent = (
-      <div className="flex flex-col items-start gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-5">
-        <p className="text-sm text-destructive">
-          Không thể tải lịch sử giao dịch. Vui lòng thử lại.
-        </p>
-        <Button
-          onClick={() => {
-            void transactionsQuery.refetch();
-          }}
-          size="sm"
-          variant="outline"
-        >
-          Thử lại
-        </Button>
-      </div>
-    );
-  } else if (transactionsQuery?.isLoading && transactions.length === 0) {
-    transactionContent = (
-      <div className="space-y-3">
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-12 w-full" />
-      </div>
-    );
-  } else if (transactions.length === 0) {
-    transactionContent = (
-      <div className="rounded-2xl border border-dashed border-border p-8 text-center">
-        <p className="font-medium">Chưa có giao dịch nào</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Khi hệ thống nhận được một khoản chuyển hoặc ví phát sinh giao dịch,
-          thông tin sẽ xuất hiện ở đây.
-        </p>
-      </div>
-    );
-  } else {
-    transactionContent = (
-      <div className="divide-y divide-border">
-        {transactions.map((transaction) => (
-          <div
-            className="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between"
-            key={transaction.id}
-          >
-            <div>
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <p className="font-medium">{transaction.type}</p>
-                <p
-                  className={`text-xs font-medium ${getTransactionStatusClassName(transaction.status)}`}
-                >
-                  {getTransactionStatusLabel(transaction)}
-                </p>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {new Date(transaction.timestamp).toLocaleString("vi-VN")} ·{" "}
-                {transaction.paymentReference}
-              </p>
-              {transaction.status === "ATTENTION" ? (
-                <p className="mt-1 text-xs text-amber-500">
-                  Kiểm tra số tiền và nội dung chuyển khoản, sau đó liên hệ Avin
-                  nếu cần.
-                </p>
-              ) : null}
-            </div>
-            <div className="text-left sm:text-right">
-              <p className={getTransactionAmountClassName(transaction)}>
-                {transaction.amount >= 0 ? "+" : "−"}
-                {formatTransactionAmount(transaction)}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {getTransactionBalanceLabel(transaction)}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
+  const availableBalanceContent = getBalanceContent(
+    summary?.availableBalance,
+    summaryQuery.isError,
+    summaryQuery.isLoading,
+    "text-3xl font-bold text-primary"
+  );
+  const heldBalanceContent = getBalanceContent(
+    summary?.heldBalance,
+    summaryQuery.isError,
+    summaryQuery.isLoading,
+    "text-3xl font-bold"
+  );
 
   return (
     <Shell variant="default">
@@ -344,7 +354,14 @@ export const WalletPage = () => {
             </div>
           </CardHeader>
           <CardContent>
-            {transactionContent}
+            <TransactionList
+              isError={transactionsQuery?.isError ?? false}
+              isLoading={transactionsQuery?.isLoading ?? false}
+              onRetry={() => {
+                void transactionsQuery?.refetch();
+              }}
+              transactions={transactions}
+            />
 
             {nextCursor ? (
               <Button

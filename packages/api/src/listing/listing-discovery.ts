@@ -68,6 +68,139 @@ export const sellerIsNotEnforcedCondition = (_now = new Date()): SQL<unknown> =>
   )
 `;
 
+const findListingForDiscovery = (slug: string) => {
+  const identifier = getListingIdentifierCandidates(slug);
+  return db.query.listing.findFirst({
+    where: identifier.id
+      ? or(eq(listing.slug, identifier.slug), eq(listing.id, identifier.id))
+      : eq(listing.slug, identifier.slug),
+    with: {
+      category: { with: { parentCategory: true } },
+      seller: { columns: { id: true, image: true, name: true } },
+      sellerProfile: {
+        columns: {
+          avatarUrl: true,
+          completedOrderCount: true,
+          createdAt: true,
+          id: true,
+          ratingCount: true,
+          ratingScore: true,
+          storeSlug: true,
+          storefrontName: true,
+        },
+      },
+      servicePackages: true,
+    },
+  });
+};
+
+type DiscoveryListing = NonNullable<
+  Awaited<ReturnType<typeof findListingForDiscovery>>
+>;
+
+const assertListingDiscoverable = async (
+  found: DiscoveryListing,
+  user: { id: string; role?: string | null } | undefined
+): Promise<void> => {
+  if (!found.category) {
+    throw new ORPCError("NOT_FOUND", {
+      message: "Listing not found or unavailable",
+    });
+  }
+  const sellerAccount = await getSellerEnforcement(db, found.sellerId);
+  const isBannedSeller =
+    sellerAccount?.state === "BANNED" &&
+    isMarketplaceSellerEnforced(sellerAccount);
+  const isPubliclyAvailable = isListingPubliclyAvailable(
+    found.status,
+    found.category.status,
+    found.category.parentCategory.status
+  );
+  const hasAvailableServicePackage =
+    found.type !== "SERVICE" ||
+    found.servicePackages.some(
+      (packageItem) => packageItem.status === "AVAILABLE"
+    );
+  const isPrivilegedViewer =
+    user?.role === "ADMIN" || (user?.id === found.sellerId && !isBannedSeller);
+
+  if (
+    !isPrivilegedViewer &&
+    (!isPubliclyAvailable ||
+      !hasAvailableServicePackage ||
+      isMarketplaceSellerEnforced(sellerAccount))
+  ) {
+    throw new ORPCError("NOT_FOUND", {
+      message: "Listing not found or unavailable",
+    });
+  }
+};
+
+const toListingDetailSeller = (
+  profile: DiscoveryListing["sellerProfile"],
+  seller: DiscoveryListing["seller"]
+) => {
+  const avatarUrl = profile?.avatarUrl;
+  return {
+    avatarUrl: avatarUrl ?? seller.image,
+    completedOrderCount: profile?.completedOrderCount ?? 0,
+    createdAt: profile?.createdAt ?? null,
+    id: profile?.id ?? seller.id,
+    image: avatarUrl ?? seller.image,
+    name: profile?.storefrontName ?? seller.name,
+    ratingCount: profile?.ratingCount ?? 0,
+    ratingScore: profile?.ratingScore ?? "0",
+    storeSlug: profile?.storeSlug ?? null,
+    storefrontName: profile?.storefrontName ?? seller.name,
+  };
+};
+
+const toListingSummarySeller = (
+  profile: {
+    avatarUrl: string | null;
+    completedOrderCount: number;
+    id: string;
+    ratingCount: number;
+    ratingScore: string;
+    storeSlug: string | null;
+    storefrontName: string;
+  } | null,
+  seller: { id: string; image: string | null; name: string }
+) => ({
+  avatarUrl: profile?.avatarUrl ?? seller.image,
+  completedOrderCount: profile?.completedOrderCount ?? 0,
+  id: profile?.id ?? seller.id,
+  image: profile?.avatarUrl ?? seller.image,
+  name: profile?.storefrontName ?? seller.name,
+  ratingCount: profile?.ratingCount ?? 0,
+  ratingScore: profile?.ratingScore ?? "0",
+  storeSlug: profile?.storeSlug ?? null,
+  storefrontName: profile?.storefrontName ?? seller.name,
+});
+
+const toListingDetail = (found: DiscoveryListing) => {
+  const {
+    sellerProfile: foundProfile,
+    seller: foundSeller,
+    servicePackages: foundPackages,
+    ...foundRest
+  } = found;
+  const availablePackages = sortAvailableServicePackages(foundPackages);
+
+  return {
+    ...foundRest,
+    completedOrderCount: found.completedOrderCount ?? 0,
+    priceAmount:
+      found.type === "SERVICE"
+        ? getServicePackageSummaryPrice(availablePackages)
+        : found.priceAmount,
+    ratingCount: found.ratingCount ?? 0,
+    ratingScore: found.ratingScore ?? "0",
+    seller: toListingDetailSeller(foundProfile, foundSeller),
+    servicePackages: availablePackages,
+  };
+};
+
 export const listingDiscoveryRouter = {
   categories: publicProcedure.handler(async () => {
     // Only return ACTIVE parents and ACTIVE sub-categories for public buyers
@@ -132,109 +265,16 @@ export const listingDiscoveryRouter = {
         slug: z.string(),
       })
     )
-    // oxlint-disable-next-line complexity
     .handler(async ({ context, input }) => {
-      const identifier = getListingIdentifierCandidates(input.slug);
-      const found = await db.query.listing.findFirst({
-        where: identifier.id
-          ? or(eq(listing.slug, identifier.slug), eq(listing.id, identifier.id))
-          : eq(listing.slug, identifier.slug),
-        with: {
-          category: {
-            with: {
-              parentCategory: true,
-            },
-          },
-          seller: {
-            columns: {
-              id: true,
-              image: true,
-              name: true,
-            },
-          },
-          sellerProfile: {
-            columns: {
-              avatarUrl: true,
-              completedOrderCount: true,
-              createdAt: true,
-              id: true,
-              ratingCount: true,
-              ratingScore: true,
-              storeSlug: true,
-              storefrontName: true,
-            },
-          },
-          servicePackages: true,
-        },
-      });
+      const found = await findListingForDiscovery(input.slug);
 
-      if (!found || !found.category) {
+      if (!found) {
         throw new ORPCError("NOT_FOUND", {
           message: "Listing not found or unavailable",
         });
       }
-
-      const user = context.session?.user;
-      const isAdmin = user?.role === "ADMIN";
-      const isOwner = user?.id === found.sellerId;
-      const sellerAccount = await getSellerEnforcement(db, found.sellerId);
-      const isBannedSeller =
-        sellerAccount?.state === "BANNED" &&
-        isMarketplaceSellerEnforced(sellerAccount);
-      const isPubliclyAvailable = isListingPubliclyAvailable(
-        found.status,
-        found.category.status,
-        found.category.parentCategory.status
-      );
-      const hasAvailableServicePackage =
-        found.type !== "SERVICE" ||
-        found.servicePackages.some(
-          (packageItem) => packageItem.status === "AVAILABLE"
-        );
-
-      if (
-        !isAdmin &&
-        (!isOwner || isBannedSeller) &&
-        (!isPubliclyAvailable ||
-          !hasAvailableServicePackage ||
-          isMarketplaceSellerEnforced(sellerAccount))
-      ) {
-        throw new ORPCError("NOT_FOUND", {
-          message: "Listing not found or unavailable",
-        });
-      }
-
-      const {
-        sellerProfile: foundProfile,
-        seller: foundSeller,
-        servicePackages: foundPackages,
-        ...foundRest
-      } = found;
-      const availablePackages = sortAvailableServicePackages(foundPackages);
-
-      return {
-        ...foundRest,
-        completedOrderCount: found.completedOrderCount ?? 0,
-        priceAmount:
-          found.type === "SERVICE"
-            ? getServicePackageSummaryPrice(availablePackages)
-            : found.priceAmount,
-        ratingCount: found.ratingCount ?? 0,
-        ratingScore: found.ratingScore ?? "0",
-        seller: {
-          avatarUrl: foundProfile?.avatarUrl ?? foundSeller.image,
-          completedOrderCount: foundProfile?.completedOrderCount ?? 0,
-          createdAt: foundProfile?.createdAt ?? null,
-          id: foundProfile?.id ?? foundSeller.id,
-          image: foundProfile?.avatarUrl ?? foundSeller.image,
-          name: foundProfile?.storefrontName ?? foundSeller.name,
-          ratingCount: foundProfile?.ratingCount ?? 0,
-          ratingScore: foundProfile?.ratingScore ?? "0",
-          storeSlug: foundProfile?.storeSlug ?? null,
-          storefrontName: foundProfile?.storefrontName ?? foundSeller.name,
-        },
-        servicePackages: availablePackages,
-      };
+      await assertListingDiscoverable(found, context.session?.user);
+      return toListingDetail(found);
     }),
 
   listings: publicProcedure
@@ -419,7 +459,6 @@ export const listingDiscoveryRouter = {
       }
 
       return {
-        // oxlint-disable-next-line complexity
         items: items.map((item) => {
           const { sellerProfile: prof, seller: sel, ...rest } = item;
 
@@ -432,17 +471,7 @@ export const listingDiscoveryRouter = {
                 : (item.priceAmount ?? 0),
             ratingCount: item.ratingCount ?? 0,
             ratingScore: item.ratingScore ? Number(item.ratingScore) : null,
-            seller: {
-              avatarUrl: prof?.avatarUrl ?? sel.image,
-              completedOrderCount: prof?.completedOrderCount ?? 0,
-              id: prof?.id ?? sel.id,
-              image: prof?.avatarUrl ?? sel.image,
-              name: prof?.storefrontName ?? sel.name,
-              ratingCount: prof?.ratingCount ?? 0,
-              ratingScore: prof?.ratingScore ?? "0",
-              storeSlug: prof?.storeSlug ?? null,
-              storefrontName: prof?.storefrontName ?? sel.name,
-            },
+            seller: toListingSummarySeller(prof, sel),
             servicePackages: item.servicePackages,
             soldCount: soldCountMap[item.id] ?? 0,
             title: item.title ?? "Untitled listing",
