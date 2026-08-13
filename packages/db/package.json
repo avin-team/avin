@@ -15,7 +15,8 @@
     "db:studio": "drizzle-kit studio",
     "db:migrate": "drizzle-kit migrate",
     "db:clear": "bun --env-file=../../apps/server/.env run src/clear.ts",
-    "db:seed": "bun --env-file=../../apps/server/.env run src/seed.ts"
+    "db:seed": "bun --env-file=../../apps/server/.env run src/seed.ts",
+    "db:seed-seller-listings": "bun --env-file=../../apps/server/.env run src/seed-seller-listings.ts"
   },
   "dependencies": {
     "@avin/env": "workspace:*",
