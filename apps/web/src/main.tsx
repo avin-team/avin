@@ -1,5 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import ReactDOM from "react-dom/client";
 
 import Loader from "./components/loader";
@@ -31,5 +32,10 @@ if (!rootElement) {
 
 if (!rootElement.firstChild) {
   const root = ReactDOM.createRoot(rootElement);
-  root.render(<RouterProvider router={router} />);
+  root.render(
+    <>
+      <RouterProvider router={router} />
+      <SpeedInsights />
+    </>
+  );
 }

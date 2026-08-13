@@ -10,8 +10,6 @@
     "start": "bun run dist/index.mjs"
   },
   "dependencies": {
-    "@ai-sdk/devtools": "^1.0.6",
-    "@ai-sdk/google": "^4.0.21",
     "@avin/api": "workspace:*",
     "@avin/auth": "workspace:*",
     "@avin/db": "workspace:*",
@@ -20,7 +18,6 @@
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
     "@orpc/zod": "catalog:",
-    "ai": "catalog:",
     "better-auth": "catalog:",
     "dotenv": "catalog:",
     "hono": "catalog:",

@@ -1,16 +1,7 @@
 import { readFile } from "node:fs/promises";
+import path from "node:path";
 
 import { describe, expect, it } from "vitest";
-
-interface VercelRewrite {
-  readonly destination: string;
-  readonly source: string;
-}
-
-interface VercelConfig {
-  readonly headers?: readonly VercelHeaderRule[];
-  readonly rewrites?: readonly VercelRewrite[];
-}
 
 interface VercelHeader {
   readonly key: string;
@@ -22,10 +13,20 @@ interface VercelHeaderRule {
   readonly source: string;
 }
 
-describe("Admin deployment", () => {
+interface VercelRewrite {
+  readonly destination: string;
+  readonly source: string;
+}
+
+interface VercelConfig {
+  readonly headers?: readonly VercelHeaderRule[];
+  readonly rewrites?: readonly VercelRewrite[];
+}
+
+describe("Web deployment", () => {
   it("rewrites direct client routes to the SPA entrypoint", async () => {
     const config = JSON.parse(
-      await readFile(new URL("../vercel.json", import.meta.url), "utf-8")
+      await readFile(path.resolve(process.cwd(), "vercel.json"), "utf-8")
     ) as VercelConfig;
 
     expect(config.rewrites).toContainEqual({
@@ -36,7 +37,7 @@ describe("Admin deployment", () => {
 
   it("sets security and immutable asset cache headers", async () => {
     const config = JSON.parse(
-      await readFile(new URL("../vercel.json", import.meta.url), "utf-8")
+      await readFile(path.resolve(process.cwd(), "vercel.json"), "utf-8")
     ) as VercelConfig;
 
     const documentHeaders = config.headers?.find(

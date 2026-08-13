@@ -150,9 +150,9 @@ describe("EnforcementDialog", () => {
       />
     );
 
-    expect(html).toContain("Tạm dừng hoạt động Seller (Suspend)");
+    expect(html).toContain("Tạm dừng hoạt động gian hàng");
     expect(html).toContain("Thời hạn tạm dừng");
-    expect(html).toContain("Xác nhận SUSPENDED");
+    expect(html).toContain(">Tạm dừng</button>");
   });
 
   it("renders ban dialog with 3 mandatory confirmation checkboxes", () => {
@@ -165,18 +165,18 @@ describe("EnforcementDialog", () => {
       />
     );
 
-    expect(html).toContain("Cấm vĩnh viễn Seller (Ban)");
-    expect(html).toContain("Xác nhận bắt buộc để Ban Seller");
+    expect(html).toContain("Cấm vĩnh viễn gian hàng");
+    expect(html).toContain("Xác nhận bắt buộc để cấm gian hàng");
     expect(html).toContain(
-      "Xác nhận tự động hủy và hoàn tiền toàn bộ các OrderItem"
+      "Xác nhận tự động hủy và hoàn tiền toàn bộ các sản phẩm trong đơn hàng chưa bàn giao."
     );
     expect(html).toContain(
-      "Xác nhận đóng băng và tự động xử lý các khoản EscrowHold"
+      "Xác nhận đóng băng và tự động xử lý các khoản tiền tạm giữ tương ứng."
     );
     expect(html).toContain(
       "Xác nhận đóng băng các yêu cầu rút tiền đang chờ xử lý"
     );
-    expect(html).toContain("Xác nhận BANNED");
+    expect(html).toContain(">Cấm vĩnh viễn</button>");
   });
 
   it("renders lift dialog when target status is ACTIVE", () => {
@@ -189,7 +189,7 @@ describe("EnforcementDialog", () => {
       />
     );
 
-    expect(html).toContain("Khôi phục trạng thái Hoạt Động (Lift Enforcement)");
-    expect(html).toContain("Xác nhận ACTIVE");
+    expect(html).toContain("Khôi phục hoạt động gian hàng");
+    expect(html).toContain(">Khôi phục</button>");
   });
 });

@@ -60,7 +60,6 @@ export const sellerProfile = pgTable(
       .references(() => user.id, { onDelete: "cascade" }),
   },
   (table) => [
-    uniqueIndex("seller_profile_user_id_idx").on(table.userId),
     uniqueIndex("seller_profile_store_slug_idx").on(table.storeSlug),
     index("seller_profile_phone_idx").on(table.phone),
   ]

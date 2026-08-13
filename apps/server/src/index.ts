@@ -1,5 +1,3 @@
-import { devToolsMiddleware } from "@ai-sdk/devtools";
-import { google } from "@ai-sdk/google";
 import { createContext } from "@avin/api/context";
 import { appRouter } from "@avin/api/router";
 import { handleSePayWebhook } from "@avin/api/wallet/webhook";
@@ -11,10 +9,10 @@ import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
-import { streamText, convertToModelMessages, wrapLanguageModel } from "ai";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+import { secureHeaders } from "hono/secure-headers";
 
 import { startEmailDeliverySchedule } from "./jobs/email-delivery";
 import { startFulfillmentMaintenanceSchedule } from "./jobs/fulfillment-maintenance";
@@ -61,6 +59,15 @@ const sePayWebhookConfiguration = {
 };
 
 app.use(logger());
+app.use(
+  "/*",
+  secureHeaders({
+    crossOriginResourcePolicy: false,
+    strictTransportSecurity:
+      env.NODE_ENV === "production" ? "max-age=31536000" : false,
+    xFrameOptions: "DENY",
+  })
+);
 app.use(
   "/*",
   cors({
@@ -198,21 +205,6 @@ app.use("/*", async (c, next) => {
   }
 
   return next();
-});
-
-app.post("/ai", async (c) => {
-  const body = await c.req.json();
-  const uiMessages = body.messages || [];
-  const model = wrapLanguageModel({
-    middleware: devToolsMiddleware(),
-    model: google("gemini-2.5-flash"),
-  });
-  const result = streamText({
-    messages: await convertToModelMessages(uiMessages),
-    model,
-  });
-
-  return result.toUIMessageStreamResponse();
 });
 
 app.get("/", (c) => c.text("OK"));

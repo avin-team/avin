@@ -19,7 +19,6 @@ import { Route as errors404RouteImport } from './routes/(errors)/404'
 import { Route as errors500RouteImport } from './routes/(errors)/500'
 import { Route as errors503RouteImport } from './routes/(errors)/503'
 import { Route as publicIndexRouteImport } from './routes/(public)/index'
-import { Route as AuthenticatedAiRouteImport } from './routes/_authenticated/ai'
 import { Route as AuthenticatedCartRouteImport } from './routes/_authenticated/cart'
 import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/chat'
 import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
@@ -86,11 +85,6 @@ const publicIndexRoute = publicIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => publicRouteRoute,
-} as any)
-const AuthenticatedAiRoute = AuthenticatedAiRouteImport.update({
-  id: '/ai',
-  path: '/ai',
-  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedCartRoute = AuthenticatedCartRouteImport.update({
   id: '/cart',
@@ -206,7 +200,6 @@ export interface FileRoutesByFullPath {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
-  '/ai': typeof AuthenticatedAiRoute
   '/cart': typeof AuthenticatedCartRoute
   '/chat': typeof AuthenticatedChatRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
@@ -235,7 +228,6 @@ export interface FileRoutesByTo {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
-  '/ai': typeof AuthenticatedAiRoute
   '/cart': typeof AuthenticatedCartRoute
   '/chat': typeof AuthenticatedChatRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
@@ -267,7 +259,6 @@ export interface FileRoutesById {
   '/(errors)/404': typeof errors404Route
   '/(errors)/500': typeof errors500Route
   '/(errors)/503': typeof errors503Route
-  '/_authenticated/ai': typeof AuthenticatedAiRoute
   '/_authenticated/cart': typeof AuthenticatedCartRoute
   '/_authenticated/chat': typeof AuthenticatedChatRoute
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
@@ -299,7 +290,6 @@ export interface FileRouteTypes {
     | '/404'
     | '/500'
     | '/503'
-    | '/ai'
     | '/cart'
     | '/chat'
     | '/notifications'
@@ -328,7 +318,6 @@ export interface FileRouteTypes {
     | '/404'
     | '/500'
     | '/503'
-    | '/ai'
     | '/cart'
     | '/chat'
     | '/notifications'
@@ -359,7 +348,6 @@ export interface FileRouteTypes {
     | '/(errors)/404'
     | '/(errors)/500'
     | '/(errors)/503'
-    | '/_authenticated/ai'
     | '/_authenticated/cart'
     | '/_authenticated/chat'
     | '/_authenticated/notifications'
@@ -464,13 +452,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof publicIndexRouteImport
       parentRoute: typeof publicRouteRoute
-    }
-    '/_authenticated/ai': {
-      id: '/_authenticated/ai'
-      path: '/ai'
-      fullPath: '/ai'
-      preLoaderRoute: typeof AuthenticatedAiRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/cart': {
       id: '/_authenticated/cart'
@@ -657,7 +638,6 @@ const AuthenticatedSellerListingsRouteWithChildren =
   )
 
 interface AuthenticatedRouteRouteChildren {
-  AuthenticatedAiRoute: typeof AuthenticatedAiRoute
   AuthenticatedCartRoute: typeof AuthenticatedCartRoute
   AuthenticatedChatRoute: typeof AuthenticatedChatRoute
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
@@ -674,7 +654,6 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
-  AuthenticatedAiRoute: AuthenticatedAiRoute,
   AuthenticatedCartRoute: AuthenticatedCartRoute,
   AuthenticatedChatRoute: AuthenticatedChatRoute,
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,

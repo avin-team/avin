@@ -129,7 +129,6 @@ export const sellerEnforcementRemediation = pgTable(
       .notNull(),
   },
   (table) => [
-    uniqueIndex("seller_enforcement_remediation_action_idx").on(table.actionId),
     uniqueIndex("seller_enforcement_remediation_seller_action_idx").on(
       table.sellerId,
       table.actionId
@@ -198,7 +197,6 @@ export const sellerEnforcementAppeal = pgTable(
       .notNull(),
   },
   (table) => [
-    uniqueIndex("seller_enforcement_appeal_action_idx").on(table.actionId),
     uniqueIndex("seller_enforcement_appeal_seller_key_idx").on(
       table.sellerId,
       table.idempotencyKey
