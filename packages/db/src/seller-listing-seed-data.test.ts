@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   createSellerListingSlug,
+  getSellerListingImageUrl,
   parseSellerListingSeedArguments,
   SELLER_LISTING_SEEDS,
 } from "./seller-listing-seed-data";
@@ -96,12 +97,48 @@ describe("SELLER_LISTING_SEEDS", () => {
     expect(titles.some((title) => title.includes("tăng follow"))).toBe(false);
     expect(titles.some((title) => title.includes("tăng view"))).toBe(false);
   });
+
+  it("formats every Vietnamese service description consistently", () => {
+    for (const seed of SELLER_LISTING_SEEDS) {
+      const [headline] = seed.description.split("\n");
+      const supportItemCount = seed.description.match(/^✅ /gmu)?.length ?? 0;
+
+      expect(headline).toBe(headline?.toLocaleUpperCase("vi-VN"));
+      expect(seed.description).toContain("\n\nDịch vụ hỗ trợ:\n");
+      expect(supportItemCount).toBe(5);
+      expect(
+        seed.description.endsWith(
+          "🤝 Uy tín – Minh bạch – Bảo mật – Hỗ trợ tận tâm."
+        )
+      ).toBe(true);
+    }
+  });
 });
 
 describe("createSellerListingSlug", () => {
   it("scopes listing slugs to the seller store", () => {
     expect(createSellerListingSlug("cua-hang-an", "mo-khoa-facebook")).toBe(
       "cua-hang-an-mo-khoa-facebook"
+    );
+  });
+});
+
+describe("getSellerListingImageUrl", () => {
+  it("maps supported platforms to their public default images", () => {
+    expect(getSellerListingImageUrl("dich-vu-facebook")).toBe(
+      "/images/seed-listings/facebook-services.png"
+    );
+    expect(getSellerListingImageUrl("dich-vu-tiktok")).toBe(
+      "/images/seed-listings/tiktok-services.png"
+    );
+    expect(getSellerListingImageUrl("dich-vu-youtube")).toBe(
+      "/images/seed-listings/youtube-services.png"
+    );
+  });
+
+  it("rejects categories without a default image", () => {
+    expect(() => getSellerListingImageUrl("dich-vu-google")).toThrow(
+      "No default seller listing image for category: dich-vu-google"
     );
   });
 });

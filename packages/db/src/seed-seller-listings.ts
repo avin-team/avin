@@ -1,21 +1,25 @@
 import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "./index";
+import { user } from "./schema/auth";
 import {
   listing,
   parentCategory,
   servicePackage,
   subCategory,
 } from "./schema/catalog";
-import { sellerProfile } from "./schema/seller";
+import { sellerApplication, sellerProfile } from "./schema/seller";
+import { sellerEnforcement } from "./schema/seller-enforcement";
 import {
   createSellerListingSlug,
+  getSellerListingImageUrl,
   parseSellerListingSeedArguments,
   SELLER_LISTING_SEEDS,
 } from "./seller-listing-seed-data";
 import type { SellerListingSeed } from "./seller-listing-seed-data";
 
 const PROCESSING_TIME_HOURS = 72;
+const CURRENT_SELLER_AGREEMENT_VERSION = "v1.0";
 const SELLER_LISTING_PACKAGE_COUNT = SELLER_LISTING_SEEDS.reduce(
   (total, seed) => total + seed.packages.length,
   0
@@ -34,6 +38,8 @@ interface SeedCategory {
 }
 
 interface SellerSeedTarget {
+  avatarUrl: string | null;
+  bio: string | null;
   id: string;
   storefrontName: string;
   storeSlug: string;
@@ -110,6 +116,8 @@ const getSellerSeedTarget = async (
 ): Promise<SellerSeedTarget> => {
   const target = await db.query.sellerProfile.findFirst({
     columns: {
+      avatarUrl: true,
+      bio: true,
       id: true,
       storeSlug: true,
       storefrontName: true,
@@ -125,15 +133,48 @@ const getSellerSeedTarget = async (
   return target;
 };
 
-const assertSellerHasNoListings = async (sellerId: string): Promise<void> => {
-  const existingListing = await db.query.listing.findFirst({
+const getSellerListingCount = async (sellerId: string): Promise<number> => {
+  const existingListings = await db.query.listing.findMany({
     columns: { id: true },
     where: (table, { eq: equals }) => equals(table.sellerId, sellerId),
   });
 
-  if (existingListing) {
+  return existingListings.length;
+};
+
+const assertSellerCanPublish = async (
+  target: SellerSeedTarget
+): Promise<void> => {
+  const [account, application, enforcement] = await Promise.all([
+    db.query.user.findFirst({
+      columns: { role: true },
+      where: eq(user.id, target.userId),
+    }),
+    db.query.sellerApplication.findFirst({
+      columns: { sellerAgreementVersion: true, status: true },
+      orderBy: (table, { desc }) => [desc(table.createdAt)],
+      where: eq(sellerApplication.userId, target.userId),
+    }),
+    db.query.sellerEnforcement.findFirst({
+      columns: { state: true },
+      where: eq(sellerEnforcement.sellerId, target.userId),
+    }),
+  ]);
+  const profileComplete = Boolean(
+    target.storefrontName.trim() &&
+    target.storeSlug.trim() &&
+    target.bio?.trim() &&
+    target.avatarUrl?.trim()
+  );
+  const sellerEligible =
+    account?.role === "SELLER" &&
+    application?.status === "APPROVED" &&
+    application.sellerAgreementVersion === CURRENT_SELLER_AGREEMENT_VERSION &&
+    (enforcement?.state ?? "CLEAR") === "CLEAR";
+
+  if (!sellerEligible || !profileComplete) {
     throw new Error(
-      "Seller already owns at least one listing; refusing to seed bootstrap data"
+      "Seller is not eligible to publish: require SELLER role, approved current agreement, complete storefront, and clear enforcement"
     );
   }
 };
@@ -161,21 +202,25 @@ const getCategory = (
 const printPreview = (
   target: SellerSeedTarget,
   categories: Map<string, SeedCategory>,
-  dryRun: boolean
+  dryRun: boolean,
+  existingListingCount: number
 ): void => {
   const lines = [
     `${dryRun ? "Would seed" : "Seeding"} seller: ${target.storefrontName}`,
     `Seller profile: ${target.id}`,
     `Seller user: ${target.userId}`,
-    `Listings: ${SELLER_LISTING_SEEDS.length}; packages: ${SELLER_LISTING_PACKAGE_COUNT}`,
+    `${dryRun ? "Would delete" : "Replacing"} existing listings: ${existingListingCount}`,
+    `Publishing listings: ${SELLER_LISTING_SEEDS.length}; packages: ${SELLER_LISTING_PACKAGE_COUNT}`,
   ];
 
   for (const seed of SELLER_LISTING_SEEDS) {
     const category = getCategory(categories, seed);
+    const imageUrl = getSellerListingImageUrl(seed.category.parentSlug);
     lines.push(
       `\n- ${seed.title}`,
       `  Category: ${category.parentName} > ${category.name}`,
-      `  Slug: ${createSellerListingSlug(target.storeSlug, seed.slugSuffix)}`
+      `  Slug: ${createSellerListingSlug(target.storeSlug, seed.slugSuffix)}`,
+      `  Image: ${imageUrl}`
     );
 
     for (const packageSeed of seed.packages) {
@@ -197,19 +242,27 @@ const seedSellerListings = async (): Promise<void> => {
     getSellerSeedTarget(sellerProfileId),
   ]);
 
-  await assertSellerHasNoListings(target.userId);
-  printPreview(target, categories, dryRun);
+  const [existingListingCount] = await Promise.all([
+    getSellerListingCount(target.userId),
+    assertSellerCanPublish(target),
+  ]);
 
   if (dryRun) {
+    printPreview(target, categories, dryRun, existingListingCount);
     process.stdout.write("Dry run complete; no data was written.\n");
     return;
   }
 
+  printPreview(target, categories, dryRun, existingListingCount);
+
   await db.transaction(async (transaction) => {
     const [lockedTarget] = await transaction
       .select({
+        avatarUrl: sellerProfile.avatarUrl,
+        bio: sellerProfile.bio,
         id: sellerProfile.id,
         storeSlug: sellerProfile.storeSlug,
+        storefrontName: sellerProfile.storefrontName,
         userId: sellerProfile.userId,
       })
       .from(sellerProfile)
@@ -220,32 +273,28 @@ const seedSellerListings = async (): Promise<void> => {
       throw new Error(`Seller profile not found: ${sellerProfileId}`);
     }
 
-    const [existingListing] = await transaction
-      .select({ id: listing.id })
-      .from(listing)
-      .where(eq(listing.sellerId, lockedTarget.userId))
-      .limit(1);
+    await transaction
+      .delete(listing)
+      .where(eq(listing.sellerId, lockedTarget.userId));
 
-    if (existingListing) {
-      throw new Error(
-        "Seller already owns at least one listing; refusing to seed bootstrap data"
-      );
-    }
+    const publishedAt = new Date();
 
     for (const seed of SELLER_LISTING_SEEDS) {
       const category = getCategory(categories, seed);
+      const imageUrl = getSellerListingImageUrl(seed.category.parentSlug);
       const [insertedListing] = await transaction
         .insert(listing)
         .values({
           categoryId: category.id,
           description: seed.description,
-          images: [],
+          images: [imageUrl],
           sellerId: lockedTarget.userId,
           slug: createSellerListingSlug(
             lockedTarget.storeSlug,
             seed.slugSuffix
           ),
-          status: "DRAFT",
+          status: "PUBLISHED",
+          thumbnailUrl: imageUrl,
           title: seed.title,
           type: "SERVICE",
         })
@@ -258,6 +307,7 @@ const seedSellerListings = async (): Promise<void> => {
       await transaction.insert(servicePackage).values(
         seed.packages.map((packageSeed) => ({
           description: packageSeed.description,
+          firstPublishedAt: publishedAt,
           listingId: insertedListing.id,
           name: packageSeed.name,
           priceAmount: packageSeed.priceAmount,
@@ -278,7 +328,7 @@ const seedSellerListings = async (): Promise<void> => {
   });
 
   process.stdout.write(
-    `Seeded ${SELLER_LISTING_SEEDS.length} draft listings and ${SELLER_LISTING_PACKAGE_COUNT} packages for ${target.storefrontName}.\n`
+    `Replaced ${existingListingCount} existing listings and published ${SELLER_LISTING_SEEDS.length} listings with ${SELLER_LISTING_PACKAGE_COUNT} packages for ${target.storefrontName}.\n`
   );
 };
 
