@@ -133,7 +133,7 @@ export const UserMenu = () => {
               <StorefrontIcon className="me-2 size-4" />
               {canViewStore && profile?.storeSlug
                 ? "Xem gian hàng"
-                : "Hoàn tất đăng ký Người bán"}
+                : "Hoàn tất đăng ký"}
             </DropdownMenuItem>
           )}
           <DropdownMenuItem
