@@ -32,6 +32,7 @@ import { toast } from "sonner";
 
 import { Shell } from "@/components/shell";
 import {
+  reconcileCartItemPackageMutation,
   removeCartItemOptimistically,
   setCartItemPackageOptimistically,
   setCartItemSelectedOptimistically,
@@ -420,13 +421,19 @@ export const CartPage = () => {
     ...orpc.commerce.cart.selectPackage.mutationOptions(),
     onError: (
       error,
-      _variables,
+      { listingId, packageId },
       context: { previousCart?: CartView } | undefined
     ) => {
       if (context?.previousCart) {
-        queryClient.setQueryData(
+        queryClient.setQueryData<CartView>(
           orpc.commerce.cart.get.queryOptions().queryKey,
-          context.previousCart
+          (currentCart) =>
+            reconcileCartItemPackageMutation(
+              currentCart,
+              context.previousCart,
+              listingId,
+              packageId
+            )
         );
       }
       toast.error(
@@ -446,11 +453,16 @@ export const CartPage = () => {
 
       return { previousCart };
     },
-    onSettled: invalidateCart,
-    onSuccess: (updatedCart) => {
-      queryClient.setQueryData(
+    onSuccess: (updatedCart, { listingId, packageId }) => {
+      queryClient.setQueryData<CartView>(
         orpc.commerce.cart.get.queryOptions().queryKey,
-        updatedCart
+        (currentCart) =>
+          reconcileCartItemPackageMutation(
+            currentCart,
+            updatedCart,
+            listingId,
+            packageId
+          )
       );
     },
   });

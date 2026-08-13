@@ -112,18 +112,18 @@ export const NotificationButton = () => {
             </p>
           ) : null}
           {recentNotifications.map((notification) => (
-            <a
+            <Link
               className={cn(
                 "block rounded-2xl p-3 transition-colors hover:bg-muted",
                 notification.readAt ? "" : "bg-muted/50"
               )}
-              href={notification.deepLink}
               key={notification.id}
               onClick={() => {
                 if (!notification.readAt) {
                   markRead.mutate({ notificationId: notification.id });
                 }
               }}
+              to={notification.deepLink}
             >
               <div className="flex items-center gap-2">
                 <p className="min-w-0 flex-1 truncate text-sm font-semibold">
@@ -136,7 +136,7 @@ export const NotificationButton = () => {
               <p className="mt-0.5 truncate text-xs text-muted-foreground">
                 {formatNotificationText(notification.body)}
               </p>
-            </a>
+            </Link>
           ))}
         </div>
       </PopoverContent>

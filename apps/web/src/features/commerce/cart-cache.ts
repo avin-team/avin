@@ -206,3 +206,23 @@ export const setCartItemPackageOptimistically = (
         : cart.selectedTotalAmount,
   };
 };
+
+export const reconcileCartItemPackageMutation = (
+  currentCart: CartView | undefined,
+  mutationCart: CartView | undefined,
+  listingId: string,
+  packageId: string
+): CartView | undefined => {
+  if (!currentCart) {
+    return mutationCart;
+  }
+
+  const currentItem = currentCart.items.find(
+    (item) => item.listing.id === listingId
+  );
+  if (currentItem?.selectedPackageId !== packageId) {
+    return currentCart;
+  }
+
+  return mutationCart;
+};

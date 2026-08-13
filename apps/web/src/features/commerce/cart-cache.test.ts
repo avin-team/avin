@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { CartView, ListingForCart } from "./cart-cache";
 import {
   addCartItemOptimistically,
+  reconcileCartItemPackageMutation,
   removeCartItemOptimistically,
   setCartItemPackageOptimistically,
   setCartItemSelectedOptimistically,
@@ -182,5 +183,61 @@ describe("cart cache optimistic updates", () => {
 
     expect(nextCart?.items[0]?.selectedPackageId).toBe("pkg-2");
     expect(nextCart?.selectedTotalAmount).toBe(250_000);
+  });
+
+  it("does not let an older package mutation overwrite the latest selection", () => {
+    const itemWithPackages: CartView["items"][number] = {
+      ...existingItem,
+      listing: {
+        ...existingItem.listing,
+        servicePackages: [
+          {
+            description: "Pkg 1",
+            id: "pkg-1",
+            name: "Basic",
+            priceAmount: 100_000,
+            processingTimeHours: 24,
+            status: "AVAILABLE",
+            warrantyPolicy: { kind: "NO_WARRANTY" },
+          },
+          {
+            description: "Pkg 2",
+            id: "pkg-2",
+            name: "Pro",
+            priceAmount: 250_000,
+            processingTimeHours: 48,
+            status: "AVAILABLE",
+            warrantyPolicy: { kind: "NO_WARRANTY" },
+          },
+        ],
+      },
+      selectedPackageId: "pkg-1",
+    };
+    const packageOneCart: CartView = {
+      ...cart,
+      items: [itemWithPackages],
+      selectedTotalAmount: 100_000,
+    };
+    const stalePackageTwoCart = setCartItemPackageOptimistically(
+      packageOneCart,
+      existingItem.listing.id,
+      "pkg-2"
+    );
+    const latestPackageOneCart = setCartItemPackageOptimistically(
+      stalePackageTwoCart,
+      existingItem.listing.id,
+      "pkg-1"
+    );
+
+    const reconciledCart = reconcileCartItemPackageMutation(
+      latestPackageOneCart,
+      stalePackageTwoCart,
+      existingItem.listing.id,
+      "pkg-2"
+    );
+
+    expect(reconciledCart).toBe(latestPackageOneCart);
+    expect(reconciledCart?.items[0]?.selectedPackageId).toBe("pkg-1");
+    expect(reconciledCart?.selectedTotalAmount).toBe(100_000);
   });
 });

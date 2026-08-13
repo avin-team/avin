@@ -14,6 +14,7 @@ import {
   CheckCircleIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
+import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { Shell } from "@/components/shell";
@@ -116,18 +117,18 @@ export const NotificationsPage = () => {
               </p>
             ) : null}
             {items.map((item) => (
-              <a
+              <Link
                 aria-label={`Mở thông báo: ${item.title}`}
                 className={`group block rounded-xl border p-4 transition-colors hover:border-primary/30 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                   item.readAt ? "bg-background" : "bg-muted/40"
                 }`}
-                href={item.deepLink}
                 key={item.id}
                 onClick={() => {
                   if (!item.readAt) {
                     markRead.mutate({ notificationId: item.id });
                   }
                 }}
+                to={item.deepLink}
               >
                 <div className="flex items-start gap-3">
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -146,7 +147,7 @@ export const NotificationsPage = () => {
                   </div>
                   <CaretRightIcon className="mt-1 size-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
                 </div>
-              </a>
+              </Link>
             ))}
             {cursor || notificationsQuery.data?.nextCursor ? (
               <div className="flex justify-end gap-2 border-t pt-3">

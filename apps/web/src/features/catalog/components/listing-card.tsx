@@ -9,7 +9,6 @@ import {
   WrenchIcon,
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
-import * as m from "motion/react-m";
 import type { ComponentPropsWithoutRef } from "react";
 
 import { formatVND } from "@/utils/format";
@@ -139,11 +138,7 @@ export const ListingCard = ({
   if (variant === "list") {
     return (
       <Link className="block" params={{ id: listingPathId }} to="/listing/$id">
-        <m.div
-          className={className}
-          transition={{ duration: 0.2 }}
-          whileHover={{ y: -2 }}
-        >
+        <div className={className}>
           <div className="group relative flex flex-col sm:flex-row items-stretch justify-between overflow-hidden rounded-2xl border border-border/60 bg-card p-4 shadow-xs backdrop-blur-md transition-all duration-300 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 gap-4">
             {/* Thumbnail Image with Category Overlay */}
             <div className="relative aspect-video w-full sm:w-52 shrink-0 overflow-hidden rounded-xl bg-muted/40">
@@ -210,7 +205,7 @@ export const ListingCard = ({
               </div>
             </div>
           </div>
-        </m.div>
+        </div>
       </Link>
     );
   }
@@ -222,11 +217,7 @@ export const ListingCard = ({
       params={{ id: listingPathId }}
       to="/listing/$id"
     >
-      <m.div
-        className="h-full"
-        transition={{ duration: 0.2 }}
-        whileHover={{ y: -4 }}
-      >
+      <div className="h-full">
         <div className="group relative flex h-full flex-col justify-between overflow-hidden rounded-2xl border border-border/60 bg-card shadow-xs backdrop-blur-md transition-all duration-300 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/5">
           {/* Full Width Edge-to-Edge Thumbnail */}
           <div className="relative aspect-video w-full overflow-hidden bg-muted/40">
@@ -293,7 +284,7 @@ export const ListingCard = ({
             </div>
           </div>
         </div>
-      </m.div>
+      </div>
     </Link>
   );
 };
