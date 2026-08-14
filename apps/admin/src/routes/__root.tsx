@@ -18,7 +18,7 @@ export const Route = createRootRoute({
   component: RootComponent,
   errorComponent: GeneralError,
   head: () => ({
-    links: [{ href: "/favicon.ico", rel: "icon" }],
+    links: [{ href: "/favicon.png", rel: "icon" }],
     meta: [
       { title: "Avin Admin" },
       {
