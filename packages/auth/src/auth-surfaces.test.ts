@@ -5,6 +5,7 @@ import {
   AUTH_SURFACE_HEADER,
   AUTH_SURFACES,
   getAuthSurface,
+  resolveAuthClientBaseURL,
 } from "./auth-surfaces";
 
 describe("AUTH_SURFACES", () => {
@@ -14,6 +15,26 @@ describe("AUTH_SURFACES", () => {
 
     expect(storefront.basePath).not.toBe(admin.basePath);
     expect(storefront.cookiePrefix).not.toBe(admin.cookiePrefix);
+    expect(storefront.errorPath).toBe("/login");
+    expect(admin.errorPath).toBe("/sign-in");
+  });
+
+  it("keeps production auth requests on the frontend origin", () => {
+    expect(
+      resolveAuthClientBaseURL({
+        frontendOrigin: "https://www.avin05.com",
+        isProduction: true,
+        serverURL: "https://avin-server-two.vercel.app",
+      })
+    ).toBe("https://www.avin05.com");
+
+    expect(
+      resolveAuthClientBaseURL({
+        frontendOrigin: "http://localhost:3001",
+        isProduction: false,
+        serverURL: "http://localhost:3000",
+      })
+    ).toBe("http://localhost:3000");
   });
 
   it("selects the admin namespace only for an explicit admin request", () => {

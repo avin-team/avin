@@ -1,3 +1,4 @@
+import { resolveAuthClientBaseURL } from "@avin/auth/auth-surfaces";
 import {
   marketplaceAccessControl,
   marketplaceRoles,
@@ -7,7 +8,11 @@ import { adminClient, twoFactorClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 
 export const authClient = createAuthClient({
-  baseURL: env.VITE_SERVER_URL,
+  baseURL: resolveAuthClientBaseURL({
+    frontendOrigin: window.location.origin,
+    isProduction: import.meta.env.PROD,
+    serverURL: env.VITE_SERVER_URL,
+  }),
   plugins: [
     adminClient({
       ac: marketplaceAccessControl,

@@ -24,6 +24,17 @@ interface VercelConfig {
 }
 
 describe("Web deployment", () => {
+  it("proxies Better Auth through the storefront origin before SPA routing", async () => {
+    const config = JSON.parse(
+      await readFile(path.resolve(process.cwd(), "vercel.json"), "utf-8")
+    ) as VercelConfig;
+
+    expect(config.rewrites?.[0]).toEqual({
+      destination: "https://avin-server-two.vercel.app/api/auth/:path*",
+      source: "/api/auth/:path*",
+    });
+  });
+
   it("rewrites direct client routes to the SPA entrypoint", async () => {
     const config = JSON.parse(
       await readFile(path.resolve(process.cwd(), "vercel.json"), "utf-8")

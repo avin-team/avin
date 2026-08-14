@@ -26,19 +26,30 @@ export const createAuth = (surface: AuthSurface = "storefront") => {
   const db = createDb();
   const isProduction = env.NODE_ENV === "production";
   const resend = new Resend(env.RESEND_API_KEY);
-  const { basePath, cookiePrefix } = AUTH_SURFACES[surface];
+  const { basePath, cookiePrefix, errorPath } = AUTH_SURFACES[surface];
+  const allowedHosts = [
+    ...new Set(
+      [...env.CORS_ORIGIN, env.BETTER_AUTH_URL].map(
+        (origin) => new URL(origin).host
+      )
+    ),
+  ];
 
   return betterAuth({
     advanced: {
       cookiePrefix,
       defaultCookieAttributes: {
         httpOnly: true,
-        sameSite: isProduction ? "none" : "lax",
+        sameSite: "lax",
         secure: isProduction,
       },
+      trustedProxyHeaders: true,
     },
     basePath,
-    baseURL: env.BETTER_AUTH_URL,
+    baseURL: {
+      allowedHosts,
+      protocol: "auto",
+    },
     database: drizzleAdapter(db, {
       provider: "pg",
 
@@ -170,7 +181,7 @@ export const createAuth = (surface: AuthSurface = "storefront") => {
       }),
     },
     onAPIError: {
-      errorURL: `${env.CORS_ORIGIN[0] ?? env.BETTER_AUTH_URL}/login`,
+      errorURL: errorPath,
     },
     plugins: [
       admin({
