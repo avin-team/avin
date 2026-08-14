@@ -29,7 +29,7 @@ export const Footer = () => (
             <img
               alt={`${siteConfig.name} Logo`}
               className="size-full object-cover"
-              src="/logo.png"
+              src="/logo.webp"
             />
           </div>
           <span className="font-bold text-foreground">{siteConfig.name}</span>

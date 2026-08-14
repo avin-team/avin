@@ -10,7 +10,7 @@ export function Logo({
     <img
       alt={alt}
       className={cn("size-6 rounded-lg object-cover", className)}
-      src="/logo.png"
+      src="/logo.webp"
       {...props}
     />
   );

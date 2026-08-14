@@ -104,7 +104,7 @@ export const Header = () => {
                     <img
                       alt="Avin Logo"
                       className="size-full object-cover"
-                      src="/logo.png"
+                      src="/logo.webp"
                     />
                   </div>
                   <div className="flex flex-col">
