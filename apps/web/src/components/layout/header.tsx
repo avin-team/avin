@@ -6,7 +6,6 @@ import * as m from "motion/react-m";
 import { useEffect, useRef, useState } from "react";
 
 import { getHeaderActionVisibility } from "@/components/layout/header-action-visibility";
-import { ModeToggle } from "@/components/mode-toggle";
 import { siteConfig } from "@/config/site";
 import { authClient } from "@/features/auth/api/auth-client";
 import { UserMenu } from "@/features/auth/components/user-menu";
@@ -107,7 +106,7 @@ export const Header = () => {
                       src="/logo.webp"
                     />
                   </div>
-                  <div className="flex flex-col">
+                  <div className="hidden flex-col md:flex">
                     <span className="text-lg font-bold text-foreground">
                       {siteConfig.name}
                     </span>
@@ -117,18 +116,21 @@ export const Header = () => {
                   </div>
                 </Link>
               </m.div>
-
-              <ModeToggle />
             </m.div>
 
             <MainNav items={siteConfig.mainNav} />
 
-            <m.div className="flex items-center gap-3" variants={itemVariants}>
+            <m.div
+              className="flex items-center gap-1 md:gap-3"
+              variants={itemVariants}
+            >
               <WalletButton />
 
               <CartButton />
 
-              <OrdersButton />
+              <div className="hidden md:block">
+                <OrdersButton />
+              </div>
 
               {showSellerStore ? <SellerStoreButton /> : null}
 

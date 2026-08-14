@@ -11,25 +11,35 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@avin/ui/components/dropdown-menu";
 import { Skeleton } from "@avin/ui/components/skeleton";
 import {
+  DesktopIcon,
+  MoonIcon,
   SignOutIcon,
   ShieldCheckIcon,
   StorefrontIcon,
+  SunIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 
 import { canAccessSellerFeatures } from "@/components/layout/header-action-visibility";
+import { useTheme } from "@/components/theme-provider";
 import { authClient } from "@/features/auth/api/auth-client";
 import { orpc } from "@/utils/orpc";
 
 export const UserMenu = () => {
   const navigate = useNavigate();
+  const { setTheme, theme } = useTheme();
   const { data: session, isPending } = authClient.useSession();
   const isSeller = session?.user.role === ACCOUNT_ROLE.SELLER;
 
@@ -146,6 +156,28 @@ export const UserMenu = () => {
             <ShieldCheckIcon className="me-2 size-4" />
             Bảo mật tài khoản
           </DropdownMenuItem>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <SunIcon className="me-2 size-4" />
+              Giao diện
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuRadioGroup onValueChange={setTheme} value={theme}>
+                <DropdownMenuRadioItem value="light">
+                  <SunIcon className="me-2 size-4" />
+                  Sáng
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="dark">
+                  <MoonIcon className="me-2 size-4" />
+                  Tối
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="system">
+                  <DesktopIcon className="me-2 size-4" />
+                  Hệ thống
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
           <DropdownMenuSeparator className="my-1" />
           <DropdownMenuItem
             onClick={async () => {
