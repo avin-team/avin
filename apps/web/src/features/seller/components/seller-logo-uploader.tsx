@@ -17,6 +17,8 @@ import { AnimatePresence, useReducedMotion } from "motion/react";
 import * as m from "motion/react-m";
 import { useState } from "react";
 
+import { serverURL } from "@/utils/server-url";
+
 import {
   SELLER_ONBOARDING_EASE_OUT,
   SELLER_ONBOARDING_MOTION_DURATION,
@@ -76,7 +78,7 @@ export const SellerLogoUploader = ({
   const shouldReduceMotion = Boolean(useReducedMotion());
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
   const upload = useUploadFile({
-    api: `${env.VITE_SERVER_URL}/api/upload`,
+    api: `${serverURL}/api/upload`,
     credentials: "include",
     onError: (error) => setErrorMessage(getUploadErrorMessage(error)),
     route: SELLER_LOGO_UPLOAD_ROUTE,

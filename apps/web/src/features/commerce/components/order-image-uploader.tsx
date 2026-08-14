@@ -3,12 +3,13 @@ import {
   COMMERCE_IMAGE_MAX_BYTES,
   COMMERCE_IMAGE_MAX_COUNT,
 } from "@avin/api/storage";
-import { env } from "@avin/env/web";
 import { Button } from "@avin/ui/components/button";
 import { FileDropzone } from "@avin/ui/components/file-dropzone";
 import { useUploadFiles } from "@better-upload/client";
 import { TrashIcon } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
+
+import { serverURL } from "@/utils/server-url";
 
 const ACCEPTED_IMAGE_TYPES = {
   "image/jpeg": [".jpg", ".jpeg"],
@@ -77,7 +78,7 @@ export const OrderImageUploader = ({
   const [isBusy, setIsBusy] = useState(false);
   const attachmentsRef = useRef(attachments);
   const upload = useUploadFiles({
-    api: `${env.VITE_SERVER_URL}${uploadPath}`,
+    api: `${serverURL}${uploadPath}`,
     credentials: "include",
     onError: () => setErrorMessage("Không thể tải ảnh lên. Vui lòng thử lại."),
     route,

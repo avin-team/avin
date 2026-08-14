@@ -230,6 +230,7 @@
         "@avin/config": "workspace:*",
         "@types/bun": "catalog:",
         "typescript": "catalog:",
+        "vitest": "catalog:",
       },
     },
     "packages/eslint-plugin": {

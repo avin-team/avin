@@ -23,15 +23,21 @@ interface VercelHeaderRule {
 }
 
 describe("Admin deployment", () => {
-  it("proxies Better Auth through the admin origin before SPA routing", async () => {
+  it("proxies API and RPC requests through the admin origin before SPA routing", async () => {
     const config = JSON.parse(
       await readFile(new URL("../vercel.json", import.meta.url), "utf-8")
     ) as VercelConfig;
 
-    expect(config.rewrites?.[0]).toEqual({
-      destination: "https://avin-server-two.vercel.app/api/admin-auth/:path*",
-      source: "/api/admin-auth/:path*",
-    });
+    expect(config.rewrites?.slice(0, 2)).toEqual([
+      {
+        destination: "https://avin-server-two.vercel.app/api/:path*",
+        source: "/api/:path*",
+      },
+      {
+        destination: "https://avin-server-two.vercel.app/rpc/:path*",
+        source: "/rpc/:path*",
+      },
+    ]);
   });
 
   it("rewrites direct client routes to the SPA entrypoint", async () => {

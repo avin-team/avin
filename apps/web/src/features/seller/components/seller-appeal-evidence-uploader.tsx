@@ -4,12 +4,13 @@ import {
   SELLER_ENFORCEMENT_APPEAL_EVIDENCE_MAX_COUNT,
   SELLER_ENFORCEMENT_APPEAL_EVIDENCE_UPLOAD_ROUTE,
 } from "@avin/api/storage";
-import { env } from "@avin/env/web";
 import { FileDropzone } from "@avin/ui/components/file-dropzone";
 import { Textarea } from "@avin/ui/components/textarea";
 import { useUploadFiles } from "@better-upload/client";
 import { FileIcon, XIcon } from "@phosphor-icons/react";
 import { useState } from "react";
+
+import { serverURL } from "@/utils/server-url";
 
 const ACCEPTED_CONTENT_TYPES = {
   "application/pdf": [".pdf"],
@@ -51,7 +52,7 @@ export const SellerAppealEvidenceUploader = ({
   const [evidence, setEvidence] = useState<AppealEvidenceItem[]>([]);
 
   const upload = useUploadFiles({
-    api: `${env.VITE_SERVER_URL}/api/seller-enforcement-appeal-evidence-upload`,
+    api: `${serverURL}/api/seller-enforcement-appeal-evidence-upload`,
     credentials: "include",
     onError: () => setErrorMessage("Không thể tải bằng chứng khiếu nại lên."),
     route: SELLER_ENFORCEMENT_APPEAL_EVIDENCE_UPLOAD_ROUTE,

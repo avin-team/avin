@@ -42,8 +42,12 @@
   ],
   "rewrites": [
     {
-      "source": "/api/admin-auth/:path*",
-      "destination": "https://avin-server-two.vercel.app/api/admin-auth/:path*"
+      "source": "/api/:path*",
+      "destination": "https://avin-server-two.vercel.app/api/:path*"
+    },
+    {
+      "source": "/rpc/:path*",
+      "destination": "https://avin-server-two.vercel.app/rpc/:path*"
     },
     {
       "source": "/(.*)",

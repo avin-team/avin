@@ -18,6 +18,8 @@ import {
 } from "@phosphor-icons/react";
 import { useState } from "react";
 
+import { serverURL } from "@/utils/server-url";
+
 import { validateListingImage } from "./listing-image-validation";
 
 interface FailedImageUpload {
@@ -94,7 +96,7 @@ export const ListingImageUploader = ({
     index: number;
   }>();
   const upload = useUploadFiles({
-    api: `${env.VITE_SERVER_URL}/api/upload`,
+    api: `${serverURL}/api/upload`,
     credentials: "include",
     onError: () => setErrorMessage(getUploadErrorMessage()),
     route: LISTING_IMAGE_UPLOAD_ROUTE,

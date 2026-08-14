@@ -15,6 +15,8 @@ import {
 } from "@phosphor-icons/react";
 import { useState } from "react";
 
+import { serverURL } from "@/utils/server-url";
+
 export interface SellerBannerValue {
   name: string;
   url: string;
@@ -68,7 +70,7 @@ export const SellerBannerUploader = ({
 }: SellerBannerUploaderProps) => {
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
   const upload = useUploadFile({
-    api: `${env.VITE_SERVER_URL}/api/upload`,
+    api: `${serverURL}/api/upload`,
     credentials: "include",
     onError: (error) => setErrorMessage(getUploadErrorMessage(error)),
     route: SELLER_BANNER_UPLOAD_ROUTE,

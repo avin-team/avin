@@ -1,10 +1,11 @@
 import type { AppRouterClient } from "@avin/api/router";
-import { env } from "@avin/env/web";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 import { QueryCache, QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+
+import { serverURL } from "./server-url";
 
 export const queryClient = new QueryClient({
   queryCache: new QueryCache({
@@ -26,7 +27,7 @@ export const link = new RPCLink({
       credentials: "include",
     });
   },
-  url: `${env.VITE_SERVER_URL}/rpc`,
+  url: `${serverURL}/rpc`,
 });
 
 export const client: AppRouterClient = createORPCClient(link);

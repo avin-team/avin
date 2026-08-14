@@ -24,15 +24,21 @@ interface VercelConfig {
 }
 
 describe("Web deployment", () => {
-  it("proxies Better Auth through the storefront origin before SPA routing", async () => {
+  it("proxies API and RPC requests through the storefront origin before SPA routing", async () => {
     const config = JSON.parse(
       await readFile(path.resolve(process.cwd(), "vercel.json"), "utf-8")
     ) as VercelConfig;
 
-    expect(config.rewrites?.[0]).toEqual({
-      destination: "https://avin-server-two.vercel.app/api/auth/:path*",
-      source: "/api/auth/:path*",
-    });
+    expect(config.rewrites?.slice(0, 2)).toEqual([
+      {
+        destination: "https://avin-server-two.vercel.app/api/:path*",
+        source: "/api/:path*",
+      },
+      {
+        destination: "https://avin-server-two.vercel.app/rpc/:path*",
+        source: "/rpc/:path*",
+      },
+    ]);
   });
 
   it("rewrites direct client routes to the SPA entrypoint", async () => {

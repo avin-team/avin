@@ -7,7 +7,6 @@ import {
   ORDER_CHAT_ATTACHMENT_MAX_TOTAL_BYTES,
   ORDER_CHAT_ATTACHMENT_UPLOAD_ROUTE,
 } from "@avin/api/storage";
-import { env } from "@avin/env/web";
 import {
   Avatar,
   AvatarFallback,
@@ -50,6 +49,7 @@ import {
   getOrderItemStatusLabel,
 } from "@/features/commerce/order-status";
 import { orpc } from "@/utils/orpc";
+import { serverURL } from "@/utils/server-url";
 import { supabasePublic } from "@/utils/supabase";
 
 import { formatOrderChatAttachmentSize } from "../order-chat-attachment-utils";
@@ -874,7 +874,7 @@ export const OrderChatPanel = ({
   const { data: realtimeToken, refetch: refetchRealtimeToken } =
     realtimeTokenQuery;
   const attachmentUpload = useUploadFiles({
-    api: `${env.VITE_SERVER_URL}/api/order-chat-upload`,
+    api: `${serverURL}/api/order-chat-upload`,
     credentials: "include",
     route: ORDER_CHAT_ATTACHMENT_UPLOAD_ROUTE,
   });
