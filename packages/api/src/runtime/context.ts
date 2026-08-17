@@ -6,11 +6,13 @@ import { db } from "@avin/db";
 import type { Context as HonoContext } from "hono";
 
 import type { AdvisorProviderManager } from "../advisor/provider";
+import type { AdvisorRolloutGate } from "../advisor/rollout";
 import { auditRecorder } from "./audit-recorder";
 import type { ManagedObjectStore } from "./storage";
 
 export interface CreateContextOptions {
   advisorProvider?: AdvisorProviderManager;
+  advisorRollout?: AdvisorRolloutGate;
   context: HonoContext;
   storage?: ManagedObjectStore;
 }
@@ -34,6 +36,7 @@ export interface AuditRecorder {
 
 export const createContext = async ({
   advisorProvider,
+  advisorRollout,
   context,
   storage,
 }: CreateContextOptions): Promise<Context> => {
@@ -49,6 +52,7 @@ export const createContext = async ({
   const requestIp = (forwardedFor?.split(",")[0] ?? realIp)?.trim();
   return {
     advisorProvider,
+    advisorRollout,
     audit: auditRecorder,
     db,
     requestIpHash: requestIp
@@ -61,6 +65,7 @@ export const createContext = async ({
 
 export interface Context {
   advisorProvider?: AdvisorProviderManager;
+  advisorRollout?: AdvisorRolloutGate;
   audit: AuditRecorder;
   db: typeof db;
   requestIpHash?: string | null;

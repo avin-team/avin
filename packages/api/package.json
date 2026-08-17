@@ -16,6 +16,7 @@
     "./advisor/handoff": "./src/advisor/handoff.ts",
     "./advisor/quota": "./src/advisor/quota.ts",
     "./advisor/provider": "./src/advisor/provider.ts",
+    "./advisor/rollout": "./src/advisor/rollout.ts",
     "./context": "./src/runtime/context.ts",
     "./listing/seller-workspace": "./src/listing/seller-workspace.ts",
     "./notifications/email-delivery": "./src/notifications/email-delivery.ts",

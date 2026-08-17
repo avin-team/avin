@@ -99,6 +99,25 @@ const requireProviderReady = async (context: Context): Promise<void> => {
   }
 };
 
+const requireAdvisorBeta = (
+  context: Context,
+  visitorCapability: string | undefined
+): void => {
+  if (!context.advisorRollout) {
+    return;
+  }
+
+  const subject = getAdvisorSubject(context, visitorCapability);
+  if (context.advisorRollout.isEnabled(subject)) {
+    return;
+  }
+
+  throw new ORPCError("SERVICE_UNAVAILABLE", {
+    message:
+      "Service Advisor beta is not available for this traffic right now. You can browse the service catalog manually.",
+  });
+};
+
 const requireOwnedSession = async (
   context: Context,
   sessionId: string,
@@ -302,6 +321,7 @@ export const advisorSessionRouter = {
           message: "Record Advisor Consent before starting a session.",
         });
       }
+      requireAdvisorBeta(context, input.visitorCapability);
 
       const now = new Date();
       await enforceAdvisorSessionCreationLimit({
@@ -512,6 +532,7 @@ export const advisorSessionRouter = {
         input.sessionId,
         input.visitorCapability
       );
+      requireAdvisorBeta(context, input.visitorCapability);
       const session = await touchSession(context, ownedSession);
 
       if (input.idempotencyKey === session.lastIdempotencyKey) {
@@ -898,6 +919,7 @@ export const advisorPublicRouter = {
       .handler(({ context, input }) =>
         getAdvisorAnalyticsOverview({
           database: context.db,
+          rollout: context.advisorRollout,
           timeframe: input.timeframe,
         })
       ),

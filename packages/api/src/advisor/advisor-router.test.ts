@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Context } from "../runtime/context";
 import { advisorConsentRouter, advisorSessionRouter } from "./advisor-router";
 import { defaultAdvisorPlaybookContent } from "./playbook";
+import { createAdvisorRolloutGate } from "./rollout";
 
 const CAPABILITY = "visitor-capability-".padEnd(64, "x");
 const CAPABILITY_HASH = createHash("sha256").update(CAPABILITY).digest("hex");
@@ -97,7 +98,8 @@ const { dbMock } = vi.hoisted(() => ({
 
 const createContext = (
   sessionOverride: Context["session"] = null,
-  storage: Context["storage"] = undefined
+  storage: Context["storage"] = undefined,
+  advisorRollout: Context["advisorRollout"] = undefined
 ): Context => ({
   advisorProvider: {
     activateConfiguration: vi.fn(),
@@ -111,6 +113,7 @@ const createContext = (
     markUnavailable: vi.fn(),
     testConfiguration: vi.fn(),
   },
+  advisorRollout,
   audit: { record: vi.fn(() => Promise.resolve()) },
   db: dbMock as unknown as Context["db"],
   session: sessionOverride,
@@ -186,6 +189,33 @@ describe("Advisor public session boundary", () => {
         { context: createContext() }
       )
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(dbMock.insert).not.toHaveBeenCalled();
+  });
+
+  it("keeps rollout-disabled traffic on the manual-browse path", async () => {
+    dbMock.query.advisorConsent.findFirst.mockResolvedValue({
+      id: CONSENT_ID,
+      userId: null,
+      version: "v1",
+      visitorCapabilityHash: CAPABILITY_HASH,
+    });
+
+    await expect(
+      call(
+        advisorSessionRouter.create,
+        { consentId: CONSENT_ID, visitorCapability: CAPABILITY },
+        {
+          context: createContext(
+            null,
+            undefined,
+            createAdvisorRolloutGate({ enabled: false })
+          ),
+        }
+      )
+    ).rejects.toMatchObject({
+      code: "SERVICE_UNAVAILABLE",
+      message: expect.stringContaining("browse the service catalog"),
+    });
     expect(dbMock.insert).not.toHaveBeenCalled();
   });
 

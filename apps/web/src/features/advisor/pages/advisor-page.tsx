@@ -287,12 +287,14 @@ const formatWarranty = (policy: unknown): string => {
 const ConsentPanel = ({
   checked,
   consentRef,
+  errorMessage,
   onAccept,
   onChange,
   pending,
 }: {
   checked: boolean;
   consentRef: RefObject<HTMLInputElement | null>;
+  errorMessage: string | null;
   onAccept: () => void;
   onChange: (checked: boolean) => void;
   pending: boolean;
@@ -303,10 +305,10 @@ const ConsentPanel = ({
         Trước khi bắt đầu với Service Advisor
       </h1>
       <CardDescription>
-        Advisor dùng nội dung bạn gửi để gợi ý Listing SERVICE phù hợp. Phiên
-        Visitor được giữ tối đa 24 giờ không hoạt động; User đã đăng nhập tối đa
-        30 ngày. Không gửi password, OTP, access token, thông tin thanh toán hay
-        giấy tờ định danh.
+        Service Advisor là AI beta dùng nội dung bạn gửi để gợi ý Listing
+        SERVICE phù hợp. Phiên Visitor được giữ tối đa 24 giờ không hoạt động;
+        User đã đăng nhập tối đa 30 ngày. Không gửi password, OTP, access token,
+        thông tin thanh toán hay giấy tờ định danh.
       </CardDescription>
     </CardHeader>
     <CardContent className="space-y-5">
@@ -325,6 +327,20 @@ const ConsentPanel = ({
         . Advisor chỉ đưa ra gợi ý do AI tạo; Listing detail và package selector
         vẫn là nguồn chính thức để quyết định mua.
       </p>
+      {errorMessage ? (
+        <div
+          className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm"
+          role="alert"
+        >
+          <p>{errorMessage}</p>
+          <Link
+            className="mt-2 inline-flex font-medium text-primary underline underline-offset-4"
+            to="/category"
+          >
+            Duyệt catalog thủ công
+          </Link>
+        </div>
+      ) : null}
       <label
         className="flex items-start gap-3 text-sm"
         htmlFor="advisor-consent"
@@ -895,6 +911,7 @@ export const AdvisorPage = () => {
     )
   );
   const [consentChecked, setConsentChecked] = useState(false);
+  const [consentError, setConsentError] = useState<string | null>(null);
   const [deleteRequested, setDeleteRequested] = useState(false);
   const [text, setText] = useState("");
   const [attachments, setAttachments] = useState<AdvisorAttachmentPreview[]>(
@@ -1013,6 +1030,7 @@ export const AdvisorPage = () => {
   };
 
   const startSession = async (): Promise<void> => {
+    setConsentError(null);
     try {
       const consent = await consentMutation.mutateAsync({
         version: "v1",
@@ -1028,6 +1046,11 @@ export const AdvisorPage = () => {
       setConsentAccepted(true);
       setSessionId(created.id);
     } catch (error) {
+      if (getErrorCode(error) === "SERVICE_UNAVAILABLE") {
+        setConsentError(
+          "Service Advisor beta hiện chưa mở cho traffic này. Session hiện có vẫn được giữ nguyên."
+        );
+      }
       toast.error(
         error instanceof Error ? error.message : "Không thể khởi tạo Advisor."
       );
@@ -1430,6 +1453,7 @@ export const AdvisorPage = () => {
           <ConsentPanel
             checked={consentChecked}
             consentRef={consentRef}
+            errorMessage={consentError}
             onAccept={() => void startSession()}
             onChange={setConsentChecked}
             pending={consentMutation.isPending || sessionMutation.isPending}
@@ -1445,14 +1469,15 @@ export const AdvisorPage = () => {
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div className="space-y-2">
             <p className="font-semibold text-primary text-sm">
-              Service Advisor
+              Service Advisor · AI beta
             </p>
             <h1 className="font-black text-3xl tracking-tight sm:text-4xl">
               Tìm đúng dịch vụ từ nhu cầu của bạn
             </h1>
             <p className="max-w-3xl text-muted-foreground">
-              Viết bằng tiếng Việt, English hoặc trộn cả hai. Advisor sẽ hỏi
-              từng câu một và chỉ gợi ý các Listing SERVICE đang có thể mua.
+              Viết bằng tiếng Việt, English hoặc trộn cả hai. AI beta sẽ hỏi
+              từng câu một và chỉ gợi ý các Listing SERVICE đang có thể mua. Đây
+              không phải cam kết phù hợp hay bảo đảm khả dụng.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">

@@ -208,10 +208,26 @@ interface AdvisorAnalyticsSummary {
     checkoutRate: number;
     recommendationRate: number;
   };
+  errors: {
+    count: number;
+    rate: number;
+  };
   feedback: { total: number };
+  latency: {
+    firstTokenP95Ms: number | null;
+    imageTurnP95Ms: number | null;
+    turnP95Ms: number | null;
+  };
+  model: string | null;
   noMatches: number;
   recommendations: number;
+  rollout: {
+    allowlistSize: number;
+    enabled: boolean;
+    percentage: number;
+  };
   sessions: number;
+  technicalTokens: number;
   technicalRequests: number;
   turns: number;
 }
@@ -225,23 +241,61 @@ interface AdvisorQuotaSummary {
   warning: boolean;
 }
 
-const getAdvisorMetrics = (overview: AdvisorAnalyticsSummary | undefined) => [
-  { label: "Sessions", value: overview?.sessions ?? 0 },
-  { label: "Turns completed", value: overview?.turns ?? 0 },
-  { label: "Recommendations", value: overview?.recommendations ?? 0 },
-  { label: "No-match", value: overview?.noMatches ?? 0 },
+interface AdvisorMetric {
+  isDuration?: boolean;
+  isPercent?: boolean;
+  label: string;
+  value: number | null;
+}
+
+const metricValue = (value: number | null | undefined): number | null =>
+  value ?? 0;
+
+const nullableMetricValue = (
+  value: number | null | undefined
+): number | null => (value === undefined ? null : value);
+
+const getAdvisorMetrics = (
+  overview: AdvisorAnalyticsSummary | undefined
+): AdvisorMetric[] => [
+  { label: "Sessions", value: metricValue(overview?.sessions) },
+  { label: "Turns completed", value: metricValue(overview?.turns) },
+  { label: "Recommendations", value: metricValue(overview?.recommendations) },
+  { label: "No-match", value: metricValue(overview?.noMatches) },
   {
     isPercent: true,
     label: "Checkout",
-    value: overview?.conversion.checkoutRate ?? 0,
+    value: metricValue(overview?.conversion.checkoutRate),
   },
   {
     isPercent: true,
     label: "Recommendation rate",
-    value: overview?.conversion.recommendationRate ?? 0,
+    value: metricValue(overview?.conversion.recommendationRate),
   },
-  { label: "Feedback", value: overview?.feedback.total ?? 0 },
-  { label: "Technical requests", value: overview?.technicalRequests ?? 0 },
+  { label: "Feedback", value: metricValue(overview?.feedback.total) },
+  { label: "AI requests", value: metricValue(overview?.technicalRequests) },
+  { label: "AI tokens", value: metricValue(overview?.technicalTokens) },
+  { label: "Errors", value: metricValue(overview?.errors.count) },
+  {
+    isPercent: true,
+    label: "Error rate",
+    value: metricValue(overview?.errors.rate),
+  },
+  {
+    isDuration: true,
+    label: "First-token p95",
+    value: nullableMetricValue(overview?.latency.firstTokenP95Ms),
+  },
+  {
+    isDuration: true,
+    label: "Turn p95",
+    value: nullableMetricValue(overview?.latency.turnP95Ms),
+  },
+  {
+    isDuration: true,
+    label: "Image turn p95",
+    value: nullableMetricValue(overview?.latency.imageTurnP95Ms),
+  },
 ];
 
 const AdvisorQuotaBanner = ({
@@ -279,22 +333,64 @@ const AdvisorQuotaBanner = ({
   );
 };
 
-const AdvisorMetricGrid = ({
-  metrics,
-}: {
-  metrics: { isPercent?: boolean; label: string; value: number }[];
-}) => (
+const formatAdvisorMetric = ({
+  isDuration,
+  isPercent,
+  value,
+}: Pick<AdvisorMetric, "isDuration" | "isPercent" | "value">): string => {
+  if (value === null) {
+    return "—";
+  }
+  if (isPercent) {
+    return formatPercent(value);
+  }
+  if (isDuration) {
+    return `${value.toLocaleString("vi-VN")} ms`;
+  }
+  return value.toLocaleString("vi-VN");
+};
+
+const AdvisorMetricGrid = ({ metrics }: { metrics: AdvisorMetric[] }) => (
   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-    {metrics.map(({ isPercent, label, value }) => (
+    {metrics.map(({ isDuration, isPercent, label, value }) => (
       <div className="rounded-lg border p-3" key={label}>
         <p className="text-muted-foreground text-xs">{label}</p>
         <p className="mt-1 font-semibold text-2xl">
-          {isPercent ? formatPercent(value) : value}
+          {formatAdvisorMetric({ isDuration, isPercent, value })}
         </p>
       </div>
     ))}
   </div>
 );
+
+const AdvisorRolloutBanner = ({
+  model,
+  rollout,
+}: {
+  model: string | null | undefined;
+  rollout: AdvisorAnalyticsSummary["rollout"] | undefined;
+}) => {
+  if (!rollout) {
+    return null;
+  }
+  return (
+    <div
+      className={`rounded-lg border p-3 text-sm ${
+        rollout.enabled
+          ? "border-emerald-500/30 bg-emerald-500/5"
+          : "border-destructive/30 bg-destructive/5 text-destructive"
+      }`}
+    >
+      <p className="font-medium">
+        AI beta rollout: {rollout.enabled ? "enabled" : "disabled"} ·{" "}
+        {rollout.percentage}% public traffic
+      </p>
+      <p className="text-muted-foreground text-xs">
+        Model: {model ?? "chưa có request"} · allowlist: {rollout.allowlistSize}
+      </p>
+    </div>
+  );
+};
 
 const AdvisorTrendTable = ({ days }: { days: AdvisorAnalyticsDay[] }) => (
   <div className="overflow-x-auto rounded-lg border">
@@ -518,6 +614,10 @@ const AdvisorAnalyticsPanel = ({ enabled }: { enabled: boolean }) => {
             onRetry={() => void analyticsQuery.refetch()}
           />
           <AdvisorMetricGrid metrics={metrics} />
+          <AdvisorRolloutBanner
+            model={overview?.model}
+            rollout={overview?.rollout}
+          />
           <AdvisorQuotaBanner quota={overview?.quota} />
           <AdvisorTrendTable days={days} />
         </CardContent>

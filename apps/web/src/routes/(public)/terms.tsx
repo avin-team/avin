@@ -9,7 +9,8 @@ export const Route = createFileRoute("/(public)/terms")({
       description="Các điều khoản marketplace và thông báo riêng cho Service Advisor."
     >
       <p>
-        Service Advisor chỉ cung cấp gợi ý tham khảo. Listing detail, package
+        Service Advisor là AI beta và chỉ cung cấp gợi ý tham khảo; không có cam
+        kết phù hợp, khả dụng hoặc thời gian phản hồi. Listing detail, package
         selector, Cart và Checkout là nguồn chính thức cho mọi quyết định mua.
       </p>
       <p>

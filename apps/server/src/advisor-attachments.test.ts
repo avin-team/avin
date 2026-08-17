@@ -1,4 +1,5 @@
 import { hashVisitorCapability } from "@avin/api/advisor/advisor";
+import { createAdvisorRolloutGate } from "@avin/api/advisor/rollout";
 import type { Context } from "@avin/api/context";
 import type { ManagedObjectStore } from "@avin/api/storage";
 import type { db } from "@avin/db";
@@ -20,7 +21,7 @@ const SAMPLE_PNG = Uint8Array.from(
   (character) => character.codePointAt(0) ?? 0
 );
 
-const createFixture = () => {
+const createFixture = (advisorRollout?: Context["advisorRollout"]) => {
   const objects = new Map<string, Uint8Array>();
   let attachment: Record<string, unknown> | null = null;
   const storage: ManagedObjectStore = {
@@ -86,6 +87,7 @@ const createFixture = () => {
   } as unknown as Context["db"];
   const getSession = vi.fn().mockResolvedValue(null);
   const app = createAdvisorAttachmentUploadApp({
+    advisorRollout,
     database: database as typeof db,
     getSession: getSession as never,
     storage,
@@ -173,6 +175,18 @@ describe("Advisor private image attachments", () => {
       "image/png",
       "advisor-attachments"
     );
+  });
+
+  it("blocks new uploads when the beta rollout is disabled", async () => {
+    const fixture = createFixture(createAdvisorRolloutGate({ enabled: false }));
+    const response = await fixture.app.request(
+      uploadRequest(
+        new File([SAMPLE_PNG], "reference.png", { type: "image/png" })
+      )
+    );
+
+    expect(response.status).toBe(503);
+    expect(fixture.storage.putObject).not.toHaveBeenCalled();
   });
 
   it("rejects an image whose MIME does not match its bytes before persistence", async () => {

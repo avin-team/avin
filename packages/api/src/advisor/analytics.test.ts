@@ -8,6 +8,7 @@ import {
   getAdvisorAnalyticsOverview,
   recordAdvisorAnalyticsEvent,
 } from "./analytics";
+import { createAdvisorRolloutGate } from "./rollout";
 
 const SESSION_ID = "00000000-0000-4000-8000-000000000001";
 const USER_ID = "user-1";
@@ -125,6 +126,71 @@ describe("Advisor analytics", () => {
       date: "2026-08-18",
       recommendations: 1,
       sessions: 1,
+    });
+  });
+
+  it("exposes content-free model health and rollout metrics", async () => {
+    const events = [
+      {
+        createdAt: new Date("2026-08-18T12:00:00.000Z"),
+        eventType: "MODEL_REQUEST",
+        metadata: { model: "qwen/qwen3.6-27b", tokenCount: 640 },
+        retention: "TECHNICAL",
+      },
+      {
+        createdAt: new Date("2026-08-18T12:01:00.000Z"),
+        eventType: "TURN_COMPLETED",
+        metadata: {
+          attachmentCount: 1,
+          firstTokenLatencyMs: 1500,
+          latencyMs: 6000,
+          status: "SUCCESS",
+        },
+        retention: "AGGREGATE",
+      },
+      {
+        createdAt: new Date("2026-08-18T12:02:00.000Z"),
+        eventType: "TURN_COMPLETED",
+        metadata: {
+          errorCode: "SERVICE_UNAVAILABLE",
+          latencyMs: 2000,
+          status: "ERROR",
+        },
+        retention: "AGGREGATE",
+      },
+    ];
+    const database = {
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn().mockResolvedValue(events),
+        })),
+      })),
+    } as unknown as Context["db"];
+
+    const overview = await getAdvisorAnalyticsOverview({
+      database,
+      now: new Date("2026-08-18T15:30:00.000Z"),
+      rollout: createAdvisorRolloutGate({
+        allowlist: ["preview-user"],
+        percentage: 10,
+      }),
+      timeframe: "7d",
+    });
+
+    expect(overview).toMatchObject({
+      errors: {
+        count: 1,
+        providerUnavailable: 1,
+      },
+      latency: {
+        firstTokenP95Ms: 1500,
+        imageTurnP95Ms: 6000,
+        turnP95Ms: 6000,
+      },
+      model: "qwen/qwen3.6-27b",
+      rollout: { allowlistSize: 1, enabled: true, percentage: 10 },
+      technicalRequests: 1,
+      technicalTokens: 640,
     });
   });
 

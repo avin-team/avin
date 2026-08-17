@@ -6,6 +6,21 @@ export const env = createEnv({
   emptyStringAsUndefined: true,
   runtimeEnv: process.env,
   server: {
+    ADVISOR_BETA_ALLOWLIST: z.string().optional(),
+    ADVISOR_BETA_ENABLED: z
+      .enum(["true", "false"])
+      .transform((value) => value === "true")
+      .default(true),
+    ADVISOR_BETA_ROLLOUT_PERCENT: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .max(100)
+      .default(10),
+    ADVISOR_BETA_SALT: z
+      .string()
+      .min(1)
+      .default("avin-service-advisor-beta-v1"),
     ADVISOR_CONFIG_ENCRYPTION_KEY: z.string().min(32).optional(),
     BETTER_AUTH_SECRET: z.string().min(32),
     BETTER_AUTH_URL: z.url(),

@@ -10,6 +10,7 @@ import {
   getOwnedAdvisorSession,
   readAdvisorAttachmentBytes,
 } from "@avin/api/advisor/attachments";
+import type { AdvisorRolloutGate } from "@avin/api/advisor/rollout";
 import { ADVISOR_ATTACHMENT_MAX_PER_SESSION } from "@avin/api/storage";
 import type { ManagedObjectStore } from "@avin/api/storage";
 import { auth } from "@avin/auth";
@@ -28,6 +29,7 @@ import {
 
 export interface AdvisorAttachmentUploadDependencies {
   database: typeof db;
+  advisorRollout?: AdvisorRolloutGate;
   getSession?: typeof auth.api.getSession;
   storage?: ManagedObjectStore;
 }
@@ -111,6 +113,7 @@ const errorResponse = (context: Context, error: unknown): Response => {
 };
 
 export const createAdvisorAttachmentUploadApp = ({
+  advisorRollout,
   database,
   getSession = auth.api.getSession,
   storage,
@@ -144,6 +147,12 @@ export const createAdvisorAttachmentUploadApp = ({
         visitorCapability,
         getSession
       );
+      if (advisorRollout && !advisorRollout.isEnabled(owner)) {
+        throw new ORPCError("SERVICE_UNAVAILABLE", {
+          message:
+            "Service Advisor beta is not available for this traffic right now. You can browse the service catalog manually.",
+        });
+      }
       const session = await getOwnedAdvisorSession({
         database,
         owner,

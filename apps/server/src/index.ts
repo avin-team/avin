@@ -1,3 +1,4 @@
+import { createAdvisorRolloutGate } from "@avin/api/advisor/rollout";
 import { createContext } from "@avin/api/context";
 import { appRouter } from "@avin/api/router";
 import { handleSePayWebhook } from "@avin/api/wallet/webhook";
@@ -45,6 +46,12 @@ import { createListingImageStorage } from "./uploads/storage";
 
 const app = new Hono();
 const listingImageStorage = createListingImageStorage();
+const advisorRollout = createAdvisorRolloutGate({
+  allowlist: env.ADVISOR_BETA_ALLOWLIST?.split(","),
+  enabled: env.ADVISOR_BETA_ENABLED,
+  percentage: env.ADVISOR_BETA_ROLLOUT_PERCENT,
+  salt: env.ADVISOR_BETA_SALT,
+});
 // This deployment-only attestation is populated by the operator after
 // verifying the Groq organization control. It is never accepted from an API
 // request and expires so a stale console check fails closed.
@@ -81,6 +88,7 @@ const advisorPreviewApp = createAdvisorPreviewApp({
   },
 });
 const advisorAttachmentApp = createAdvisorAttachmentUploadApp({
+  advisorRollout,
   database: db,
   storage: listingImageStorage?.objectStore,
 });
@@ -244,6 +252,7 @@ export const rpcHandler = new RPCHandler(appRouter, {
 app.use("/*", async (c, next) => {
   const context = await createContext({
     advisorProvider: advisorProviderManager,
+    advisorRollout,
     context: c,
     storage: listingImageStorage?.objectStore,
   });
