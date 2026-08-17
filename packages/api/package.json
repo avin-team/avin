@@ -11,6 +11,8 @@
     "./advisor/playbook": "./src/advisor/playbook.ts",
     "./advisor/advisor": "./src/advisor/advisor.ts",
     "./advisor/attachments": "./src/advisor/attachments.ts",
+    "./advisor/analytics": "./src/advisor/analytics.ts",
+    "./advisor/feedback": "./src/advisor/feedback.ts",
     "./advisor/handoff": "./src/advisor/handoff.ts",
     "./advisor/provider": "./src/advisor/provider.ts",
     "./context": "./src/runtime/context.ts",

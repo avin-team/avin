@@ -13,6 +13,7 @@ import { z } from "zod";
 import { sellerIsNotEnforcedCondition } from "../listing/listing-discovery";
 import type { Context } from "../runtime/context";
 import type { ManagedObjectStore } from "../runtime/storage";
+import { recordAdvisorAnalyticsEventBestEffort } from "./analytics";
 import {
   cleanupExpiredAdvisorAttachments,
   deleteAdvisorAttachmentObjects,
@@ -287,7 +288,7 @@ export const cleanupExpiredAdvisorSessions = async ({
 }: CleanupExpiredAdvisorSessionsOptions): Promise<number> => {
   await cleanupExpiredAdvisorAttachments({ database, now, storage });
   const expiredSessions = await database.query.advisorSession.findMany({
-    columns: { id: true },
+    columns: { id: true, userId: true },
     limit,
     where: lte(advisorSession.expiresAt, now),
   });
@@ -308,6 +309,15 @@ export const cleanupExpiredAdvisorSessions = async ({
           )
         )
         .returning({ id: advisorSession.id });
+      if (deleted) {
+        await recordAdvisorAnalyticsEventBestEffort({
+          database,
+          eventType: "SESSION_ABANDONED",
+          metadata: { eventVersion: "v1" },
+          sessionId: session.id,
+          userId: session.userId,
+        });
+      }
       return deleted ? 1 : 0;
     })
   );

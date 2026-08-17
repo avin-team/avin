@@ -7,8 +7,13 @@ import {
 } from "@avin/db/schema/advisor";
 import { ORPCError } from "@orpc/server";
 import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
+import { z } from "zod";
 
-import { buyerProcedure, publicProcedure } from "../access/procedures";
+import {
+  adminProcedure,
+  buyerProcedure,
+  publicProcedure,
+} from "../access/procedures";
 import type { Context } from "../runtime/context";
 import {
   ADVISOR_CONSENT_VERSION,
@@ -26,11 +31,27 @@ import {
   revalidateAdvisorRecommendation,
 } from "./advisor";
 import {
+  advisorAnalyticsTrackInputSchema,
+  getAdvisorAnalyticsOverview,
+  recordAdvisorAnalyticsEventBestEffort,
+} from "./analytics";
+import {
   commitAdvisorAttachments,
   deleteAdvisorAttachmentObjects,
+  getOwnedAdvisorSession,
   loadOwnedAdvisorAttachments,
   readAdvisorAttachmentBytes,
 } from "./attachments";
+import {
+  advisorFeedbackAttachmentInputSchema,
+  advisorFeedbackDetailInputSchema,
+  advisorFeedbackListInputSchema,
+  advisorFeedbackSubmitInputSchema,
+  getAdvisorFeedback,
+  getAdvisorFeedbackAttachmentUrl,
+  listAdvisorFeedback,
+  submitAdvisorFeedback,
+} from "./feedback";
 import {
   advisorHandoffConfirmationInputSchema,
   advisorHandoffCopyAttachmentsInputSchema,
@@ -271,6 +292,14 @@ export const advisorSessionRouter = {
         });
       }
 
+      await recordAdvisorAnalyticsEventBestEffort({
+        database: context.db,
+        eventType: "SESSION_STARTED",
+        metadata: { eventVersion: "v1" },
+        sessionId: created.id,
+        userId: subject.userId,
+      });
+
       return {
         expiresAt: created.expiresAt.toISOString(),
         id: created.id,
@@ -288,6 +317,13 @@ export const advisorSessionRouter = {
         input.visitorCapability,
         { allowExpired: true }
       );
+      await recordAdvisorAnalyticsEventBestEffort({
+        database: context.db,
+        eventType: "SESSION_ABANDONED",
+        metadata: { eventVersion: "v1" },
+        sessionId: session.id,
+        userId: session.userId,
+      });
       if (context.storage) {
         const attachments =
           (await context.db.query.advisorAttachment.findMany({
@@ -501,6 +537,17 @@ export const advisorSessionRouter = {
         });
       }
 
+      await recordAdvisorAnalyticsEventBestEffort({
+        database: context.db,
+        eventType: "ANSWER_SUBMITTED",
+        metadata: {
+          attachmentCount: attachments.length,
+          turnCount: session.turnCount + 1,
+        },
+        sessionId: session.id,
+        userId: session.userId,
+      });
+
       let computation;
       try {
         computation = await orchestrateAdvisorTurn({
@@ -651,6 +698,34 @@ export const advisorSessionRouter = {
         throw error;
       }
 
+      await recordAdvisorAnalyticsEventBestEffort({
+        database: context.db,
+        eventType: "TURN_COMPLETED",
+        metadata: {
+          attachmentCount: attachments.length,
+          turnCount: session.turnCount + 1,
+        },
+        sessionId: session.id,
+        userId: session.userId,
+      });
+      if (response.kind === "RECOMMENDATION") {
+        await recordAdvisorAnalyticsEventBestEffort({
+          database: context.db,
+          eventType: "RECOMMENDATION_CREATED",
+          metadata: { turnCount: session.turnCount + 1 },
+          sessionId: session.id,
+          userId: session.userId,
+        });
+      } else if (response.kind === "NO_MATCH") {
+        await recordAdvisorAnalyticsEventBestEffort({
+          database: context.db,
+          eventType: "NO_MATCH",
+          metadata: { turnCount: session.turnCount + 1 },
+          sessionId: session.id,
+          userId: session.userId,
+        });
+      }
+
       return { response, sessionId: session.id };
     }),
 };
@@ -690,7 +765,76 @@ export const advisorConsentRouter = {
 };
 
 export const advisorPublicRouter = {
+  analytics: {
+    overview: adminProcedure
+      .input(
+        z.strictObject({
+          timeframe: z.enum(["7d", "30d", "90d"]).default("30d"),
+        })
+      )
+      .handler(({ context, input }) =>
+        getAdvisorAnalyticsOverview({
+          database: context.db,
+          timeframe: input.timeframe,
+        })
+      ),
+    track: publicProcedure
+      .input(advisorAnalyticsTrackInputSchema)
+      .handler(async ({ context, input }) => {
+        const owner = getAdvisorSubject(context, input.visitorCapability);
+        const session = await getOwnedAdvisorSession({
+          database: context.db,
+          owner,
+          sessionId: input.sessionId,
+        });
+        await recordAdvisorAnalyticsEventBestEffort({
+          database: context.db,
+          eventType: input.eventType,
+          metadata: input.metadata,
+          sessionId: session.id,
+          userId: owner.userId,
+        });
+        return { recorded: true };
+      }),
+  },
   consent: advisorConsentRouter,
+  feedback: {
+    attachmentUrl: adminProcedure
+      .input(advisorFeedbackAttachmentInputSchema)
+      .handler(({ context, input }) =>
+        getAdvisorFeedbackAttachmentUrl({
+          adminUserId: context.session.user.id,
+          attachmentId: input.attachmentId,
+          audit: context.audit,
+          database: context.db,
+          feedbackId: input.feedbackId,
+        })
+      ),
+    detail: adminProcedure
+      .input(advisorFeedbackDetailInputSchema)
+      .handler(({ context, input }) =>
+        getAdvisorFeedback({
+          adminUserId: context.session.user.id,
+          audit: context.audit,
+          database: context.db,
+          feedbackId: input.feedbackId,
+        })
+      ),
+    list: adminProcedure
+      .input(advisorFeedbackListInputSchema)
+      .handler(({ context, input }) =>
+        listAdvisorFeedback({ database: context.db, input })
+      ),
+    submit: publicProcedure
+      .input(advisorFeedbackSubmitInputSchema)
+      .handler(({ context, input }) =>
+        submitAdvisorFeedback({
+          database: context.db,
+          input,
+          owner: getAdvisorSubject(context, input.visitorCapability),
+        })
+      ),
+  },
   handoff: {
     confirm: publicProcedure
       .input(advisorHandoffConfirmationInputSchema)

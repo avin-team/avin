@@ -20,6 +20,8 @@ export type TransactionType =
   | "WITHDRAWAL_PAID"
   | "WITHDRAWAL_REQUEST";
 export type EmailDeliveryStatus = "failed" | "pending" | "retrying" | "sent";
+export type AdvisorAnalyticsTimeframe = "7d" | "30d" | "90d";
+export type AdvisorFeedbackSentiment = "NEGATIVE" | "POSITIVE";
 
 interface OperationsPageInput {
   cursor?: string;
@@ -77,6 +79,41 @@ export const useOperationsOverviewAnalytics = (
       input: { timeframe },
     })
   );
+
+export const useAdvisorAnalyticsOverview = (
+  timeframe: AdvisorAnalyticsTimeframe = "30d",
+  enabled = true
+) =>
+  useQuery({
+    ...orpc.advisor.analytics.overview.queryOptions({
+      input: { timeframe },
+    }),
+    enabled,
+  });
+
+export const useAdvisorFeedbackList = (
+  sentiment?: AdvisorFeedbackSentiment,
+  enabled = true
+) =>
+  useQuery({
+    ...orpc.advisor.feedback.list.queryOptions({
+      input: { limit: 50, sentiment },
+    }),
+    enabled,
+  });
+
+export const useAdvisorFeedbackDetail = (
+  feedbackId: string | undefined,
+  enabled = true
+) =>
+  useQuery({
+    ...orpc.advisor.feedback.detail.queryOptions({
+      input: {
+        feedbackId: feedbackId ?? "00000000-0000-0000-0000-000000000000",
+      },
+    }),
+    enabled: enabled && Boolean(feedbackId),
+  });
 
 export const useReconcileDeposit = () => {
   const queryClient = useQueryClient();

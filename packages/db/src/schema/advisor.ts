@@ -399,3 +399,135 @@ export const advisorHandoffRelations = relations(advisorHandoff, ({ one }) => ({
     references: [advisorSession.id],
   }),
 }));
+
+export const advisorFeedbackSentiment = pgEnum("advisor_feedback_sentiment", [
+  "NEGATIVE",
+  "POSITIVE",
+]);
+
+export const advisorAnalyticsEventType = pgEnum(
+  "advisor_analytics_event_type",
+  [
+    "ANSWER_SUBMITTED",
+    "ATTACHMENT_ADDED",
+    "CHECKOUT_COMPLETED",
+    "FEEDBACK_SUBMITTED",
+    "LISTING_CLICKED",
+    "MODEL_REQUEST",
+    "NO_MATCH",
+    "RECOMMENDATION_CREATED",
+    "RECOMMENDATION_SELECTED",
+    "SESSION_ABANDONED",
+    "SESSION_STARTED",
+    "SUMMARY_COPIED",
+    "SUMMARY_CONFIRMED",
+    "TURN_COMPLETED",
+  ]
+);
+
+export const advisorAnalyticsRetention = pgEnum("advisor_analytics_retention", [
+  "AGGREGATE",
+  "TECHNICAL",
+]);
+
+export const advisorFeedback = pgTable(
+  "advisor_feedback",
+  {
+    attachmentConsentAt: timestamp("attachment_consent_at"),
+    attachmentIds: jsonb("attachment_ids")
+      .$type<string[]>()
+      .default([])
+      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    reason: text("reason"),
+    recommendationId: uuid("recommendation_id")
+      .notNull()
+      .references(() => advisorRecommendation.id, { onDelete: "cascade" }),
+    sentiment: advisorFeedbackSentiment("sentiment").notNull(),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => advisorSession.id, { onDelete: "cascade" }),
+    shareConversation: boolean("share_conversation").default(false).notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+    userId: text("user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    visitorCapabilityHash: text("visitor_capability_hash"),
+  },
+  (table) => [
+    uniqueIndex("advisor_feedback_session_recommendation_unique_idx").on(
+      table.sessionId,
+      table.recommendationId
+    ),
+    index("advisor_feedback_created_at_idx").on(table.createdAt),
+    index("advisor_feedback_sentiment_idx").on(table.sentiment),
+  ]
+);
+
+export const advisorAnalyticsEvent = pgTable(
+  "advisor_analytics_event",
+  {
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    eventType: advisorAnalyticsEventType("event_type").notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    metadata: jsonb("metadata")
+      .$type<Record<string, boolean | number | string | null>>()
+      .default({})
+      .notNull(),
+    retention: advisorAnalyticsRetention("retention")
+      .default("AGGREGATE")
+      .notNull(),
+    sessionId: uuid("session_id").references(() => advisorSession.id, {
+      onDelete: "set null",
+    }),
+    userId: text("user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+  },
+  (table) => [
+    index("advisor_analytics_event_type_created_at_idx").on(
+      table.eventType,
+      table.createdAt
+    ),
+    index("advisor_analytics_event_retention_created_at_idx").on(
+      table.retention,
+      table.createdAt
+    ),
+  ]
+);
+
+export const advisorFeedbackRelations = relations(
+  advisorFeedback,
+  ({ one }) => ({
+    recommendation: one(advisorRecommendation, {
+      fields: [advisorFeedback.recommendationId],
+      references: [advisorRecommendation.id],
+    }),
+    session: one(advisorSession, {
+      fields: [advisorFeedback.sessionId],
+      references: [advisorSession.id],
+    }),
+    user: one(user, {
+      fields: [advisorFeedback.userId],
+      references: [user.id],
+    }),
+  })
+);
+
+export const advisorAnalyticsEventRelations = relations(
+  advisorAnalyticsEvent,
+  ({ one }) => ({
+    session: one(advisorSession, {
+      fields: [advisorAnalyticsEvent.sessionId],
+      references: [advisorSession.id],
+    }),
+    user: one(user, {
+      fields: [advisorAnalyticsEvent.userId],
+      references: [user.id],
+    }),
+  })
+);

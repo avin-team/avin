@@ -2,6 +2,7 @@ import {
   advisorVisitorCapabilitySchema,
   hashVisitorCapability,
 } from "@avin/api/advisor/advisor";
+import { recordAdvisorAnalyticsEventBestEffort } from "@avin/api/advisor/analytics";
 import {
   createAdvisorAttachmentRecord,
   cleanupExpiredAdvisorAttachments,
@@ -177,6 +178,13 @@ export const createAdvisorAttachmentUploadApp = ({
         sessionId: session.id,
         storage,
         width: normalized.width,
+      });
+      await recordAdvisorAnalyticsEventBestEffort({
+        database,
+        eventType: "ATTACHMENT_ADDED",
+        metadata: { attachmentCount: 1 },
+        sessionId: session.id,
+        userId: owner.userId,
       });
       return context.json(
         {

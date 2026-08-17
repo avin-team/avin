@@ -213,7 +213,7 @@ describe("Advisor public session boundary", () => {
     );
 
     expect(result.response.kind).toBe("QUESTION");
-    expect(dbMock.insert).toHaveBeenCalledTimes(2);
+    expect(dbMock.insert).toHaveBeenCalledTimes(4);
     expect(dbMock.query).not.toHaveProperty("cart");
   });
 
@@ -273,7 +273,7 @@ describe("Advisor public session boundary", () => {
       `sessions/${SESSION_ID}/attachments/${attachmentId}.png`,
       "advisor-attachments"
     );
-    expect(dbMock.insert).toHaveBeenCalledTimes(2);
+    expect(dbMock.insert).toHaveBeenCalledTimes(4);
   });
 
   it("renews a Visitor session from the fixed activity clock", async () => {

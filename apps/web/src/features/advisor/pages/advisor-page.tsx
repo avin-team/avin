@@ -276,9 +276,11 @@ const ConversationMessage = ({
 );
 
 const RecommendationCard = ({
+  onListingClick,
   onSelect,
   recommendation,
 }: {
+  onListingClick: (listingId: string) => void;
   onSelect: (recommendationId: string, listingId: string) => void;
   recommendation: {
     id: string;
@@ -396,6 +398,7 @@ const RecommendationCard = ({
                 listing.listingPath,
                 listing.servicePackage?.id ?? null
               )}
+              onClick={() => onListingClick(listing.id)}
             >
               Xem Listing và chọn gói
             </a>
@@ -428,6 +431,7 @@ const AdvisorHandoffPanel = ({
   onAttachmentToggle,
   onConfirm,
   onIncludeSummaryChange,
+  onListingClick,
   onListingChange,
   onSummaryChange,
   pending,
@@ -441,6 +445,7 @@ const AdvisorHandoffPanel = ({
   onAttachmentToggle: (attachmentId: string) => void;
   onConfirm: () => void;
   onIncludeSummaryChange: (includeSummaryInCheckout: boolean) => void;
+  onListingClick: (listingId: string) => void;
   onListingChange: (listingId: string) => void;
   onSummaryChange: (summary: string) => void;
   pending: boolean;
@@ -496,6 +501,7 @@ const AdvisorHandoffPanel = ({
                     listing.servicePackage?.id ?? null
                   )}
                   key={`${listing.id}-link`}
+                  onClick={() => onListingClick(listing.id)}
                 >
                   Mở Listing detail
                   {listing.servicePackage
@@ -598,6 +604,169 @@ const AdvisorHandoffPanel = ({
   );
 };
 
+const AdvisorFeedbackPanel = ({
+  attachments,
+  onSubmitted,
+  recommendationId,
+  sessionId,
+  visitorCapability,
+}: {
+  attachments: AdvisorHandoffAttachment[];
+  onSubmitted: () => void;
+  recommendationId: string;
+  sessionId: string;
+  visitorCapability: string;
+}) => {
+  const [sentiment, setSentiment] = useState<"NEGATIVE" | "POSITIVE" | null>(
+    null
+  );
+  const [reason, setReason] = useState("");
+  const [includeConversation, setIncludeConversation] = useState(false);
+  const [attachmentsConsent, setAttachmentsConsent] = useState(false);
+  const [attachmentIds, setAttachmentIds] = useState<string[]>([]);
+  const selectedAttachmentIds = new Set(attachmentIds);
+  const feedbackMutation = useMutation(
+    orpc.advisor.feedback.submit.mutationOptions()
+  );
+
+  const toggleAttachment = (attachmentId: string): void => {
+    setAttachmentIds((current) =>
+      current.includes(attachmentId)
+        ? current.filter((id) => id !== attachmentId)
+        : [...current, attachmentId]
+    );
+  };
+
+  const submit = async (): Promise<void> => {
+    if (!sentiment) {
+      return;
+    }
+    try {
+      await feedbackMutation.mutateAsync({
+        attachmentIds,
+        attachmentsConsent,
+        includeConversation,
+        reason: reason.trim() || undefined,
+        recommendationId,
+        sentiment,
+        sessionId,
+        visitorCapability,
+      });
+      onSubmitted();
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Không thể gửi Advisor Feedback."
+      );
+    }
+  };
+
+  return (
+    <Card className="border-muted-foreground/20">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Đánh giá recommendation</CardTitle>
+        <CardDescription>
+          Feedback giúp cải thiện Advisor. Transcript và ảnh không được chia sẻ
+          với Admin nếu bạn không chọn riêng bên dưới.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap gap-2">
+          <Button
+            onClick={() => setSentiment("POSITIVE")}
+            type="button"
+            variant={sentiment === "POSITIVE" ? "default" : "outline"}
+          >
+            Hữu ích
+          </Button>
+          <Button
+            onClick={() => setSentiment("NEGATIVE")}
+            type="button"
+            variant={sentiment === "NEGATIVE" ? "default" : "outline"}
+          >
+            Chưa phù hợp
+          </Button>
+        </div>
+        <label
+          className="grid gap-2 text-sm font-medium"
+          htmlFor="advisor-feedback-reason"
+        >
+          Lý do (tuỳ chọn)
+          <textarea
+            className="min-h-20 resize-y rounded-lg border bg-background px-3 py-2 font-normal text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+            id="advisor-feedback-reason"
+            maxLength={500}
+            onChange={(event) => setReason(event.target.value)}
+            value={reason}
+          />
+        </label>
+        <label
+          className="flex items-start gap-3 text-sm"
+          htmlFor="advisor-feedback-conversation"
+        >
+          <input
+            checked={includeConversation}
+            className="mt-1 size-4 accent-primary"
+            id="advisor-feedback-conversation"
+            onChange={(event) => setIncludeConversation(event.target.checked)}
+            type="checkbox"
+          />
+          <span>
+            Cho phép Admin xem transcript của session này để điều tra Feedback.
+          </span>
+        </label>
+        {attachments.length > 0 ? (
+          <fieldset className="space-y-2 rounded-lg border p-3">
+            <legend className="px-1 font-medium text-sm">
+              Ảnh chia sẻ kèm Feedback (mặc định không chọn)
+            </legend>
+            {attachments.map((attachment) => (
+              <label
+                className="flex items-center gap-2 text-sm"
+                htmlFor={`feedback-attachment-${attachment.id}`}
+                key={attachment.id}
+              >
+                <input
+                  checked={selectedAttachmentIds.has(attachment.id)}
+                  className="size-4 accent-primary"
+                  id={`feedback-attachment-${attachment.id}`}
+                  onChange={() => toggleAttachment(attachment.id)}
+                  type="checkbox"
+                />
+                <span className="truncate">{attachment.fileName}</span>
+              </label>
+            ))}
+            <label
+              className="flex items-start gap-3 pt-1 text-xs"
+              htmlFor="advisor-feedback-attachments-consent"
+            >
+              <input
+                checked={attachmentsConsent}
+                className="mt-0.5 size-4 accent-primary"
+                disabled={attachmentIds.length === 0}
+                id="advisor-feedback-attachments-consent"
+                onChange={(event) =>
+                  setAttachmentsConsent(event.target.checked)
+                }
+                type="checkbox"
+              />
+              <span>Tôi đồng ý riêng cho việc chia sẻ các ảnh đã chọn.</span>
+            </label>
+          </fieldset>
+        ) : null}
+        <Button
+          disabled={feedbackMutation.isPending || !sentiment}
+          onClick={() => void submit()}
+          type="button"
+        >
+          {feedbackMutation.isPending ? "Đang gửi..." : "Gửi Feedback"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+};
+
 // AVIN-50 keeps consent, generation, retry, and retention controls together so
 // the resumable-session state machine remains explicit at the page boundary.
 // oxlint-disable-next-line complexity, react-doctor/prefer-useReducer
@@ -665,6 +834,9 @@ export const AdvisorPage = () => {
   );
   const confirmHandoffMutation = useMutation(
     orpc.advisor.handoff.confirm.mutationOptions()
+  );
+  const analyticsTrackMutation = useMutation(
+    orpc.advisor.analytics.track.mutationOptions()
   );
   const generationActive =
     turnMutation.isPending || sessionQuery.data?.generationStatus === "RUNNING";
@@ -1013,6 +1185,25 @@ export const AdvisorPage = () => {
     }
   };
 
+  const trackAnalytics = async (
+    eventType: "CHECKOUT_COMPLETED" | "LISTING_CLICKED" | "SESSION_ABANDONED",
+    metadata: { listingId?: string; recommendationId?: string } = {}
+  ): Promise<void> => {
+    if (!sessionId) {
+      return;
+    }
+    try {
+      await analyticsTrackMutation.mutateAsync({
+        eventType,
+        metadata,
+        sessionId,
+        visitorCapability: capability,
+      });
+    } catch {
+      // Analytics must never block Advisor interactions.
+    }
+  };
+
   const stopTurn = async (): Promise<void> => {
     if (!sessionId) {
       return;
@@ -1081,6 +1272,13 @@ export const AdvisorPage = () => {
     .find((message) => message.role === "ASSISTANT");
   const question = parseQuestion(latestAssistant?.metadata?.question);
   const browsePath = parseBrowsePath(latestAssistant?.metadata?.browsePath);
+  const feedbackRecommendation =
+    recommendations.find((recommendation) => recommendation.isCurrent) ??
+    recommendations[0];
+  const feedbackAttachments =
+    handoffSelection?.recommendationId === feedbackRecommendation?.id
+      ? handoffSelection.attachments
+      : [];
 
   if (!consentAccepted) {
     return (
@@ -1365,6 +1563,12 @@ export const AdvisorPage = () => {
             {recommendations.map((recommendation) => (
               <RecommendationCard
                 key={recommendation.id}
+                onListingClick={(listingId) => {
+                  void trackAnalytics("LISTING_CLICKED", {
+                    listingId,
+                    recommendationId: recommendation.id,
+                  });
+                }}
                 onSelect={(recommendationId, listingId) => {
                   void selectRecommendation(recommendationId, listingId);
                 }}
@@ -1399,6 +1603,12 @@ export const AdvisorPage = () => {
                 current ? { ...current, includeSummaryInCheckout } : current
               );
             }}
+            onListingClick={(listingId) => {
+              void trackAnalytics("LISTING_CLICKED", {
+                listingId,
+                recommendationId: handoffSelection.recommendationId,
+              });
+            }}
             onListingChange={(nextListingId) => {
               setHandoffSelection((current) =>
                 current ? { ...current, listingId: nextListingId } : current
@@ -1416,6 +1626,18 @@ export const AdvisorPage = () => {
                 recommendation.id === handoffSelection.recommendationId
             )}
             summary={handoffSelection.summary}
+          />
+        ) : null}
+
+        {feedbackRecommendation ? (
+          <AdvisorFeedbackPanel
+            attachments={feedbackAttachments}
+            onSubmitted={() => {
+              toast.success("Đã ghi nhận Advisor Feedback.");
+            }}
+            recommendationId={feedbackRecommendation.id}
+            sessionId={sessionId}
+            visitorCapability={capability}
           />
         ) : null}
       </div>

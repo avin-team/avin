@@ -601,6 +601,9 @@ export const CartPage = () => {
   const advisorCopyAttachmentsMutation = useMutation(
     orpc.advisor.handoff.copyAttachments.mutationOptions()
   );
+  const advisorAnalyticsTrackMutation = useMutation(
+    orpc.advisor.analytics.track.mutationOptions()
+  );
 
   const cart = cartQuery.data;
   const items = useMemo(() => cart?.items ?? EMPTY_CART_ITEMS, [cart?.items]);
@@ -661,6 +664,20 @@ export const CartPage = () => {
       });
       checkoutDescriptionsRef.current.clear();
       checkoutAttachmentBusyRef.current.clear();
+      if (
+        advisorHandoffDraft &&
+        selectedItems.some(
+          (item) => item.listing.id === advisorHandoffDraft.listingId
+        )
+      ) {
+        advisorAnalyticsTrackMutation.mutate({
+          eventType: "CHECKOUT_COMPLETED",
+          metadata: {
+            recommendationId: advisorHandoffDraft.recommendationId,
+          },
+          sessionId: advisorHandoffDraft.sessionId,
+        });
+      }
       if (
         advisorHandoffDraft &&
         selectedItems.some(

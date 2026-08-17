@@ -19,6 +19,7 @@ import {
   advisorVisitorCapabilitySchema,
   revalidateAdvisorRecommendation,
 } from "./advisor";
+import { recordAdvisorAnalyticsEventBestEffort } from "./analytics";
 import { getOwnedAdvisorSession } from "./attachments";
 
 type AdvisorDatabase = Context["db"];
@@ -253,6 +254,13 @@ export const selectAdvisorRecommendation = async ({
       message: "Advisor handoff could not be created.",
     });
   }
+  await recordAdvisorAnalyticsEventBestEffort({
+    database,
+    eventType: "RECOMMENDATION_SELECTED",
+    metadata: { recommendationId },
+    sessionId,
+    userId: owner.userId,
+  });
   const attachments = await database.query.advisorAttachment.findMany({
     where: and(
       eq(advisorAttachment.sessionId, sessionId),
@@ -326,6 +334,16 @@ export const confirmAdvisorHandoff = async ({
       message: "Advisor handoff changed before confirmation.",
     });
   }
+  await recordAdvisorAnalyticsEventBestEffort({
+    database,
+    eventType: "SUMMARY_CONFIRMED",
+    metadata: {
+      attachmentCount: attachmentIds.length,
+      recommendationId: updated.recommendationId,
+    },
+    sessionId,
+    userId: owner.userId,
+  });
   return {
     attachments: attachments.map(toAttachmentView),
     confirmedAt: now.toISOString(),
@@ -433,6 +451,16 @@ export const copyAdvisorHandoffAttachmentsToCheckout = async ({
       })
     );
   }
+  await recordAdvisorAnalyticsEventBestEffort({
+    database,
+    eventType: "SUMMARY_COPIED",
+    metadata: {
+      attachmentCount: copied.length,
+      recommendationId: handoff.recommendationId,
+    },
+    sessionId,
+    userId: buyerId,
+  });
   return {
     attachments: copied,
     includeSummaryInCheckout: handoff.includeSummaryInCheckout,

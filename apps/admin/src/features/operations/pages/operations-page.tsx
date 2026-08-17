@@ -31,15 +31,20 @@ import {
   TabsTrigger,
 } from "@avin/ui/components/tabs";
 import { ActivityIcon, ArrowClockwiseIcon } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { Header } from "@/components/layout/header";
 import { Main } from "@/components/layout/main";
 import { ThemeSwitch } from "@/components/theme-switch";
+import { orpc } from "@/lib/orpc";
 
 import {
   useOperationsAuditLog,
+  useAdvisorAnalyticsOverview,
+  useAdvisorFeedbackDetail,
+  useAdvisorFeedbackList,
   useOperationsEmailDelivery,
   useOperationsReconciliation,
   useOperationsTransactions,
@@ -48,6 +53,7 @@ import {
 } from "../api/operations-api";
 import type {
   EmailDeliveryStatus,
+  AdvisorAnalyticsTimeframe,
   ReconciliationStatus,
   TransactionType,
 } from "../api/operations-api";
@@ -145,6 +151,362 @@ const QueryState = ({
     );
   }
   return null;
+};
+
+const formatPercent = (value: number): string => `${(value * 100).toFixed(1)}%`;
+
+const AdvisorFeedbackAttachmentLink = ({
+  attachmentId,
+  feedbackId,
+}: {
+  attachmentId: string;
+  feedbackId: string;
+}) => {
+  const query = useQuery(
+    orpc.advisor.feedback.attachmentUrl.queryOptions({
+      input: { attachmentId, feedbackId },
+    })
+  );
+  if (query.isPending) {
+    return (
+      <span className="text-muted-foreground text-xs">Đang tạo link…</span>
+    );
+  }
+  if (query.isError || !query.data?.url) {
+    return <span className="text-destructive text-xs">Không mở được ảnh</span>;
+  }
+  return (
+    <a
+      className="text-primary text-sm underline-offset-4 hover:underline"
+      href={query.data.url}
+      rel="noopener"
+      target="_blank"
+    >
+      Mở ảnh đã consent
+    </a>
+  );
+};
+
+interface AdvisorAnalyticsDay {
+  checkouts: number;
+  date: string;
+  noMatches: number;
+  recommendations: number;
+  sessions: number;
+}
+
+interface AdvisorFeedbackListItem {
+  attachmentCount: number;
+  feedbackId: string;
+  includeConversation: boolean;
+  reason: string | null;
+  sentiment: "NEGATIVE" | "POSITIVE";
+}
+
+interface AdvisorAnalyticsSummary {
+  conversion: {
+    checkoutRate: number;
+    recommendationRate: number;
+  };
+  feedback: { total: number };
+  noMatches: number;
+  recommendations: number;
+  sessions: number;
+  technicalRequests: number;
+  turns: number;
+}
+
+const getAdvisorMetrics = (overview: AdvisorAnalyticsSummary | undefined) => [
+  { label: "Sessions", value: overview?.sessions ?? 0 },
+  { label: "Turns completed", value: overview?.turns ?? 0 },
+  { label: "Recommendations", value: overview?.recommendations ?? 0 },
+  { label: "No-match", value: overview?.noMatches ?? 0 },
+  {
+    isPercent: true,
+    label: "Checkout",
+    value: overview?.conversion.checkoutRate ?? 0,
+  },
+  {
+    isPercent: true,
+    label: "Recommendation rate",
+    value: overview?.conversion.recommendationRate ?? 0,
+  },
+  { label: "Feedback", value: overview?.feedback.total ?? 0 },
+  { label: "Technical requests", value: overview?.technicalRequests ?? 0 },
+];
+
+const AdvisorMetricGrid = ({
+  metrics,
+}: {
+  metrics: { isPercent?: boolean; label: string; value: number }[];
+}) => (
+  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    {metrics.map(({ isPercent, label, value }) => (
+      <div className="rounded-lg border p-3" key={label}>
+        <p className="text-muted-foreground text-xs">{label}</p>
+        <p className="mt-1 font-semibold text-2xl">
+          {isPercent ? formatPercent(value) : value}
+        </p>
+      </div>
+    ))}
+  </div>
+);
+
+const AdvisorTrendTable = ({ days }: { days: AdvisorAnalyticsDay[] }) => (
+  <div className="overflow-x-auto rounded-lg border">
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Ngày</TableHead>
+          <TableHead>Sessions</TableHead>
+          <TableHead>Recommendations</TableHead>
+          <TableHead>No-match</TableHead>
+          <TableHead>Checkout</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {days
+          .toReversed()
+          .slice(0, 14)
+          .map((day) => (
+            <TableRow key={day.date}>
+              <TableCell>{day.date}</TableCell>
+              <TableCell>{day.sessions}</TableCell>
+              <TableCell>{day.recommendations}</TableCell>
+              <TableCell>{day.noMatches}</TableCell>
+              <TableCell>{day.checkouts}</TableCell>
+            </TableRow>
+          ))}
+      </TableBody>
+    </Table>
+  </div>
+);
+
+const AdvisorFeedbackTable = ({
+  items,
+  selectedFeedbackId,
+  onSelect,
+}: {
+  items: AdvisorFeedbackListItem[];
+  onSelect: (feedbackId: string) => void;
+  selectedFeedbackId: string | undefined;
+}) => (
+  <div className="overflow-x-auto rounded-lg border">
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Sentiment</TableHead>
+          <TableHead>Reason</TableHead>
+          <TableHead>Chia sẻ</TableHead>
+          <TableHead />
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {items.map((item) => (
+          <TableRow key={item.feedbackId}>
+            <TableCell>
+              <Badge
+                variant={
+                  item.sentiment === "POSITIVE" ? "secondary" : "destructive"
+                }
+              >
+                {item.sentiment}
+              </Badge>
+            </TableCell>
+            <TableCell className="max-w-52 truncate text-sm">
+              {item.reason ?? "—"}
+            </TableCell>
+            <TableCell className="text-xs">
+              {item.includeConversation ? "Transcript" : "Không"}
+              {item.attachmentCount > 0 ? ` · ${item.attachmentCount} ảnh` : ""}
+            </TableCell>
+            <TableCell className="text-end">
+              <Button
+                onClick={() => onSelect(item.feedbackId)}
+                size="sm"
+                variant={
+                  selectedFeedbackId === item.feedbackId ? "default" : "outline"
+                }
+              >
+                Xem đã chia sẻ
+              </Button>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  </div>
+);
+
+const AdvisorFeedbackDetailPanel = ({
+  feedbackId,
+}: {
+  feedbackId: string | undefined;
+}) => {
+  const detailQuery = useAdvisorFeedbackDetail(feedbackId);
+  if (!feedbackId) {
+    return (
+      <p className="text-muted-foreground text-sm">
+        Chọn một Feedback để xem phần người tham gia đã consent.
+      </p>
+    );
+  }
+  if (detailQuery.isPending) {
+    return (
+      <p className="text-muted-foreground text-sm">
+        Đang tải nội dung đã chia sẻ…
+      </p>
+    );
+  }
+  if (detailQuery.isError || !detailQuery.data) {
+    return (
+      <div className="space-y-2 text-sm text-destructive">
+        <p>Không thể tải Feedback.</p>
+        <Button
+          onClick={() => void detailQuery.refetch()}
+          size="sm"
+          variant="outline"
+        >
+          Thử lại
+        </Button>
+      </div>
+    );
+  }
+  const detail = detailQuery.data;
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="font-medium">{detail.sentiment}</p>
+        <p className="text-muted-foreground text-sm">
+          {detail.reason ?? "Không có lý do bổ sung."}
+        </p>
+      </div>
+      {detail.conversation ? (
+        <div className="space-y-2">
+          <p className="font-medium text-sm">Transcript đã consent</p>
+          <ol className="max-h-64 space-y-2 overflow-y-auto rounded-lg bg-muted/30 p-3">
+            {detail.conversation.map((message) => (
+              <li className="text-sm" key={message.id}>
+                <span className="font-medium">{message.role}: </span>
+                {message.text}
+              </li>
+            ))}
+          </ol>
+        </div>
+      ) : (
+        <p className="text-muted-foreground text-sm">
+          Participant không consent transcript; phần này vẫn ẩn.
+        </p>
+      )}
+      {detail.attachments.length > 0 ? (
+        <div className="space-y-2">
+          <p className="font-medium text-sm">Ảnh đã consent</p>
+          <ul className="space-y-2">
+            {detail.attachments.map((attachment) => (
+              <li
+                className="flex items-center justify-between gap-3 text-sm"
+                key={attachment.id}
+              >
+                <span className="truncate">{attachment.fileName}</span>
+                <AdvisorFeedbackAttachmentLink
+                  attachmentId={attachment.id}
+                  feedbackId={detail.feedbackId}
+                />
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
+const AdvisorTimeframeButtons = ({
+  onChange,
+  value,
+}: {
+  onChange: (value: AdvisorAnalyticsTimeframe) => void;
+  value: AdvisorAnalyticsTimeframe;
+}) => (
+  <div className="flex items-center gap-1.5 rounded-lg border bg-muted/40 p-1">
+    {(["7d", "30d", "90d"] as const).map((option) => (
+      <Button
+        className="text-xs"
+        key={option}
+        onClick={() => onChange(option)}
+        size="xs"
+        variant={value === option ? "default" : "ghost"}
+      >
+        {option}
+      </Button>
+    ))}
+  </div>
+);
+
+const AdvisorAnalyticsPanel = ({ enabled }: { enabled: boolean }) => {
+  const [timeframe, setTimeframe] = useState<AdvisorAnalyticsTimeframe>("30d");
+  const [selectedFeedbackId, setSelectedFeedbackId] = useState<string>();
+  const analyticsQuery = useAdvisorAnalyticsOverview(timeframe, enabled);
+  const feedbackQuery = useAdvisorFeedbackList(undefined, enabled);
+  const overview = analyticsQuery.data;
+  const metrics = getAdvisorMetrics(overview);
+  const days = overview?.days ?? [];
+  const feedbackItems = feedbackQuery.data ?? [];
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <CardTitle>Service Advisor analytics</CardTitle>
+            <CardDescription>
+              Funnel và usage content-free; không có transcript browser mặc
+              định.
+            </CardDescription>
+          </div>
+          <AdvisorTimeframeButtons onChange={setTimeframe} value={timeframe} />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <QueryState
+            isError={analyticsQuery.isError}
+            isPending={analyticsQuery.isPending}
+            label="Advisor analytics"
+            onRetry={() => void analyticsQuery.refetch()}
+          />
+          <AdvisorMetricGrid metrics={metrics} />
+          <AdvisorTrendTable days={days} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Advisor Feedback</CardTitle>
+          <CardDescription>
+            Chỉ bản ghi người tham gia đã gửi. Nội dung chia sẻ được tải riêng
+            và audit khi Admin mở.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <div>
+            <QueryState
+              isError={feedbackQuery.isError}
+              isPending={feedbackQuery.isPending}
+              label="Advisor Feedback"
+              onRetry={() => void feedbackQuery.refetch()}
+            />
+            <AdvisorFeedbackTable
+              items={feedbackItems}
+              onSelect={setSelectedFeedbackId}
+              selectedFeedbackId={selectedFeedbackId}
+            />
+          </div>
+          <div className="rounded-lg border p-4">
+            <AdvisorFeedbackDetailPanel feedbackId={selectedFeedbackId} />
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 };
 
 export const OperationsPage = () => {
@@ -245,13 +607,14 @@ export const OperationsPage = () => {
         </div>
 
         <Tabs onValueChange={setTab} value={tab}>
-          <TabsList className="grid h-auto w-full grid-cols-2 lg:grid-cols-4">
+          <TabsList className="grid h-auto w-full grid-cols-2 lg:grid-cols-5">
             <TabsTrigger value="reconciliation">
               Deposit reconciliation
             </TabsTrigger>
             <TabsTrigger value="transactions">Transactions</TabsTrigger>
             <TabsTrigger value="audit">Audit log</TabsTrigger>
             <TabsTrigger value="email">Email health</TabsTrigger>
+            <TabsTrigger value="advisor">Advisor</TabsTrigger>
           </TabsList>
 
           <TabsContent value="reconciliation">
@@ -653,6 +1016,10 @@ export const OperationsPage = () => {
                 ) : null}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="advisor">
+            <AdvisorAnalyticsPanel enabled={tab === "advisor"} />
           </TabsContent>
         </Tabs>
       </Main>

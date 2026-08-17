@@ -1,4 +1,5 @@
 import { cleanupExpiredAdvisorSessions } from "@avin/api/advisor/advisor";
+import { cleanupAdvisorAnalyticsEvents } from "@avin/api/advisor/analytics";
 import { db } from "@avin/db";
 
 import { createListingImageStorage } from "../uploads/storage";
@@ -13,6 +14,11 @@ export const runAdvisorSessionMaintenance = async (
     await cleanupExpiredAdvisorSessions({ database: db, now, storage });
   } catch (error) {
     console.error("Advisor session maintenance failed", error);
+  }
+  try {
+    await cleanupAdvisorAnalyticsEvents({ database: db, now });
+  } catch (error) {
+    console.error("Advisor analytics maintenance failed", error);
   }
 };
 
