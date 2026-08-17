@@ -239,6 +239,13 @@
       "when": 1786990057295,
       "tag": "0033_groovy_mordo",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1786991195163,
+      "tag": "0034_blushing_archangel",
+      "breakpoints": true
     }
   ]
 }

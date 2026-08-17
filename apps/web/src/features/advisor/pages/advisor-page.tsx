@@ -19,6 +19,8 @@ const CAPABILITY_STORAGE_KEY = "avin.advisor.capability";
 const SESSION_STORAGE_KEY = "avin.advisor.session";
 const CONSENT_STORAGE_KEY = "avin.advisor.consent";
 const EMPTY_UUID = "00000000-0000-4000-8000-000000000000";
+type AdvisorIdempotencyKey =
+  `${string}-${string}-${string}-${string}-${string}`;
 
 const createCapability = (): string => {
   const random = globalThis.crypto?.randomUUID;
@@ -48,6 +50,14 @@ const getStoredValue = (key: string): string | null => {
 const setStoredValue = (key: string, value: string): void => {
   try {
     window.localStorage.setItem(key, value);
+  } catch {
+    // Private browsing can deny localStorage; the active page can still work.
+  }
+};
+
+const removeStoredValue = (key: string): void => {
+  try {
+    window.localStorage.removeItem(key);
   } catch {
     // Private browsing can deny localStorage; the active page can still work.
   }
@@ -287,6 +297,9 @@ const RecommendationCard = ({
   </Card>
 );
 
+// AVIN-50 keeps consent, generation, retry, and retention controls together so
+// the resumable-session state machine remains explicit at the page boundary.
+// oxlint-disable-next-line complexity
 export const AdvisorPage = () => {
   const capability = useMemo(() => {
     const stored = getStoredValue(CAPABILITY_STORAGE_KEY);
@@ -306,8 +319,12 @@ export const AdvisorPage = () => {
     )
   );
   const [consentChecked, setConsentChecked] = useState(false);
+  const [deleteRequested, setDeleteRequested] = useState(false);
   const [text, setText] = useState("");
-  const [retryText, setRetryText] = useState<string | null>(null);
+  const [retryRequest, setRetryRequest] = useState<{
+    idempotencyKey: AdvisorIdempotencyKey;
+    text: string;
+  } | null>(null);
   const queryClient = useQueryClient();
 
   const sessionQuery = useQuery({
@@ -326,6 +343,13 @@ export const AdvisorPage = () => {
     orpc.advisor.session.create.mutationOptions()
   );
   const turnMutation = useMutation(orpc.advisor.session.turn.mutationOptions());
+  const linkMutation = useMutation(orpc.advisor.session.link.mutationOptions());
+  const stopMutation = useMutation(orpc.advisor.session.stop.mutationOptions());
+  const deleteMutation = useMutation(
+    orpc.advisor.session.delete.mutationOptions()
+  );
+  const generationActive =
+    turnMutation.isPending || sessionQuery.data?.generationStatus === "RUNNING";
 
   const startSession = async (): Promise<void> => {
     try {
@@ -348,16 +372,19 @@ export const AdvisorPage = () => {
     }
   };
 
-  const sendTurn = async (value: string): Promise<void> => {
+  const sendTurn = async (
+    value: string,
+    idempotencyKey: AdvisorIdempotencyKey = crypto.randomUUID()
+  ): Promise<void> => {
     const trimmed = value.trim();
-    if (!trimmed || !sessionId || turnMutation.isPending) {
+    if (!trimmed || !sessionId || generationActive || stopMutation.isPending) {
       return;
     }
-    setRetryText(null);
+    setRetryRequest(null);
     setText("");
     try {
       await turnMutation.mutateAsync({
-        idempotencyKey: crypto.randomUUID(),
+        idempotencyKey,
         sessionId,
         text: trimmed,
         visitorCapability: capability,
@@ -368,11 +395,82 @@ export const AdvisorPage = () => {
         }).queryKey,
       });
     } catch (error) {
-      setRetryText(trimmed);
+      setRetryRequest({ idempotencyKey, text: trimmed });
       toast.error(
         error instanceof Error
           ? error.message
           : "Không thể hoàn tất lượt tư vấn."
+      );
+    }
+  };
+
+  const linkSession = async (): Promise<void> => {
+    if (!sessionId) {
+      return;
+    }
+    try {
+      await linkMutation.mutateAsync({
+        sessionId,
+        visitorCapability: capability,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: orpc.advisor.session.get.queryOptions({
+          input: { sessionId, visitorCapability: capability },
+        }).queryKey,
+      });
+      toast.success("Đã liên kết Advisor session với tài khoản hiện tại.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Không thể liên kết Advisor session."
+      );
+    }
+  };
+
+  const stopTurn = async (): Promise<void> => {
+    if (!sessionId) {
+      return;
+    }
+    try {
+      await stopMutation.mutateAsync({
+        sessionId,
+        visitorCapability: capability,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: orpc.advisor.session.get.queryOptions({
+          input: { sessionId, visitorCapability: capability },
+        }).queryKey,
+      });
+      toast.success("Đã yêu cầu dừng lượt tư vấn.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Không thể dừng lượt tư vấn."
+      );
+    }
+  };
+
+  const deleteSession = async (): Promise<void> => {
+    if (!sessionId) {
+      return;
+    }
+    try {
+      await deleteMutation.mutateAsync({
+        sessionId,
+        visitorCapability: capability,
+      });
+      removeStoredValue(CONSENT_STORAGE_KEY);
+      removeStoredValue(SESSION_STORAGE_KEY);
+      setSessionId("");
+      setConsentAccepted(false);
+      setConsentChecked(false);
+      setDeleteRequested(false);
+      toast.success("Advisor session đã được xóa.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Không thể xóa Advisor session."
       );
     }
   };
@@ -402,15 +500,45 @@ export const AdvisorPage = () => {
   return (
     <Shell className="min-h-[calc(100vh-12rem)]" variant="default">
       <div className="mx-auto w-full max-w-5xl space-y-5 py-6 sm:py-10">
-        <header className="space-y-2">
-          <p className="font-semibold text-primary text-sm">Service Advisor</p>
-          <h1 className="font-black text-3xl tracking-tight sm:text-4xl">
-            Tìm đúng dịch vụ từ nhu cầu của bạn
-          </h1>
-          <p className="max-w-3xl text-muted-foreground">
-            Viết bằng tiếng Việt, English hoặc trộn cả hai. Advisor sẽ hỏi từng
-            câu một và chỉ gợi ý các Listing SERVICE đang có thể mua.
-          </p>
+        <header className="flex flex-wrap items-end justify-between gap-4">
+          <div className="space-y-2">
+            <p className="font-semibold text-primary text-sm">
+              Service Advisor
+            </p>
+            <h1 className="font-black text-3xl tracking-tight sm:text-4xl">
+              Tìm đúng dịch vụ từ nhu cầu của bạn
+            </h1>
+            <p className="max-w-3xl text-muted-foreground">
+              Viết bằng tiếng Việt, English hoặc trộn cả hai. Advisor sẽ hỏi
+              từng câu một và chỉ gợi ý các Listing SERVICE đang có thể mua.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              disabled={linkMutation.isPending || deleteMutation.isPending}
+              onClick={() => void linkSession()}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              Liên kết tài khoản
+            </Button>
+            <Button
+              disabled={linkMutation.isPending || deleteMutation.isPending}
+              onClick={() => {
+                if (!deleteRequested) {
+                  setDeleteRequested(true);
+                  return;
+                }
+                void deleteSession();
+              }}
+              size="sm"
+              type="button"
+              variant="ghost"
+            >
+              {deleteRequested ? "Bấm lại để xác nhận xóa" : "Xóa phiên"}
+            </Button>
+          </div>
         </header>
 
         {sessionQuery.isError ? (
@@ -443,9 +571,20 @@ export const AdvisorPage = () => {
                   />
                 ))
               )}
-              {turnMutation.isPending ? (
-                <output className="text-muted-foreground text-sm">
-                  Advisor đang kiểm tra Playbook và catalog công khai...
+              {generationActive ? (
+                <output className="flex items-center justify-between gap-3 text-muted-foreground text-sm">
+                  <span>
+                    Advisor đang kiểm tra Playbook và catalog công khai...
+                  </span>
+                  <Button
+                    disabled={stopMutation.isPending}
+                    onClick={() => void stopTurn()}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    {stopMutation.isPending ? "Đang dừng..." : "Dừng"}
+                  </Button>
                 </output>
               ) : null}
             </div>
@@ -484,28 +623,35 @@ export const AdvisorPage = () => {
               <textarea
                 aria-label="Mô tả Service Need"
                 className="min-h-12 flex-1 resize-y rounded-lg border bg-background px-3 py-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
-                disabled={turnMutation.isPending}
+                disabled={generationActive || stopMutation.isPending}
                 id="advisor-message"
                 onChange={(event) => setText(event.target.value)}
                 placeholder="Ví dụ: Tôi cần setup account cho website cá nhân..."
                 value={text}
               />
               <Button
-                disabled={!text.trim() || turnMutation.isPending}
+                disabled={
+                  !text.trim() || generationActive || stopMutation.isPending
+                }
                 type="submit"
               >
                 Gửi
               </Button>
             </form>
 
-            {retryText ? (
+            {retryRequest ? (
               <div
                 className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm"
                 role="alert"
               >
                 <span>Lượt tư vấn chưa hoàn tất; chưa tạo recommendation.</span>
                 <Button
-                  onClick={() => void sendTurn(retryText)}
+                  onClick={() =>
+                    void sendTurn(
+                      retryRequest.text,
+                      retryRequest.idempotencyKey
+                    )
+                  }
                   size="sm"
                   type="button"
                   variant="outline"

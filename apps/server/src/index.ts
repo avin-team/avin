@@ -26,6 +26,7 @@ import {
   createAdvisorProviderRepository,
   fingerprintAdvisorApiKey,
 } from "./advisor-provider-config";
+import { startAdvisorSessionMaintenanceSchedule } from "./jobs/advisor-session-maintenance";
 import { startEmailDeliverySchedule } from "./jobs/email-delivery";
 import { startFulfillmentMaintenanceSchedule } from "./jobs/fulfillment-maintenance";
 import { startOrderChatAttachmentMaintenanceSchedule } from "./jobs/order-chat-attachment-maintenance";
@@ -264,4 +265,5 @@ export default app;
 startSePayReconciliationSchedule();
 startFulfillmentMaintenanceSchedule();
 startOrderChatAttachmentMaintenanceSchedule();
+startAdvisorSessionMaintenanceSchedule();
 startEmailDeliverySchedule();

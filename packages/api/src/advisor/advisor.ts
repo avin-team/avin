@@ -1,10 +1,9 @@
 import { createHash } from "node:crypto";
 
-import type { advisorSession } from "@avin/db/schema/advisor";
-import { advisorPlaybook } from "@avin/db/schema/advisor";
+import { advisorPlaybook, advisorSession } from "@avin/db/schema/advisor";
 import { listing, servicePackage } from "@avin/db/schema/catalog";
 import { ORPCError } from "@orpc/server";
-import { and, eq } from "drizzle-orm";
+import { and, eq, lte } from "drizzle-orm";
 import { z } from "zod";
 
 import { sellerIsNotEnforcedCondition } from "../listing/listing-discovery";
@@ -111,7 +110,7 @@ export const advisorRecommendationPayloadSchema = z.strictObject({
 
 export const advisorTurnResponseSchema = z.strictObject({
   completed: z.boolean(),
-  kind: z.enum(["QUESTION", "RECOMMENDATION", "NO_MATCH"]),
+  kind: z.enum(["QUESTION", "RECOMMENDATION", "NO_MATCH", "STOPPED"]),
   message: z.string().trim().min(1).max(2000),
   question: advisorQuestionSchema.nullable(),
   recommendation: advisorRecommendationPayloadSchema.nullable(),
@@ -185,7 +184,7 @@ const includesKeyword = (text: string, keyword: string): boolean => {
   return normalizedKeyword.length > 0 && text.includes(normalizedKeyword);
 };
 
-const hashVisitorCapability = (capability: string): string =>
+export const hashVisitorCapability = (capability: string): string =>
   createHash("sha256").update(capability).digest("hex");
 
 export const getAdvisorSubject = (
@@ -237,6 +236,43 @@ export const getAdvisorSessionExpiry = (
     );
   }
   return expiry;
+};
+
+const ADVISOR_SESSION_CLEANUP_LIMIT = 100;
+
+export interface CleanupExpiredAdvisorSessionsOptions {
+  database: AdvisorDatabase;
+  limit?: number;
+  now?: Date;
+}
+
+export const cleanupExpiredAdvisorSessions = async ({
+  database,
+  limit = ADVISOR_SESSION_CLEANUP_LIMIT,
+  now = new Date(),
+}: CleanupExpiredAdvisorSessionsOptions): Promise<number> => {
+  const expiredSessions = await database.query.advisorSession.findMany({
+    columns: { id: true },
+    limit,
+    where: lte(advisorSession.expiresAt, now),
+  });
+
+  const deletedCounts = await Promise.all(
+    expiredSessions.map(async (session) => {
+      const [deleted] = await database
+        .delete(advisorSession)
+        .where(
+          and(
+            eq(advisorSession.id, session.id),
+            lte(advisorSession.expiresAt, now)
+          )
+        )
+        .returning({ id: advisorSession.id });
+      return deleted ? 1 : 0;
+    })
+  );
+
+  return deletedCounts.reduce<number>((total, count) => total + count, 0);
 };
 
 const parsePlaybookContent = (

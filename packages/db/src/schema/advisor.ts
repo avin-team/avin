@@ -118,6 +118,13 @@ export const advisorSessionStatus = pgEnum("advisor_session_status", [
   "DELETED",
 ]);
 
+export const advisorGenerationStatus = pgEnum("advisor_generation_status", [
+  "IDLE",
+  "RUNNING",
+  "STOPPED",
+  "FAILED",
+]);
+
 export const advisorConsent = pgTable(
   "advisor_consent",
   {
@@ -151,6 +158,10 @@ export const advisorSession = pgTable(
       .references(() => advisorConsent.id, { onDelete: "restrict" }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     expiresAt: timestamp("expires_at").notNull(),
+    generationStartedAt: timestamp("generation_started_at"),
+    generationStatus: advisorGenerationStatus("generation_status")
+      .default("IDLE")
+      .notNull(),
     id: uuid("id").defaultRandom().primaryKey(),
     lastIdempotencyKey: text("last_idempotency_key"),
     lastTurnResponse:
@@ -183,6 +194,7 @@ export const advisorSession = pgTable(
       table.status
     ),
     index("advisor_session_expires_at_idx").on(table.expiresAt),
+    index("advisor_session_generation_status_idx").on(table.generationStatus),
     index("advisor_session_pinned_playbook_idx").on(table.pinnedPlaybookId),
   ]
 );

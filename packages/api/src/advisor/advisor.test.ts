@@ -5,6 +5,7 @@ import {
   ADVISOR_USER_SESSION_DAYS,
   ADVISOR_VISITOR_SESSION_HOURS,
   advisorRecommendationPayloadSchema,
+  cleanupExpiredAdvisorSessions,
   getAdvisorSessionExpiry,
   orchestrateAdvisorTurn,
   parseAdvisorRecommendationWithRepair,
@@ -70,6 +71,8 @@ const session = (overrides: Partial<AdvisorSessionRecord> = {}) =>
     consentId: "00000000-0000-4000-8000-000000000005",
     createdAt: NOW,
     expiresAt: new Date("2026-08-19T00:00:00.000Z"),
+    generationStartedAt: null,
+    generationStatus: "IDLE" as const,
     id: "00000000-0000-4000-8000-000000000006",
     lastIdempotencyKey: null,
     lastTurnResponse: null,
@@ -198,5 +201,27 @@ describe("Advisor text-only orchestration", () => {
     expect(userExpiry.getTime() - NOW.getTime()).toBe(
       ADVISOR_USER_SESSION_DAYS * 24 * 60 * 60 * 1000
     );
+  });
+
+  it("reconciles expired sessions idempotently", async () => {
+    const findMany = vi
+      .fn()
+      .mockResolvedValueOnce([{ id: "expired-session" }])
+      .mockResolvedValueOnce([]);
+    const returning = vi.fn().mockResolvedValue([{ id: "expired-session" }]);
+    const cleanupDatabase = {
+      delete: vi.fn(() => ({
+        where: vi.fn(() => ({ returning })),
+      })),
+      query: { advisorSession: { findMany } },
+    } as unknown as Context["db"];
+
+    await expect(
+      cleanupExpiredAdvisorSessions({ database: cleanupDatabase, now: NOW })
+    ).resolves.toBe(1);
+    await expect(
+      cleanupExpiredAdvisorSessions({ database: cleanupDatabase, now: NOW })
+    ).resolves.toBe(0);
+    expect(cleanupDatabase.delete).toHaveBeenCalledTimes(1);
   });
 });

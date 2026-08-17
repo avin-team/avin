@@ -5,7 +5,7 @@ import {
   advisorSession,
 } from "@avin/db/schema/advisor";
 import { ORPCError } from "@orpc/server";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 
 import { publicProcedure } from "../access/procedures";
 import type { Context } from "../runtime/context";
@@ -19,6 +19,7 @@ import {
   buildAdvisorMessageInsert,
   getAdvisorSessionExpiry,
   getAdvisorSubject,
+  hashVisitorCapability,
   isAdvisorConsentOwnedBy,
   orchestrateAdvisorTurn,
 } from "./advisor";
@@ -53,12 +54,17 @@ const requireProviderReady = async (context: Context): Promise<void> => {
 const requireOwnedSession = async (
   context: Context,
   sessionId: string,
-  visitorCapability: string | undefined
+  visitorCapability: string | undefined,
+  { allowExpired = false }: { allowExpired?: boolean } = {}
 ) => {
   const session = await context.db.query.advisorSession.findFirst({
     where: eq(advisorSession.id, sessionId),
   });
-  if (!session || session.status === "DELETED") {
+  if (
+    !session ||
+    session.status === "DELETED" ||
+    (!allowExpired && session.status === "EXPIRED")
+  ) {
     throw new ORPCError("NOT_FOUND", {
       message: "Advisor session not found.",
     });
@@ -75,7 +81,7 @@ const requireOwnedSession = async (
     });
   }
 
-  if (session.expiresAt.getTime() <= Date.now()) {
+  if (!allowExpired && session.expiresAt.getTime() <= Date.now()) {
     await context.db
       .update(advisorSession)
       .set({ status: "EXPIRED", updatedAt: new Date() })
@@ -86,6 +92,28 @@ const requireOwnedSession = async (
   }
 
   return session;
+};
+
+const touchSession = async (
+  context: Context,
+  session: typeof advisorSession.$inferSelect,
+  now = new Date()
+) => {
+  const expiresAt = getAdvisorSessionExpiry(now, { userId: session.userId });
+  const [updated] = await context.db
+    .update(advisorSession)
+    .set({ expiresAt, updatedAt: now })
+    .where(eq(advisorSession.id, session.id))
+    .returning();
+  return updated ?? { ...session, expiresAt, updatedAt: now };
+};
+
+const stoppedTurnResponse = {
+  completed: false,
+  kind: "STOPPED" as const,
+  message: "Lượt tư vấn đã dừng và chưa tạo recommendation hoàn tất.",
+  question: null,
+  recommendation: null,
 };
 
 const containsLikelySecret = (text: string): boolean =>
@@ -142,6 +170,7 @@ const sessionOutput = async (context: Context, sessionId: string) => {
 
   return {
     expiresAt: session.expiresAt.toISOString(),
+    generationStatus: session.generationStatus,
     id: session.id,
     messages: messages.map(toMessage),
     pinnedPlaybookId: session.pinnedPlaybookId,
@@ -200,15 +229,136 @@ export const advisorSessionRouter = {
       };
     }),
 
+  delete: publicProcedure
+    .input(advisorSessionIdInputSchema)
+    .handler(async ({ context, input }) => {
+      const session = await requireOwnedSession(
+        context,
+        input.sessionId,
+        input.visitorCapability,
+        { allowExpired: true }
+      );
+      await context.db
+        .delete(advisorSession)
+        .where(eq(advisorSession.id, session.id));
+      return { deleted: true, id: session.id };
+    }),
+
   get: publicProcedure
     .input(advisorSessionIdInputSchema)
     .handler(async ({ context, input }) => {
-      await requireOwnedSession(
+      const session = await requireOwnedSession(
         context,
         input.sessionId,
         input.visitorCapability
       );
+      await touchSession(context, session);
       return sessionOutput(context, input.sessionId);
+    }),
+
+  link: publicProcedure
+    .input(advisorSessionIdInputSchema)
+    .handler(async ({ context, input }) => {
+      const userId = context.session?.user.id;
+      if (!userId) {
+        throw new ORPCError("UNAUTHORIZED", {
+          message: "Sign in before linking an Advisor session.",
+        });
+      }
+      if (!input.visitorCapability) {
+        throw new ORPCError("BAD_REQUEST", {
+          message: "The original Visitor capability is required to link.",
+        });
+      }
+
+      const session = await context.db.query.advisorSession.findFirst({
+        where: eq(advisorSession.id, input.sessionId),
+      });
+      if (
+        !session ||
+        session.status === "DELETED" ||
+        session.status === "EXPIRED"
+      ) {
+        throw new ORPCError("NOT_FOUND", {
+          message: "Advisor session not found.",
+        });
+      }
+      if (
+        session.userId ||
+        session.visitorCapabilityHash !==
+          hashVisitorCapability(input.visitorCapability)
+      ) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "You do not have access to link this Advisor session.",
+        });
+      }
+      if (session.expiresAt.getTime() <= Date.now()) {
+        throw new ORPCError("PRECONDITION_FAILED", {
+          message: "This Advisor session has expired and cannot be linked.",
+        });
+      }
+
+      const now = new Date();
+      const [linked] = await context.db
+        .update(advisorSession)
+        .set({
+          expiresAt: getAdvisorSessionExpiry(now, { userId }),
+          updatedAt: now,
+          userId,
+          visitorCapabilityHash: null,
+        })
+        .where(
+          and(
+            eq(advisorSession.id, session.id),
+            isNull(advisorSession.userId),
+            eq(
+              advisorSession.visitorCapabilityHash,
+              hashVisitorCapability(input.visitorCapability)
+            )
+          )
+        )
+        .returning({
+          expiresAt: advisorSession.expiresAt,
+          id: advisorSession.id,
+        });
+      if (!linked) {
+        throw new ORPCError("CONFLICT", {
+          message: "Advisor session changed before it could be linked.",
+        });
+      }
+
+      return {
+        expiresAt: linked.expiresAt.toISOString(),
+        id: linked.id,
+        linked: true,
+      };
+    }),
+
+  stop: publicProcedure
+    .input(advisorSessionIdInputSchema)
+    .handler(async ({ context, input }) => {
+      const session = await requireOwnedSession(
+        context,
+        input.sessionId,
+        input.visitorCapability
+      );
+      await touchSession(context, session);
+      const now = new Date();
+      const [stopped] = await context.db
+        .update(advisorSession)
+        .set({
+          generationStartedAt: null,
+          generationStatus: "STOPPED",
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(advisorSession.id, session.id),
+            eq(advisorSession.generationStatus, "RUNNING")
+          )
+        )
+        .returning({ id: advisorSession.id });
+      return { id: session.id, stopped: Boolean(stopped) };
     }),
 
   turn: publicProcedure
@@ -220,12 +370,12 @@ export const advisorSessionRouter = {
             "Không gửi password, OTP, access token, thông tin thanh toán hoặc khóa bí mật cho Advisor.",
         });
       }
-      const session = await requireOwnedSession(
+      const ownedSession = await requireOwnedSession(
         context,
         input.sessionId,
         input.visitorCapability
       );
-      await requireProviderReady(context);
+      const session = await touchSession(context, ownedSession);
 
       if (input.idempotencyKey === session.lastIdempotencyKey) {
         const previous = advisorTurnResponseSchema.safeParse(
@@ -235,77 +385,164 @@ export const advisorSessionRouter = {
           return { response: previous.data, sessionId: session.id };
         }
       }
+      await requireProviderReady(context);
 
-      const computation = await orchestrateAdvisorTurn({
-        database: context.db,
-        session,
-        text: input.text,
-      });
-      const response = advisorTurnResponseSchema.parse(computation.response);
       const now = new Date();
 
-      await context.db.transaction(async (transaction) => {
-        const userSequence = session.turnCount * 2 + 1;
-        if (response.kind === "RECOMMENDATION") {
-          await transaction
-            .update(advisorRecommendation)
-            .set({ isCurrent: false })
-            .where(
-              and(
-                eq(advisorRecommendation.sessionId, session.id),
-                eq(advisorRecommendation.isCurrent, true)
-              )
-            );
-        }
+      const [started] = await context.db
+        .update(advisorSession)
+        .set({
+          generationStartedAt: now,
+          generationStatus: "RUNNING",
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(advisorSession.id, session.id),
+            inArray(advisorSession.generationStatus, [
+              "IDLE",
+              "STOPPED",
+              "FAILED",
+            ])
+          )
+        )
+        .returning({ id: advisorSession.id });
+      if (!started) {
+        throw new ORPCError("PRECONDITION_FAILED", {
+          message: "Another Advisor turn is already active.",
+        });
+      }
 
-        await transaction.insert(advisorMessage).values(
-          buildAdvisorMessageInsert({
-            role: "USER",
-            sequence: userSequence,
-            sessionId: session.id,
-            text: input.text,
-          })
-        );
-        await transaction.insert(advisorMessage).values(
-          buildAdvisorMessageInsert({
-            response,
-            role: "ASSISTANT",
-            sequence: userSequence + 1,
-            sessionId: session.id,
-            text: response.message,
-          })
-        );
-
-        if (response.kind === "RECOMMENDATION" && response.recommendation) {
-          const playbookId =
-            computation.pinnedPlaybookId ?? session.pinnedPlaybookId;
-          if (!playbookId) {
-            throw new ORPCError("SERVICE_UNAVAILABLE", {
-              message: "Advisor recommendation is missing its Playbook pin.",
-            });
-          }
-          await transaction.insert(advisorRecommendation).values({
-            payload: response.recommendation,
-            playbookId,
-            sessionId: session.id,
-          });
-        }
-
-        await transaction
+      let computation;
+      try {
+        computation = await orchestrateAdvisorTurn({
+          database: context.db,
+          session,
+          text: input.text,
+        });
+      } catch (error) {
+        await context.db
           .update(advisorSession)
           .set({
-            answers: computation.answers,
-            lastIdempotencyKey: input.idempotencyKey,
-            lastTurnResponse: response,
-            pendingQuestionId: computation.pendingQuestionId,
-            pinnedPlaybookId: computation.pinnedPlaybookId,
-            pinnedSubCategoryId: computation.pinnedSubCategoryId,
-            serviceNeed: computation.serviceNeed,
-            turnCount: session.turnCount + 1,
-            updatedAt: now,
+            generationStartedAt: null,
+            generationStatus: "FAILED",
+            updatedAt: new Date(),
           })
-          .where(eq(advisorSession.id, session.id));
-      });
+          .where(
+            and(
+              eq(advisorSession.id, session.id),
+              eq(advisorSession.generationStatus, "RUNNING")
+            )
+          );
+        throw error;
+      }
+      let response: ReturnType<typeof advisorTurnResponseSchema.parse>;
+      try {
+        response = advisorTurnResponseSchema.parse(computation.response);
+        await context.db.transaction(async (transaction) => {
+          const [finalized] = await transaction
+            .update(advisorSession)
+            .set({
+              answers: computation.answers,
+              expiresAt: getAdvisorSessionExpiry(now, {
+                userId: session.userId,
+              }),
+              generationStartedAt: null,
+              generationStatus: "IDLE",
+              lastIdempotencyKey: input.idempotencyKey,
+              lastTurnResponse: response,
+              pendingQuestionId: computation.pendingQuestionId,
+              pinnedPlaybookId: computation.pinnedPlaybookId,
+              pinnedSubCategoryId: computation.pinnedSubCategoryId,
+              serviceNeed: computation.serviceNeed,
+              turnCount: session.turnCount + 1,
+              updatedAt: now,
+            })
+            .where(
+              and(
+                eq(advisorSession.id, session.id),
+                eq(advisorSession.generationStatus, "RUNNING")
+              )
+            )
+            .returning({ id: advisorSession.id });
+          if (!finalized) {
+            throw new ORPCError("PRECONDITION_FAILED", {
+              message: "Advisor turn was stopped before completion.",
+            });
+          }
+
+          const userSequence = session.turnCount * 2 + 1;
+          if (response.kind === "RECOMMENDATION") {
+            await transaction
+              .update(advisorRecommendation)
+              .set({ isCurrent: false })
+              .where(
+                and(
+                  eq(advisorRecommendation.sessionId, session.id),
+                  eq(advisorRecommendation.isCurrent, true)
+                )
+              );
+          }
+
+          await transaction.insert(advisorMessage).values(
+            buildAdvisorMessageInsert({
+              role: "USER",
+              sequence: userSequence,
+              sessionId: session.id,
+              text: input.text,
+            })
+          );
+          await transaction.insert(advisorMessage).values(
+            buildAdvisorMessageInsert({
+              response,
+              role: "ASSISTANT",
+              sequence: userSequence + 1,
+              sessionId: session.id,
+              text: response.message,
+            })
+          );
+
+          if (response.kind === "RECOMMENDATION" && response.recommendation) {
+            const playbookId =
+              computation.pinnedPlaybookId ?? session.pinnedPlaybookId;
+            if (!playbookId) {
+              throw new ORPCError("SERVICE_UNAVAILABLE", {
+                message: "Advisor recommendation is missing its Playbook pin.",
+              });
+            }
+            await transaction.insert(advisorRecommendation).values({
+              payload: response.recommendation,
+              playbookId,
+              sessionId: session.id,
+            });
+          }
+        });
+      } catch (error) {
+        await context.db
+          .update(advisorSession)
+          .set({
+            generationStartedAt: null,
+            generationStatus: "FAILED",
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(advisorSession.id, session.id),
+              eq(advisorSession.generationStatus, "RUNNING")
+            )
+          );
+        const latest = await context.db.query.advisorSession.findFirst({
+          where: eq(advisorSession.id, session.id),
+        });
+        if (latest?.generationStatus === "STOPPED") {
+          await context.db
+            .update(advisorSession)
+            .set({ generationStartedAt: null, generationStatus: "IDLE" })
+            .where(eq(advisorSession.id, session.id));
+          return { response: stoppedTurnResponse, sessionId: session.id };
+        }
+        throw error;
+      }
 
       return { response, sessionId: session.id };
     }),
