@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { advisorPlaybook, advisorSession } from "@avin/db/schema/advisor";
 import { listing, servicePackage, subCategory } from "@avin/db/schema/catalog";
 import { ORPCError } from "@orpc/server";
-import { and, eq, lte } from "drizzle-orm";
+import { and, eq, inArray, lte } from "drizzle-orm";
 import { z } from "zod";
 
 import { sellerIsNotEnforcedCondition } from "../listing/listing-discovery";
@@ -161,6 +161,7 @@ interface CatalogCandidate {
   sellerId: string;
   sellerProfile: { storefrontName: string | null } | null;
   servicePackages: {
+    description?: string;
     id: string;
     name: string;
     priceAmount: number;
@@ -492,20 +493,180 @@ const getMatchedExclusion = (content: AdvisorPlaybookContent, text: string) => {
   );
 };
 
+interface AdvisorRankingSignals {
+  budgetCeiling: number | null;
+  maxProcessingHours: number | null;
+}
+
+interface RankedCandidate {
+  candidate: CatalogCandidate;
+  packageItem: CatalogCandidate["servicePackages"][number] | null;
+  ranking: {
+    budget: number;
+    fit: number;
+    packageScope: number;
+    timing: number;
+  };
+}
+
+const parseVndAmount = (raw: string, unit: string | undefined): number => {
+  let normalizedRaw = raw.replace(",", ".");
+  if (raw.includes(".") && raw.includes(",")) {
+    normalizedRaw = raw.replaceAll(".", "").replace(",", ".");
+  } else if (raw.includes(".") && raw.split(".").at(-1)?.length === 3) {
+    normalizedRaw = raw.replaceAll(".", "");
+  }
+  const value = Number(normalizedRaw);
+  const normalizedUnit = normalizeText(unit ?? "");
+  if (
+    normalizedUnit === "k" ||
+    normalizedUnit === "nghin" ||
+    normalizedUnit === "ngan"
+  ) {
+    return value * 1000;
+  }
+  if (
+    normalizedUnit === "m" ||
+    normalizedUnit === "tr" ||
+    normalizedUnit === "trieu"
+  ) {
+    return value * 1_000_000;
+  }
+  return value;
+};
+
+const getAdvisorRankingSignals = (
+  serviceNeed: string
+): AdvisorRankingSignals => {
+  const budgetMatch =
+    /(?:under|below|up to|<=|dưới|tối đa)\s*(?<amount>[\d.,]+)\s*(?<unit>k|nghìn|ngàn|m|tr|triệu)?/iu.exec(
+      serviceNeed
+    );
+  const durationMatch =
+    /(?:within|under|trong|tối đa|trước)?\s*(?<value>\d+)\s*(?<unit>h|hour(?:s)?|giờ|day(?:s)?|ngày)/iu.exec(
+      serviceNeed
+    );
+  const durationUnit = normalizeText(durationMatch?.groups?.unit ?? "");
+  const durationMultiplier =
+    durationUnit === "day" || durationUnit === "days" || durationUnit === "ngay"
+      ? 24
+      : 1;
+  return {
+    budgetCeiling: budgetMatch?.groups?.amount
+      ? parseVndAmount(budgetMatch.groups.amount, budgetMatch.groups.unit)
+      : null,
+    maxProcessingHours: durationMatch?.groups?.value
+      ? Number(durationMatch.groups.value) * durationMultiplier
+      : null,
+  };
+};
+
+const getNeedTokens = (serviceNeed: string): Set<string> =>
+  new Set(
+    normalizeText(serviceNeed)
+      .split(" ")
+      .filter((token) => token.length >= 3)
+  );
+
+const getPackageScopeScore = (
+  packageItem: CatalogCandidate["servicePackages"][number],
+  needTokens: ReadonlySet<string>
+): number => {
+  const packageText = normalizeText(
+    `${packageItem.name} ${packageItem.description ?? ""}`
+  );
+  return [...needTokens].filter((token) => packageText.includes(token)).length;
+};
+
 const getCandidateFitScore = (
   candidate: CatalogCandidate,
   serviceNeed: string
 ): number => {
   const candidateText = normalizeText(
-    `${candidate.title ?? ""} ${candidate.description ?? ""}`
+    `${candidate.title ?? ""} ${candidate.description ?? ""} ${candidate.servicePackages
+      .map(
+        (packageItem) => `${packageItem.name} ${packageItem.description ?? ""}`
+      )
+      .join(" ")}`
   );
-  const needTokens = new Set(
-    normalizeText(serviceNeed)
-      .split(" ")
-      .filter((token) => token.length >= 3)
+  return [...getNeedTokens(serviceNeed)].filter((token) =>
+    candidateText.includes(token)
+  ).length;
+};
+
+const getConstraintScore = (value: number, limit: number | null): number => {
+  if (limit === null) {
+    return 0;
+  }
+  return value <= limit ? 1 : 0;
+};
+
+const getPreferredPackage = (
+  candidate: CatalogCandidate,
+  serviceNeed: string,
+  signals: AdvisorRankingSignals
+): RankedCandidate["packageItem"] => {
+  const needTokens = getNeedTokens(serviceNeed);
+  return (
+    candidate.servicePackages.toSorted((left, right) => {
+      const leftScope = getPackageScopeScore(left, needTokens);
+      const rightScope = getPackageScopeScore(right, needTokens);
+      if (rightScope !== leftScope) {
+        return rightScope - leftScope;
+      }
+      const leftBudget = getConstraintScore(
+        left.priceAmount,
+        signals.budgetCeiling
+      );
+      const rightBudget = getConstraintScore(
+        right.priceAmount,
+        signals.budgetCeiling
+      );
+      if (rightBudget !== leftBudget) {
+        return rightBudget - leftBudget;
+      }
+      const leftTiming = getConstraintScore(
+        left.processingTimeHours,
+        signals.maxProcessingHours
+      );
+      const rightTiming = getConstraintScore(
+        right.processingTimeHours,
+        signals.maxProcessingHours
+      );
+      if (rightTiming !== leftTiming) {
+        return rightTiming - leftTiming;
+      }
+      return left.priceAmount - right.priceAmount;
+    })[0] ?? null
   );
-  return [...needTokens].filter((token) => candidateText.includes(token))
-    .length;
+};
+
+const rankCandidate = (
+  candidate: CatalogCandidate,
+  serviceNeed: string,
+  signals: AdvisorRankingSignals
+): RankedCandidate => {
+  const packageItem = getPreferredPackage(candidate, serviceNeed, signals);
+  const packageScope = packageItem
+    ? getPackageScopeScore(packageItem, getNeedTokens(serviceNeed))
+    : 0;
+  return {
+    candidate,
+    packageItem,
+    ranking: {
+      budget: packageItem
+        ? getConstraintScore(packageItem.priceAmount, signals.budgetCeiling)
+        : 0,
+      fit: getCandidateFitScore(candidate, serviceNeed),
+      packageScope,
+      timing: packageItem
+        ? getConstraintScore(
+            packageItem.processingTimeHours,
+            signals.maxProcessingHours
+          )
+        : 0,
+    },
+  };
 };
 
 const buildRecommendation = ({
@@ -517,29 +678,35 @@ const buildRecommendation = ({
   playbook: PublishedPlaybook;
   serviceNeed: string;
 }): AdvisorTurnResponse["recommendation"] => {
-  const ranked = candidates.toSorted((left, right) => {
-    const fitDifference =
-      getCandidateFitScore(right, serviceNeed) -
-      getCandidateFitScore(left, serviceNeed);
-    if (fitDifference !== 0) {
-      return fitDifference;
-    }
+  const signals = getAdvisorRankingSignals(serviceNeed);
+  const ranked = candidates
+    .map((candidate) => rankCandidate(candidate, serviceNeed, signals))
+    .toSorted((left, right) => {
+      for (const key of ["fit", "packageScope", "budget", "timing"] as const) {
+        const difference = right.ranking[key] - left.ranking[key];
+        if (difference !== 0) {
+          return difference;
+        }
+      }
 
-    const ratingDifference =
-      Number(right.ratingScore) - Number(left.ratingScore);
-    if (ratingDifference !== 0) {
-      return ratingDifference;
-    }
+      const ratingDifference =
+        Number(right.candidate.ratingScore) -
+        Number(left.candidate.ratingScore);
+      if (ratingDifference !== 0) {
+        return ratingDifference;
+      }
 
-    return right.completedOrderCount - left.completedOrderCount;
-  });
+      return (
+        right.candidate.completedOrderCount - left.candidate.completedOrderCount
+      );
+    });
 
-  const diversified: CatalogCandidate[] = [];
+  const diversified: RankedCandidate[] = [];
   const sellers = new Set<string>();
   for (const candidate of ranked) {
-    if (!sellers.has(candidate.sellerId)) {
+    if (!sellers.has(candidate.candidate.sellerId)) {
       diversified.push(candidate);
-      sellers.add(candidate.sellerId);
+      sellers.add(candidate.candidate.sellerId);
     }
     if (diversified.length === 3) {
       break;
@@ -547,7 +714,11 @@ const buildRecommendation = ({
   }
   if (diversified.length < 3) {
     for (const candidate of ranked) {
-      if (!diversified.some((item) => item.id === candidate.id)) {
+      if (
+        !diversified.some(
+          (item) => item.candidate.id === candidate.candidate.id
+        )
+      ) {
         diversified.push(candidate);
       }
       if (diversified.length === 3) {
@@ -556,18 +727,30 @@ const buildRecommendation = ({
     }
   }
 
+  const sellerCounts = new Map<string, number>();
+  for (const { candidate } of diversified) {
+    sellerCounts.set(
+      candidate.sellerId,
+      (sellerCounts.get(candidate.sellerId) ?? 0) + 1
+    );
+  }
+
   return {
     isAiGenerated: true,
     label: "Gợi ý do AI tạo",
-    listings: diversified.map((candidate) => {
-      const packageItem = candidate.servicePackages[0] ?? null;
+    listings: diversified.map(({ candidate, packageItem }) => {
       const title = candidate.title?.trim() || "Dịch vụ trên Avin";
       const sellerName =
         candidate.sellerProfile?.storefrontName ?? candidate.seller.name;
-      const reasons = [
-        `Phù hợp với nhóm ${playbook.subCategory.name}.`,
-        "Listing đang công khai và có thể mua tại thời điểm tư vấn.",
-      ];
+      const reasons = [`Phù hợp với nhóm ${playbook.subCategory.name}.`];
+      if ((sellerCounts.get(candidate.sellerId) ?? 0) > 1) {
+        reasons.push(
+          "Có nhiều Listing cùng Seller vì chưa đủ lựa chọn phù hợp từ Seller khác."
+        );
+      }
+      reasons.push(
+        "Listing đang công khai và có thể mua tại thời điểm tư vấn."
+      );
       if (packageItem) {
         reasons.push(`Gợi ý xem gói ${packageItem.name} trước khi đặt.`);
       }
@@ -600,6 +783,61 @@ const buildRecommendation = ({
     subCategoryId: playbook.subCategory.id,
     subCategoryName: playbook.subCategory.name,
   };
+};
+
+export const revalidateAdvisorRecommendation = async ({
+  database,
+  recommendation,
+}: {
+  database: AdvisorDatabase;
+  recommendation: z.infer<typeof advisorRecommendationPayloadSchema>;
+}): Promise<Record<string, boolean>> => {
+  const listingIds = recommendation.listings.map((item) => item.id);
+  const liveListings = await database.query.listing.findMany({
+    where: and(
+      inArray(listing.id, listingIds),
+      eq(listing.status, "PUBLISHED"),
+      eq(listing.type, "SERVICE"),
+      sellerIsNotEnforcedCondition()
+    ),
+    with: {
+      category: { with: { parentCategory: true } },
+      servicePackages: {
+        columns: { id: true },
+        where: eq(servicePackage.status, "AVAILABLE"),
+      },
+    },
+  });
+  const typedLiveListings = (liveListings ?? []) as unknown as {
+    category: {
+      parentCategory: { status: "ACTIVE" | "HIDDEN" | "ARCHIVED" } | null;
+      status: "ACTIVE" | "HIDDEN" | "ARCHIVED";
+    } | null;
+    id: string;
+    servicePackages: { id: string }[];
+  }[];
+  const liveById = new Map(
+    typedLiveListings.map((liveListing) => [liveListing.id, liveListing])
+  );
+
+  return Object.fromEntries(
+    recommendation.listings.map((item) => {
+      const liveListing = liveById.get(item.id);
+      const availablePackages = liveListing?.servicePackages ?? [];
+      const categoryIsActive =
+        liveListing?.category?.status === "ACTIVE" &&
+        liveListing.category.parentCategory?.status === "ACTIVE";
+      const packageIsAvailable = item.servicePackage
+        ? availablePackages.some(
+            (packageItem) => packageItem.id === item.servicePackage?.id
+          )
+        : availablePackages.length > 0;
+      return [
+        item.id,
+        Boolean(liveListing && categoryIsActive && packageIsAvailable),
+      ];
+    })
+  );
 };
 
 const findLiveCatalogCandidates = async ({

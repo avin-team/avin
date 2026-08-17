@@ -22,6 +22,7 @@ import {
   hashVisitorCapability,
   isAdvisorConsentOwnedBy,
   orchestrateAdvisorTurn,
+  revalidateAdvisorRecommendation,
 } from "./advisor";
 
 const TERMS_PATH = "/terms";
@@ -132,7 +133,8 @@ const toMessage = (message: typeof advisorMessage.$inferSelect) => ({
 });
 
 const toRecommendation = (
-  recommendation: typeof advisorRecommendation.$inferSelect
+  recommendation: typeof advisorRecommendation.$inferSelect,
+  availability: Readonly<Record<string, boolean>> = {}
 ) => {
   const payload = advisorTurnResponseSchema.shape.recommendation.safeParse(
     recommendation.payload
@@ -141,11 +143,17 @@ const toRecommendation = (
     return null;
   }
 
+  const listings = payload.data.listings.map((listing) => ({
+    ...listing,
+    isAvailable: availability[listing.id] ?? true,
+  }));
   return {
     createdAt: recommendation.createdAt.toISOString(),
     id: recommendation.id,
-    isCurrent: recommendation.isCurrent,
     ...payload.data,
+    isAvailable: listings.every((listing) => listing.isAvailable),
+    isCurrent: recommendation.isCurrent,
+    listings,
   };
 };
 
@@ -169,16 +177,42 @@ const sessionOutput = async (context: Context, sessionId: string) => {
     });
   }
 
+  const recommendationViews = await Promise.all(
+    recommendations.map(async (item) => {
+      const payload = advisorTurnResponseSchema.shape.recommendation.safeParse(
+        item.payload
+      );
+      if (!payload.success || !payload.data) {
+        return null;
+      }
+
+      const availability = await revalidateAdvisorRecommendation({
+        database: context.db,
+        recommendation: payload.data,
+      });
+      const isAvailable = Object.values(availability).every(Boolean);
+      if (item.isCurrent && !isAvailable) {
+        await context.db
+          .update(advisorRecommendation)
+          .set({ isCurrent: false })
+          .where(eq(advisorRecommendation.id, item.id));
+      }
+      return toRecommendation(
+        isAvailable ? item : { ...item, isCurrent: false },
+        availability
+      );
+    })
+  );
+
   return {
     expiresAt: session.expiresAt.toISOString(),
     generationStatus: session.generationStatus,
     id: session.id,
     messages: messages.map(toMessage),
     pinnedPlaybookId: session.pinnedPlaybookId,
-    recommendations: recommendations.flatMap((item) => {
-      const value = toRecommendation(item);
-      return value ? [value] : [];
-    }),
+    recommendations: recommendationViews.flatMap((item) =>
+      item ? [item] : []
+    ),
     serviceNeed: session.serviceNeed,
     status: session.status,
     turnCount: session.turnCount,

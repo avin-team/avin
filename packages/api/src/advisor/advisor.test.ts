@@ -10,6 +10,7 @@ import {
   getAdvisorSessionExpiry,
   orchestrateAdvisorTurn,
   parseAdvisorRecommendationWithRepair,
+  revalidateAdvisorRecommendation,
 } from "./advisor";
 import type { AdvisorSessionRecord } from "./advisor";
 import { defaultAdvisorPlaybookContent } from "./playbook";
@@ -330,5 +331,142 @@ describe("Advisor text-only orchestration", () => {
       kind: "NO_MATCH",
     });
     expect(result.response.message).toContain(`${ADVISOR_MAX_TURNS}`);
+  });
+
+  it("ranks package fit, budget, and timing before reputation and diversifies Sellers", async () => {
+    const rankedCandidates = [
+      {
+        ...candidate,
+        completedOrderCount: 100,
+        id: "listing-over-budget",
+        ratingScore: "5.0",
+        seller: { id: "seller-over-budget", name: "Expensive Seller" },
+        sellerId: "seller-over-budget",
+        servicePackages: [
+          {
+            ...candidate.servicePackages[0],
+            id: "package-over-budget",
+            priceAmount: 200_000,
+            processingTimeHours: 24,
+          },
+        ],
+        title: "Account setup",
+      },
+      {
+        ...candidate,
+        completedOrderCount: 4,
+        id: "listing-slow-budget",
+        ratingScore: "4.9",
+        seller: { id: "seller-slow-budget", name: "Slow Seller" },
+        sellerId: "seller-slow-budget",
+        servicePackages: [
+          {
+            ...candidate.servicePackages[0],
+            id: "package-slow-budget",
+            priceAmount: 100_000,
+            processingTimeHours: 48,
+          },
+        ],
+        title: "Account setup",
+      },
+      {
+        ...candidate,
+        completedOrderCount: 2,
+        id: "listing-fast-budget",
+        ratingScore: "4.0",
+        seller: { id: "seller-fast-budget", name: "Fast Seller" },
+        sellerId: "seller-fast-budget",
+        servicePackages: [
+          {
+            ...candidate.servicePackages[0],
+            id: "package-fast-budget",
+            priceAmount: 100_000,
+            processingTimeHours: 24,
+          },
+        ],
+        title: "Account setup",
+      },
+    ];
+    listingFindMany.mockResolvedValue(rankedCandidates);
+
+    const result = await orchestrateAdvisorTurn({
+      database,
+      session: session({
+        answers: { scope: "personal" },
+        pinnedPlaybookId: PLAYBOOK_ID,
+        pinnedSubCategoryId: SUB_CATEGORY_ID,
+        serviceNeed: "account setup dưới 150k trong 24 giờ",
+      }),
+      text: "Cá nhân",
+    });
+
+    expect(
+      result.response.recommendation?.listings.map((item) => item.id)
+    ).toEqual([
+      "listing-fast-budget",
+      "listing-slow-budget",
+      "listing-over-budget",
+    ]);
+  });
+
+  it("revalidates each recommendation Listing and suggested package against live catalog state", async () => {
+    const recommendation = advisorRecommendationPayloadSchema.parse({
+      isAiGenerated: true,
+      label: "Gợi ý do AI tạo",
+      listings: [
+        {
+          completedOrderCount: 4,
+          id: LISTING_ID,
+          listingPath: "/listing/account-setup-service",
+          priceAmount: 120_000,
+          processingTimeHours: 24,
+          ratingCount: 12,
+          ratingScore: 4.8,
+          reasons: ["Phù hợp với nhu cầu."],
+          seller: { id: SELLER_ID, name: "Seller One" },
+          servicePackage: {
+            id: PACKAGE_ID,
+            name: "Gói cơ bản",
+            priceAmount: 120_000,
+            processingTimeHours: 24,
+            warrantyPolicy: { kind: "NO_WARRANTY" },
+          },
+          slug: "account-setup-service",
+          title: "Thiết lập tài khoản website",
+          warrantyPolicy: { kind: "NO_WARRANTY" },
+        },
+      ],
+      subCategoryId: SUB_CATEGORY_ID,
+      subCategoryName: "Account setup",
+    });
+    const listingFindManyForRevalidation = vi
+      .fn()
+      .mockResolvedValueOnce([
+        {
+          category: {
+            parentCategory: { status: "ACTIVE" },
+            status: "ACTIVE",
+          },
+          id: LISTING_ID,
+          servicePackages: [{ id: PACKAGE_ID }],
+        },
+      ])
+      .mockResolvedValueOnce([]);
+    const revalidationDatabase = {
+      query: { listing: { findMany: listingFindManyForRevalidation } },
+    } as unknown as Context["db"];
+
+    await expect(
+      revalidateAdvisorRecommendation({
+        database: revalidationDatabase,
+        recommendation,
+      })
+    ).resolves.toEqual({ [LISTING_ID]: true });
+    await expect(
+      revalidateAdvisorRecommendation({
+        database: revalidationDatabase,
+        recommendation,
+      })
+    ).resolves.toEqual({ [LISTING_ID]: false });
   });
 });

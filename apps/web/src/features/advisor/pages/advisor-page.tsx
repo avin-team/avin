@@ -207,11 +207,13 @@ const RecommendationCard = ({
   recommendation,
 }: {
   recommendation: {
+    isAvailable: boolean;
     isCurrent: boolean;
     label: string;
     listings: {
       completedOrderCount: number;
       id: string;
+      isAvailable: boolean;
       listingPath: string;
       priceAmount: number;
       processingTimeHours: number | null;
@@ -230,7 +232,13 @@ const RecommendationCard = ({
     }[];
   };
 }) => (
-  <Card className="border-primary/30 bg-primary/5">
+  <Card
+    className={
+      recommendation.isAvailable
+        ? "border-primary/30 bg-primary/5"
+        : "border-destructive/30 bg-destructive/5"
+    }
+  >
     <CardHeader className="pb-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <CardTitle className="text-base">{recommendation.label}</CardTitle>
@@ -245,8 +253,9 @@ const RecommendationCard = ({
         )}
       </div>
       <CardDescription>
-        Hãy mở Listing để kiểm tra chi tiết và tự chọn package. Advisor không tự
-        thêm vào Cart.
+        {recommendation.isAvailable
+          ? "Hãy mở Listing để kiểm tra chi tiết và tự chọn package. Advisor không tự thêm vào Cart."
+          : "Một hoặc nhiều lựa chọn không còn khả dụng. Bạn có thể duyệt catalog để tìm lựa chọn mới."}
       </CardDescription>
     </CardHeader>
     <CardContent className="grid gap-3 lg:grid-cols-3">
@@ -288,15 +297,31 @@ const RecommendationCard = ({
               ))}
             </ul>
           </div>
-          <a
-            className="mt-4 inline-flex h-9 items-center justify-center rounded-md bg-primary px-3 font-medium text-primary-foreground text-sm hover:bg-primary/90"
-            href={listing.listingPath}
-          >
-            Xem Listing và chọn gói
-          </a>
+          {listing.isAvailable ? (
+            <a
+              className="mt-4 inline-flex h-9 items-center justify-center rounded-md bg-primary px-3 font-medium text-primary-foreground text-sm hover:bg-primary/90"
+              href={listing.listingPath}
+            >
+              Xem Listing và chọn gói
+            </a>
+          ) : (
+            <p className="mt-4 rounded-md border border-destructive/30 px-3 py-2 text-destructive text-xs">
+              Listing hoặc gói gợi ý đã không còn khả dụng.
+            </p>
+          )}
         </article>
       ))}
     </CardContent>
+    {recommendation.isAvailable || (
+      <div className="px-6 pb-6">
+        <Link
+          className="font-medium text-primary text-sm underline underline-offset-4"
+          to="/category"
+        >
+          Duyệt catalog thủ công
+        </Link>
+      </div>
+    )}
   </Card>
 );
 
