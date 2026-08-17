@@ -201,7 +201,10 @@ describe("createAdvisorModel", () => {
     });
 
     const pending = result.consumeStream();
-    await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 0);
+    });
+    expect(fetch).toHaveBeenCalled();
     controller.abort();
     await pending;
 

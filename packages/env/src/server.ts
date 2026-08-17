@@ -6,6 +6,7 @@ export const env = createEnv({
   emptyStringAsUndefined: true,
   runtimeEnv: process.env,
   server: {
+    ADVISOR_CONFIG_ENCRYPTION_KEY: z.string().min(32).optional(),
     BETTER_AUTH_SECRET: z.string().min(32),
     BETTER_AUTH_URL: z.url(),
     CORS_ORIGIN: z
@@ -16,6 +17,17 @@ export const env = createEnv({
     GOOGLE_CLIENT_ID: z.string().min(1),
     GOOGLE_CLIENT_SECRET: z.string().min(1),
     GROQ_API_KEY: z.string().min(1).optional(),
+    GROQ_ZERO_DATA_RETENTION_KEY_FINGERPRINT: z
+      .string()
+      .regex(/^[0-9a-f]{64}$/u)
+      .optional(),
+    GROQ_ZERO_DATA_RETENTION_VERIFICATION_EXPIRES_AT: z.coerce
+      .date()
+      .optional(),
+    GROQ_ZERO_DATA_RETENTION_VERIFIED: z
+      .enum(["true", "false"])
+      .transform((value) => value === "true")
+      .optional(),
     NODE_ENV: z
       .enum(["development", "production", "test"])
       .default("development"),

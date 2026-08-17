@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import {
   ADVISOR_MAX_OUTPUT_TOKENS,
+  ADVISOR_MODEL_TIMEOUT_MS,
   advisorProviderOptions,
 } from "./advisor-provider";
 
@@ -102,8 +103,16 @@ const previewRequest = z.object({
 const PREVIEW_SYSTEM_PROMPT = `You are Avin's internal Service Advisor preview. Reply concisely in Vietnamese. Use only information present in the participant's message or image. Do not claim that you performed an action, accessed a marketplace record, or completed a purchase.`;
 
 export interface AdvisorPreviewDependencies {
-  getModel: () => LanguageModel | undefined;
+  getModel: () =>
+    | LanguageModel
+    | PromiseLike<LanguageModel | undefined>
+    | undefined;
+  getProviderKeyFingerprint?: () =>
+    | string
+    | PromiseLike<string | undefined>
+    | undefined;
   isAuthorized: (request: Request) => boolean | PromiseLike<boolean>;
+  reportProviderError?: (keyFingerprint?: string) => void | PromiseLike<void>;
 }
 
 const invalidRequest = (c: Context) =>
@@ -117,9 +126,21 @@ const invalidRequest = (c: Context) =>
 
 export const createAdvisorPreviewApp = ({
   getModel,
+  getProviderKeyFingerprint,
   isAuthorized,
+  reportProviderError,
 }: AdvisorPreviewDependencies): Hono => {
   const app = new Hono();
+
+  const reportProviderFailure = async (
+    keyFingerprint?: string
+  ): Promise<void> => {
+    try {
+      await reportProviderError?.(keyFingerprint);
+    } catch {
+      // Provider status reporting must not alter the safe preview response.
+    }
+  };
 
   app.post("/api/advisor/preview", async (c) => {
     let authorized = false;
@@ -162,7 +183,26 @@ export const createAdvisorPreviewApp = ({
       );
     }
 
-    const model = getModel();
+    let providerKeyFingerprint: string | undefined;
+    try {
+      providerKeyFingerprint = await getProviderKeyFingerprint?.();
+    } catch {
+      providerKeyFingerprint = undefined;
+    }
+
+    let model: LanguageModel | undefined;
+    try {
+      model = await getModel();
+    } catch {
+      void reportProviderFailure(providerKeyFingerprint);
+      return c.json(
+        {
+          code: ADVISOR_UNAVAILABLE,
+          message: "The Service Advisor preview is not configured.",
+        },
+        503
+      );
+    }
     if (!model) {
       return c.json(
         {
@@ -181,8 +221,15 @@ export const createAdvisorPreviewApp = ({
         maxRetries: 0,
         messages: await convertToModelMessages(messages),
         model,
+        onError: () => {
+          if (c.req.raw.signal.aborted) {
+            return;
+          }
+          return reportProviderFailure(providerKeyFingerprint);
+        },
         providerOptions: advisorProviderOptions,
         system: PREVIEW_SYSTEM_PROMPT,
+        timeout: ADVISOR_MODEL_TIMEOUT_MS,
       });
 
       return result.toUIMessageStreamResponse({
@@ -192,6 +239,7 @@ export const createAdvisorPreviewApp = ({
         sendSources: false,
       });
     } catch {
+      void reportProviderFailure(providerKeyFingerprint);
       return c.json(
         {
           code: ADVISOR_STREAM_ERROR,

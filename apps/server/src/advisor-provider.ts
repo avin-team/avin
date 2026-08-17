@@ -1,9 +1,11 @@
 import { createGroq } from "@ai-sdk/groq";
 import type { GroqProviderSettings } from "@ai-sdk/groq";
+import { ADVISOR_MODEL_ID } from "@avin/api/advisor/provider";
 import type { LanguageModel } from "ai";
 
-export const ADVISOR_MODEL_ID = "qwen/qwen3.6-27b" as const;
+export { ADVISOR_MODEL_ID } from "@avin/api/advisor/provider";
 export const ADVISOR_MAX_OUTPUT_TOKENS = 1024 as const;
+export const ADVISOR_MODEL_TIMEOUT_MS = 30_000 as const;
 export const ADVISOR_REASONING_EFFORT = "none" as const;
 
 export type AdvisorProviderOptions = Record<string, Record<string, string>>;

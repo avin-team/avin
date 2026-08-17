@@ -1,5 +1,6 @@
 import type { RouterClient } from "@orpc/server";
 
+import { advisorRouter } from "./advisor/router";
 import { commerceRouter } from "./commerce/router";
 import { listingRouter } from "./listing/router";
 import { notificationRouter } from "./notifications/router";
@@ -10,6 +11,7 @@ import { sellerStoreRouter } from "./seller-store/router";
 import { walletRouter } from "./wallet/router";
 
 export const appRouter = {
+  advisor: advisorRouter,
   commerce: commerceRouter,
   listing: listingRouter,
   notifications: notificationRouter,

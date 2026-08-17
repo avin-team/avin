@@ -1,6 +1,7 @@
 import { Header } from "@/components/layout/header";
 import { Main } from "@/components/layout/main";
 
+import { AdvisorProviderSettingsCard } from "./components/advisor-provider-settings-card";
 import { TwoFactorSettingsCard } from "./components/two-factor-settings-card";
 
 export const Settings = () => (
@@ -14,8 +15,9 @@ export const Settings = () => (
         </p>
       </div>
 
-      <div className="max-w-2xl">
+      <div className="grid max-w-5xl gap-6">
         <TwoFactorSettingsCard />
+        <AdvisorProviderSettingsCard />
       </div>
     </Main>
   </>

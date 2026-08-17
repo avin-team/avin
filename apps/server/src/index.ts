@@ -2,8 +2,13 @@ import { createContext } from "@avin/api/context";
 import { appRouter } from "@avin/api/router";
 import { handleSePayWebhook } from "@avin/api/wallet/webhook";
 import { adminAuth, auth } from "@avin/auth";
-import { AUTH_SURFACE_HEADER } from "@avin/auth/auth-surfaces";
+import {
+  AUTH_SURFACE,
+  AUTH_SURFACE_HEADER,
+  getAuthSurface,
+} from "@avin/auth/auth-surfaces";
 import { ACCOUNT_ROLE } from "@avin/auth/permissions";
+import { db } from "@avin/db";
 import { env } from "@avin/env/server";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
@@ -16,7 +21,11 @@ import { logger } from "hono/logger";
 import { secureHeaders } from "hono/secure-headers";
 
 import { createAdvisorPreviewApp } from "./advisor-preview";
-import { createAdvisorModel } from "./advisor-provider";
+import {
+  createAdvisorProviderManager,
+  createAdvisorProviderRepository,
+  fingerprintAdvisorApiKey,
+} from "./advisor-provider-config";
 import { startEmailDeliverySchedule } from "./jobs/email-delivery";
 import { startFulfillmentMaintenanceSchedule } from "./jobs/fulfillment-maintenance";
 import { startOrderChatAttachmentMaintenanceSchedule } from "./jobs/order-chat-attachment-maintenance";
@@ -34,14 +43,39 @@ import { createListingImageStorage } from "./uploads/storage";
 
 const app = new Hono();
 const listingImageStorage = createListingImageStorage();
-const advisorPreviewModel = env.GROQ_API_KEY
-  ? createAdvisorModel({ apiKey: env.GROQ_API_KEY })
-  : undefined;
+// This deployment-only attestation is populated by the operator after
+// verifying the Groq organization control. It is never accepted from an API
+// request and expires so a stale console check fails closed.
+const advisorProviderManager = createAdvisorProviderManager({
+  encryptionKey: env.ADVISOR_CONFIG_ENCRYPTION_KEY,
+  repository: createAdvisorProviderRepository(db),
+  verifyZeroDataRetention: (apiKey) =>
+    Promise.resolve(
+      env.GROQ_ZERO_DATA_RETENTION_VERIFIED === true &&
+        env.GROQ_ZERO_DATA_RETENTION_KEY_FINGERPRINT ===
+          fingerprintAdvisorApiKey(apiKey) &&
+        env.GROQ_ZERO_DATA_RETENTION_VERIFICATION_EXPIRES_AT !== undefined &&
+        env.GROQ_ZERO_DATA_RETENTION_VERIFICATION_EXPIRES_AT.getTime() >
+          Date.now()
+    ),
+});
 const advisorPreviewApp = createAdvisorPreviewApp({
-  getModel: () => advisorPreviewModel,
+  getModel: () => advisorProviderManager.getActiveModel(),
+  getProviderKeyFingerprint: () =>
+    advisorProviderManager.getActiveKeyFingerprint(),
   isAuthorized: async (request) => {
-    const session = await auth.api.getSession({ headers: request.headers });
-    return session?.user.role === ACCOUNT_ROLE.ADMIN;
+    const authClient =
+      getAuthSurface(request.headers) === AUTH_SURFACE.ADMIN ? adminAuth : auth;
+    const session = await authClient.api.getSession({
+      headers: request.headers,
+    });
+    return (
+      session?.user.role === ACCOUNT_ROLE.ADMIN &&
+      session.user.twoFactorEnabled === true
+    );
+  },
+  reportProviderError: async (keyFingerprint) => {
+    await advisorProviderManager.markUnavailable(keyFingerprint);
   },
 });
 const listingImageUploadRouter = listingImageStorage
@@ -197,6 +231,7 @@ export const rpcHandler = new RPCHandler(appRouter, {
 
 app.use("/*", async (c, next) => {
   const context = await createContext({
+    advisorProvider: advisorProviderManager,
     context: c,
     storage: listingImageStorage?.objectStore,
   });

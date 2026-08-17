@@ -214,9 +214,12 @@ describe("Service Advisor preview endpoint", () => {
 
   it("returns a typed stream error without exposing provider details", async () => {
     const provider = createModel("data: malformed\n\n");
+    const reportProviderError = vi.fn();
     const app = createAdvisorPreviewApp({
       getModel: () => provider.model,
+      getProviderKeyFingerprint: () => "old-fingerprint",
       isAuthorized: () => true,
+      reportProviderError,
     });
 
     const response = await app.request(
@@ -233,6 +236,7 @@ describe("Service Advisor preview endpoint", () => {
     const stream = await response.text();
     expect(stream).toContain("ADVISOR_STREAM_ERROR");
     expect(stream).not.toContain("malformed");
+    expect(reportProviderError).toHaveBeenCalledWith("old-fingerprint");
   });
 
   it("normalizes provider HTTP errors without exposing provider details", async () => {

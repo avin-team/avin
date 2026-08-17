@@ -3,10 +3,12 @@ import { AUTH_SURFACE, getAuthSurface } from "@avin/auth/auth-surfaces";
 import { db } from "@avin/db";
 import type { Context as HonoContext } from "hono";
 
+import type { AdvisorProviderManager } from "../advisor/provider";
 import { auditRecorder } from "./audit-recorder";
 import type { ManagedObjectStore } from "./storage";
 
 export interface CreateContextOptions {
+  advisorProvider?: AdvisorProviderManager;
   context: HonoContext;
   storage?: ManagedObjectStore;
 }
@@ -29,6 +31,7 @@ export interface AuditRecorder {
 }
 
 export const createContext = async ({
+  advisorProvider,
   context,
   storage,
 }: CreateContextOptions): Promise<Context> => {
@@ -40,6 +43,7 @@ export const createContext = async ({
     headers: context.req.raw.headers,
   });
   return {
+    advisorProvider,
     audit: auditRecorder,
     db,
     session,
@@ -48,6 +52,7 @@ export const createContext = async ({
 };
 
 export interface Context {
+  advisorProvider?: AdvisorProviderManager;
   audit: AuditRecorder;
   db: typeof db;
   session: MarketplaceSession | null;
