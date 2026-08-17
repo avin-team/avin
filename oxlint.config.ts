@@ -35,6 +35,9 @@ export default defineConfig({
     ...(core.ignorePatterns ?? []),
     "packages/ui/**",
     "apps/admin/src/assets/**",
+    ".claude",
+    ".agents",
+    ".commandcode",
   ],
   jsPlugins: ["@workspace/eslint-plugin"],
   rules: {
