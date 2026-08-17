@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { advisorPlaybook, advisorSession } from "@avin/db/schema/advisor";
-import { listing, servicePackage } from "@avin/db/schema/catalog";
+import { listing, servicePackage, subCategory } from "@avin/db/schema/catalog";
 import { ORPCError } from "@orpc/server";
 import { and, eq, lte } from "drizzle-orm";
 import { z } from "zod";
@@ -15,6 +15,8 @@ export const ADVISOR_CONSENT_VERSION = "v1" as const;
 export const ADVISOR_VISITOR_CAPABILITY_COOKIE = "avin_advisor_capability";
 export const ADVISOR_VISITOR_SESSION_HOURS = 24;
 export const ADVISOR_USER_SESSION_DAYS = 30;
+export const ADVISOR_MAX_TURNS = 15;
+export const ADVISOR_SERVICE_BROWSE_PATH = "/category";
 export const ADVISOR_ALLOWED_READ_TOOLS = [
   "findPublicServiceListings",
   "getPublicListingDetails",
@@ -109,8 +111,15 @@ export const advisorRecommendationPayloadSchema = z.strictObject({
 });
 
 export const advisorTurnResponseSchema = z.strictObject({
+  browsePath: z.string().trim().min(1).max(400).nullable().default(null),
   completed: z.boolean(),
-  kind: z.enum(["QUESTION", "RECOMMENDATION", "NO_MATCH", "STOPPED"]),
+  kind: z.enum([
+    "QUESTION",
+    "RECOMMENDATION",
+    "NO_MATCH",
+    "PLAYBOOK_UNAVAILABLE",
+    "STOPPED",
+  ]),
   message: z.string().trim().min(1).max(2000),
   question: advisorQuestionSchema.nullable(),
   recommendation: advisorRecommendationPayloadSchema.nullable(),
@@ -160,6 +169,18 @@ interface CatalogCandidate {
   }[];
   slug: string;
   title: string | null;
+}
+
+interface ActiveTaxonomySubCategory {
+  id: string;
+  name: string;
+  parentCategory: {
+    name: string;
+    slug: string;
+    status: "ACTIVE" | "HIDDEN" | "ARCHIVED";
+  } | null;
+  slug: string;
+  status: "ACTIVE" | "HIDDEN" | "ARCHIVED";
 }
 
 export interface AdvisorTurnComputation {
@@ -275,6 +296,23 @@ export const cleanupExpiredAdvisorSessions = async ({
   return deletedCounts.reduce<number>((total, count) => total + count, 0);
 };
 
+const getSubCategoryBrowsePath = ({
+  parentCategory,
+  slug,
+}: {
+  parentCategory: { slug: string } | null;
+  slug: string;
+}): string =>
+  parentCategory
+    ? `/category/${encodeURIComponent(parentCategory.slug)}?subSlug=${encodeURIComponent(slug)}`
+    : ADVISOR_SERVICE_BROWSE_PATH;
+
+const getPlaybookBrowsePath = (playbook: PublishedPlaybook): string =>
+  getSubCategoryBrowsePath({
+    parentCategory: playbook.subCategory.parentCategory,
+    slug: playbook.subCategory.slug,
+  });
+
 const parsePlaybookContent = (
   playbook: PublishedPlaybook
 ): AdvisorPlaybookContent | null => {
@@ -301,6 +339,30 @@ const loadPublishedPlaybooks = async (
       parsePlaybookContent(row) !== null
   );
 };
+
+const loadPlaybookById = async (
+  database: AdvisorDatabase,
+  playbookId: string
+): Promise<PublishedPlaybook | null> => {
+  const playbook = await database.query.advisorPlaybook.findFirst?.({
+    where: eq(advisorPlaybook.id, playbookId),
+    with: {
+      subCategory: { with: { parentCategory: true } },
+    },
+  });
+  return (playbook as unknown as PublishedPlaybook | null) ?? null;
+};
+
+const isUsablePinnedPlaybook = (
+  playbook: PublishedPlaybook | null
+): playbook is PublishedPlaybook =>
+  Boolean(
+    playbook &&
+    playbook.status === "PUBLISHED" &&
+    playbook.subCategory.status === "ACTIVE" &&
+    playbook.subCategory.parentCategory?.status === "ACTIVE" &&
+    parsePlaybookContent(playbook)
+  );
 
 const getPlaybookSearchText = (
   playbook: PublishedPlaybook,
@@ -376,9 +438,14 @@ const makeRoutingQuestion = (
     "Mình thấy nhu cầu này có thể thuộc nhiều nhóm. Bạn muốn ưu tiên nhóm nào?",
 });
 
-const buildNoMatchResponse = (message: string): AdvisorTurnResponse => ({
+const buildNoMatchResponse = (
+  message: string,
+  browsePath = ADVISOR_SERVICE_BROWSE_PATH,
+  kind: "NO_MATCH" | "PLAYBOOK_UNAVAILABLE" = "NO_MATCH"
+): AdvisorTurnResponse => ({
+  browsePath,
   completed: false,
-  kind: "NO_MATCH",
+  kind,
   message,
   question: null,
   recommendation: null,
@@ -563,7 +630,7 @@ const findLiveCatalogCandidates = async ({
     },
   });
 
-  const typedCandidates = candidates as unknown as CatalogCandidate[];
+  const typedCandidates = (candidates ?? []) as unknown as CatalogCandidate[];
   return typedCandidates.filter(
     (candidate) =>
       candidate.category?.status === "ACTIVE" &&
@@ -573,10 +640,88 @@ const findLiveCatalogCandidates = async ({
   );
 };
 
+const findReferencedListing = async ({
+  database,
+  text,
+}: {
+  database: AdvisorDatabase;
+  text: string;
+}): Promise<CatalogCandidate | null> => {
+  const candidates = await database.query.listing.findMany({
+    limit: 100,
+    where: and(
+      eq(listing.status, "PUBLISHED"),
+      eq(listing.type, "SERVICE"),
+      sellerIsNotEnforcedCondition()
+    ),
+    with: {
+      category: { with: { parentCategory: true } },
+      seller: { columns: { id: true, name: true } },
+      sellerProfile: {
+        columns: { storefrontName: true },
+      },
+      servicePackages: {
+        where: eq(servicePackage.status, "AVAILABLE"),
+      },
+    },
+  });
+  const normalizedText = normalizeText(text);
+  const typedCandidates = (candidates ?? []) as unknown as CatalogCandidate[];
+  return (
+    typedCandidates.find((candidate) => {
+      if (
+        candidate.category?.status !== "ACTIVE" ||
+        candidate.category.parentCategory?.status !== "ACTIVE" ||
+        candidate.servicePackages.length === 0
+      ) {
+        return false;
+      }
+
+      return [candidate.id, candidate.slug, candidate.title ?? ""]
+        .map(normalizeText)
+        .filter((value) => value.length >= 3)
+        .some((value) => normalizedText.includes(value));
+    }) ?? null
+  );
+};
+
+const findActiveTaxonomyMatches = async (
+  database: AdvisorDatabase,
+  text: string
+): Promise<ActiveTaxonomySubCategory[]> => {
+  const rows = await database.query.subCategory?.findMany({
+    where: eq(subCategory.status, "ACTIVE"),
+    with: { parentCategory: true },
+  });
+  const normalizedText = normalizeText(text);
+  const typedRows = (rows ?? []) as unknown as ActiveTaxonomySubCategory[];
+  return typedRows.filter((row) => {
+    if (row.status !== "ACTIVE" || row.parentCategory?.status !== "ACTIVE") {
+      return false;
+    }
+    const taxonomyTerms = [row.name, row.slug]
+      .flatMap((value) => normalizeText(value).split(" "))
+      .filter((value) => value.length >= 3);
+    return taxonomyTerms.some((term) => normalizedText.includes(term));
+  });
+};
+
+const hasMultipleProblemMarkers = (text: string): boolean =>
+  /[,;]/u.test(text) ||
+  /\b(?:and|also|plus|va|con|them)\b/u.test(normalizeText(text));
+
+const isCourseRequest = (text: string): boolean => {
+  const normalizedText = normalizeText(text);
+  return ["course", "courses", "khoa hoc", "lop hoc", "dao tao"].some(
+    (keyword) => normalizedText.includes(keyword)
+  );
+};
+
 const buildQuestionResponse = (
   question: NonNullable<AdvisorTurnResponse["question"]>,
   message: string
 ): AdvisorTurnResponse => ({
+  browsePath: null,
   completed: false,
   kind: "QUESTION",
   message,
@@ -603,6 +748,49 @@ export const orchestrateAdvisorTurn = async ({
   let { pendingQuestionId } = session;
   let { pinnedPlaybookId } = session;
   let { pinnedSubCategoryId } = session;
+  if (session.turnCount >= ADVISOR_MAX_TURNS) {
+    return {
+      answers,
+      pendingQuestionId: null,
+      pinnedPlaybookId,
+      pinnedSubCategoryId,
+      response: buildNoMatchResponse(
+        `Phiên này đã đạt giới hạn ${ADVISOR_MAX_TURNS} lượt. Bạn có thể duyệt danh mục dịch vụ hoặc bắt đầu một phiên mới.`,
+        ADVISOR_SERVICE_BROWSE_PATH
+      ),
+      serviceNeed,
+    };
+  }
+
+  if (isCourseRequest(text)) {
+    return {
+      answers,
+      pendingQuestionId: null,
+      pinnedPlaybookId,
+      pinnedSubCategoryId,
+      response: buildNoMatchResponse(
+        "Beta hiện chỉ hỗ trợ tìm Listing SERVICE; Advisor chưa tư vấn COURSE. Bạn có thể duyệt danh mục để tìm khóa học phù hợp.",
+        ADVISOR_SERVICE_BROWSE_PATH
+      ),
+      serviceNeed,
+    };
+  }
+
+  const referencedListing = await findReferencedListing({ database, text });
+  if (referencedListing) {
+    return {
+      answers,
+      pendingQuestionId: null,
+      pinnedPlaybookId,
+      pinnedSubCategoryId,
+      response: buildNoMatchResponse(
+        `Mình đã tìm thấy Listing “${referencedListing.title ?? referencedListing.slug}”. Bạn có thể mở Listing để kiểm tra chi tiết và tự chọn gói khi cần.`,
+        `/listing/${referencedListing.slug}`
+      ),
+      serviceNeed,
+    };
+  }
+
   const publishedPlaybooks = await loadPublishedPlaybooks(database);
   let playbookMatch:
     | {
@@ -617,6 +805,21 @@ export const orchestrateAdvisorTurn = async ({
     playbookMatch = getPlaybookMatches(publishedPlaybooks, serviceNeed).find(
       (match) => match.playbook.id === pinnedPlaybookId
     );
+    let pinnedPlaybook: PublishedPlaybook | null = null;
+    if (!playbookMatch) {
+      pinnedPlaybook = await loadPlaybookById(database, pinnedPlaybookId);
+      if (isUsablePinnedPlaybook(pinnedPlaybook)) {
+        const content = parsePlaybookContent(pinnedPlaybook);
+        if (content) {
+          playbookMatch = {
+            content,
+            matchedSignalIds: [],
+            playbook: pinnedPlaybook,
+            score: 0,
+          };
+        }
+      }
+    }
     if (!playbookMatch) {
       return {
         answers,
@@ -624,7 +827,11 @@ export const orchestrateAdvisorTurn = async ({
         pinnedPlaybookId,
         pinnedSubCategoryId,
         response: buildNoMatchResponse(
-          "Playbook của phiên này không còn khả dụng. Bạn có thể tiếp tục bằng cách duyệt danh mục dịch vụ."
+          "Playbook của phiên này không còn khả dụng. Bạn có thể tiếp tục bằng cách duyệt nhóm dịch vụ liên quan.",
+          pinnedPlaybook
+            ? getPlaybookBrowsePath(pinnedPlaybook)
+            : ADVISOR_SERVICE_BROWSE_PATH,
+          "PLAYBOOK_UNAVAILABLE"
         ),
         serviceNeed,
       };
@@ -635,6 +842,25 @@ export const orchestrateAdvisorTurn = async ({
       serviceNeed
     ).toSorted((left, right) => right.score - left.score);
     if (matches.length === 0) {
+      const taxonomyMatches = await findActiveTaxonomyMatches(
+        database,
+        serviceNeed
+      );
+      const [taxonomyMatch] = taxonomyMatches;
+      if (taxonomyMatch) {
+        return {
+          answers,
+          pendingQuestionId: null,
+          pinnedPlaybookId: null,
+          pinnedSubCategoryId: null,
+          response: buildNoMatchResponse(
+            "Nhóm dịch vụ này đang hoạt động nhưng chưa có Playbook đã được xuất bản. Bạn có thể duyệt danh mục để xem các lựa chọn hiện có.",
+            getSubCategoryBrowsePath(taxonomyMatch),
+            "PLAYBOOK_UNAVAILABLE"
+          ),
+          serviceNeed,
+        };
+      }
       return {
         answers,
         pendingQuestionId: null,
@@ -647,7 +873,21 @@ export const orchestrateAdvisorTurn = async ({
       };
     }
     const [bestMatch, secondMatch] = matches;
-    if (secondMatch && bestMatch && bestMatch.score === secondMatch.score) {
+    const normalizedAnswer = normalizeText(text);
+    const explicitMatch = matches.find(({ playbook }) =>
+      [
+        playbook.subCategory.id,
+        playbook.subCategory.name,
+        playbook.subCategory.slug,
+      ].some((value) => normalizeText(value) === normalizedAnswer)
+    );
+    if (
+      !explicitMatch &&
+      secondMatch &&
+      bestMatch &&
+      (bestMatch.score === secondMatch.score ||
+        hasMultipleProblemMarkers(serviceNeed))
+    ) {
       return {
         answers,
         pendingQuestionId: null,
@@ -660,7 +900,7 @@ export const orchestrateAdvisorTurn = async ({
         serviceNeed,
       };
     }
-    const selectedMatch = bestMatch;
+    const selectedMatch = explicitMatch ?? bestMatch;
     if (!selectedMatch) {
       return {
         answers,
@@ -844,6 +1084,7 @@ export const orchestrateAdvisorTurn = async ({
     pinnedPlaybookId,
     pinnedSubCategoryId,
     response: {
+      browsePath: null,
       completed: true,
       kind: "RECOMMENDATION",
       message:
@@ -892,6 +1133,7 @@ export const buildAdvisorMessageInsert = ({
 }) => ({
   metadata: response
     ? {
+        browsePath: response.browsePath,
         kind: response.kind,
         question: response.question,
         recommendation: response.recommendation,

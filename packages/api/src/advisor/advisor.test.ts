@@ -1,7 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Context } from "../runtime/context";
 import {
+  ADVISOR_MAX_TURNS,
   ADVISOR_USER_SESSION_DAYS,
   ADVISOR_VISITOR_SESSION_HOURS,
   advisorRecommendationPayloadSchema,
@@ -88,16 +89,28 @@ const session = (overrides: Partial<AdvisorSessionRecord> = {}) =>
     ...overrides,
   }) satisfies AdvisorSessionRecord;
 
+const advisorPlaybookFindMany = vi.fn().mockResolvedValue([playbook]);
+const listingFindMany = vi.fn().mockResolvedValue([candidate]);
+const subCategoryFindMany = vi.fn().mockResolvedValue([]);
 const database = {
   query: {
     advisorPlaybook: {
-      findMany: vi.fn().mockResolvedValue([playbook]),
+      findMany: advisorPlaybookFindMany,
     },
     listing: {
-      findMany: vi.fn().mockResolvedValue([candidate]),
+      findMany: listingFindMany,
+    },
+    subCategory: {
+      findMany: subCategoryFindMany,
     },
   },
 } as unknown as Context["db"];
+
+beforeEach(() => {
+  advisorPlaybookFindMany.mockResolvedValue([playbook]);
+  listingFindMany.mockResolvedValue([candidate]);
+  subCategoryFindMany.mockResolvedValue([]);
+});
 
 describe("Advisor text-only orchestration", () => {
   it("asks one required question, then returns a live SERVICE recommendation", async () => {
@@ -223,5 +236,99 @@ describe("Advisor text-only orchestration", () => {
       cleanupExpiredAdvisorSessions({ database: cleanupDatabase, now: NOW })
     ).resolves.toBe(0);
     expect(cleanupDatabase.delete).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks a distinguishing question before pinning an ambiguous route", async () => {
+    const websitePlaybook = {
+      ...playbook,
+      id: "00000000-0000-4000-8000-000000000007",
+      subCategory: {
+        ...playbook.subCategory,
+        id: "00000000-0000-4000-8000-000000000008",
+        name: "Website setup",
+        slug: "website-setup",
+      },
+    };
+    advisorPlaybookFindMany.mockResolvedValue([playbook, websitePlaybook]);
+    listingFindMany.mockResolvedValue([]);
+
+    const result = await orchestrateAdvisorTurn({
+      database,
+      session: session(),
+      text: "Tôi cần hỗ trợ account và website",
+    });
+
+    expect(result.response).toMatchObject({
+      kind: "QUESTION",
+      question: { id: null },
+    });
+    expect(result.pinnedPlaybookId).toBeNull();
+  });
+
+  it("returns a SERVICE-only fallback for COURSE requests", async () => {
+    advisorPlaybookFindMany.mockResolvedValue([]);
+    listingFindMany.mockResolvedValue([]);
+
+    const result = await orchestrateAdvisorTurn({
+      database,
+      session: session(),
+      text: "Tôi muốn tìm một khóa học online",
+    });
+
+    expect(result.response).toMatchObject({
+      browsePath: "/category",
+      kind: "NO_MATCH",
+    });
+    expect(result.response.message).toContain("SERVICE");
+  });
+
+  it("distinguishes an active sub-category that lacks a published Playbook", async () => {
+    advisorPlaybookFindMany.mockResolvedValue([]);
+    listingFindMany.mockResolvedValue([]);
+    subCategoryFindMany.mockResolvedValue([playbook.subCategory]);
+
+    const result = await orchestrateAdvisorTurn({
+      database,
+      session: session(),
+      text: "Tôi cần hỗ trợ account setup",
+    });
+
+    expect(result.response).toMatchObject({
+      browsePath: "/category/digital-services?subSlug=account-setup",
+      kind: "PLAYBOOK_UNAVAILABLE",
+    });
+  });
+
+  it("opens a currently eligible named Listing without selecting a package", async () => {
+    advisorPlaybookFindMany.mockResolvedValue([]);
+    listingFindMany.mockResolvedValue([candidate]);
+
+    const result = await orchestrateAdvisorTurn({
+      database,
+      session: session(),
+      text: "Mình muốn xem Listing account-setup-service",
+    });
+
+    expect(result.response).toMatchObject({
+      browsePath: "/listing/account-setup-service",
+      kind: "NO_MATCH",
+    });
+    expect(result.response.message).toContain("tự chọn gói");
+  });
+
+  it("stops new turns at the governed limit while preserving the browse fallback", async () => {
+    listingFindMany.mockResolvedValue([]);
+
+    const result = await orchestrateAdvisorTurn({
+      database,
+      session: session({ turnCount: ADVISOR_MAX_TURNS }),
+      text: "Tôi cần hỗ trợ account",
+    });
+
+    expect(result.response).toMatchObject({
+      browsePath: "/category",
+      kind: "NO_MATCH",
+    });
+    expect(result.response.message).toContain(`${ADVISOR_MAX_TURNS}`);
   });
 });

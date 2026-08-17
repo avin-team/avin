@@ -109,6 +109,7 @@ const touchSession = async (
 };
 
 const stoppedTurnResponse = {
+  browsePath: null,
   completed: false,
   kind: "STOPPED" as const,
   message: "Lượt tư vấn đã dừng và chưa tạo recommendation hoàn tất.",

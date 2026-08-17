@@ -109,6 +109,9 @@ const parseQuestion = (value: unknown): AdvisorQuestion | null => {
     : null;
 };
 
+const parseBrowsePath = (value: unknown): string | null =>
+  typeof value === "string" && value.startsWith("/") ? value : null;
+
 const formatWarranty = (policy: unknown): string => {
   if (!policy || typeof policy !== "object") {
     return "Chính sách bảo hành theo Listing";
@@ -481,6 +484,7 @@ export const AdvisorPage = () => {
     .toReversed()
     .find((message) => message.role === "ASSISTANT");
   const question = parseQuestion(latestAssistant?.metadata?.question);
+  const browsePath = parseBrowsePath(latestAssistant?.metadata?.browsePath);
 
   if (!consentAccepted) {
     return (
@@ -588,6 +592,17 @@ export const AdvisorPage = () => {
                 </output>
               ) : null}
             </div>
+
+            {browsePath ? (
+              <a
+                className="inline-flex min-h-9 items-center rounded-md border px-3 font-medium text-primary text-sm underline-offset-4 hover:underline"
+                href={browsePath}
+              >
+                {browsePath.startsWith("/listing/")
+                  ? "Mở Listing đã kiểm tra"
+                  : "Duyệt danh mục liên quan"}
+              </a>
+            ) : null}
 
             {question ? (
               <fieldset className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-4">

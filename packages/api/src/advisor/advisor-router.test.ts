@@ -328,6 +328,7 @@ describe("Advisor public session boundary", () => {
 
   it("replays a completed turn for the same idempotency key", async () => {
     const previousResponse = {
+      browsePath: null,
       completed: false,
       kind: "QUESTION" as const,
       message: "Cần thêm thông tin.",
