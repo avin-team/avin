@@ -3,6 +3,7 @@ import { appRouter } from "@avin/api/router";
 import { handleSePayWebhook } from "@avin/api/wallet/webhook";
 import { adminAuth, auth } from "@avin/auth";
 import { AUTH_SURFACE_HEADER } from "@avin/auth/auth-surfaces";
+import { ACCOUNT_ROLE } from "@avin/auth/permissions";
 import { env } from "@avin/env/server";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
@@ -14,6 +15,8 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { secureHeaders } from "hono/secure-headers";
 
+import { createAdvisorPreviewApp } from "./advisor-preview";
+import { createAdvisorModel } from "./advisor-provider";
 import { startEmailDeliverySchedule } from "./jobs/email-delivery";
 import { startFulfillmentMaintenanceSchedule } from "./jobs/fulfillment-maintenance";
 import { startOrderChatAttachmentMaintenanceSchedule } from "./jobs/order-chat-attachment-maintenance";
@@ -31,6 +34,16 @@ import { createListingImageStorage } from "./uploads/storage";
 
 const app = new Hono();
 const listingImageStorage = createListingImageStorage();
+const advisorPreviewModel = env.GROQ_API_KEY
+  ? createAdvisorModel({ apiKey: env.GROQ_API_KEY })
+  : undefined;
+const advisorPreviewApp = createAdvisorPreviewApp({
+  getModel: () => advisorPreviewModel,
+  isAuthorized: async (request) => {
+    const session = await auth.api.getSession({ headers: request.headers });
+    return session?.user.role === ACCOUNT_ROLE.ADMIN;
+  },
+});
 const listingImageUploadRouter = listingImageStorage
   ? createListingImageUploadRouter(listingImageStorage.client)
   : null;
@@ -150,6 +163,8 @@ app.post("/api/delivery-attachment-upload", (c) => {
 
   return handleUploadRequest(c.req.raw, deliveryAttachmentUploadRouter);
 });
+
+app.route("/", advisorPreviewApp);
 
 const sePayWebhook = (c: { req: { raw: Request } }) =>
   handleSePayWebhook({
