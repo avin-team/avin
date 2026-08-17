@@ -27,6 +27,20 @@ export interface AdvisorAttachmentStorage {
 
 export type AdvisorAttachmentRecord = typeof advisorAttachment.$inferSelect;
 
+const isMissingObjectError = (error: unknown): boolean => {
+  if (error && typeof error === "object") {
+    const status = "status" in error ? error.status : undefined;
+    const statusCode = "statusCode" in error ? error.statusCode : undefined;
+    if (status === 404 || statusCode === 404) {
+      return true;
+    }
+  }
+  return (
+    error instanceof Error &&
+    /\b(?:404|not found|no such key|nosuchkey)\b/iu.test(error.message)
+  );
+};
+
 const requireAttachmentStorage = (
   storage: ManagedObjectStore | undefined
 ): AdvisorAttachmentStorage => {
@@ -280,14 +294,26 @@ export const deleteAdvisorAttachmentObjects = async ({
   attachments: readonly Pick<AdvisorAttachmentRecord, "storageKey">[];
   storage: ManagedObjectStore | undefined;
 }): Promise<void> => {
-  if (attachments.length === 0 || !storage) {
+  if (attachments.length === 0) {
     return;
   }
-  await Promise.all(
+
+  if (!storage) {
+    throw new ORPCError("SERVICE_UNAVAILABLE", {
+      message: "Advisor image storage is temporarily unavailable.",
+    });
+  }
+
+  const results = await Promise.allSettled(
     attachments.map((attachment) =>
       storage.deleteObject(attachment.storageKey, ADVISOR_ATTACHMENTS_BUCKET)
     )
   );
+  for (const result of results) {
+    if (result.status === "rejected" && !isMissingObjectError(result.reason)) {
+      throw result.reason;
+    }
+  }
 };
 
 export const deleteAdvisorAttachment = async ({

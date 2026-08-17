@@ -9,7 +9,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, RefObject } from "react";
 import { toast } from "sonner";
 
 import { Shell } from "@/components/shell";
@@ -154,6 +154,20 @@ const getAdvisorTurnFailureLabel = (kind: AdvisorTurnFailureKind): string => {
   return "Retryable turn failure";
 };
 
+const focusOnNextFrame = (element: HTMLElement | null): void => {
+  if (!element) {
+    return;
+  }
+  if (
+    typeof window !== "undefined" &&
+    typeof window.requestAnimationFrame === "function"
+  ) {
+    window.requestAnimationFrame(() => element.focus());
+    return;
+  }
+  element.focus();
+};
+
 const createCapability = (): string => {
   const random = globalThis.crypto?.randomUUID;
   if (random) {
@@ -272,18 +286,22 @@ const formatWarranty = (policy: unknown): string => {
 
 const ConsentPanel = ({
   checked,
+  consentRef,
   onAccept,
   onChange,
   pending,
 }: {
   checked: boolean;
+  consentRef: RefObject<HTMLInputElement | null>;
   onAccept: () => void;
   onChange: (checked: boolean) => void;
   pending: boolean;
 }) => (
   <Card className="mx-auto w-full max-w-2xl border-primary/20 shadow-lg">
     <CardHeader>
-      <CardTitle>Trước khi bắt đầu với Service Advisor</CardTitle>
+      <h1 className="font-heading text-xl font-medium">
+        Trước khi bắt đầu với Service Advisor
+      </h1>
       <CardDescription>
         Advisor dùng nội dung bạn gửi để gợi ý Listing SERVICE phù hợp. Phiên
         Visitor được giữ tối đa 24 giờ không hoạt động; User đã đăng nhập tối đa
@@ -292,7 +310,10 @@ const ConsentPanel = ({
       </CardDescription>
     </CardHeader>
     <CardContent className="space-y-5">
-      <p className="text-muted-foreground text-sm">
+      <p
+        className="text-muted-foreground text-sm"
+        id="advisor-consent-description"
+      >
         Bạn có thể xem đầy đủ tại{" "}
         <Link className="font-medium text-primary underline" to="/terms">
           Terms
@@ -310,9 +331,11 @@ const ConsentPanel = ({
       >
         <input
           checked={checked}
+          aria-describedby="advisor-consent-description"
           className="mt-1 size-4 accent-primary"
           id="advisor-consent"
           onChange={(event) => onChange(event.target.checked)}
+          ref={consentRef}
           type="checkbox"
         />
         <span>
@@ -497,6 +520,7 @@ const RecommendationCard = ({
 const AdvisorHandoffPanel = ({
   attachmentIds,
   attachments,
+  headingRef,
   includeSummaryInCheckout,
   listingId,
   onAttachmentToggle,
@@ -511,6 +535,7 @@ const AdvisorHandoffPanel = ({
 }: {
   attachmentIds: string[];
   attachments: AdvisorHandoffAttachment[];
+  headingRef: RefObject<HTMLHeadingElement | null>;
   includeSummaryInCheckout: boolean;
   listingId: string;
   onAttachmentToggle: (attachmentId: string) => void;
@@ -537,7 +562,14 @@ const AdvisorHandoffPanel = ({
   return (
     <Card className="border-primary/40 bg-primary/5" id="advisor-handoff">
       <CardHeader>
-        <CardTitle>Ngữ cảnh Advisor cho Checkout</CardTitle>
+        <h2
+          className="font-heading text-base font-medium"
+          id="advisor-handoff-title"
+          ref={headingRef}
+          tabIndex={-1}
+        >
+          Ngữ cảnh Advisor cho Checkout
+        </h2>
         <CardDescription>
           Tóm tắt chỉ được tạo sau khi bạn chọn recommendation. Bạn tự chọn ảnh
           và quyết định có đưa tóm tắt vào Buyer Checkout Note hay không; không
@@ -553,6 +585,7 @@ const AdvisorHandoffPanel = ({
             <div className="flex flex-wrap gap-2">
               {listings.map((listing) => (
                 <Button
+                  aria-pressed={listing.id === listingId}
                   key={listing.id}
                   onClick={() => onListingChange(listing.id)}
                   size="sm"
@@ -745,6 +778,7 @@ const AdvisorFeedbackPanel = ({
       <CardContent className="space-y-4">
         <div className="flex flex-wrap gap-2">
           <Button
+            aria-pressed={sentiment === "POSITIVE"}
             onClick={() => setSentiment("POSITIVE")}
             type="button"
             variant={sentiment === "POSITIVE" ? "default" : "outline"}
@@ -752,6 +786,7 @@ const AdvisorFeedbackPanel = ({
             Hữu ích
           </Button>
           <Button
+            aria-pressed={sentiment === "NEGATIVE"}
             onClick={() => setSentiment("NEGATIVE")}
             type="button"
             variant={sentiment === "NEGATIVE" ? "default" : "outline"}
@@ -868,7 +903,13 @@ export const AdvisorPage = () => {
   const [attachmentBusy, setAttachmentBusy] = useState(false);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
+  const attachmentTriggerRef = useRef<HTMLButtonElement>(null);
   const attachmentsRef = useRef<AdvisorAttachmentPreview[]>([]);
+  const consentRef = useRef<HTMLInputElement>(null);
+  const focusAfterDeleteRef = useRef(false);
+  const focusAfterStartRef = useRef(false);
+  const handoffHeadingRef = useRef<HTMLHeadingElement>(null);
+  const messageInputRef = useRef<HTMLTextAreaElement>(null);
   const [handoffSelection, setHandoffSelection] =
     useState<AdvisorHandoffSelection | null>(null);
   const handoffPreviewUrlsRef = useRef<string[]>([]);
@@ -919,6 +960,21 @@ export const AdvisorPage = () => {
     attachmentsRef.current = attachments;
   }, [attachments]);
 
+  useEffect(() => {
+    if (focusAfterStartRef.current && consentAccepted && sessionQuery.data) {
+      focusAfterStartRef.current = false;
+      focusOnNextFrame(messageInputRef.current);
+    }
+  }, [consentAccepted, sessionQuery.data]);
+
+  useEffect(() => {
+    if (!focusAfterDeleteRef.current || consentAccepted) {
+      return;
+    }
+    focusAfterDeleteRef.current = false;
+    focusOnNextFrame(consentRef.current);
+  }, [consentAccepted]);
+
   useEffect(
     () => () => {
       for (const attachment of attachmentsRef.current) {
@@ -968,6 +1024,7 @@ export const AdvisorPage = () => {
       });
       setStoredValue(CONSENT_STORAGE_KEY, consent.consentId);
       setStoredValue(SESSION_STORAGE_KEY, created.id);
+      focusAfterStartRef.current = true;
       setConsentAccepted(true);
       setSessionId(created.id);
     } catch (error) {
@@ -1014,6 +1071,7 @@ export const AdvisorPage = () => {
           input: { sessionId, visitorCapability: capability },
         }).queryKey,
       });
+      focusOnNextFrame(messageInputRef.current);
     } catch (error) {
       const failure = classifyAdvisorTurnFailure(error);
       setTurnFailure(failure);
@@ -1023,6 +1081,7 @@ export const AdvisorPage = () => {
         setRetryRequest(null);
       }
       toast.error(failure.message);
+      focusOnNextFrame(messageInputRef.current);
     }
   };
 
@@ -1111,6 +1170,7 @@ export const AdvisorPage = () => {
       }
     } finally {
       setAttachmentBusy(false);
+      focusOnNextFrame(attachmentTriggerRef.current);
     }
     if (errors.length > 0) {
       setAttachmentError(errors.join(" "));
@@ -1150,6 +1210,7 @@ export const AdvisorPage = () => {
       );
     } finally {
       setAttachmentBusy(false);
+      focusOnNextFrame(attachmentTriggerRef.current);
     }
   };
 
@@ -1207,6 +1268,7 @@ export const AdvisorPage = () => {
         sessionId,
         summary: selected.summary,
       });
+      focusOnNextFrame(handoffHeadingRef.current);
       toast.success(
         "Đã tạo Advisory Summary. Hãy kiểm tra trước khi xác nhận."
       );
@@ -1296,8 +1358,10 @@ export const AdvisorPage = () => {
           input: { sessionId, visitorCapability: capability },
         }).queryKey,
       });
+      focusOnNextFrame(messageInputRef.current);
       toast.success("Đã yêu cầu dừng lượt tư vấn.");
     } catch (error) {
+      focusOnNextFrame(messageInputRef.current);
       toast.error(
         error instanceof Error ? error.message : "Không thể dừng lượt tư vấn."
       );
@@ -1321,6 +1385,7 @@ export const AdvisorPage = () => {
       setAttachments([]);
       setAttachmentError(null);
       setSessionId("");
+      focusAfterDeleteRef.current = true;
       setConsentAccepted(false);
       setConsentChecked(false);
       setDeleteRequested(false);
@@ -1364,6 +1429,7 @@ export const AdvisorPage = () => {
         <div className="flex min-h-[calc(100vh-14rem)] items-center justify-center py-8">
           <ConsentPanel
             checked={consentChecked}
+            consentRef={consentRef}
             onAccept={() => void startSession()}
             onChange={setConsentChecked}
             pending={consentMutation.isPending || sessionMutation.isPending}
@@ -1426,11 +1492,19 @@ export const AdvisorPage = () => {
           </div>
         ) : null}
 
+        <output aria-atomic="true" aria-live="polite" className="sr-only">
+          {generationActive
+            ? "Advisor đang xử lý lượt tư vấn."
+            : (turnFailure?.message ?? "")}
+        </output>
+
         <Card className="overflow-hidden">
           <CardContent className="space-y-4 p-4 sm:p-6">
             <div
               aria-label="Lịch sử hội thoại Advisor"
+              aria-busy={generationActive}
               aria-live="polite"
+              aria-relevant="additions"
               className="max-h-[min(55vh,38rem)] min-h-72 space-y-3 overflow-y-auto rounded-xl bg-muted/20 p-4"
               role="log"
             >
@@ -1511,6 +1585,7 @@ export const AdvisorPage = () => {
                 </div>
                 <input
                   accept="image/jpeg,image/png,image/webp"
+                  aria-label="Chọn ảnh tham khảo"
                   className="sr-only"
                   disabled={
                     attachmentBusy || generationActive || stopMutation.isPending
@@ -1528,6 +1603,7 @@ export const AdvisorPage = () => {
                     attachments.length >= ADVISOR_ATTACHMENT_MAX_PER_MESSAGE
                   }
                   onClick={() => attachmentInputRef.current?.click()}
+                  ref={attachmentTriggerRef}
                   size="sm"
                   type="button"
                   variant="outline"
@@ -1580,15 +1656,21 @@ export const AdvisorPage = () => {
                 void sendTurn(text);
               }}
             >
+              <p className="sr-only" id="advisor-message-hint">
+                Không gửi password, OTP, access token, thông tin thanh toán hoặc
+                giấy tờ định danh.
+              </p>
               <label className="sr-only" htmlFor="advisor-message">
                 Mô tả Service Need
               </label>
               <textarea
                 aria-label="Mô tả Service Need"
+                aria-describedby="advisor-message-hint"
                 className="min-h-12 flex-1 resize-y rounded-lg border bg-background px-3 py-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
                 disabled={generationActive || stopMutation.isPending}
                 id="advisor-message"
                 onChange={(event) => setText(event.target.value)}
+                ref={messageInputRef}
                 placeholder="Ví dụ: Tôi cần setup account cho website cá nhân..."
                 value={text}
               />
@@ -1683,6 +1765,7 @@ export const AdvisorPage = () => {
           <AdvisorHandoffPanel
             attachments={handoffSelection.attachments}
             attachmentIds={handoffSelection.attachmentIds}
+            headingRef={handoffHeadingRef}
             includeSummaryInCheckout={handoffSelection.includeSummaryInCheckout}
             listingId={handoffSelection.listingId}
             onAttachmentToggle={(attachmentId) => {

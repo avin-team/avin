@@ -367,16 +367,14 @@ export const advisorSessionRouter = {
         sessionId: session.id,
         userId: session.userId,
       });
-      if (context.storage) {
-        const attachments =
-          (await context.db.query.advisorAttachment.findMany({
-            where: eq(advisorAttachment.sessionId, session.id),
-          })) ?? [];
-        await deleteAdvisorAttachmentObjects({
-          attachments,
-          storage: context.storage,
-        });
-      }
+      const attachments =
+        (await context.db.query.advisorAttachment.findMany({
+          where: eq(advisorAttachment.sessionId, session.id),
+        })) ?? [];
+      await deleteAdvisorAttachmentObjects({
+        attachments,
+        storage: context.storage,
+      });
       await context.db
         .delete(advisorSession)
         .where(eq(advisorSession.id, session.id));
