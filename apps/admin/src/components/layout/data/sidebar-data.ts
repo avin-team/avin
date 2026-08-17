@@ -4,6 +4,7 @@ import {
   FolderIcon,
   GavelIcon,
   BankIcon,
+  BookOpenIcon,
   ChartLineUpIcon,
   BellIcon,
   SquaresFourIcon,
@@ -33,6 +34,11 @@ export const sidebarData: SidebarData = {
           icon: FolderIcon,
           title: "Danh mục & Chính sách",
           url: "/categories",
+        },
+        {
+          icon: BookOpenIcon,
+          title: "Advisor Playbooks",
+          url: "/playbooks",
         },
         {
           icon: GavelIcon,

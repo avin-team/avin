@@ -25,6 +25,7 @@ import { Route as AuthenticatedDisputesDisputeIdRouteImport } from './routes/_au
 import { Route as AuthenticatedListingsIndexRouteImport } from './routes/_authenticated/listings/index'
 import { Route as AuthenticatedNotificationsIndexRouteImport } from './routes/_authenticated/notifications/index'
 import { Route as AuthenticatedOperationsIndexRouteImport } from './routes/_authenticated/operations/index'
+import { Route as AuthenticatedPlaybooksIndexRouteImport } from './routes/_authenticated/playbooks/index'
 import { Route as AuthenticatedSellerApplicationsIndexRouteImport } from './routes/_authenticated/seller-applications/index'
 import { Route as AuthenticatedSellerApplicationsApplicationIdRouteImport } from './routes/_authenticated/seller-applications/$applicationId'
 import { Route as AuthenticatedSellersIndexRouteImport } from './routes/_authenticated/sellers/index'
@@ -116,6 +117,12 @@ const AuthenticatedOperationsIndexRoute =
     path: '/operations/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedPlaybooksIndexRoute =
+  AuthenticatedPlaybooksIndexRouteImport.update({
+    id: '/playbooks/',
+    path: '/playbooks/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedSellerApplicationsIndexRoute =
   AuthenticatedSellerApplicationsIndexRouteImport.update({
     id: '/seller-applications/',
@@ -165,6 +172,7 @@ export interface FileRoutesByFullPath {
   '/listings/': typeof AuthenticatedListingsIndexRoute
   '/notifications/': typeof AuthenticatedNotificationsIndexRoute
   '/operations/': typeof AuthenticatedOperationsIndexRoute
+  '/playbooks/': typeof AuthenticatedPlaybooksIndexRoute
   '/seller-applications/': typeof AuthenticatedSellerApplicationsIndexRoute
   '/sellers/': typeof AuthenticatedSellersIndexRoute
   '/withdrawals/': typeof AuthenticatedWithdrawalsIndexRoute
@@ -187,6 +195,7 @@ export interface FileRoutesByTo {
   '/listings': typeof AuthenticatedListingsIndexRoute
   '/notifications': typeof AuthenticatedNotificationsIndexRoute
   '/operations': typeof AuthenticatedOperationsIndexRoute
+  '/playbooks': typeof AuthenticatedPlaybooksIndexRoute
   '/seller-applications': typeof AuthenticatedSellerApplicationsIndexRoute
   '/sellers': typeof AuthenticatedSellersIndexRoute
   '/withdrawals': typeof AuthenticatedWithdrawalsIndexRoute
@@ -211,6 +220,7 @@ export interface FileRoutesById {
   '/_authenticated/listings/': typeof AuthenticatedListingsIndexRoute
   '/_authenticated/notifications/': typeof AuthenticatedNotificationsIndexRoute
   '/_authenticated/operations/': typeof AuthenticatedOperationsIndexRoute
+  '/_authenticated/playbooks/': typeof AuthenticatedPlaybooksIndexRoute
   '/_authenticated/seller-applications/': typeof AuthenticatedSellerApplicationsIndexRoute
   '/_authenticated/sellers/': typeof AuthenticatedSellersIndexRoute
   '/_authenticated/withdrawals/': typeof AuthenticatedWithdrawalsIndexRoute
@@ -235,6 +245,7 @@ export interface FileRouteTypes {
     | '/listings/'
     | '/notifications/'
     | '/operations/'
+    | '/playbooks/'
     | '/seller-applications/'
     | '/sellers/'
     | '/withdrawals/'
@@ -257,6 +268,7 @@ export interface FileRouteTypes {
     | '/listings'
     | '/notifications'
     | '/operations'
+    | '/playbooks'
     | '/seller-applications'
     | '/sellers'
     | '/withdrawals'
@@ -280,6 +292,7 @@ export interface FileRouteTypes {
     | '/_authenticated/listings/'
     | '/_authenticated/notifications/'
     | '/_authenticated/operations/'
+    | '/_authenticated/playbooks/'
     | '/_authenticated/seller-applications/'
     | '/_authenticated/sellers/'
     | '/_authenticated/withdrawals/'
@@ -410,6 +423,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOperationsIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/playbooks/': {
+      id: '/_authenticated/playbooks/'
+      path: '/playbooks'
+      fullPath: '/playbooks/'
+      preLoaderRoute: typeof AuthenticatedPlaybooksIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/seller-applications/': {
       id: '/_authenticated/seller-applications/'
       path: '/seller-applications'
@@ -459,6 +479,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedListingsIndexRoute: typeof AuthenticatedListingsIndexRoute
   AuthenticatedNotificationsIndexRoute: typeof AuthenticatedNotificationsIndexRoute
   AuthenticatedOperationsIndexRoute: typeof AuthenticatedOperationsIndexRoute
+  AuthenticatedPlaybooksIndexRoute: typeof AuthenticatedPlaybooksIndexRoute
   AuthenticatedSellerApplicationsIndexRoute: typeof AuthenticatedSellerApplicationsIndexRoute
   AuthenticatedSellersIndexRoute: typeof AuthenticatedSellersIndexRoute
   AuthenticatedWithdrawalsIndexRoute: typeof AuthenticatedWithdrawalsIndexRoute
@@ -476,6 +497,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedListingsIndexRoute: AuthenticatedListingsIndexRoute,
   AuthenticatedNotificationsIndexRoute: AuthenticatedNotificationsIndexRoute,
   AuthenticatedOperationsIndexRoute: AuthenticatedOperationsIndexRoute,
+  AuthenticatedPlaybooksIndexRoute: AuthenticatedPlaybooksIndexRoute,
   AuthenticatedSellerApplicationsIndexRoute:
     AuthenticatedSellerApplicationsIndexRoute,
   AuthenticatedSellersIndexRoute: AuthenticatedSellersIndexRoute,

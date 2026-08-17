@@ -1,5 +1,8 @@
+import { relations, sql } from "drizzle-orm";
 import {
   index,
+  integer,
+  jsonb,
   pgEnum,
   pgTable,
   text,
@@ -7,6 +10,8 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+
+import { subCategory } from "./catalog";
 
 export const advisorProviderState = pgEnum("advisor_provider_state", [
   "ACTIVE",
@@ -43,4 +48,58 @@ export const advisorProviderConfig = pgTable(
     ),
     index("advisor_provider_config_state_idx").on(table.state),
   ]
+);
+
+export const advisorPlaybookStatus = pgEnum("advisor_playbook_status", [
+  "DRAFT",
+  "PUBLISHED",
+  "ARCHIVED",
+]);
+
+export const advisorPlaybook = pgTable(
+  "advisor_playbook",
+  {
+    archivedAt: timestamp("archived_at"),
+    content: jsonb("content").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    lastTestedAt: timestamp("last_tested_at"),
+    publishedAt: timestamp("published_at"),
+    scenarioResults: jsonb("scenario_results")
+      .$type<unknown[]>()
+      .default([])
+      .notNull(),
+    status: advisorPlaybookStatus("status").default("DRAFT").notNull(),
+    subCategoryId: uuid("sub_category_id")
+      .notNull()
+      .references(() => subCategory.id, { onDelete: "restrict" }),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+    version: integer("version").notNull(),
+  },
+  (table) => [
+    uniqueIndex("advisor_playbook_sub_category_version_unique_idx").on(
+      table.subCategoryId,
+      table.version
+    ),
+    uniqueIndex("advisor_playbook_published_sub_category_unique_idx")
+      .on(table.subCategoryId)
+      .where(sql`${table.status} = 'PUBLISHED'`),
+    index("advisor_playbook_sub_category_status_idx").on(
+      table.subCategoryId,
+      table.status
+    ),
+  ]
+);
+
+export const advisorPlaybookRelations = relations(
+  advisorPlaybook,
+  ({ one }) => ({
+    subCategory: one(subCategory, {
+      fields: [advisorPlaybook.subCategoryId],
+      references: [subCategory.id],
+    }),
+  })
 );
