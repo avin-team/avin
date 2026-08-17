@@ -83,6 +83,77 @@ const getAttachmentErrorMessage = (payload: unknown): string => {
   return "Không thể xử lý ảnh Advisor.";
 };
 
+type AdvisorTurnFailureKind =
+  | "DAILY_QUOTA"
+  | "PROVIDER_UNAVAILABLE"
+  | "RATE_LIMIT"
+  | "RETRYABLE";
+
+interface AdvisorTurnFailure {
+  kind: AdvisorTurnFailureKind;
+  message: string;
+}
+
+const getErrorCode = (error: unknown): string | null => {
+  if (
+    error &&
+    typeof error === "object" &&
+    "code" in error &&
+    typeof error.code === "string"
+  ) {
+    return error.code;
+  }
+  return null;
+};
+
+const classifyAdvisorTurnFailure = (error: unknown): AdvisorTurnFailure => {
+  const code = getErrorCode(error);
+  const rawMessage = error instanceof Error ? error.message : "";
+  if (code === "TOO_MANY_REQUESTS") {
+    if (/quota/iu.test(rawMessage)) {
+      return {
+        kind: "DAILY_QUOTA",
+        message:
+          "Advisor đã chạm quota AI trong ngày. Bạn vẫn có thể duyệt danh mục dịch vụ.",
+      };
+    }
+    return {
+      kind: "RATE_LIMIT",
+      message: rawMessage || "Bạn đang thao tác quá nhanh. Hãy thử lại sau.",
+    };
+  }
+  if (code === "SERVICE_UNAVAILABLE") {
+    if (/disabled/iu.test(rawMessage)) {
+      return {
+        kind: "PROVIDER_UNAVAILABLE",
+        message: "Service Advisor đang được Admin tạm tắt.",
+      };
+    }
+    return {
+      kind: "PROVIDER_UNAVAILABLE",
+      message:
+        "Service Advisor hiện không khả dụng do provider hoặc cấu hình. Bạn có thể duyệt danh mục dịch vụ.",
+    };
+  }
+  return {
+    kind: "RETRYABLE",
+    message: rawMessage || "Không thể hoàn tất lượt tư vấn. Hãy thử lại.",
+  };
+};
+
+const getAdvisorTurnFailureLabel = (kind: AdvisorTurnFailureKind): string => {
+  if (kind === "DAILY_QUOTA") {
+    return "Daily quota";
+  }
+  if (kind === "RATE_LIMIT") {
+    return "Rate limit";
+  }
+  if (kind === "PROVIDER_UNAVAILABLE") {
+    return "Advisor unavailable";
+  }
+  return "Retryable turn failure";
+};
+
 const createCapability = (): string => {
   const random = globalThis.crypto?.randomUUID;
   if (random) {
@@ -806,6 +877,9 @@ export const AdvisorPage = () => {
     idempotencyKey: AdvisorIdempotencyKey;
     text: string;
   } | null>(null);
+  const [turnFailure, setTurnFailure] = useState<AdvisorTurnFailure | null>(
+    null
+  );
   const queryClient = useQueryClient();
 
   const sessionQuery = useQuery({
@@ -919,6 +993,7 @@ export const AdvisorPage = () => {
       return;
     }
     setRetryRequest(null);
+    setTurnFailure(null);
     setText("");
     try {
       await turnMutation.mutateAsync({
@@ -933,18 +1008,21 @@ export const AdvisorPage = () => {
       }
       setAttachments([]);
       setAttachmentError(null);
+      setTurnFailure(null);
       await queryClient.invalidateQueries({
         queryKey: orpc.advisor.session.get.queryOptions({
           input: { sessionId, visitorCapability: capability },
         }).queryKey,
       });
     } catch (error) {
-      setRetryRequest({ attachmentIds, idempotencyKey, text: trimmed });
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Không thể hoàn tất lượt tư vấn."
-      );
+      const failure = classifyAdvisorTurnFailure(error);
+      setTurnFailure(failure);
+      if (failure.kind === "RETRYABLE") {
+        setRetryRequest({ attachmentIds, idempotencyKey, text: trimmed });
+      } else {
+        setRetryRequest(null);
+      }
+      toast.error(failure.message);
     }
   };
 
@@ -1547,6 +1625,29 @@ export const AdvisorPage = () => {
                 >
                   Thử lại
                 </Button>
+              </div>
+            ) : null}
+            {turnFailure ? (
+              <div
+                className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm"
+                role="alert"
+              >
+                <p>
+                  <span className="font-semibold">
+                    {getAdvisorTurnFailureLabel(turnFailure.kind)}
+                    {" — "}
+                  </span>
+                  {turnFailure.message}
+                </p>
+                {turnFailure.kind === "DAILY_QUOTA" ||
+                turnFailure.kind === "PROVIDER_UNAVAILABLE" ? (
+                  <Link
+                    className="mt-2 inline-flex font-medium text-primary underline underline-offset-4"
+                    to="/category"
+                  >
+                    Duyệt catalog thủ công
+                  </Link>
+                ) : null}
               </div>
             ) : null}
           </CardContent>

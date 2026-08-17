@@ -157,6 +157,7 @@ export const advisorSession = pgTable(
       .notNull()
       .references(() => advisorConsent.id, { onDelete: "restrict" }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
+    creationIpHash: text("creation_ip_hash"),
     expiresAt: timestamp("expires_at").notNull(),
     generationStartedAt: timestamp("generation_started_at"),
     generationStatus: advisorGenerationStatus("generation_status")
@@ -194,6 +195,10 @@ export const advisorSession = pgTable(
       table.status
     ),
     index("advisor_session_expires_at_idx").on(table.expiresAt),
+    index("advisor_session_creation_ip_created_at_idx").on(
+      table.creationIpHash,
+      table.createdAt
+    ),
     index("advisor_session_generation_status_idx").on(table.generationStatus),
     index("advisor_session_pinned_playbook_idx").on(table.pinnedPlaybookId),
   ]

@@ -13,6 +13,10 @@ type AdvisorDatabase = Context["db"];
 const ADVISOR_ANALYTICS_MONTH_RETENTION = 13;
 const ADVISOR_TECHNICAL_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
+export const ADVISOR_DAILY_REQUEST_LIMIT = 1000;
+export const ADVISOR_DAILY_TOKEN_LIMIT = 200_000;
+export const ADVISOR_QUOTA_WARNING_RATIO = 0.8;
+
 export const advisorAnalyticsEventTypeSchema = z.enum(
   advisorAnalyticsEventType.enumValues
 );
@@ -21,21 +25,32 @@ export const advisorAnalyticsMetadataSchema = z.strictObject({
   attachmentCount: z.number().int().nonnegative().max(5).optional(),
   errorCode: z.string().trim().min(1).max(120).optional(),
   eventVersion: z.string().trim().min(1).max(32).optional(),
+  firstTokenLatencyMs: z.number().int().nonnegative().max(120_000).optional(),
+  ipHash: z.string().trim().min(32).max(128).optional(),
   latencyMs: z.number().int().nonnegative().max(120_000).optional(),
   listingId: z.uuid().optional(),
   model: z.string().trim().min(1).max(120).optional(),
   providerRequestId: z.string().trim().min(1).max(160).optional(),
   recommendationId: z.uuid().optional(),
   sentiment: z.enum(["NEGATIVE", "POSITIVE"]).optional(),
-  status: z.enum(["ERROR", "RATE_LIMITED", "SUCCESS", "TIMEOUT"]).optional(),
+  status: z
+    .enum(["ERROR", "RATE_LIMITED", "STARTED", "SUCCESS", "TIMEOUT"])
+    .optional(),
   tokenCount: z.number().int().nonnegative().max(1_000_000).optional(),
   toolName: z.string().trim().min(1).max(120).optional(),
   turnCount: z.number().int().nonnegative().max(100).optional(),
+  visitorHash: z.string().trim().min(32).max(128).optional(),
 });
 
+const advisorPublicAnalyticsMetadataSchema =
+  advisorAnalyticsMetadataSchema.omit({ ipHash: true, visitorHash: true });
+
 export const advisorAnalyticsTrackInputSchema = z.strictObject({
-  eventType: advisorAnalyticsEventTypeSchema.exclude(["MODEL_REQUEST"]),
-  metadata: advisorAnalyticsMetadataSchema.default({}),
+  eventType: advisorAnalyticsEventTypeSchema.exclude([
+    "MODEL_REQUEST",
+    "SESSION_STARTED",
+  ]),
+  metadata: advisorPublicAnalyticsMetadataSchema.default({}),
   sessionId: z.uuid(),
   visitorCapability: z.string().trim().min(32).max(256).optional(),
 });
@@ -153,6 +168,14 @@ export interface AdvisorAnalyticsOverview {
     total: number;
   };
   noMatches: number;
+  quota: {
+    exhausted: boolean;
+    requestLimit: number;
+    requests: number;
+    tokenLimit: number;
+    tokens: number;
+    warning: boolean;
+  };
   recommendations: number;
   sessions: number;
   technicalRequests: number;
@@ -204,6 +227,34 @@ export const getAdvisorAnalyticsOverview = async ({
     (event) => event.metadata.sentiment === "NEGATIVE"
   ).length;
   const checkouts = countEvents("CHECKOUT_COMPLETED");
+  const technicalEvents = events.filter(
+    (event) => event.retention === "TECHNICAL"
+  );
+  const quotaDayStart = new Date(now);
+  quotaDayStart.setUTCHours(0, 0, 0, 0);
+  const quotaEvents = technicalEvents.filter(
+    (event) => event.createdAt >= quotaDayStart
+  );
+  let quotaTokens = 0;
+  for (const event of quotaEvents) {
+    const { tokenCount } = event.metadata;
+    if (typeof tokenCount === "number") {
+      quotaTokens += tokenCount;
+    }
+  }
+  const quota = {
+    exhausted:
+      quotaEvents.length >= ADVISOR_DAILY_REQUEST_LIMIT ||
+      quotaTokens >= ADVISOR_DAILY_TOKEN_LIMIT,
+    requestLimit: ADVISOR_DAILY_REQUEST_LIMIT,
+    requests: quotaEvents.length,
+    tokenLimit: ADVISOR_DAILY_TOKEN_LIMIT,
+    tokens: quotaTokens,
+    warning:
+      quotaEvents.length >=
+        ADVISOR_DAILY_REQUEST_LIMIT * ADVISOR_QUOTA_WARNING_RATIO ||
+      quotaTokens >= ADVISOR_DAILY_TOKEN_LIMIT * ADVISOR_QUOTA_WARNING_RATIO,
+  };
   const dayMap = new Map<string, AdvisorAnalyticsOverview["days"][number]>();
   for (let index = 0; index < days; index += 1) {
     const day = new Date(start.getTime() + index * 24 * 60 * 60 * 1000);
@@ -232,6 +283,12 @@ export const getAdvisorAnalyticsOverview = async ({
   }
   const ratio = (numerator: number): number =>
     sessions === 0 ? 0 : Number((numerator / sessions).toFixed(4));
+  const turns = aggregateEvents.filter(
+    (event) =>
+      event.eventType === "TURN_COMPLETED" &&
+      (event.metadata.status === undefined ||
+        event.metadata.status === "SUCCESS")
+  ).length;
   return {
     conversion: {
       checkoutRate: ratio(checkouts),
@@ -241,10 +298,10 @@ export const getAdvisorAnalyticsOverview = async ({
     days: [...dayMap.values()],
     feedback: { negative, positive, total: feedback.length },
     noMatches: countEvents("NO_MATCH"),
+    quota,
     recommendations,
     sessions,
-    technicalRequests: events.filter((event) => event.retention === "TECHNICAL")
-      .length,
-    turns: countEvents("TURN_COMPLETED"),
+    technicalRequests: technicalEvents.length,
+    turns,
   };
 };

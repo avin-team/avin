@@ -216,6 +216,15 @@ interface AdvisorAnalyticsSummary {
   turns: number;
 }
 
+interface AdvisorQuotaSummary {
+  exhausted: boolean;
+  requestLimit: number;
+  requests: number;
+  tokenLimit: number;
+  tokens: number;
+  warning: boolean;
+}
+
 const getAdvisorMetrics = (overview: AdvisorAnalyticsSummary | undefined) => [
   { label: "Sessions", value: overview?.sessions ?? 0 },
   { label: "Turns completed", value: overview?.turns ?? 0 },
@@ -234,6 +243,41 @@ const getAdvisorMetrics = (overview: AdvisorAnalyticsSummary | undefined) => [
   { label: "Feedback", value: overview?.feedback.total ?? 0 },
   { label: "Technical requests", value: overview?.technicalRequests ?? 0 },
 ];
+
+const AdvisorQuotaBanner = ({
+  quota,
+}: {
+  quota: AdvisorQuotaSummary | undefined;
+}) => {
+  if (!quota) {
+    return null;
+  }
+  if (quota.exhausted) {
+    return (
+      <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+        Daily quota đã đạt giới hạn: {quota.requests}/{quota.requestLimit}{" "}
+        request, {quota.tokens.toLocaleString("vi-VN")}/
+        {quota.tokenLimit.toLocaleString("vi-VN")} token.
+      </p>
+    );
+  }
+  if (quota.warning) {
+    return (
+      <p className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
+        Cảnh báo 80% quota: {quota.requests}/{quota.requestLimit} request,{" "}
+        {quota.tokens.toLocaleString("vi-VN")}/
+        {quota.tokenLimit.toLocaleString("vi-VN")} token.
+      </p>
+    );
+  }
+  return (
+    <p className="text-muted-foreground text-sm">
+      Quota hôm nay: {quota.requests}/{quota.requestLimit} request ·{" "}
+      {quota.tokens.toLocaleString("vi-VN")}/
+      {quota.tokenLimit.toLocaleString("vi-VN")} token.
+    </p>
+  );
+};
 
 const AdvisorMetricGrid = ({
   metrics,
@@ -474,6 +518,7 @@ const AdvisorAnalyticsPanel = ({ enabled }: { enabled: boolean }) => {
             onRetry={() => void analyticsQuery.refetch()}
           />
           <AdvisorMetricGrid metrics={metrics} />
+          <AdvisorQuotaBanner quota={overview?.quota} />
           <AdvisorTrendTable days={days} />
         </CardContent>
       </Card>

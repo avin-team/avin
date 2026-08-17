@@ -1,0 +1,2 @@
+ALTER TABLE "advisor_session" ADD COLUMN "creation_ip_hash" text;--> statement-breakpoint
+CREATE INDEX "advisor_session_creation_ip_created_at_idx" ON "advisor_session" USING btree ("creation_ip_hash","created_at");

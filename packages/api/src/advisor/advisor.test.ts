@@ -72,6 +72,7 @@ const session = (overrides: Partial<AdvisorSessionRecord> = {}) =>
     answers: {},
     consentId: "00000000-0000-4000-8000-000000000005",
     createdAt: NOW,
+    creationIpHash: null,
     expiresAt: new Date("2026-08-19T00:00:00.000Z"),
     generationStartedAt: null,
     generationStatus: "IDLE" as const,

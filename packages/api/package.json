@@ -14,6 +14,7 @@
     "./advisor/analytics": "./src/advisor/analytics.ts",
     "./advisor/feedback": "./src/advisor/feedback.ts",
     "./advisor/handoff": "./src/advisor/handoff.ts",
+    "./advisor/quota": "./src/advisor/quota.ts",
     "./advisor/provider": "./src/advisor/provider.ts",
     "./context": "./src/runtime/context.ts",
     "./listing/seller-workspace": "./src/listing/seller-workspace.ts",

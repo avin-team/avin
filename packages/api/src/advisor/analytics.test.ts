@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Context } from "../runtime/context";
 import {
   advisorAnalyticsMetadataSchema,
+  advisorAnalyticsTrackInputSchema,
   cleanupAdvisorAnalyticsEvents,
   getAdvisorAnalyticsOverview,
   recordAdvisorAnalyticsEvent,
@@ -43,6 +44,22 @@ describe("Advisor analytics", () => {
         toolName: "catalog.search",
       }).success
     ).toBe(true);
+    expect(
+      advisorAnalyticsTrackInputSchema.safeParse({
+        eventType: "LISTING_CLICKED",
+        metadata: {
+          ipHash: "i".repeat(64),
+          visitorHash: "v".repeat(64),
+        },
+        sessionId: SESSION_ID,
+      }).success
+    ).toBe(false);
+    expect(
+      advisorAnalyticsTrackInputSchema.safeParse({
+        eventType: "SESSION_STARTED",
+        sessionId: SESSION_ID,
+      }).success
+    ).toBe(false);
   });
 
   it("classifies technical request events separately from aggregate events", async () => {

@@ -60,6 +60,11 @@ import {
   copyAdvisorHandoffAttachmentsToCheckout,
   selectAdvisorRecommendation,
 } from "./handoff";
+import {
+  enforceAdvisorSessionCreationLimit,
+  estimateAdvisorTokenCount,
+  reserveAdvisorModelRequest,
+} from "./quota";
 
 const TERMS_PATH = "/terms";
 const PRIVACY_PATH = "/privacy";
@@ -67,15 +72,21 @@ const PRIVACY_PATH = "/privacy";
 const requireProviderReady = async (context: Context): Promise<void> => {
   if (!context.advisorProvider) {
     throw new ORPCError("SERVICE_UNAVAILABLE", {
-      message: "Service Advisor is temporarily unavailable.",
+      message: "Service Advisor provider is unavailable.",
     });
   }
 
   try {
     const status = await context.advisorProvider.getStatus();
     if (status.state !== "ACTIVE" || !status.contractVerifiedAt) {
+      let message = "Service Advisor provider is unavailable.";
+      if (status.state === "DISABLED") {
+        message = "Service Advisor is disabled by Admin.";
+      } else if (status.state === "INVALID") {
+        message = "Service Advisor configuration is invalid.";
+      }
       throw new ORPCError("SERVICE_UNAVAILABLE", {
-        message: "Service Advisor is temporarily unavailable.",
+        message,
       });
     }
   } catch (error) {
@@ -83,7 +94,7 @@ const requireProviderReady = async (context: Context): Promise<void> => {
       throw error;
     }
     throw new ORPCError("SERVICE_UNAVAILABLE", {
-      message: "Service Advisor is temporarily unavailable.",
+      message: "Service Advisor provider is unavailable.",
     });
   }
 };
@@ -158,6 +169,25 @@ const containsLikelySecret = (text: string): boolean =>
   /\b(?:password|passwd|mật khẩu|otp|one[- ]time password|api[- ]?key|access[- ]?token|secret key|cvv|credit card)\b/iu.test(
     text
   );
+
+const getAdvisorTurnErrorCode = (error: unknown): string =>
+  error instanceof ORPCError ? error.code : "ADVISOR_TURN_FAILED";
+
+const getAdvisorTurnErrorStatus = (
+  error: unknown
+): "ERROR" | "RATE_LIMITED" | "TIMEOUT" => {
+  const code = getAdvisorTurnErrorCode(error);
+  if (code === "TOO_MANY_REQUESTS") {
+    return "RATE_LIMITED";
+  }
+  if (
+    code === "TIMEOUT" ||
+    (error instanceof Error && /timeout/iu.test(error.message))
+  ) {
+    return "TIMEOUT";
+  }
+  return "ERROR";
+};
 
 const toMessage = (message: typeof advisorMessage.$inferSelect) => ({
   createdAt: message.createdAt.toISOString(),
@@ -274,10 +304,17 @@ export const advisorSessionRouter = {
       }
 
       const now = new Date();
+      await enforceAdvisorSessionCreationLimit({
+        database: context.db,
+        now,
+        requestIpHash: context.requestIpHash,
+        subject,
+      });
       const [created] = await context.db
         .insert(advisorSession)
         .values({
           consentId: consent.id,
+          creationIpHash: context.requestIpHash ?? null,
           expiresAt: getAdvisorSessionExpiry(now, subject),
           userId: subject.userId,
           visitorCapabilityHash: subject.visitorCapabilityHash,
@@ -295,7 +332,13 @@ export const advisorSessionRouter = {
       await recordAdvisorAnalyticsEventBestEffort({
         database: context.db,
         eventType: "SESSION_STARTED",
-        metadata: { eventVersion: "v1" },
+        metadata: {
+          eventVersion: "v1",
+          ...(context.requestIpHash ? { ipHash: context.requestIpHash } : {}),
+          ...(subject.visitorCapabilityHash
+            ? { visitorHash: subject.visitorCapabilityHash }
+            : {}),
+        },
         sessionId: created.id,
         userId: subject.userId,
       });
@@ -509,7 +552,23 @@ export const advisorSessionRouter = {
             "Một hoặc nhiều ảnh Advisor không còn đọc được. Hãy tải ảnh mới rồi thử lại.",
         });
       }
-      await requireProviderReady(context);
+      const providerCheckStartedAt = Date.now();
+      try {
+        await requireProviderReady(context);
+      } catch (error) {
+        await recordAdvisorAnalyticsEventBestEffort({
+          database: context.db,
+          eventType: "TURN_COMPLETED",
+          metadata: {
+            errorCode: getAdvisorTurnErrorCode(error),
+            latencyMs: Date.now() - providerCheckStartedAt,
+            status: getAdvisorTurnErrorStatus(error),
+          },
+          sessionId: session.id,
+          userId: session.userId,
+        });
+        throw error;
+      }
 
       const now = new Date();
 
@@ -537,6 +596,47 @@ export const advisorSessionRouter = {
         });
       }
 
+      const turnStartedAt = Date.now();
+      try {
+        await reserveAdvisorModelRequest({
+          attachmentCount: attachments.length,
+          database: context.db,
+          estimatedTokenCount: estimateAdvisorTokenCount(
+            input.text,
+            attachments.length
+          ),
+          sessionId: session.id,
+          turnCount: session.turnCount + 1,
+          userId: session.userId,
+        });
+      } catch (error) {
+        await recordAdvisorAnalyticsEventBestEffort({
+          database: context.db,
+          eventType: "TURN_COMPLETED",
+          metadata: {
+            errorCode: getAdvisorTurnErrorCode(error),
+            latencyMs: Date.now() - turnStartedAt,
+            status: getAdvisorTurnErrorStatus(error),
+          },
+          sessionId: session.id,
+          userId: session.userId,
+        });
+        await context.db
+          .update(advisorSession)
+          .set({
+            generationStartedAt: null,
+            generationStatus: "FAILED",
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(advisorSession.id, session.id),
+              eq(advisorSession.generationStatus, "RUNNING")
+            )
+          );
+        throw error;
+      }
+
       await recordAdvisorAnalyticsEventBestEffort({
         database: context.db,
         eventType: "ANSWER_SUBMITTED",
@@ -556,6 +656,17 @@ export const advisorSessionRouter = {
           text: input.text,
         });
       } catch (error) {
+        await recordAdvisorAnalyticsEventBestEffort({
+          database: context.db,
+          eventType: "TURN_COMPLETED",
+          metadata: {
+            errorCode: getAdvisorTurnErrorCode(error),
+            latencyMs: Date.now() - turnStartedAt,
+            status: getAdvisorTurnErrorStatus(error),
+          },
+          sessionId: session.id,
+          userId: session.userId,
+        });
         await context.db
           .update(advisorSession)
           .set({
@@ -672,6 +783,17 @@ export const advisorSessionRouter = {
           }
         });
       } catch (error) {
+        await recordAdvisorAnalyticsEventBestEffort({
+          database: context.db,
+          eventType: "TURN_COMPLETED",
+          metadata: {
+            errorCode: getAdvisorTurnErrorCode(error),
+            latencyMs: Date.now() - turnStartedAt,
+            status: getAdvisorTurnErrorStatus(error),
+          },
+          sessionId: session.id,
+          userId: session.userId,
+        });
         await context.db
           .update(advisorSession)
           .set({
@@ -703,6 +825,9 @@ export const advisorSessionRouter = {
         eventType: "TURN_COMPLETED",
         metadata: {
           attachmentCount: attachments.length,
+          firstTokenLatencyMs: Date.now() - turnStartedAt,
+          latencyMs: Date.now() - turnStartedAt,
+          status: "SUCCESS",
           turnCount: session.turnCount + 1,
         },
         sessionId: session.id,

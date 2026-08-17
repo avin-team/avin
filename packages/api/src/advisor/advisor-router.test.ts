@@ -81,12 +81,13 @@ const { dbMock } = vi.hoisted(() => ({
     delete: vi.fn(),
     insert: vi.fn(),
     query: {
+      advisorAnalyticsEvent: { findMany: vi.fn() },
       advisorAttachment: { findFirst: vi.fn(), findMany: vi.fn() },
       advisorConsent: { findFirst: vi.fn() },
       advisorMessage: { findMany: vi.fn() },
       advisorPlaybook: { findMany: vi.fn() },
       advisorRecommendation: { findMany: vi.fn() },
-      advisorSession: { findFirst: vi.fn() },
+      advisorSession: { findFirst: vi.fn(), findMany: vi.fn() },
       listing: { findMany: vi.fn() },
     },
     transaction: vi.fn(),
@@ -120,6 +121,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   dbMock.query.advisorAttachment.findFirst.mockResolvedValue(null);
   dbMock.query.advisorAttachment.findMany.mockResolvedValue([]);
+  dbMock.query.advisorSession.findMany.mockResolvedValue([]);
+  dbMock.query.advisorAnalyticsEvent.findMany.mockResolvedValue([]);
   dbMock.transaction.mockImplementation(
     (callback: (database: typeof dbMock) => Promise<unknown>) =>
       callback(dbMock)
@@ -213,7 +216,7 @@ describe("Advisor public session boundary", () => {
     );
 
     expect(result.response.kind).toBe("QUESTION");
-    expect(dbMock.insert).toHaveBeenCalledTimes(4);
+    expect(dbMock.insert).toHaveBeenCalledTimes(5);
     expect(dbMock.query).not.toHaveProperty("cart");
   });
 
@@ -273,7 +276,7 @@ describe("Advisor public session boundary", () => {
       `sessions/${SESSION_ID}/attachments/${attachmentId}.png`,
       "advisor-attachments"
     );
-    expect(dbMock.insert).toHaveBeenCalledTimes(4);
+    expect(dbMock.insert).toHaveBeenCalledTimes(5);
   });
 
   it("renews a Visitor session from the fixed activity clock", async () => {
