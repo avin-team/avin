@@ -9,6 +9,7 @@
     "./commerce/fulfillment": "./src/commerce/fulfillment.ts",
     "./commerce/orders": "./src/commerce/orders.ts",
     "./advisor/playbook": "./src/advisor/playbook.ts",
+    "./advisor/advisor": "./src/advisor/advisor.ts",
     "./advisor/provider": "./src/advisor/provider.ts",
     "./context": "./src/runtime/context.ts",
     "./listing/seller-workspace": "./src/listing/seller-workspace.ts",

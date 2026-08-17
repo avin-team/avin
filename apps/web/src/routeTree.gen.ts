@@ -19,6 +19,9 @@ import { Route as errors404RouteImport } from './routes/(errors)/404'
 import { Route as errors500RouteImport } from './routes/(errors)/500'
 import { Route as errors503RouteImport } from './routes/(errors)/503'
 import { Route as publicIndexRouteImport } from './routes/(public)/index'
+import { Route as publicAdvisorRouteImport } from './routes/(public)/advisor'
+import { Route as publicPrivacyRouteImport } from './routes/(public)/privacy'
+import { Route as publicTermsRouteImport } from './routes/(public)/terms'
 import { Route as AuthenticatedAdvisorPreviewRouteImport } from './routes/_authenticated/advisor-preview'
 import { Route as AuthenticatedCartRouteImport } from './routes/_authenticated/cart'
 import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/chat'
@@ -85,6 +88,21 @@ const errors503Route = errors503RouteImport.update({
 const publicIndexRoute = publicIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => publicRouteRoute,
+} as any)
+const publicAdvisorRoute = publicAdvisorRouteImport.update({
+  id: '/advisor',
+  path: '/advisor',
+  getParentRoute: () => publicRouteRoute,
+} as any)
+const publicPrivacyRoute = publicPrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => publicRouteRoute,
+} as any)
+const publicTermsRoute = publicTermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => publicRouteRoute,
 } as any)
 const AuthenticatedAdvisorPreviewRoute =
@@ -207,6 +225,9 @@ export interface FileRoutesByFullPath {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
+  '/advisor': typeof publicAdvisorRoute
+  '/privacy': typeof publicPrivacyRoute
+  '/terms': typeof publicTermsRoute
   '/advisor-preview': typeof AuthenticatedAdvisorPreviewRoute
   '/cart': typeof AuthenticatedCartRoute
   '/chat': typeof AuthenticatedChatRoute
@@ -236,6 +257,9 @@ export interface FileRoutesByTo {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
+  '/advisor': typeof publicAdvisorRoute
+  '/privacy': typeof publicPrivacyRoute
+  '/terms': typeof publicTermsRoute
   '/advisor-preview': typeof AuthenticatedAdvisorPreviewRoute
   '/cart': typeof AuthenticatedCartRoute
   '/chat': typeof AuthenticatedChatRoute
@@ -268,6 +292,9 @@ export interface FileRoutesById {
   '/(errors)/404': typeof errors404Route
   '/(errors)/500': typeof errors500Route
   '/(errors)/503': typeof errors503Route
+  '/(public)/advisor': typeof publicAdvisorRoute
+  '/(public)/privacy': typeof publicPrivacyRoute
+  '/(public)/terms': typeof publicTermsRoute
   '/_authenticated/advisor-preview': typeof AuthenticatedAdvisorPreviewRoute
   '/_authenticated/cart': typeof AuthenticatedCartRoute
   '/_authenticated/chat': typeof AuthenticatedChatRoute
@@ -300,6 +327,9 @@ export interface FileRouteTypes {
     | '/404'
     | '/500'
     | '/503'
+    | '/advisor'
+    | '/privacy'
+    | '/terms'
     | '/advisor-preview'
     | '/cart'
     | '/chat'
@@ -329,6 +359,9 @@ export interface FileRouteTypes {
     | '/404'
     | '/500'
     | '/503'
+    | '/advisor'
+    | '/privacy'
+    | '/terms'
     | '/advisor-preview'
     | '/cart'
     | '/chat'
@@ -360,6 +393,9 @@ export interface FileRouteTypes {
     | '/(errors)/404'
     | '/(errors)/500'
     | '/(errors)/503'
+    | '/(public)/advisor'
+    | '/(public)/privacy'
+    | '/(public)/terms'
     | '/_authenticated/advisor-preview'
     | '/_authenticated/cart'
     | '/_authenticated/chat'
@@ -464,6 +500,27 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof publicIndexRouteImport
+      parentRoute: typeof publicRouteRoute
+    }
+    '/(public)/advisor': {
+      id: '/(public)/advisor'
+      path: '/advisor'
+      fullPath: '/advisor'
+      preLoaderRoute: typeof publicAdvisorRouteImport
+      parentRoute: typeof publicRouteRoute
+    }
+    '/(public)/privacy': {
+      id: '/(public)/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof publicPrivacyRouteImport
+      parentRoute: typeof publicRouteRoute
+    }
+    '/(public)/terms': {
+      id: '/(public)/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof publicTermsRouteImport
       parentRoute: typeof publicRouteRoute
     }
     '/_authenticated/advisor-preview': {
@@ -624,6 +681,9 @@ const authRouteRouteWithChildren = authRouteRoute._addFileChildren(
 )
 
 interface publicRouteRouteChildren {
+  publicAdvisorRoute: typeof publicAdvisorRoute
+  publicPrivacyRoute: typeof publicPrivacyRoute
+  publicTermsRoute: typeof publicTermsRoute
   publicIndexRoute: typeof publicIndexRoute
   publicCategoryParentSlugRoute: typeof publicCategoryParentSlugRoute
   publicListingIdRoute: typeof publicListingIdRoute
@@ -632,6 +692,9 @@ interface publicRouteRouteChildren {
 }
 
 const publicRouteRouteChildren: publicRouteRouteChildren = {
+  publicAdvisorRoute: publicAdvisorRoute,
+  publicPrivacyRoute: publicPrivacyRoute,
+  publicTermsRoute: publicTermsRoute,
   publicIndexRoute: publicIndexRoute,
   publicCategoryParentSlugRoute: publicCategoryParentSlugRoute,
   publicListingIdRoute: publicListingIdRoute,

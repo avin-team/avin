@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { adminProcedure } from "../access/procedures";
 import type { AuditEvent, Context } from "../runtime/context";
+import { advisorPublicRouter } from "./advisor-router";
 import {
   advisorProviderConfigInputSchema,
   ADVISOR_PROVIDER_ID,
@@ -118,6 +119,7 @@ const runAuditedProviderAction = async <Result>({
 };
 
 export const advisorRouter = {
+  ...advisorPublicRouter,
   provider: {
     activate: adminProcedure
       .input(advisorProviderConfigInputSchema)
