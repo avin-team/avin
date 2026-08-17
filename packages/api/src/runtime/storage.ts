@@ -337,7 +337,7 @@ export const createCheckoutAttachmentKey = (
   userId: string,
   listingId: string,
   contentType: string,
-  objectId = crypto.randomUUID()
+  objectId: string = crypto.randomUUID()
 ): string => {
   const extension = getCommerceImageExtension(contentType);
   assertCommercePathSegments([checkoutKey, userId, listingId, objectId]);

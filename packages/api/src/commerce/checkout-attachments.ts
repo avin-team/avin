@@ -8,11 +8,15 @@ import { ORPCError } from "@orpc/server";
 import { and, eq, lte } from "drizzle-orm";
 import { z } from "zod";
 
+import { readAdvisorAttachmentBytes } from "../advisor/attachments";
+import type { AdvisorAttachmentRecord } from "../advisor/attachments";
 import type { ManagedObjectStore } from "../runtime/storage";
 import {
   COMMERCE_IMAGE_CONTENT_TYPES,
   COMMERCE_IMAGE_MAX_BYTES,
   COMMERCE_IMAGE_MAX_COUNT,
+  ORDER_FILES_BUCKET,
+  createCheckoutAttachmentKey,
   isCheckoutAttachmentKey,
 } from "../runtime/storage";
 import { deleteOrderFileObject } from "./private-storage";
@@ -50,7 +54,7 @@ export interface CheckoutAttachmentCleanupOptions {
   now?: Date;
 }
 
-const assertBuyerCartListing = async (
+export const assertBuyerCartListing = async (
   database: typeof db,
   buyerId: string,
   listingId: string
@@ -159,6 +163,110 @@ export const createCheckoutAttachment = async ({
     } catch {
       // Maintenance retries persisted drafts; an untracked object is best-effort cleanup.
     }
+    throw error;
+  }
+};
+
+export const copyAdvisorAttachmentToCheckout = async ({
+  advisorAttachment,
+  buyerId,
+  checkoutKey,
+  database = db,
+  listingId,
+  storage,
+}: {
+  advisorAttachment: AdvisorAttachmentRecord;
+  buyerId: string;
+  checkoutKey: string;
+  database?: typeof db;
+  listingId: string;
+  storage?: ManagedObjectStore;
+}) => {
+  if (!storage?.getObject || !storage.putObject) {
+    throw new ORPCError("SERVICE_UNAVAILABLE", {
+      message: "Checkout image storage is temporarily unavailable.",
+    });
+  }
+  if (!isCommerceImageContentType(advisorAttachment.contentType)) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Ảnh chỉ hỗ trợ JPEG, PNG hoặc WebP.",
+    });
+  }
+
+  await assertBuyerCartListing(database, buyerId, listingId);
+  const storageKey = createCheckoutAttachmentKey(
+    checkoutKey,
+    buyerId,
+    listingId,
+    advisorAttachment.contentType,
+    advisorAttachment.id
+  );
+  const [existingAttachment] = await database
+    .select()
+    .from(checkoutAttachmentDraft)
+    .where(
+      and(
+        eq(checkoutAttachmentDraft.storageKey, storageKey),
+        eq(checkoutAttachmentDraft.userId, buyerId)
+      )
+    )
+    .limit(1);
+  if (existingAttachment) {
+    return existingAttachment;
+  }
+  const existing = await database
+    .select({ id: checkoutAttachmentDraft.id })
+    .from(checkoutAttachmentDraft)
+    .where(
+      and(
+        eq(checkoutAttachmentDraft.checkoutKey, checkoutKey),
+        eq(checkoutAttachmentDraft.listingId, listingId),
+        eq(checkoutAttachmentDraft.userId, buyerId)
+      )
+    );
+  if (existing.length >= COMMERCE_IMAGE_MAX_COUNT) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: `Mỗi Listing chỉ được đính kèm tối đa ${COMMERCE_IMAGE_MAX_COUNT} ảnh.`,
+    });
+  }
+
+  const bytes = await readAdvisorAttachmentBytes({
+    attachment: advisorAttachment,
+    storage,
+  });
+  if (bytes.byteLength === 0 || bytes.byteLength > COMMERCE_IMAGE_MAX_BYTES) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Ảnh Advisor không còn hợp lệ để đưa vào Checkout.",
+    });
+  }
+
+  await storage.putObject(
+    storageKey,
+    bytes,
+    advisorAttachment.contentType,
+    ORDER_FILES_BUCKET
+  );
+  try {
+    const [attachment] = await database
+      .insert(checkoutAttachmentDraft)
+      .values({
+        byteSize: bytes.byteLength,
+        checkoutKey,
+        contentType: advisorAttachment.contentType,
+        fileName: advisorAttachment.fileName,
+        listingId,
+        storageKey,
+        userId: buyerId,
+      })
+      .returning();
+    if (!attachment) {
+      throw new ORPCError("INTERNAL_SERVER_ERROR", {
+        message: "Không thể lưu ảnh Checkout.",
+      });
+    }
+    return attachment;
+  } catch (error) {
+    await deleteOrderFileObject(storageKey, storage);
     throw error;
   }
 };

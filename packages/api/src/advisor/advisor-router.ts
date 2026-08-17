@@ -8,7 +8,7 @@ import {
 import { ORPCError } from "@orpc/server";
 import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 
-import { publicProcedure } from "../access/procedures";
+import { buyerProcedure, publicProcedure } from "../access/procedures";
 import type { Context } from "../runtime/context";
 import {
   ADVISOR_CONSENT_VERSION,
@@ -31,6 +31,14 @@ import {
   loadOwnedAdvisorAttachments,
   readAdvisorAttachmentBytes,
 } from "./attachments";
+import {
+  advisorHandoffConfirmationInputSchema,
+  advisorHandoffCopyAttachmentsInputSchema,
+  advisorRecommendationSelectionInputSchema,
+  confirmAdvisorHandoff,
+  copyAdvisorHandoffAttachmentsToCheckout,
+  selectAdvisorRecommendation,
+} from "./handoff";
 
 const TERMS_PATH = "/terms";
 const PRIVACY_PATH = "/privacy";
@@ -683,5 +691,44 @@ export const advisorConsentRouter = {
 
 export const advisorPublicRouter = {
   consent: advisorConsentRouter,
+  handoff: {
+    confirm: publicProcedure
+      .input(advisorHandoffConfirmationInputSchema)
+      .handler(({ context, input }) =>
+        confirmAdvisorHandoff({
+          attachmentIds: input.attachmentIds,
+          database: context.db,
+          handoffId: input.handoffId,
+          includeSummaryInCheckout: input.includeSummaryInCheckout,
+          owner: getAdvisorSubject(context, input.visitorCapability),
+          sessionId: input.sessionId,
+          summary: input.summary,
+        })
+      ),
+    copyAttachments: buyerProcedure
+      .input(advisorHandoffCopyAttachmentsInputSchema)
+      .handler(({ context, input }) =>
+        copyAdvisorHandoffAttachmentsToCheckout({
+          attachmentIds: input.attachmentIds,
+          buyerId: context.session.user.id,
+          checkoutKey: input.checkoutKey,
+          database: context.db,
+          handoffId: input.handoffId,
+          listingId: input.listingId,
+          sessionId: input.sessionId,
+          storage: context.storage,
+        })
+      ),
+    select: publicProcedure
+      .input(advisorRecommendationSelectionInputSchema)
+      .handler(({ context, input }) =>
+        selectAdvisorRecommendation({
+          database: context.db,
+          owner: getAdvisorSubject(context, input.visitorCapability),
+          recommendationId: input.recommendationId,
+          sessionId: input.sessionId,
+        })
+      ),
+  },
   session: advisorSessionRouter,
 };

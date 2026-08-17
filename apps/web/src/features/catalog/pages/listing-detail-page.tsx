@@ -341,7 +341,14 @@ export const ListingDetailPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(
-    null
+    () => {
+      if (typeof window === "undefined") {
+        return null;
+      }
+      return new URLSearchParams(window.location.search).get(
+        "advisorPackageId"
+      );
+    }
   );
 
   const listingQuery = useQuery(
@@ -366,6 +373,10 @@ export const ListingDetailPage = () => {
     servicePackages,
     subCategory,
   } = getListingPresentation(listing, selectedPackageId);
+  const isAdvisorPackageSuggestion = Boolean(
+    selectedPackageId &&
+    servicePackages.some((packageItem) => packageItem.id === selectedPackageId)
+  );
   const cartQueryKey = orpc.commerce.cart.get.queryOptions().queryKey;
   const addToCartMutation = useMutation({
     ...orpc.commerce.cart.add.mutationOptions(),
@@ -496,6 +507,11 @@ export const ListingDetailPage = () => {
                   {subCategory ? (
                     <span className="rounded-full border border-border bg-muted/60 px-3 py-1 text-xs font-medium text-muted-foreground">
                       {subCategory.name}
+                    </span>
+                  ) : null}
+                  {isAdvisorPackageSuggestion ? (
+                    <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 font-medium text-primary text-xs">
+                      Gói Advisor gợi ý · bạn vẫn tự chọn
                     </span>
                   ) : null}
                 </div>

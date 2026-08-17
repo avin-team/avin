@@ -32,6 +32,12 @@ import { toast } from "sonner";
 
 import { Shell } from "@/components/shell";
 import {
+  clearAdvisorHandoffDraft,
+  getAdvisorHandoffDraft,
+  saveAdvisorHandoffDraft,
+} from "@/features/advisor/advisor-handoff";
+import type { AdvisorHandoffDraft } from "@/features/advisor/advisor-handoff";
+import {
   reconcileCartItemPackageMutation,
   removeCartItemOptimistically,
   setCartItemPackageOptimistically,
@@ -87,6 +93,26 @@ const noopDescriptionChange = (_description: string): void => undefined;
 
 const unavailableAttachmentAction = (): Promise<never> =>
   Promise.reject(new Error("Checkout attachment actions are unavailable"));
+
+const getAdvisorCopyButtonLabel = ({
+  attachmentsCopied,
+  isPending,
+  isSelected,
+}: {
+  attachmentsCopied: boolean;
+  isPending: boolean;
+  isSelected: boolean;
+}): string => {
+  if (attachmentsCopied) {
+    return "Ảnh đã được chuyển vào Checkout";
+  }
+  if (isPending) {
+    return "Đang chuyển ảnh...";
+  }
+  return isSelected
+    ? "Chuyển ảnh Advisor vào Checkout"
+    : "Chọn Listing để chuyển ảnh";
+};
 
 const CartItemThumbnail = ({
   title,
@@ -170,10 +196,12 @@ const CartItemPackageSelect = ({
 /**
  * Option C — Side-by-Side Split Cart Item Card using theme colors & design system tokens
  */
+// oxlint-disable-next-line complexity
 export const CartItemCard = ({
   actionPending,
   checkoutKey = "",
   item,
+  initialDescription = "",
   onBusyChange,
   onDescriptionChange = noopDescriptionChange,
   onCreateAttachment,
@@ -185,6 +213,7 @@ export const CartItemCard = ({
 }: {
   actionPending: boolean;
   checkoutKey?: string;
+  initialDescription?: string;
   item: CartItem;
   onCreateAttachment?: (
     input: OrderImageUploadMetadata
@@ -207,7 +236,7 @@ export const CartItemCard = ({
   const [attachmentBusy, setAttachmentBusy] = useState(false);
   const disabled = actionPending || selectionPending || attachmentBusy;
   const inputDisabled = disabled || !item.selected;
-  const [description, setDescription] = useState("");
+  const [description, setDescription] = useState(initialDescription);
 
   return (
     <Card className={item.selected ? "border-primary/40" : "opacity-80"}>
@@ -396,6 +425,8 @@ export const CartPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const cartQuery = useQuery(orpc.commerce.cart.get.queryOptions());
+  const [advisorHandoffDraft, setAdvisorHandoffDraft] =
+    useState<AdvisorHandoffDraft | null>(() => getAdvisorHandoffDraft());
   const [contractChanged, setContractChanged] = useState(false);
   const [checkoutKey, setCheckoutKey] = useState(() => crypto.randomUUID());
   const checkoutDescriptionsRef = useRef(new Map<string, string>());
@@ -567,10 +598,16 @@ export const CartPage = () => {
   const discardCheckoutAttachmentMutation = useMutation(
     orpc.commerce.checkout.attachments.discard.mutationOptions()
   );
+  const advisorCopyAttachmentsMutation = useMutation(
+    orpc.advisor.handoff.copyAttachments.mutationOptions()
+  );
 
   const cart = cartQuery.data;
   const items = useMemo(() => cart?.items ?? EMPTY_CART_ITEMS, [cart?.items]);
   const selectedItems = items.filter((item) => item.selected);
+  const advisorHandoffItem = items.find(
+    (item) => item.listing.id === advisorHandoffDraft?.listingId
+  );
   useEffect(() => {
     const visibleListingIds = new Set(items.map((item) => item.listing.id));
     for (const listingId of checkoutDescriptionsRef.current.keys()) {
@@ -585,6 +622,19 @@ export const CartPage = () => {
     }
     setCheckoutAttachmentsBusy(checkoutAttachmentBusyRef.current.size > 0);
   }, [items]);
+  useEffect(() => {
+    if (
+      !advisorHandoffDraft?.includeSummaryInCheckout ||
+      !advisorHandoffItem ||
+      checkoutDescriptionsRef.current.has(advisorHandoffItem.listing.id)
+    ) {
+      return;
+    }
+    checkoutDescriptionsRef.current.set(
+      advisorHandoffItem.listing.id,
+      advisorHandoffDraft.summary
+    );
+  }, [advisorHandoffDraft, advisorHandoffItem]);
   const hasUnavailableSelected = selectedItems.some((item) => !item.available);
   const hasMissingContract = selectedItems.some(
     (item) => item.contractFingerprint === null
@@ -611,6 +661,15 @@ export const CartPage = () => {
       });
       checkoutDescriptionsRef.current.clear();
       checkoutAttachmentBusyRef.current.clear();
+      if (
+        advisorHandoffDraft &&
+        selectedItems.some(
+          (item) => item.listing.id === advisorHandoffDraft.listingId
+        )
+      ) {
+        clearAdvisorHandoffDraft();
+        setAdvisorHandoffDraft(null);
+      }
       setCheckoutAttachmentsBusy(false);
       setCheckoutKey(crypto.randomUUID());
       setContractChanged(false);
@@ -632,6 +691,42 @@ export const CartPage = () => {
         return;
       }
       toast.error(message || "Không thể Checkout. Vui lòng thử lại.");
+    }
+  };
+
+  const copyAdvisorAttachments = async (): Promise<void> => {
+    if (!advisorHandoffDraft || !advisorHandoffItem) {
+      return;
+    }
+    if (!advisorHandoffItem.selected) {
+      toast.error("Hãy chọn Listing Advisor trong Cart trước.");
+      return;
+    }
+    if (advisorHandoffDraft.attachmentIds.length === 0) {
+      toast.error("Chưa có ảnh Advisor nào được chọn để chuyển.");
+      return;
+    }
+    try {
+      await advisorCopyAttachmentsMutation.mutateAsync({
+        attachmentIds: advisorHandoffDraft.attachmentIds,
+        checkoutKey,
+        handoffId: advisorHandoffDraft.handoffId,
+        listingId: advisorHandoffDraft.listingId,
+        sessionId: advisorHandoffDraft.sessionId,
+      });
+      const copiedDraft: AdvisorHandoffDraft = {
+        ...advisorHandoffDraft,
+        attachmentsCopied: true,
+      };
+      saveAdvisorHandoffDraft(copiedDraft);
+      setAdvisorHandoffDraft(copiedDraft);
+      toast.success("Đã sao chép ảnh Advisor vào Checkout draft.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? `${error.message} Nếu đây là Visitor session, hãy mở Advisor và chọn “Liên kết tài khoản” trước khi thử lại.`
+          : "Không thể chuyển ảnh Advisor. Hãy liên kết session rồi thử lại."
+      );
     }
   };
 
@@ -711,11 +806,70 @@ export const CartPage = () => {
           >
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
               <div className="space-y-4">
+                {advisorHandoffDraft ? (
+                  <Card className="border-primary/30 bg-primary/5">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base">
+                        Ngữ cảnh Advisor đã xác nhận
+                      </CardTitle>
+                      <CardDescription>
+                        {advisorHandoffDraft.includeSummaryInCheckout
+                          ? "Advisory Summary đã được điền vào Buyer Checkout Note; bạn có thể sửa trong Listing bên dưới."
+                          : "Bạn đã không chọn đưa Advisory Summary vào Checkout Note."}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3 pt-0">
+                      <p className="line-clamp-4 whitespace-pre-wrap text-sm">
+                        {advisorHandoffDraft.summary}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        {advisorHandoffDraft.attachmentIds.length} ảnh được chọn
+                        từ Advisor · không tự động chuyển sang Checkout.
+                      </p>
+                      {advisorHandoffItem ? (
+                        <Button
+                          disabled={
+                            advisorHandoffDraft.attachmentsCopied ||
+                            advisorCopyAttachmentsMutation.isPending ||
+                            !advisorHandoffItem.selected ||
+                            advisorHandoffDraft.attachmentIds.length === 0
+                          }
+                          onClick={() => void copyAdvisorAttachments()}
+                          size="sm"
+                          type="button"
+                        >
+                          {getAdvisorCopyButtonLabel({
+                            attachmentsCopied:
+                              advisorHandoffDraft.attachmentsCopied,
+                            isPending: advisorCopyAttachmentsMutation.isPending,
+                            isSelected: advisorHandoffItem.selected,
+                          })}
+                        </Button>
+                      ) : (
+                        <p className="text-muted-foreground text-sm">
+                          Thêm Listing tương ứng vào Cart để có thể chuyển ảnh.
+                        </p>
+                      )}
+                      <Link
+                        className="block font-medium text-primary text-xs underline underline-offset-4"
+                        to="/advisor"
+                      >
+                        Xem lại Advisor và quản lý liên kết session
+                      </Link>
+                    </CardContent>
+                  </Card>
+                ) : null}
                 {items.map((item) => (
                   <CartItemCard
                     actionPending={actionPending}
                     checkoutKey={checkoutKey}
                     item={item}
+                    initialDescription={
+                      advisorHandoffDraft?.includeSummaryInCheckout &&
+                      advisorHandoffDraft.listingId === item.listing.id
+                        ? advisorHandoffDraft.summary
+                        : ""
+                    }
                     key={item.cartItemId}
                     onRemove={() => {
                       checkoutDescriptionsRef.current.delete(item.listing.id);

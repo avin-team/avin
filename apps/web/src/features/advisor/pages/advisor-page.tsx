@@ -13,6 +13,12 @@ import type { ChangeEvent } from "react";
 import { toast } from "sonner";
 
 import { Shell } from "@/components/shell";
+import {
+  clearAdvisorHandoffDraft,
+  getAdvisorHandoffDraft,
+  saveAdvisorHandoffDraft,
+} from "@/features/advisor/advisor-handoff";
+import type { AdvisorHandoffDraft } from "@/features/advisor/advisor-handoff";
 import { formatVND } from "@/utils/format";
 import { orpc } from "@/utils/orpc";
 import { serverURL } from "@/utils/server-url";
@@ -42,6 +48,27 @@ interface AdvisorAttachmentPreview {
   id: string;
   previewUrl: string;
   width: number;
+}
+
+interface AdvisorHandoffAttachment {
+  byteSize: number;
+  contentType: string;
+  fileName: string;
+  height: number;
+  id: string;
+  previewUrl?: string;
+  width: number;
+}
+
+interface AdvisorHandoffSelection {
+  attachmentIds: string[];
+  attachments: AdvisorHandoffAttachment[];
+  handoffId: string;
+  includeSummaryInCheckout: boolean;
+  listingId: string;
+  recommendationId: string;
+  sessionId: string;
+  summary: string;
 }
 
 const getAttachmentErrorMessage = (payload: unknown): string => {
@@ -146,6 +173,17 @@ const parseQuestion = (value: unknown): AdvisorQuestion | null => {
 const parseBrowsePath = (value: unknown): string | null =>
   typeof value === "string" && value.startsWith("/") ? value : null;
 
+const getListingPathWithAdvisorPackage = (
+  listingPath: string,
+  packageId: string | null
+): string => {
+  if (!packageId) {
+    return listingPath;
+  }
+  const separator = listingPath.includes("?") ? "&" : "?";
+  return `${listingPath}${separator}advisorPackageId=${encodeURIComponent(packageId)}`;
+};
+
 const formatWarranty = (policy: unknown): string => {
   if (!policy || typeof policy !== "object") {
     return "Chính sách bảo hành theo Listing";
@@ -238,9 +276,12 @@ const ConversationMessage = ({
 );
 
 const RecommendationCard = ({
+  onSelect,
   recommendation,
 }: {
+  onSelect: (recommendationId: string, listingId: string) => void;
   recommendation: {
+    id: string;
     isAvailable: boolean;
     isCurrent: boolean;
     label: string;
@@ -256,6 +297,7 @@ const RecommendationCard = ({
       reasons: string[];
       seller: { id: string; name: string };
       servicePackage: {
+        id: string;
         name: string;
         priceAmount: number;
         processingTimeHours: number;
@@ -276,15 +318,31 @@ const RecommendationCard = ({
     <CardHeader className="pb-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <CardTitle className="text-base">{recommendation.label}</CardTitle>
-        {recommendation.isCurrent ? (
-          <span className="rounded-full bg-primary px-2.5 py-1 font-medium text-primary-foreground text-xs">
-            Gợi ý hiện tại
-          </span>
-        ) : (
-          <span className="rounded-full border px-2.5 py-1 text-muted-foreground text-xs">
-            Gợi ý trước đó
-          </span>
-        )}
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {recommendation.isCurrent ? (
+            <span className="rounded-full bg-primary px-2.5 py-1 font-medium text-primary-foreground text-xs">
+              Gợi ý hiện tại
+            </span>
+          ) : (
+            <span className="rounded-full border px-2.5 py-1 text-muted-foreground text-xs">
+              Gợi ý trước đó
+            </span>
+          )}
+          {recommendation.isAvailable ? (
+            <Button
+              onClick={() => {
+                const [firstListing] = recommendation.listings;
+                if (firstListing) {
+                  onSelect(recommendation.id, firstListing.id);
+                }
+              }}
+              size="sm"
+              type="button"
+            >
+              Chọn để tạo tóm tắt
+            </Button>
+          ) : null}
+        </div>
       </div>
       <CardDescription>
         {recommendation.isAvailable
@@ -334,7 +392,10 @@ const RecommendationCard = ({
           {listing.isAvailable ? (
             <a
               className="mt-4 inline-flex h-9 items-center justify-center rounded-md bg-primary px-3 font-medium text-primary-foreground text-sm hover:bg-primary/90"
-              href={listing.listingPath}
+              href={getListingPathWithAdvisorPackage(
+                listing.listingPath,
+                listing.servicePackage?.id ?? null
+              )}
             >
               Xem Listing và chọn gói
             </a>
@@ -358,6 +419,184 @@ const RecommendationCard = ({
     )}
   </Card>
 );
+
+const AdvisorHandoffPanel = ({
+  attachmentIds,
+  attachments,
+  includeSummaryInCheckout,
+  listingId,
+  onAttachmentToggle,
+  onConfirm,
+  onIncludeSummaryChange,
+  onListingChange,
+  onSummaryChange,
+  pending,
+  recommendation,
+  summary,
+}: {
+  attachmentIds: string[];
+  attachments: AdvisorHandoffAttachment[];
+  includeSummaryInCheckout: boolean;
+  listingId: string;
+  onAttachmentToggle: (attachmentId: string) => void;
+  onConfirm: () => void;
+  onIncludeSummaryChange: (includeSummaryInCheckout: boolean) => void;
+  onListingChange: (listingId: string) => void;
+  onSummaryChange: (summary: string) => void;
+  pending: boolean;
+  recommendation:
+    | {
+        listings: {
+          id: string;
+          listingPath: string;
+          servicePackage: { id: string; name: string } | null;
+          title: string;
+        }[];
+      }
+    | undefined;
+  summary: string;
+}) => {
+  const selectedAttachments = new Set(attachmentIds);
+  const listings = recommendation?.listings ?? [];
+  return (
+    <Card className="border-primary/40 bg-primary/5" id="advisor-handoff">
+      <CardHeader>
+        <CardTitle>Ngữ cảnh Advisor cho Checkout</CardTitle>
+        <CardDescription>
+          Tóm tắt chỉ được tạo sau khi bạn chọn recommendation. Bạn tự chọn ảnh
+          và quyết định có đưa tóm tắt vào Buyer Checkout Note hay không; không
+          có transcript nào được chuyển tự động.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        {listings.length > 0 ? (
+          <fieldset className="space-y-2">
+            <legend className="font-semibold text-sm">
+              Listing và package cần kiểm tra lại
+            </legend>
+            <div className="flex flex-wrap gap-2">
+              {listings.map((listing) => (
+                <Button
+                  key={listing.id}
+                  onClick={() => onListingChange(listing.id)}
+                  size="sm"
+                  type="button"
+                  variant={listing.id === listingId ? "default" : "outline"}
+                >
+                  {listing.title}
+                </Button>
+              ))}
+            </div>
+            {listings.map((listing) =>
+              listing.id === listingId ? (
+                <a
+                  className="inline-flex font-medium text-primary text-sm underline underline-offset-4"
+                  href={getListingPathWithAdvisorPackage(
+                    listing.listingPath,
+                    listing.servicePackage?.id ?? null
+                  )}
+                  key={`${listing.id}-link`}
+                >
+                  Mở Listing detail
+                  {listing.servicePackage
+                    ? ` · gói ${listing.servicePackage.name}`
+                    : ""}
+                </a>
+              ) : null
+            )}
+          </fieldset>
+        ) : null}
+
+        <label
+          className="grid gap-2 text-sm font-medium"
+          htmlFor="advisor-summary"
+        >
+          Advisory Summary (có thể chỉnh sửa)
+          <textarea
+            className="min-h-36 resize-y rounded-lg border bg-background px-3 py-3 font-normal text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+            id="advisor-summary"
+            maxLength={2000}
+            onChange={(event) => onSummaryChange(event.target.value)}
+            value={summary}
+          />
+        </label>
+        <label
+          className="flex items-start gap-3 rounded-lg border bg-background p-3 text-sm"
+          htmlFor="advisor-summary-in-checkout"
+        >
+          <input
+            checked={includeSummaryInCheckout}
+            className="mt-1 size-4 accent-primary"
+            id="advisor-summary-in-checkout"
+            onChange={(event) => onIncludeSummaryChange(event.target.checked)}
+            type="checkbox"
+          />
+          <span>
+            Đưa Advisory Summary vào Buyer Checkout Note (tuỳ chọn). Bạn vẫn có
+            thể sửa lại ghi chú trong Cart.
+          </span>
+        </label>
+
+        <fieldset className="space-y-3">
+          <legend className="font-semibold text-sm">
+            Chọn ảnh muốn dùng lại ({attachmentIds.length}/{attachments.length})
+          </legend>
+          {attachments.length > 0 ? (
+            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {attachments.map((attachment) => (
+                <li
+                  className="rounded-lg border bg-background p-2"
+                  key={attachment.id}
+                >
+                  <label className="grid gap-2 text-xs">
+                    {attachment.previewUrl ? (
+                      <img
+                        alt={`Ảnh Advisor ${attachment.fileName}`}
+                        className="aspect-square w-full rounded-md object-cover"
+                        src={attachment.previewUrl}
+                      />
+                    ) : (
+                      <span className="flex aspect-square items-center justify-center rounded-md bg-muted p-2 text-center text-muted-foreground">
+                        Không xem trước được ảnh
+                      </span>
+                    )}
+                    <span className="flex items-start gap-2">
+                      <input
+                        checked={selectedAttachments.has(attachment.id)}
+                        className="mt-0.5 size-4 accent-primary"
+                        onChange={() => onAttachmentToggle(attachment.id)}
+                        type="checkbox"
+                      />
+                      <span className="truncate">{attachment.fileName}</span>
+                    </span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="rounded-lg border border-dashed p-3 text-muted-foreground text-sm">
+              Session này không có Advisory Attachment đã commit.
+            </p>
+          )}
+        </fieldset>
+
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-muted-foreground text-xs">
+            Visitor cần đăng nhập và bấm “Liên kết tài khoản” trước khi chuyển
+            ảnh sang Checkout.
+          </p>
+          <Button
+            disabled={pending || !summary.trim()}
+            onClick={onConfirm}
+            type="button"
+          >
+            {pending ? "Đang xác nhận..." : "Xác nhận ngữ cảnh Advisor"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
 
 // AVIN-50 keeps consent, generation, retry, and retention controls together so
 // the resumable-session state machine remains explicit at the page boundary.
@@ -390,6 +629,9 @@ export const AdvisorPage = () => {
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
   const attachmentsRef = useRef<AdvisorAttachmentPreview[]>([]);
+  const [handoffSelection, setHandoffSelection] =
+    useState<AdvisorHandoffSelection | null>(null);
+  const handoffPreviewUrlsRef = useRef<string[]>([]);
   const [retryRequest, setRetryRequest] = useState<{
     attachmentIds: string[];
     idempotencyKey: AdvisorIdempotencyKey;
@@ -418,6 +660,12 @@ export const AdvisorPage = () => {
   const deleteMutation = useMutation(
     orpc.advisor.session.delete.mutationOptions()
   );
+  const selectRecommendationMutation = useMutation(
+    orpc.advisor.handoff.select.mutationOptions()
+  );
+  const confirmHandoffMutation = useMutation(
+    orpc.advisor.handoff.confirm.mutationOptions()
+  );
   const generationActive =
     turnMutation.isPending || sessionQuery.data?.generationStatus === "RUNNING";
 
@@ -430,9 +678,37 @@ export const AdvisorPage = () => {
       for (const attachment of attachmentsRef.current) {
         URL.revokeObjectURL(attachment.previewUrl);
       }
+      for (const previewUrl of handoffPreviewUrlsRef.current) {
+        URL.revokeObjectURL(previewUrl);
+      }
     },
     []
   );
+
+  const revokeHandoffPreviews = (): void => {
+    for (const previewUrl of handoffPreviewUrlsRef.current) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    handoffPreviewUrlsRef.current = [];
+  };
+
+  const loadHandoffAttachmentPreview = async (
+    attachmentId: string
+  ): Promise<string | undefined> => {
+    const response = await fetch(
+      `${serverURL}/api/advisor/attachments/${attachmentId}`,
+      {
+        credentials: "include",
+        headers: { "X-Advisor-Visitor-Capability": capability },
+      }
+    );
+    if (!response.ok) {
+      return undefined;
+    }
+    const previewUrl = URL.createObjectURL(await response.blob());
+    handoffPreviewUrlsRef.current.push(previewUrl);
+    return previewUrl;
+  };
 
   const startSession = async (): Promise<void> => {
     try {
@@ -651,6 +927,92 @@ export const AdvisorPage = () => {
     }
   };
 
+  const selectRecommendation = async (
+    recommendationId: string,
+    listingId: string
+  ): Promise<void> => {
+    if (!sessionId || selectRecommendationMutation.isPending) {
+      return;
+    }
+    try {
+      const selected = await selectRecommendationMutation.mutateAsync({
+        recommendationId,
+        sessionId,
+        visitorCapability: capability,
+      });
+      revokeHandoffPreviews();
+      const handoffAttachments = await Promise.all(
+        selected.attachments.map(async (attachment) => ({
+          ...attachment,
+          previewUrl: await loadHandoffAttachmentPreview(attachment.id),
+        }))
+      );
+      setHandoffSelection({
+        attachmentIds: [],
+        attachments: handoffAttachments,
+        handoffId: selected.handoffId,
+        includeSummaryInCheckout: false,
+        listingId,
+        recommendationId,
+        sessionId,
+        summary: selected.summary,
+      });
+      toast.success(
+        "Đã tạo Advisory Summary. Hãy kiểm tra trước khi xác nhận."
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Không thể chọn recommendation Advisor."
+      );
+    }
+  };
+
+  const confirmHandoff = async (): Promise<void> => {
+    if (!handoffSelection) {
+      return;
+    }
+    try {
+      const confirmed = await confirmHandoffMutation.mutateAsync({
+        attachmentIds: handoffSelection.attachmentIds,
+        handoffId: handoffSelection.handoffId,
+        includeSummaryInCheckout: handoffSelection.includeSummaryInCheckout,
+        sessionId: handoffSelection.sessionId,
+        summary: handoffSelection.summary,
+        visitorCapability: capability,
+      });
+      const draft: AdvisorHandoffDraft = {
+        attachmentIds: handoffSelection.attachmentIds,
+        attachmentsCopied: false,
+        handoffId: confirmed.handoffId,
+        includeSummaryInCheckout: confirmed.includeSummaryInCheckout,
+        listingId: handoffSelection.listingId,
+        recommendationId: confirmed.recommendationId,
+        sessionId: handoffSelection.sessionId,
+        summary: confirmed.summary,
+      };
+      saveAdvisorHandoffDraft(draft);
+      setHandoffSelection((current) =>
+        current
+          ? {
+              ...current,
+              summary: confirmed.summary,
+            }
+          : current
+      );
+      toast.success(
+        "Đã xác nhận ngữ cảnh Advisor. Bạn có thể tự chọn ảnh để đưa vào Checkout."
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Không thể xác nhận Advisory Summary."
+      );
+    }
+  };
+
   const stopTurn = async (): Promise<void> => {
     if (!sessionId) {
       return;
@@ -693,6 +1055,15 @@ export const AdvisorPage = () => {
       setConsentAccepted(false);
       setConsentChecked(false);
       setDeleteRequested(false);
+      const handoffDraft = getAdvisorHandoffDraft();
+      if (
+        handoffDraft?.sessionId === sessionId &&
+        !handoffDraft.attachmentsCopied
+      ) {
+        clearAdvisorHandoffDraft();
+      }
+      revokeHandoffPreviews();
+      setHandoffSelection(null);
       toast.success("Advisor session đã được xóa.");
     } catch (error) {
       toast.error(
@@ -994,10 +1365,58 @@ export const AdvisorPage = () => {
             {recommendations.map((recommendation) => (
               <RecommendationCard
                 key={recommendation.id}
+                onSelect={(recommendationId, listingId) => {
+                  void selectRecommendation(recommendationId, listingId);
+                }}
                 recommendation={recommendation}
               />
             ))}
           </section>
+        ) : null}
+
+        {handoffSelection ? (
+          <AdvisorHandoffPanel
+            attachments={handoffSelection.attachments}
+            attachmentIds={handoffSelection.attachmentIds}
+            includeSummaryInCheckout={handoffSelection.includeSummaryInCheckout}
+            listingId={handoffSelection.listingId}
+            onAttachmentToggle={(attachmentId) => {
+              setHandoffSelection((current) => {
+                if (!current) {
+                  return current;
+                }
+                const selected = new Set(current.attachmentIds);
+                if (selected.has(attachmentId)) {
+                  selected.delete(attachmentId);
+                } else {
+                  selected.add(attachmentId);
+                }
+                return { ...current, attachmentIds: [...selected] };
+              });
+            }}
+            onIncludeSummaryChange={(includeSummaryInCheckout) => {
+              setHandoffSelection((current) =>
+                current ? { ...current, includeSummaryInCheckout } : current
+              );
+            }}
+            onListingChange={(nextListingId) => {
+              setHandoffSelection((current) =>
+                current ? { ...current, listingId: nextListingId } : current
+              );
+            }}
+            onSummaryChange={(summary) => {
+              setHandoffSelection((current) =>
+                current ? { ...current, summary } : current
+              );
+            }}
+            onConfirm={() => void confirmHandoff()}
+            pending={confirmHandoffMutation.isPending}
+            recommendation={recommendations.find(
+              (recommendation) =>
+                recommendation.id === handoffSelection.recommendationId
+            )}
+            summary={handoffSelection.summary}
+          />
         ) : null}
       </div>
     </Shell>

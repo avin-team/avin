@@ -281,6 +281,37 @@ export const advisorRecommendation = pgTable(
   ]
 );
 
+export const advisorHandoff = pgTable(
+  "advisor_handoff",
+  {
+    attachmentIds: jsonb("attachment_ids")
+      .$type<string[]>()
+      .default([])
+      .notNull(),
+    confirmedAt: timestamp("confirmed_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    includeSummaryInCheckout: boolean("include_summary_in_checkout")
+      .default(false)
+      .notNull(),
+    recommendationId: uuid("recommendation_id")
+      .notNull()
+      .references(() => advisorRecommendation.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => advisorSession.id, { onDelete: "cascade" }),
+    summary: text("summary").notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("advisor_handoff_session_unique_idx").on(table.sessionId),
+    index("advisor_handoff_recommendation_idx").on(table.recommendationId),
+  ]
+);
+
 export const advisorConsentRelations = relations(
   advisorConsent,
   ({ one, many }) => ({
@@ -300,6 +331,7 @@ export const advisorSessionRelations = relations(
       fields: [advisorSession.consentId],
       references: [advisorConsent.id],
     }),
+    handoff: one(advisorHandoff),
     messages: many(advisorMessage),
     pinnedPlaybook: one(advisorPlaybook, {
       fields: [advisorSession.pinnedPlaybookId],
@@ -345,6 +377,7 @@ export const advisorAttachmentRelations = relations(
 export const advisorRecommendationRelations = relations(
   advisorRecommendation,
   ({ one }) => ({
+    handoff: one(advisorHandoff),
     playbook: one(advisorPlaybook, {
       fields: [advisorRecommendation.playbookId],
       references: [advisorPlaybook.id],
@@ -355,3 +388,14 @@ export const advisorRecommendationRelations = relations(
     }),
   })
 );
+
+export const advisorHandoffRelations = relations(advisorHandoff, ({ one }) => ({
+  recommendation: one(advisorRecommendation, {
+    fields: [advisorHandoff.recommendationId],
+    references: [advisorRecommendation.id],
+  }),
+  session: one(advisorSession, {
+    fields: [advisorHandoff.sessionId],
+    references: [advisorSession.id],
+  }),
+}));
