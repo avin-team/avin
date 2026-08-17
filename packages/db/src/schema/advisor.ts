@@ -220,6 +220,44 @@ export const advisorMessage = pgTable(
   ]
 );
 
+export const advisorAttachmentStatus = pgEnum("advisor_attachment_status", [
+  "UPLOADED",
+  "COMMITTED",
+]);
+
+export const advisorAttachment = pgTable(
+  "advisor_attachment",
+  {
+    byteSize: integer("byte_size").notNull(),
+    committedAt: timestamp("committed_at"),
+    contentType: text("content_type").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    fileName: text("file_name").notNull(),
+    height: integer("height").notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    messageId: uuid("message_id").references(() => advisorMessage.id, {
+      onDelete: "set null",
+    }),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => advisorSession.id, { onDelete: "cascade" }),
+    status: advisorAttachmentStatus("status").default("UPLOADED").notNull(),
+    storageKey: text("storage_key").notNull(),
+    width: integer("width").notNull(),
+  },
+  (table) => [
+    index("advisor_attachment_session_status_idx").on(
+      table.sessionId,
+      table.status
+    ),
+    index("advisor_attachment_expires_at_idx").on(table.expiresAt),
+    uniqueIndex("advisor_attachment_storage_key_unique_idx").on(
+      table.storageKey
+    ),
+  ]
+);
+
 export const advisorRecommendation = pgTable(
   "advisor_recommendation",
   {
@@ -257,6 +295,7 @@ export const advisorConsentRelations = relations(
 export const advisorSessionRelations = relations(
   advisorSession,
   ({ many, one }) => ({
+    attachments: many(advisorAttachment),
     consent: one(advisorConsent, {
       fields: [advisorSession.consentId],
       references: [advisorConsent.id],
@@ -278,12 +317,30 @@ export const advisorSessionRelations = relations(
   })
 );
 
-export const advisorMessageRelations = relations(advisorMessage, ({ one }) => ({
-  session: one(advisorSession, {
-    fields: [advisorMessage.sessionId],
-    references: [advisorSession.id],
-  }),
-}));
+export const advisorMessageRelations = relations(
+  advisorMessage,
+  ({ many, one }) => ({
+    attachments: many(advisorAttachment),
+    session: one(advisorSession, {
+      fields: [advisorMessage.sessionId],
+      references: [advisorSession.id],
+    }),
+  })
+);
+
+export const advisorAttachmentRelations = relations(
+  advisorAttachment,
+  ({ one }) => ({
+    message: one(advisorMessage, {
+      fields: [advisorAttachment.messageId],
+      references: [advisorMessage.id],
+    }),
+    session: one(advisorSession, {
+      fields: [advisorAttachment.sessionId],
+      references: [advisorSession.id],
+    }),
+  })
+);
 
 export const advisorRecommendationRelations = relations(
   advisorRecommendation,

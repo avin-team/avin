@@ -20,6 +20,7 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { secureHeaders } from "hono/secure-headers";
 
+import { createAdvisorAttachmentUploadApp } from "./advisor-attachment-upload";
 import { createAdvisorPreviewApp } from "./advisor-preview";
 import {
   createAdvisorProviderManager,
@@ -79,6 +80,10 @@ const advisorPreviewApp = createAdvisorPreviewApp({
     await advisorProviderManager.markUnavailable(keyFingerprint);
   },
 });
+const advisorAttachmentApp = createAdvisorAttachmentUploadApp({
+  database: db,
+  storage: listingImageStorage?.objectStore,
+});
 const listingImageUploadRouter = listingImageStorage
   ? createListingImageUploadRouter(listingImageStorage.client)
   : null;
@@ -119,8 +124,13 @@ app.use(
 app.use(
   "/*",
   cors({
-    allowHeaders: ["Content-Type", "Authorization", AUTH_SURFACE_HEADER],
-    allowMethods: ["GET", "POST", "OPTIONS"],
+    allowHeaders: [
+      "Content-Type",
+      "Authorization",
+      AUTH_SURFACE_HEADER,
+      "X-Advisor-Visitor-Capability",
+    ],
+    allowMethods: ["DELETE", "GET", "POST", "OPTIONS"],
     credentials: true,
     origin: env.CORS_ORIGIN,
   })
@@ -200,6 +210,7 @@ app.post("/api/delivery-attachment-upload", (c) => {
 });
 
 app.route("/", advisorPreviewApp);
+app.route("/", advisorAttachmentApp);
 
 const sePayWebhook = (c: { req: { raw: Request } }) =>
   handleSePayWebhook({

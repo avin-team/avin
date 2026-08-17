@@ -1,5 +1,6 @@
 export const PUBLIC_MEDIA_BUCKET = "public-media";
 export const ORDER_FILES_BUCKET = "order-files";
+export const ADVISOR_ATTACHMENTS_BUCKET = "advisor-attachments";
 
 export const LISTING_IMAGE_UPLOAD_ROUTE = "listing-image";
 export const SELLER_LOGO_UPLOAD_ROUTE = "seller-logo";
@@ -10,9 +11,17 @@ export const SELLER_ENFORCEMENT_APPEAL_EVIDENCE_UPLOAD_ROUTE =
   "seller-enforcement-appeal-evidence";
 export const CHECKOUT_ATTACHMENT_UPLOAD_ROUTE = "checkout-attachment";
 export const DELIVERY_ATTACHMENT_UPLOAD_ROUTE = "delivery-attachment";
+export const ADVISOR_ATTACHMENT_UPLOAD_ROUTE = "advisor-attachment";
 
 export interface ManagedObjectStore {
   deleteObject: (key: string, bucket?: string) => Promise<void>;
+  getObject?: (key: string, bucket?: string) => Promise<Uint8Array>;
+  putObject?: (
+    key: string,
+    body: Uint8Array,
+    contentType: string,
+    bucket?: string
+  ) => Promise<void>;
   supabaseUrl: string;
 }
 
@@ -74,6 +83,15 @@ export const SELLER_ENFORCEMENT_APPEAL_EVIDENCE_CONTENT_TYPES =
 export const COMMERCE_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 export const COMMERCE_IMAGE_MAX_COUNT = 5;
 export const COMMERCE_IMAGE_CONTENT_TYPES = LISTING_IMAGE_CONTENT_TYPES;
+
+export const ADVISOR_ATTACHMENT_MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+export const ADVISOR_ATTACHMENT_MAX_NORMALIZED_BYTES = 3 * 1024 * 1024;
+export const ADVISOR_ATTACHMENT_MAX_DIMENSION = 2048;
+export const ADVISOR_ATTACHMENT_MAX_PER_MESSAGE = 3;
+export const ADVISOR_ATTACHMENT_MAX_PER_SESSION = 5;
+export const ADVISOR_ATTACHMENT_MAX_MODEL_BYTES = 12 * 1024 * 1024;
+export const ADVISOR_ATTACHMENT_UNCOMMITTED_TTL_MS = 60 * 60 * 1000;
+export const ADVISOR_ATTACHMENT_CONTENT_TYPES = LISTING_IMAGE_CONTENT_TYPES;
 
 export const isOrderChatAttachmentContentType = (
   contentType: string
@@ -288,6 +306,30 @@ const assertCommercePathSegments = (segments: string[]): void => {
   if (segments.some((segment) => !SAFE_PATH_SEGMENT.test(segment))) {
     throw new Error("Invalid commerce attachment path segment");
   }
+};
+
+export const createAdvisorAttachmentKey = (
+  sessionId: string,
+  attachmentId: string,
+  contentType: string
+): string => {
+  const extension = getCommerceImageExtension(contentType);
+  assertCommercePathSegments([sessionId, attachmentId]);
+  return `sessions/${sessionId}/attachments/${attachmentId}.${extension}`;
+};
+
+export const isAdvisorAttachmentKey = (
+  key: string,
+  sessionId: string,
+  attachmentId: string
+): boolean => {
+  try {
+    assertCommercePathSegments([sessionId, attachmentId]);
+  } catch {
+    return false;
+  }
+  const prefix = `sessions/${sessionId}/attachments/${attachmentId}.`;
+  return key.startsWith(prefix) && /(?:jpg|png|webp)$/iu.test(key);
 };
 
 export const createCheckoutAttachmentKey = (

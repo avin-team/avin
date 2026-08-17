@@ -8,12 +8,14 @@ import {
 } from "@avin/ui/components/card";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { ChangeEvent } from "react";
 import { toast } from "sonner";
 
 import { Shell } from "@/components/shell";
 import { formatVND } from "@/utils/format";
 import { orpc } from "@/utils/orpc";
+import { serverURL } from "@/utils/server-url";
 
 const CAPABILITY_STORAGE_KEY = "avin.advisor.capability";
 const SESSION_STORAGE_KEY = "avin.advisor.session";
@@ -21,6 +23,38 @@ const CONSENT_STORAGE_KEY = "avin.advisor.consent";
 const EMPTY_UUID = "00000000-0000-4000-8000-000000000000";
 type AdvisorIdempotencyKey =
   `${string}-${string}-${string}-${string}-${string}`;
+
+const ADVISOR_ATTACHMENT_MAX_PER_MESSAGE = 3;
+const ADVISOR_ATTACHMENT_MAX_PER_SESSION = 5;
+const ADVISOR_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
+const ADVISOR_ATTACHMENT_CONTENT_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+
+interface AdvisorAttachmentPreview {
+  byteSize: number;
+  contentType: string;
+  expiresAt: string;
+  fileName: string;
+  height: number;
+  id: string;
+  previewUrl: string;
+  width: number;
+}
+
+const getAttachmentErrorMessage = (payload: unknown): string => {
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "message" in payload &&
+    typeof payload.message === "string"
+  ) {
+    return payload.message;
+  }
+  return "Không thể xử lý ảnh Advisor.";
+};
 
 const createCapability = (): string => {
   const random = globalThis.crypto?.randomUUID;
@@ -327,7 +361,7 @@ const RecommendationCard = ({
 
 // AVIN-50 keeps consent, generation, retry, and retention controls together so
 // the resumable-session state machine remains explicit at the page boundary.
-// oxlint-disable-next-line complexity
+// oxlint-disable-next-line complexity, react-doctor/prefer-useReducer
 export const AdvisorPage = () => {
   const capability = useMemo(() => {
     const stored = getStoredValue(CAPABILITY_STORAGE_KEY);
@@ -349,7 +383,15 @@ export const AdvisorPage = () => {
   const [consentChecked, setConsentChecked] = useState(false);
   const [deleteRequested, setDeleteRequested] = useState(false);
   const [text, setText] = useState("");
+  const [attachments, setAttachments] = useState<AdvisorAttachmentPreview[]>(
+    []
+  );
+  const [attachmentBusy, setAttachmentBusy] = useState(false);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
+  const attachmentsRef = useRef<AdvisorAttachmentPreview[]>([]);
   const [retryRequest, setRetryRequest] = useState<{
+    attachmentIds: string[];
     idempotencyKey: AdvisorIdempotencyKey;
     text: string;
   } | null>(null);
@@ -379,6 +421,19 @@ export const AdvisorPage = () => {
   const generationActive =
     turnMutation.isPending || sessionQuery.data?.generationStatus === "RUNNING";
 
+  useEffect(() => {
+    attachmentsRef.current = attachments;
+  }, [attachments]);
+
+  useEffect(
+    () => () => {
+      for (const attachment of attachmentsRef.current) {
+        URL.revokeObjectURL(attachment.previewUrl);
+      }
+    },
+    []
+  );
+
   const startSession = async (): Promise<void> => {
     try {
       const consent = await consentMutation.mutateAsync({
@@ -402,33 +457,173 @@ export const AdvisorPage = () => {
 
   const sendTurn = async (
     value: string,
-    idempotencyKey: AdvisorIdempotencyKey = crypto.randomUUID()
+    idempotencyKey: AdvisorIdempotencyKey = crypto.randomUUID(),
+    attachmentIds = attachments.map((attachment) => attachment.id)
   ): Promise<void> => {
     const trimmed = value.trim();
-    if (!trimmed || !sessionId || generationActive || stopMutation.isPending) {
+    if (
+      !trimmed ||
+      !sessionId ||
+      generationActive ||
+      stopMutation.isPending ||
+      attachmentBusy
+    ) {
       return;
     }
     setRetryRequest(null);
     setText("");
     try {
       await turnMutation.mutateAsync({
+        attachmentIds,
         idempotencyKey,
         sessionId,
         text: trimmed,
         visitorCapability: capability,
       });
+      for (const attachment of attachments) {
+        URL.revokeObjectURL(attachment.previewUrl);
+      }
+      setAttachments([]);
+      setAttachmentError(null);
       await queryClient.invalidateQueries({
         queryKey: orpc.advisor.session.get.queryOptions({
           input: { sessionId, visitorCapability: capability },
         }).queryKey,
       });
     } catch (error) {
-      setRetryRequest({ idempotencyKey, text: trimmed });
+      setRetryRequest({ attachmentIds, idempotencyKey, text: trimmed });
       toast.error(
         error instanceof Error
           ? error.message
           : "Không thể hoàn tất lượt tư vấn."
       );
+    }
+  };
+
+  const uploadAttachment = async (file: File): Promise<void> => {
+    if (!sessionId) {
+      throw new Error("Khởi tạo Advisor session trước khi tải ảnh.");
+    }
+    if (!ADVISOR_ATTACHMENT_CONTENT_TYPES.has(file.type)) {
+      throw new Error("Chỉ hỗ trợ ảnh JPEG, PNG hoặc WebP.");
+    }
+    if (file.size === 0 || file.size > ADVISOR_ATTACHMENT_MAX_BYTES) {
+      throw new Error("Ảnh phải có dữ liệu và không vượt quá 10 MB.");
+    }
+
+    const formData = new FormData();
+    formData.set("file", file);
+    formData.set("sessionId", sessionId);
+    formData.set("visitorCapability", capability);
+    const response = await fetch(`${serverURL}/api/advisor/attachments`, {
+      body: formData,
+      credentials: "include",
+      method: "POST",
+    });
+    let payload: unknown;
+    try {
+      payload = await response.json();
+    } catch {
+      payload = null;
+    }
+    if (!response.ok) {
+      throw new Error(getAttachmentErrorMessage(payload));
+    }
+    if (
+      !payload ||
+      typeof payload !== "object" ||
+      !("attachment" in payload) ||
+      !payload.attachment ||
+      typeof payload.attachment !== "object"
+    ) {
+      throw new Error("Phản hồi tải ảnh Advisor không hợp lệ.");
+    }
+    const attachment = payload.attachment as Omit<
+      AdvisorAttachmentPreview,
+      "previewUrl"
+    >;
+    setAttachments((current) => [
+      ...current,
+      { ...attachment, previewUrl: URL.createObjectURL(file) },
+    ]);
+  };
+
+  const handleAttachmentFiles = async (
+    event: ChangeEvent<HTMLInputElement>
+  ): Promise<void> => {
+    const files = [...(event.target.files ?? [])];
+    event.target.value = "";
+    if (files.length === 0) {
+      return;
+    }
+    const availableSlots =
+      ADVISOR_ATTACHMENT_MAX_PER_MESSAGE - attachments.length;
+    if (availableSlots <= 0) {
+      setAttachmentError(
+        `Mỗi lượt tối đa ${ADVISOR_ATTACHMENT_MAX_PER_MESSAGE} ảnh.`
+      );
+      return;
+    }
+
+    setAttachmentBusy(true);
+    setAttachmentError(null);
+    const errors: string[] = [];
+    try {
+      for (const file of files.slice(0, availableSlots)) {
+        try {
+          await uploadAttachment(file);
+        } catch (error) {
+          errors.push(
+            `${file.name}: ${
+              error instanceof Error ? error.message : "Không thể tải ảnh lên."
+            }`
+          );
+        }
+      }
+      if (files.length > availableSlots) {
+        errors.push(`Chỉ có thể thêm ${availableSlots} ảnh nữa cho lượt này.`);
+      }
+    } finally {
+      setAttachmentBusy(false);
+    }
+    if (errors.length > 0) {
+      setAttachmentError(errors.join(" "));
+    }
+  };
+
+  const removeAttachment = async (
+    attachment: AdvisorAttachmentPreview
+  ): Promise<void> => {
+    setAttachmentBusy(true);
+    setAttachmentError(null);
+    try {
+      const response = await fetch(
+        `${serverURL}/api/advisor/attachments/${attachment.id}`,
+        {
+          credentials: "include",
+          headers: { "X-Advisor-Visitor-Capability": capability },
+          method: "DELETE",
+        }
+      );
+      let payload: unknown;
+      try {
+        payload = await response.json();
+      } catch {
+        payload = null;
+      }
+      if (!response.ok) {
+        throw new Error(getAttachmentErrorMessage(payload));
+      }
+      URL.revokeObjectURL(attachment.previewUrl);
+      setAttachments((current) =>
+        current.filter((item) => item.id !== attachment.id)
+      );
+    } catch (error) {
+      setAttachmentError(
+        error instanceof Error ? error.message : "Không thể xóa ảnh Advisor."
+      );
+    } finally {
+      setAttachmentBusy(false);
     }
   };
 
@@ -489,6 +684,11 @@ export const AdvisorPage = () => {
       });
       removeStoredValue(CONSENT_STORAGE_KEY);
       removeStoredValue(SESSION_STORAGE_KEY);
+      for (const attachment of attachments) {
+        URL.revokeObjectURL(attachment.previewUrl);
+      }
+      setAttachments([]);
+      setAttachmentError(null);
       setSessionId("");
       setConsentAccepted(false);
       setConsentChecked(false);
@@ -650,6 +850,82 @@ export const AdvisorPage = () => {
               </fieldset>
             ) : null}
 
+            <div className="space-y-2 rounded-xl border border-dashed bg-muted/10 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="font-medium text-sm">
+                    Ảnh tham khảo (tuỳ chọn)
+                  </p>
+                  <p className="text-muted-foreground text-xs">
+                    JPEG, PNG hoặc WebP · tối đa{" "}
+                    {ADVISOR_ATTACHMENT_MAX_PER_MESSAGE} ảnh/lượt,{" "}
+                    {ADVISOR_ATTACHMENT_MAX_PER_SESSION} ảnh/session
+                  </p>
+                </div>
+                <input
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  disabled={
+                    attachmentBusy || generationActive || stopMutation.isPending
+                  }
+                  multiple
+                  onChange={(event) => void handleAttachmentFiles(event)}
+                  ref={attachmentInputRef}
+                  type="file"
+                />
+                <Button
+                  disabled={
+                    attachmentBusy ||
+                    generationActive ||
+                    stopMutation.isPending ||
+                    attachments.length >= ADVISOR_ATTACHMENT_MAX_PER_MESSAGE
+                  }
+                  onClick={() => attachmentInputRef.current?.click()}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  {attachmentBusy ? "Đang xử lý..." : "Thêm ảnh"}
+                </Button>
+              </div>
+              {attachments.length > 0 ? (
+                <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {attachments.map((attachment) => (
+                    <li
+                      className="group relative overflow-hidden rounded-lg border bg-background"
+                      key={attachment.id}
+                    >
+                      <img
+                        alt={`Ảnh tham khảo ${attachment.fileName}`}
+                        className="aspect-square w-full object-cover"
+                        src={attachment.previewUrl}
+                      />
+                      <div className="flex items-center justify-between gap-2 p-2">
+                        <span className="truncate text-xs">
+                          {attachment.fileName}
+                        </span>
+                        <Button
+                          aria-label={`Xóa ảnh ${attachment.fileName}`}
+                          disabled={attachmentBusy || generationActive}
+                          onClick={() => void removeAttachment(attachment)}
+                          size="icon-sm"
+                          type="button"
+                          variant="ghost"
+                        >
+                          ×
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {attachmentError ? (
+                <p className="text-destructive text-sm" role="alert">
+                  {attachmentError}
+                </p>
+              ) : null}
+            </div>
+
             <form
               className="flex flex-col gap-2 sm:flex-row"
               onSubmit={(event) => {
@@ -671,7 +947,10 @@ export const AdvisorPage = () => {
               />
               <Button
                 disabled={
-                  !text.trim() || generationActive || stopMutation.isPending
+                  !text.trim() ||
+                  attachmentBusy ||
+                  generationActive ||
+                  stopMutation.isPending
                 }
                 type="submit"
               >
@@ -689,7 +968,8 @@ export const AdvisorPage = () => {
                   onClick={() =>
                     void sendTurn(
                       retryRequest.text,
-                      retryRequest.idempotencyKey
+                      retryRequest.idempotencyKey,
+                      retryRequest.attachmentIds
                     )
                   }
                   size="sm"

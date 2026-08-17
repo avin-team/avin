@@ -1,4 +1,5 @@
 import {
+  advisorAttachment,
   advisorConsent,
   advisorMessage,
   advisorRecommendation,
@@ -24,6 +25,12 @@ import {
   orchestrateAdvisorTurn,
   revalidateAdvisorRecommendation,
 } from "./advisor";
+import {
+  commitAdvisorAttachments,
+  deleteAdvisorAttachmentObjects,
+  loadOwnedAdvisorAttachments,
+  readAdvisorAttachmentBytes,
+} from "./attachments";
 
 const TERMS_PATH = "/terms";
 const PRIVACY_PATH = "/privacy";
@@ -273,6 +280,16 @@ export const advisorSessionRouter = {
         input.visitorCapability,
         { allowExpired: true }
       );
+      if (context.storage) {
+        const attachments =
+          (await context.db.query.advisorAttachment.findMany({
+            where: eq(advisorAttachment.sessionId, session.id),
+          })) ?? [];
+        await deleteAdvisorAttachmentObjects({
+          attachments,
+          storage: context.storage,
+        });
+      }
       await context.db
         .delete(advisorSession)
         .where(eq(advisorSession.id, session.id));
@@ -420,6 +437,34 @@ export const advisorSessionRouter = {
           return { response: previous.data, sessionId: session.id };
         }
       }
+      const attachmentIds = input.attachmentIds ?? [];
+      const attachments = await loadOwnedAdvisorAttachments({
+        attachmentIds,
+        database: context.db,
+        sessionId: session.id,
+      });
+      let attachmentBytes: Uint8Array[];
+      try {
+        attachmentBytes = await Promise.all(
+          attachments.map((attachment) =>
+            readAdvisorAttachmentBytes({
+              attachment,
+              storage: context.storage,
+            })
+          )
+        );
+      } catch {
+        throw new ORPCError("BAD_REQUEST", {
+          message:
+            "Một hoặc nhiều ảnh Advisor không còn đọc được. Hãy tải ảnh mới hoặc tiếp tục bằng mô tả chữ.",
+        });
+      }
+      if (attachmentBytes.some((bytes) => bytes.byteLength === 0)) {
+        throw new ORPCError("BAD_REQUEST", {
+          message:
+            "Một hoặc nhiều ảnh Advisor không còn đọc được. Hãy tải ảnh mới rồi thử lại.",
+        });
+      }
       await requireProviderReady(context);
 
       const now = new Date();
@@ -473,7 +518,13 @@ export const advisorSessionRouter = {
       }
       let response: ReturnType<typeof advisorTurnResponseSchema.parse>;
       try {
-        response = advisorTurnResponseSchema.parse(computation.response);
+        response = advisorTurnResponseSchema.parse({
+          ...computation.response,
+          message:
+            attachments.length > 0
+              ? `${computation.response.message} Mình đã nhận ${attachments.length} ảnh riêng tư làm ngữ cảnh cho lượt này; ảnh không được hiển thị công khai.`
+              : computation.response.message,
+        });
         await context.db.transaction(async (transaction) => {
           const [finalized] = await transaction
             .update(advisorSession)
@@ -519,8 +570,12 @@ export const advisorSessionRouter = {
               );
           }
 
+          const userMessageId = crypto.randomUUID();
+          const assistantMessageId = crypto.randomUUID();
           await transaction.insert(advisorMessage).values(
             buildAdvisorMessageInsert({
+              attachmentIds,
+              id: userMessageId,
               role: "USER",
               sequence: userSequence,
               sessionId: session.id,
@@ -529,6 +584,7 @@ export const advisorSessionRouter = {
           );
           await transaction.insert(advisorMessage).values(
             buildAdvisorMessageInsert({
+              id: assistantMessageId,
               response,
               role: "ASSISTANT",
               sequence: userSequence + 1,
@@ -536,6 +592,14 @@ export const advisorSessionRouter = {
               text: response.message,
             })
           );
+
+          await commitAdvisorAttachments({
+            attachments,
+            database: transaction as unknown as Context["db"],
+            expiresAt: session.expiresAt,
+            messageId: userMessageId,
+            sessionId: session.id,
+          });
 
           if (response.kind === "RECOMMENDATION" && response.recommendation) {
             const playbookId =

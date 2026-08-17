@@ -81,6 +81,7 @@ const { dbMock } = vi.hoisted(() => ({
     delete: vi.fn(),
     insert: vi.fn(),
     query: {
+      advisorAttachment: { findFirst: vi.fn(), findMany: vi.fn() },
       advisorConsent: { findFirst: vi.fn() },
       advisorMessage: { findMany: vi.fn() },
       advisorPlaybook: { findMany: vi.fn() },
@@ -94,7 +95,8 @@ const { dbMock } = vi.hoisted(() => ({
 }));
 
 const createContext = (
-  sessionOverride: Context["session"] = null
+  sessionOverride: Context["session"] = null,
+  storage: Context["storage"] = undefined
 ): Context => ({
   advisorProvider: {
     activateConfiguration: vi.fn(),
@@ -111,10 +113,13 @@ const createContext = (
   audit: { record: vi.fn(() => Promise.resolve()) },
   db: dbMock as unknown as Context["db"],
   session: sessionOverride,
+  storage,
 });
 
 beforeEach(() => {
   vi.clearAllMocks();
+  dbMock.query.advisorAttachment.findFirst.mockResolvedValue(null);
+  dbMock.query.advisorAttachment.findMany.mockResolvedValue([]);
   dbMock.transaction.mockImplementation(
     (callback: (database: typeof dbMock) => Promise<unknown>) =>
       callback(dbMock)
@@ -210,6 +215,65 @@ describe("Advisor public session boundary", () => {
     expect(result.response.kind).toBe("QUESTION");
     expect(dbMock.insert).toHaveBeenCalledTimes(2);
     expect(dbMock.query).not.toHaveProperty("cart");
+  });
+
+  it("reauthorizes private image IDs and records them on the user message", async () => {
+    const attachmentId = "00000000-0000-4000-8000-000000000004";
+    dbMock.query.advisorSession.findFirst.mockResolvedValue(session);
+    dbMock.query.advisorAttachment.findMany.mockResolvedValue([
+      {
+        byteSize: 1,
+        committedAt: null,
+        contentType: "image/png",
+        createdAt: NOW,
+        expiresAt: session.expiresAt,
+        fileName: "reference.png",
+        height: 1,
+        id: attachmentId,
+        messageId: null,
+        sessionId: SESSION_ID,
+        status: "UPLOADED",
+        storageKey: `sessions/${SESSION_ID}/attachments/${attachmentId}.png`,
+        width: 1,
+      },
+    ]);
+    dbMock.query.advisorPlaybook.findMany.mockResolvedValue([
+      {
+        content: defaultAdvisorPlaybookContent(),
+        id: "00000000-0000-4000-8000-000000000005",
+        status: "PUBLISHED",
+        subCategory,
+      },
+    ]);
+    dbMock.query.listing.findMany.mockResolvedValue([]);
+    dbMock.insert.mockReturnValue({
+      values: vi.fn().mockResolvedValue([]),
+    });
+    const storage: NonNullable<Context["storage"]> = {
+      deleteObject: vi.fn().mockResolvedValue(null),
+      getObject: vi.fn().mockResolvedValue(new Uint8Array([1])),
+      putObject: vi.fn().mockResolvedValue(null),
+      supabaseUrl: "https://storage.example",
+    };
+
+    const result = await call(
+      advisorSessionRouter.turn,
+      {
+        attachmentIds: [attachmentId],
+        idempotencyKey: "turn-with-image",
+        sessionId: SESSION_ID,
+        text: "Tôi cần hỗ trợ account",
+        visitorCapability: CAPABILITY,
+      },
+      { context: createContext(null, storage) }
+    );
+
+    expect(result.response.message).toContain("1 ảnh riêng tư");
+    expect(storage.getObject).toHaveBeenCalledWith(
+      `sessions/${SESSION_ID}/attachments/${attachmentId}.png`,
+      "advisor-attachments"
+    );
+    expect(dbMock.insert).toHaveBeenCalledTimes(2);
   });
 
   it("renews a Visitor session from the fixed activity clock", async () => {

@@ -246,6 +246,13 @@
       "when": 1786991195163,
       "tag": "0034_blushing_archangel",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1786993768316,
+      "tag": "0035_reflective_kingpin",
+      "breakpoints": true
     }
   ]
 }

@@ -91,10 +91,14 @@ const session = (overrides: Partial<AdvisorSessionRecord> = {}) =>
   }) satisfies AdvisorSessionRecord;
 
 const advisorPlaybookFindMany = vi.fn().mockResolvedValue([playbook]);
+const advisorAttachmentFindMany = vi.fn().mockResolvedValue([]);
 const listingFindMany = vi.fn().mockResolvedValue([candidate]);
 const subCategoryFindMany = vi.fn().mockResolvedValue([]);
 const database = {
   query: {
+    advisorAttachment: {
+      findMany: advisorAttachmentFindMany,
+    },
     advisorPlaybook: {
       findMany: advisorPlaybookFindMany,
     },
@@ -109,6 +113,7 @@ const database = {
 
 beforeEach(() => {
   advisorPlaybookFindMany.mockResolvedValue([playbook]);
+  advisorAttachmentFindMany.mockResolvedValue([]);
   listingFindMany.mockResolvedValue([candidate]);
   subCategoryFindMany.mockResolvedValue([]);
 });
@@ -227,7 +232,10 @@ describe("Advisor text-only orchestration", () => {
       delete: vi.fn(() => ({
         where: vi.fn(() => ({ returning })),
       })),
-      query: { advisorSession: { findMany } },
+      query: {
+        advisorAttachment: { findMany: vi.fn().mockResolvedValue([]) },
+        advisorSession: { findMany },
+      },
     } as unknown as Context["db"];
 
     await expect(

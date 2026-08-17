@@ -9,7 +9,7 @@
     "dev": "bun run --hot src/index.ts",
     "smoke:advisor": "bun run src/advisor-preview-smoke.ts",
     "start": "bun run dist/index.mjs",
-    "test": "vitest run src/advisor-provider.test.ts src/advisor-preview.test.ts src/advisor-provider-config.test.ts"
+    "test": "vitest run src/advisor-provider.test.ts src/advisor-preview.test.ts src/advisor-provider-config.test.ts src/advisor-attachments.test.ts"
   },
   "dependencies": {
     "@ai-sdk/groq": "4.0.28",
@@ -26,6 +26,7 @@
     "dotenv": "catalog:",
     "drizzle-orm": "^0.45.2",
     "hono": "catalog:",
+    "sharp": "^0.34.3",
     "zod": "catalog:"
   },
   "devDependencies": {

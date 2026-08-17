@@ -1,6 +1,10 @@
 import { createHash } from "node:crypto";
 
-import { advisorPlaybook, advisorSession } from "@avin/db/schema/advisor";
+import {
+  advisorAttachment,
+  advisorPlaybook,
+  advisorSession,
+} from "@avin/db/schema/advisor";
 import { listing, servicePackage, subCategory } from "@avin/db/schema/catalog";
 import { ORPCError } from "@orpc/server";
 import { and, eq, inArray, lte } from "drizzle-orm";
@@ -8,6 +12,11 @@ import { z } from "zod";
 
 import { sellerIsNotEnforcedCondition } from "../listing/listing-discovery";
 import type { Context } from "../runtime/context";
+import type { ManagedObjectStore } from "../runtime/storage";
+import {
+  cleanupExpiredAdvisorAttachments,
+  deleteAdvisorAttachmentObjects,
+} from "./attachments";
 import { advisorPlaybookContentSchema } from "./playbook";
 import type { AdvisorPlaybookContent } from "./playbook";
 
@@ -57,6 +66,7 @@ export const advisorSessionIdInputSchema = z.strictObject({
 });
 
 export const advisorTurnInputSchema = z.strictObject({
+  attachmentIds: z.array(z.uuid()).max(3).optional(),
   idempotencyKey: z.string().trim().min(8).max(128).optional(),
   sessionId: z.uuid(),
   text: z.string().trim().min(1).max(5000),
@@ -266,13 +276,16 @@ export interface CleanupExpiredAdvisorSessionsOptions {
   database: AdvisorDatabase;
   limit?: number;
   now?: Date;
+  storage?: ManagedObjectStore;
 }
 
 export const cleanupExpiredAdvisorSessions = async ({
   database,
   limit = ADVISOR_SESSION_CLEANUP_LIMIT,
   now = new Date(),
+  storage,
 }: CleanupExpiredAdvisorSessionsOptions): Promise<number> => {
+  await cleanupExpiredAdvisorAttachments({ database, now, storage });
   const expiredSessions = await database.query.advisorSession.findMany({
     columns: { id: true },
     limit,
@@ -281,6 +294,11 @@ export const cleanupExpiredAdvisorSessions = async ({
 
   const deletedCounts = await Promise.all(
     expiredSessions.map(async (session) => {
+      const attachments =
+        (await database.query.advisorAttachment.findMany({
+          where: eq(advisorAttachment.sessionId, session.id),
+        })) ?? [];
+      await deleteAdvisorAttachmentObjects({ attachments, storage });
       const [deleted] = await database
         .delete(advisorSession)
         .where(
@@ -1357,26 +1375,37 @@ export const parseAdvisorRecommendationWithRepair = ({
 };
 
 export const buildAdvisorMessageInsert = ({
+  attachmentIds,
+  id,
   response,
   sequence,
   sessionId,
   text,
   role,
 }: {
+  attachmentIds?: readonly string[];
+  id?: string;
   response?: AdvisorTurnResponse;
   sequence: number;
   sessionId: string;
   text: string;
   role: "USER" | "ASSISTANT";
 }) => ({
-  metadata: response
-    ? {
-        browsePath: response.browsePath,
-        kind: response.kind,
-        question: response.question,
-        recommendation: response.recommendation,
-      }
-    : undefined,
+  metadata:
+    response || attachmentIds?.length
+      ? {
+          ...(response
+            ? {
+                browsePath: response.browsePath,
+                kind: response.kind,
+                question: response.question,
+                recommendation: response.recommendation,
+              }
+            : {}),
+          ...(attachmentIds?.length ? { attachmentIds } : {}),
+        }
+      : undefined,
+  ...(id ? { id } : {}),
   role,
   sequence,
   sessionId,
