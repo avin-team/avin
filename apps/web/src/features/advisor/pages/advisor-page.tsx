@@ -19,6 +19,7 @@ import {
   saveAdvisorHandoffDraft,
 } from "@/features/advisor/advisor-handoff";
 import type { AdvisorHandoffDraft } from "@/features/advisor/advisor-handoff";
+import { getAdvisorFeedbackAttachments } from "@/features/advisor/advisor-page-utils";
 import { formatVND } from "@/utils/format";
 import { orpc } from "@/utils/orpc";
 import { serverURL } from "@/utils/server-url";
@@ -1441,10 +1442,10 @@ export const AdvisorPage = () => {
   const feedbackRecommendation =
     recommendations.find((recommendation) => recommendation.isCurrent) ??
     recommendations[0];
-  const feedbackAttachments =
-    handoffSelection?.recommendationId === feedbackRecommendation?.id
-      ? handoffSelection.attachments
-      : [];
+  const feedbackAttachments = getAdvisorFeedbackAttachments(
+    handoffSelection,
+    feedbackRecommendation?.id
+  );
 
   if (!consentAccepted) {
     return (
