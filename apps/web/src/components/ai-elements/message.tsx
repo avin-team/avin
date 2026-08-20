@@ -1,7 +1,3 @@
-"use client";
-
-/* oxlint-disable react-doctor/only-export-components */
-
 import { Button } from "@avin/ui/components/button";
 import { ButtonGroup, ButtonGroupText } from "@avin/ui/components/button-group";
 import {

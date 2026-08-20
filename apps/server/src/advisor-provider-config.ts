@@ -44,7 +44,7 @@ const ENCRYPTION_ALGORITHM = "aes-256-gcm" as const;
 const ENCRYPTION_IV_BYTES = 12;
 const ENCRYPTION_KEY_BYTES = 32;
 const CONTRACT_IMAGE_DATA = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+  "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAuElEQVR4nOXOIQEAAAwEoetf+hcDMYGn1T5LB7R0QEsHtHRASwe0dEBLB7R0QEsHtHRASwe0dEBLB7R0QEsHtHRASwe0dEBLB7R0QEsHtHRASwe0dEBLB7R0QEsHtHRASwe0dEBLB7R0QEsHtHRASwe0dEBLB7R0QEsHtHRASwe0dEBLB7R0QEsHtHRASwe0dEBLB7R0QEsHtHRASwe0dEBLB7R0QEsHtHRASwe0dEBLB7R0QEsHtANDiOHSJq2F0wAAAABJRU5ErkJggg==",
   "base64"
 );
 
@@ -258,6 +258,57 @@ const safeProviderError = (
     return error;
   }
 
+  const statusCode =
+    isJsonObject(error) &&
+    typeof error.statusCode === "number" &&
+    Number.isInteger(error.statusCode)
+      ? error.statusCode
+      : undefined;
+
+  if (statusCode !== undefined) {
+    if (statusCode === 401 || statusCode === 403) {
+      return new AdvisorProviderConfigurationError(
+        "PROVIDER_AUTH_FAILED",
+        "Groq API key was rejected. Check that the key is active and can access the selected model."
+      );
+    }
+
+    if (statusCode === 404) {
+      return new AdvisorProviderConfigurationError(
+        "PROVIDER_MODEL_UNAVAILABLE",
+        "Groq does not make the selected model available to this key or project."
+      );
+    }
+
+    if (statusCode === 408) {
+      return new AdvisorProviderConfigurationError(
+        "PROVIDER_TIMEOUT",
+        "Groq contract verification timed out. Retry shortly."
+      );
+    }
+
+    if (statusCode === 429) {
+      return new AdvisorProviderConfigurationError(
+        "PROVIDER_RATE_LIMITED",
+        "Groq rate limit reached. Wait briefly and retry the contract check."
+      );
+    }
+
+    if (statusCode >= 500) {
+      return new AdvisorProviderConfigurationError(
+        "PROVIDER_UPSTREAM_UNAVAILABLE",
+        "Groq could not serve the preview model right now. Retry shortly or check Groq status."
+      );
+    }
+
+    if (statusCode >= 400 && statusCode < 500) {
+      return new AdvisorProviderConfigurationError(
+        "PROVIDER_REQUEST_REJECTED",
+        "Groq rejected the verification request. Check that this key can use the selected vision model."
+      );
+    }
+  }
+
   return new AdvisorProviderConfigurationError(
     "PROVIDER_CONTRACT_FAILED",
     "Groq provider contract verification failed."
@@ -269,6 +320,7 @@ export const verifyAdvisorProviderContract = async ({
   model,
 }: AdvisorProviderConfigInput): Promise<void> => {
   let requestBody: unknown;
+  let providerError: unknown;
   const captureFetch = Object.assign(
     (
       input: Parameters<AdvisorProviderFetch>[0],
@@ -305,12 +357,20 @@ export const verifyAdvisorProviderContract = async ({
     ],
     model: createAdvisorModel({ apiKey, fetch: captureFetch }),
     onError: ({ error }) => {
-      safeProviderError(error);
+      providerError = error;
     },
     providerOptions: advisorProviderOptions,
     timeout: ADVISOR_MODEL_TIMEOUT_MS,
   });
-  const response = await result.text;
+  let response: string;
+  try {
+    response = await result.text;
+  } catch (error) {
+    throw safeProviderError(providerError ?? error);
+  }
+  if (providerError) {
+    throw safeProviderError(providerError);
+  }
   if (!response.trim()) {
     throw new AdvisorProviderConfigurationError(
       "EMPTY_PROVIDER_RESPONSE",

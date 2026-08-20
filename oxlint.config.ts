@@ -35,6 +35,7 @@ export default defineConfig({
     ...(core.ignorePatterns ?? []),
     "packages/ui/**",
     "apps/admin/src/assets/**",
+    "apps/web/src/components/ai-elements/**",
     ".claude",
     ".agents",
     ".commandcode",

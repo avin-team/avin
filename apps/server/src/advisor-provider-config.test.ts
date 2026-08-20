@@ -166,6 +166,34 @@ describe("advisor provider manager", () => {
     }
   });
 
+  it("preserves Groq authentication failures from the streaming contract check", async () => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(
+        Response.json(
+          { error: { code: "invalid_api_key", message: "Invalid API Key" } },
+          { status: 401 }
+        )
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const fake = createRepository(null);
+      const manager = createAdvisorProviderManager({
+        repository: fake.repository,
+        verifyZeroDataRetention: () => Promise.resolve(false),
+      });
+
+      await expect(manager.testConfiguration(validInput)).rejects.toMatchObject(
+        {
+          code: "PROVIDER_AUTH_FAILED",
+        }
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("tests a candidate without replacing the active configuration", async () => {
     const existing = createStoredConfig();
     const fake = createRepository(existing);
@@ -292,6 +320,63 @@ describe("advisor provider manager", () => {
     await expect(manager.testConfiguration(validInput)).rejects.not.toThrow(
       validInput.apiKey
     );
+  });
+
+  it("explains when Groq rejects the candidate API key", async () => {
+    const fake = createRepository(null);
+    const providerError = Object.assign(new Error("Invalid API Key"), {
+      statusCode: 401,
+    });
+    const manager = createAdvisorProviderManager({
+      encryptionKey: MASTER_KEY,
+      repository: fake.repository,
+      verifyContract: () => Promise.reject(providerError),
+      verifyZeroDataRetention: () => Promise.resolve(false),
+    });
+
+    await expect(manager.testConfiguration(validInput)).rejects.toMatchObject({
+      code: "PROVIDER_AUTH_FAILED",
+      message:
+        "Groq API key was rejected. Check that the key is active and can access the selected model.",
+    });
+  });
+
+  it("explains when Groq rate-limits the contract check", async () => {
+    const fake = createRepository(null);
+    const providerError = Object.assign(new Error("Too Many Requests"), {
+      statusCode: 429,
+    });
+    const manager = createAdvisorProviderManager({
+      encryptionKey: MASTER_KEY,
+      repository: fake.repository,
+      verifyContract: () => Promise.reject(providerError),
+      verifyZeroDataRetention: () => Promise.resolve(false),
+    });
+
+    await expect(manager.testConfiguration(validInput)).rejects.toMatchObject({
+      code: "PROVIDER_RATE_LIMITED",
+      message:
+        "Groq rate limit reached. Wait briefly and retry the contract check.",
+    });
+  });
+
+  it("explains when Groq cannot serve the preview model", async () => {
+    const fake = createRepository(null);
+    const providerError = Object.assign(new Error("Service Unavailable"), {
+      statusCode: 503,
+    });
+    const manager = createAdvisorProviderManager({
+      encryptionKey: MASTER_KEY,
+      repository: fake.repository,
+      verifyContract: () => Promise.reject(providerError),
+      verifyZeroDataRetention: () => Promise.resolve(false),
+    });
+
+    await expect(manager.testConfiguration(validInput)).rejects.toMatchObject({
+      code: "PROVIDER_UPSTREAM_UNAVAILABLE",
+      message:
+        "Groq could not serve the preview model right now. Retry shortly or check Groq status.",
+    });
   });
 
   it("disables the active provider and removes it from runtime use", async () => {

@@ -1,7 +1,3 @@
-"use client";
-
-/* oxlint-disable react-doctor/only-export-components */
-
 import { Button } from "@avin/ui/components/button";
 import { cn } from "@avin/ui/lib/utils";
 import type { UIMessage } from "ai";
@@ -128,7 +124,6 @@ const defaultFormatMessage = (message: UIMessage): string => {
   return `**${roleLabel}:** ${getMessageText(message)}`;
 };
 
-// oxlint-disable-next-line react-doctor/only-export-components
 export const messagesToMarkdown = (
   messages: UIMessage[],
   formatMessage: (

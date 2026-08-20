@@ -60,9 +60,43 @@ const normalizeProviderError = (error: unknown) => {
       code: "BAD_REQUEST",
       message: "The configured provider model is not on the tested allowlist.",
     },
+    PROVIDER_AUTH_FAILED: {
+      code: "BAD_REQUEST",
+      message:
+        "Groq API key was rejected. Check that the key is active and can access the selected model.",
+    },
     PROVIDER_CONTRACT_FAILED: {
       code: "BAD_REQUEST",
       message: "Groq provider contract verification failed.",
+    },
+    PROVIDER_MODEL_UNAVAILABLE: {
+      code: "BAD_REQUEST",
+      message:
+        "Groq does not make the selected model available to this key or project.",
+    },
+    PROVIDER_RATE_LIMITED: {
+      code: "SERVICE_UNAVAILABLE",
+      message:
+        "Groq rate limit reached. Wait briefly and retry the contract check.",
+    },
+    PROVIDER_REQUEST_REJECTED: {
+      code: "BAD_REQUEST",
+      message:
+        "Groq rejected the verification request. Check that this key can use the selected vision model.",
+    },
+    PROVIDER_TIMEOUT: {
+      code: "SERVICE_UNAVAILABLE",
+      message: "Groq contract verification timed out. Retry shortly.",
+    },
+    PROVIDER_UNAVAILABLE: {
+      code: "SERVICE_UNAVAILABLE",
+      message:
+        "Groq is temporarily unavailable or rate-limited. Try again shortly.",
+    },
+    PROVIDER_UPSTREAM_UNAVAILABLE: {
+      code: "SERVICE_UNAVAILABLE",
+      message:
+        "Groq could not serve the preview model right now. Retry shortly or check Groq status.",
     },
     ZDR_CHECK_FAILED: {
       code: "PRECONDITION_FAILED",

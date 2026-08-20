@@ -158,6 +158,52 @@ describe("Advisor provider router authorization", () => {
     expect(JSON.stringify(auditEvents)).not.toContain("groq-secret");
   });
 
+  it("surfaces a rejected Groq API key without exposing it", async () => {
+    const provider = manager();
+    const providerError = Object.assign(new Error("Invalid API Key"), {
+      code: "PROVIDER_AUTH_FAILED",
+    });
+    const failingProvider: AdvisorProviderManager = {
+      ...provider,
+      testConfiguration: vi.fn(() => Promise.reject(providerError)),
+    };
+
+    await expect(
+      call(
+        advisorRouter.provider.test,
+        { apiKey: "groq-secret", model: "qwen/qwen3.6-27b" },
+        {
+          context: createContext(ACCOUNT_ROLE.ADMIN, true, failingProvider),
+        }
+      )
+    ).rejects.toThrow(
+      "Groq API key was rejected. Check that the key is active and can access the selected model."
+    );
+  });
+
+  it("surfaces Groq preview capacity failures separately from auth failures", async () => {
+    const provider = manager();
+    const providerError = Object.assign(new Error("Service Unavailable"), {
+      code: "PROVIDER_UPSTREAM_UNAVAILABLE",
+    });
+    const failingProvider: AdvisorProviderManager = {
+      ...provider,
+      testConfiguration: vi.fn(() => Promise.reject(providerError)),
+    };
+
+    await expect(
+      call(
+        advisorRouter.provider.test,
+        { apiKey: "groq-secret", model: "qwen/qwen3.6-27b" },
+        {
+          context: createContext(ACCOUNT_ROLE.ADMIN, true, failingProvider),
+        }
+      )
+    ).rejects.toThrow(
+      "Groq could not serve the preview model right now. Retry shortly or check Groq status."
+    );
+  });
+
   it("includes the configured model in disable audits", async () => {
     const auditEvents: AuditEvent[] = [];
     const provider = manager();

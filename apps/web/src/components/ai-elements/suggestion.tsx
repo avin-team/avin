@@ -1,5 +1,3 @@
-"use client";
-
 import { Button } from "@avin/ui/components/button";
 import { ScrollArea, ScrollBar } from "@avin/ui/components/scroll-area";
 import { cn } from "@avin/ui/lib/utils";

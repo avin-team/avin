@@ -66,7 +66,7 @@ const createFixture = (advisorRollout?: Context["advisorRollout"]) => {
         findFirst: vi.fn().mockResolvedValue({
           consentId: "00000000-0000-4000-8000-000000000003",
           createdAt: NOW,
-          expiresAt: new Date("2026-08-19T00:00:00.000Z"),
+          expiresAt: new Date(Date.now() + 86_400_000),
           generationStartedAt: null,
           generationStatus: "IDLE",
           id: SESSION_ID,

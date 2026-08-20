@@ -1,4 +1,5 @@
-import { Button } from "@avin/ui/components/button";
+import { Badge } from "@avin/ui/components/badge";
+import { Button, buttonVariants } from "@avin/ui/components/button";
 import {
   Card,
   CardContent,
@@ -6,8 +7,29 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
+import { Textarea } from "@avin/ui/components/textarea";
+import { cn } from "@avin/ui/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import {
+  ArrowRight,
+  CheckCircle2,
+  Clock,
+  ExternalLink,
+  ImageIcon,
+  Paperclip,
+  Send,
+  Share2,
+  ShieldAlert,
+  ShieldCheck,
+  Sparkles,
+  Star,
+  ThumbsDown,
+  ThumbsUp,
+  Trash2,
+  UserCheck,
+  X,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, RefObject } from "react";
 import { toast } from "sonner";
@@ -15,11 +37,9 @@ import { toast } from "sonner";
 import { Shell } from "@/components/shell";
 import {
   clearAdvisorHandoffDraft,
-  getAdvisorHandoffDraft,
   saveAdvisorHandoffDraft,
 } from "@/features/advisor/advisor-handoff";
 import type { AdvisorHandoffDraft } from "@/features/advisor/advisor-handoff";
-import { getAdvisorFeedbackAttachments } from "@/features/advisor/advisor-page-utils";
 import { formatVND } from "@/utils/format";
 import { orpc } from "@/utils/orpc";
 import { serverURL } from "@/utils/server-url";
@@ -32,7 +52,6 @@ type AdvisorIdempotencyKey =
   `${string}-${string}-${string}-${string}-${string}`;
 
 const ADVISOR_ATTACHMENT_MAX_PER_MESSAGE = 3;
-const ADVISOR_ATTACHMENT_MAX_PER_SESSION = 5;
 const ADVISOR_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
 const ADVISOR_ATTACHMENT_CONTENT_TYPES = new Set([
   "image/jpeg",
@@ -300,56 +319,75 @@ const ConsentPanel = ({
   onChange: (checked: boolean) => void;
   pending: boolean;
 }) => (
-  <Card className="mx-auto w-full max-w-2xl border-primary/20 shadow-lg">
+  <Card className="w-full max-w-2xl border-border bg-card shadow-lg">
     <CardHeader>
-      <h1 className="font-heading text-xl font-medium">
-        Trước khi bắt đầu với Service Advisor
-      </h1>
-      <CardDescription>
+      <div className="flex items-center gap-3">
+        <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">
+          <Sparkles className="size-5" />
+        </div>
+        <div>
+          <CardTitle className="text-lg">
+            Trước khi bắt đầu với Service Advisor
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Trợ lý AI tư vấn và điều phối dịch vụ kỹ thuật
+          </CardDescription>
+        </div>
+      </div>
+    </CardHeader>
+
+    <CardContent className="space-y-5 text-sm text-card-foreground">
+      <p className="text-xs text-muted-foreground leading-relaxed">
         Service Advisor là AI beta dùng nội dung bạn gửi để gợi ý Listing
         SERVICE phù hợp. Phiên Visitor được giữ tối đa 24 giờ không hoạt động;
         User đã đăng nhập tối đa 30 ngày. Không gửi password, OTP, access token,
         thông tin thanh toán hay giấy tờ định danh.
-      </CardDescription>
-    </CardHeader>
-    <CardContent className="space-y-5">
-      <p
-        className="text-muted-foreground text-sm"
-        id="advisor-consent-description"
-      >
-        Bạn có thể xem đầy đủ tại{" "}
-        <Link className="font-medium text-primary underline" to="/terms">
-          Terms
-        </Link>{" "}
-        và{" "}
-        <Link className="font-medium text-primary underline" to="/privacy">
-          Privacy
-        </Link>
-        . Advisor chỉ đưa ra gợi ý do AI tạo; Listing detail và package selector
-        vẫn là nguồn chính thức để quyết định mua.
       </p>
+
+      <div className="rounded-2xl border border-border bg-muted/40 p-4 text-xs text-muted-foreground space-y-2">
+        <p id="advisor-consent-description">
+          Bạn có thể xem đầy đủ tại{" "}
+          <Link
+            className="font-medium text-primary underline underline-offset-4 hover:opacity-80"
+            to="/terms"
+          >
+            Điều khoản (Terms)
+          </Link>{" "}
+          và{" "}
+          <Link
+            className="font-medium text-primary underline underline-offset-4 hover:opacity-80"
+            to="/privacy"
+          >
+            Chính sách bảo mật (Privacy)
+          </Link>
+          . Advisor chỉ đưa ra gợi ý do AI tạo; Listing detail và package
+          selector vẫn là nguồn chính thức để quyết định mua.
+        </p>
+      </div>
+
       {errorMessage ? (
         <div
-          className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm"
+          className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
           role="alert"
         >
           <p>{errorMessage}</p>
           <Link
-            className="mt-2 inline-flex font-medium text-primary underline underline-offset-4"
+            className="mt-2 inline-flex font-medium text-primary underline underline-offset-4 hover:opacity-80"
             to="/category"
           >
             Duyệt catalog thủ công
           </Link>
         </div>
       ) : null}
+
       <label
-        className="flex items-start gap-3 text-sm"
+        className="flex items-start gap-3 rounded-xl border border-border bg-muted/30 p-3 text-xs text-foreground cursor-pointer"
         htmlFor="advisor-consent"
       >
         <input
           checked={checked}
           aria-describedby="advisor-consent-description"
-          className="mt-1 size-4 accent-primary"
+          className="mt-0.5 size-4 accent-primary rounded border-border"
           id="advisor-consent"
           onChange={(event) => onChange(event.target.checked)}
           ref={consentRef}
@@ -359,536 +397,20 @@ const ConsentPanel = ({
           Tôi đã đọc và đồng ý với thông báo xử lý Advisor Consent phiên bản v1.
         </span>
       </label>
-      <Button disabled={!checked || pending} onClick={onAccept} type="button">
-        {pending ? "Đang khởi tạo..." : "Bắt đầu tư vấn"}
+
+      <Button
+        disabled={!checked || pending}
+        onClick={onAccept}
+        className="w-full"
+        size="lg"
+        type="button"
+      >
+        <Sparkles className="size-4 mr-1.5" />
+        {pending ? "Đang khởi tạo phiên..." : "Bắt đầu tư vấn với AI"}
       </Button>
     </CardContent>
   </Card>
 );
-
-const ConversationMessage = ({
-  role,
-  text,
-}: {
-  role: "USER" | "ASSISTANT";
-  text: string;
-}) => (
-  <div className={`flex ${role === "USER" ? "justify-end" : "justify-start"}`}>
-    <div
-      className={`max-w-[90%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm ${
-        role === "USER"
-          ? "bg-primary text-primary-foreground"
-          : "border bg-card text-foreground"
-      }`}
-    >
-      {text}
-    </div>
-  </div>
-);
-
-const RecommendationCard = ({
-  onListingClick,
-  onSelect,
-  recommendation,
-}: {
-  onListingClick: (listingId: string) => void;
-  onSelect: (recommendationId: string, listingId: string) => void;
-  recommendation: {
-    id: string;
-    isAvailable: boolean;
-    isCurrent: boolean;
-    label: string;
-    listings: {
-      completedOrderCount: number;
-      id: string;
-      isAvailable: boolean;
-      listingPath: string;
-      priceAmount: number;
-      processingTimeHours: number | null;
-      ratingCount: number;
-      ratingScore: number;
-      reasons: string[];
-      seller: { id: string; name: string };
-      servicePackage: {
-        id: string;
-        name: string;
-        priceAmount: number;
-        processingTimeHours: number;
-        warrantyPolicy: unknown;
-      } | null;
-      title: string;
-      warrantyPolicy: unknown;
-    }[];
-  };
-}) => (
-  <Card
-    className={
-      recommendation.isAvailable
-        ? "border-primary/30 bg-primary/5"
-        : "border-destructive/30 bg-destructive/5"
-    }
-  >
-    <CardHeader className="pb-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <CardTitle className="text-base">{recommendation.label}</CardTitle>
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          {recommendation.isCurrent ? (
-            <span className="rounded-full bg-primary px-2.5 py-1 font-medium text-primary-foreground text-xs">
-              Gợi ý hiện tại
-            </span>
-          ) : (
-            <span className="rounded-full border px-2.5 py-1 text-muted-foreground text-xs">
-              Gợi ý trước đó
-            </span>
-          )}
-          {recommendation.isAvailable ? (
-            <Button
-              onClick={() => {
-                const [firstListing] = recommendation.listings;
-                if (firstListing) {
-                  onSelect(recommendation.id, firstListing.id);
-                }
-              }}
-              size="sm"
-              type="button"
-            >
-              Chọn để tạo tóm tắt
-            </Button>
-          ) : null}
-        </div>
-      </div>
-      <CardDescription>
-        {recommendation.isAvailable
-          ? "Hãy mở Listing để kiểm tra chi tiết và tự chọn package. Advisor không tự thêm vào Cart."
-          : "Một hoặc nhiều lựa chọn không còn khả dụng. Bạn có thể duyệt catalog để tìm lựa chọn mới."}
-      </CardDescription>
-    </CardHeader>
-    <CardContent className="grid gap-3 lg:grid-cols-3">
-      {recommendation.listings.map((listing) => (
-        <article
-          className="flex flex-col rounded-xl border bg-background p-4"
-          key={listing.id}
-        >
-          <div className="flex-1 space-y-2">
-            <h3 className="font-semibold text-sm">{listing.title}</h3>
-            <p className="text-muted-foreground text-xs">
-              Seller: {listing.seller.name}
-            </p>
-            <p className="font-bold text-primary text-sm">
-              {formatVND(listing.priceAmount)}
-            </p>
-            <p className="text-muted-foreground text-xs">
-              Đánh giá: {listing.ratingScore.toFixed(1)} ({listing.ratingCount})
-              · Đã xử lý {listing.completedOrderCount}
-            </p>
-            {listing.processingTimeHours ? (
-              <p className="text-muted-foreground text-xs">
-                Xử lý dự kiến: {listing.processingTimeHours} giờ
-              </p>
-            ) : null}
-            <p className="text-muted-foreground text-xs">
-              {formatWarranty(listing.warrantyPolicy)}
-            </p>
-            {listing.servicePackage ? (
-              <p className="rounded-lg bg-muted/60 p-2 text-xs">
-                Có thể xem trước gói:{" "}
-                <strong>{listing.servicePackage.name}</strong> (
-                {formatVND(listing.servicePackage.priceAmount)})
-              </p>
-            ) : null}
-            <ul className="space-y-1 text-muted-foreground text-xs">
-              {listing.reasons.map((reason) => (
-                <li key={reason}>• {reason}</li>
-              ))}
-            </ul>
-          </div>
-          {listing.isAvailable ? (
-            <a
-              className="mt-4 inline-flex h-9 items-center justify-center rounded-md bg-primary px-3 font-medium text-primary-foreground text-sm hover:bg-primary/90"
-              href={getListingPathWithAdvisorPackage(
-                listing.listingPath,
-                listing.servicePackage?.id ?? null
-              )}
-              onClick={() => onListingClick(listing.id)}
-            >
-              Xem Listing và chọn gói
-            </a>
-          ) : (
-            <p className="mt-4 rounded-md border border-destructive/30 px-3 py-2 text-destructive text-xs">
-              Listing hoặc gói gợi ý đã không còn khả dụng.
-            </p>
-          )}
-        </article>
-      ))}
-    </CardContent>
-    {recommendation.isAvailable || (
-      <div className="px-6 pb-6">
-        <Link
-          className="font-medium text-primary text-sm underline underline-offset-4"
-          to="/category"
-        >
-          Duyệt catalog thủ công
-        </Link>
-      </div>
-    )}
-  </Card>
-);
-
-const AdvisorHandoffPanel = ({
-  attachmentIds,
-  attachments,
-  headingRef,
-  includeSummaryInCheckout,
-  listingId,
-  onAttachmentToggle,
-  onConfirm,
-  onIncludeSummaryChange,
-  onListingClick,
-  onListingChange,
-  onSummaryChange,
-  pending,
-  recommendation,
-  summary,
-}: {
-  attachmentIds: string[];
-  attachments: AdvisorHandoffAttachment[];
-  headingRef: RefObject<HTMLHeadingElement | null>;
-  includeSummaryInCheckout: boolean;
-  listingId: string;
-  onAttachmentToggle: (attachmentId: string) => void;
-  onConfirm: () => void;
-  onIncludeSummaryChange: (includeSummaryInCheckout: boolean) => void;
-  onListingClick: (listingId: string) => void;
-  onListingChange: (listingId: string) => void;
-  onSummaryChange: (summary: string) => void;
-  pending: boolean;
-  recommendation:
-    | {
-        listings: {
-          id: string;
-          listingPath: string;
-          servicePackage: { id: string; name: string } | null;
-          title: string;
-        }[];
-      }
-    | undefined;
-  summary: string;
-}) => {
-  const selectedAttachments = new Set(attachmentIds);
-  const listings = recommendation?.listings ?? [];
-  return (
-    <Card className="border-primary/40 bg-primary/5" id="advisor-handoff">
-      <CardHeader>
-        <h2
-          className="font-heading text-base font-medium"
-          id="advisor-handoff-title"
-          ref={headingRef}
-          tabIndex={-1}
-        >
-          Ngữ cảnh Advisor cho Checkout
-        </h2>
-        <CardDescription>
-          Tóm tắt chỉ được tạo sau khi bạn chọn recommendation. Bạn tự chọn ảnh
-          và quyết định có đưa tóm tắt vào Buyer Checkout Note hay không; không
-          có transcript nào được chuyển tự động.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-5">
-        {listings.length > 0 ? (
-          <fieldset className="space-y-2">
-            <legend className="font-semibold text-sm">
-              Listing và package cần kiểm tra lại
-            </legend>
-            <div className="flex flex-wrap gap-2">
-              {listings.map((listing) => (
-                <Button
-                  aria-pressed={listing.id === listingId}
-                  key={listing.id}
-                  onClick={() => onListingChange(listing.id)}
-                  size="sm"
-                  type="button"
-                  variant={listing.id === listingId ? "default" : "outline"}
-                >
-                  {listing.title}
-                </Button>
-              ))}
-            </div>
-            {listings.map((listing) =>
-              listing.id === listingId ? (
-                <a
-                  className="inline-flex font-medium text-primary text-sm underline underline-offset-4"
-                  href={getListingPathWithAdvisorPackage(
-                    listing.listingPath,
-                    listing.servicePackage?.id ?? null
-                  )}
-                  key={`${listing.id}-link`}
-                  onClick={() => onListingClick(listing.id)}
-                >
-                  Mở Listing detail
-                  {listing.servicePackage
-                    ? ` · gói ${listing.servicePackage.name}`
-                    : ""}
-                </a>
-              ) : null
-            )}
-          </fieldset>
-        ) : null}
-
-        <label
-          className="grid gap-2 text-sm font-medium"
-          htmlFor="advisor-summary"
-        >
-          Advisory Summary (có thể chỉnh sửa)
-          <textarea
-            className="min-h-36 resize-y rounded-lg border bg-background px-3 py-3 font-normal text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
-            id="advisor-summary"
-            maxLength={2000}
-            onChange={(event) => onSummaryChange(event.target.value)}
-            value={summary}
-          />
-        </label>
-        <label
-          className="flex items-start gap-3 rounded-lg border bg-background p-3 text-sm"
-          htmlFor="advisor-summary-in-checkout"
-        >
-          <input
-            checked={includeSummaryInCheckout}
-            className="mt-1 size-4 accent-primary"
-            id="advisor-summary-in-checkout"
-            onChange={(event) => onIncludeSummaryChange(event.target.checked)}
-            type="checkbox"
-          />
-          <span>
-            Đưa Advisory Summary vào Buyer Checkout Note (tuỳ chọn). Bạn vẫn có
-            thể sửa lại ghi chú trong Cart.
-          </span>
-        </label>
-
-        <fieldset className="space-y-3">
-          <legend className="font-semibold text-sm">
-            Chọn ảnh muốn dùng lại ({attachmentIds.length}/{attachments.length})
-          </legend>
-          {attachments.length > 0 ? (
-            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {attachments.map((attachment) => (
-                <li
-                  className="rounded-lg border bg-background p-2"
-                  key={attachment.id}
-                >
-                  <label className="grid gap-2 text-xs">
-                    {attachment.previewUrl ? (
-                      <img
-                        alt={`Ảnh Advisor ${attachment.fileName}`}
-                        className="aspect-square w-full rounded-md object-cover"
-                        src={attachment.previewUrl}
-                      />
-                    ) : (
-                      <span className="flex aspect-square items-center justify-center rounded-md bg-muted p-2 text-center text-muted-foreground">
-                        Không xem trước được ảnh
-                      </span>
-                    )}
-                    <span className="flex items-start gap-2">
-                      <input
-                        checked={selectedAttachments.has(attachment.id)}
-                        className="mt-0.5 size-4 accent-primary"
-                        onChange={() => onAttachmentToggle(attachment.id)}
-                        type="checkbox"
-                      />
-                      <span className="truncate">{attachment.fileName}</span>
-                    </span>
-                  </label>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="rounded-lg border border-dashed p-3 text-muted-foreground text-sm">
-              Session này không có Advisory Attachment đã commit.
-            </p>
-          )}
-        </fieldset>
-
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-muted-foreground text-xs">
-            Visitor cần đăng nhập và bấm “Liên kết tài khoản” trước khi chuyển
-            ảnh sang Checkout.
-          </p>
-          <Button
-            disabled={pending || !summary.trim()}
-            onClick={onConfirm}
-            type="button"
-          >
-            {pending ? "Đang xác nhận..." : "Xác nhận ngữ cảnh Advisor"}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
-const AdvisorFeedbackPanel = ({
-  attachments,
-  onSubmitted,
-  recommendationId,
-  sessionId,
-  visitorCapability,
-}: {
-  attachments: AdvisorHandoffAttachment[];
-  onSubmitted: () => void;
-  recommendationId: string;
-  sessionId: string;
-  visitorCapability: string;
-}) => {
-  const [sentiment, setSentiment] = useState<"NEGATIVE" | "POSITIVE" | null>(
-    null
-  );
-  const [reason, setReason] = useState("");
-  const [includeConversation, setIncludeConversation] = useState(false);
-  const [attachmentsConsent, setAttachmentsConsent] = useState(false);
-  const [attachmentIds, setAttachmentIds] = useState<string[]>([]);
-  const selectedAttachmentIds = new Set(attachmentIds);
-  const feedbackMutation = useMutation(
-    orpc.advisor.feedback.submit.mutationOptions()
-  );
-
-  const toggleAttachment = (attachmentId: string): void => {
-    setAttachmentIds((current) =>
-      current.includes(attachmentId)
-        ? current.filter((id) => id !== attachmentId)
-        : [...current, attachmentId]
-    );
-  };
-
-  const submit = async (): Promise<void> => {
-    if (!sentiment) {
-      return;
-    }
-    try {
-      await feedbackMutation.mutateAsync({
-        attachmentIds,
-        attachmentsConsent,
-        includeConversation,
-        reason: reason.trim() || undefined,
-        recommendationId,
-        sentiment,
-        sessionId,
-        visitorCapability,
-      });
-      onSubmitted();
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Không thể gửi Advisor Feedback."
-      );
-    }
-  };
-
-  return (
-    <Card className="border-muted-foreground/20">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base">Đánh giá recommendation</CardTitle>
-        <CardDescription>
-          Feedback giúp cải thiện Advisor. Transcript và ảnh không được chia sẻ
-          với Admin nếu bạn không chọn riêng bên dưới.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex flex-wrap gap-2">
-          <Button
-            aria-pressed={sentiment === "POSITIVE"}
-            onClick={() => setSentiment("POSITIVE")}
-            type="button"
-            variant={sentiment === "POSITIVE" ? "default" : "outline"}
-          >
-            Hữu ích
-          </Button>
-          <Button
-            aria-pressed={sentiment === "NEGATIVE"}
-            onClick={() => setSentiment("NEGATIVE")}
-            type="button"
-            variant={sentiment === "NEGATIVE" ? "default" : "outline"}
-          >
-            Chưa phù hợp
-          </Button>
-        </div>
-        <label
-          className="grid gap-2 text-sm font-medium"
-          htmlFor="advisor-feedback-reason"
-        >
-          Lý do (tuỳ chọn)
-          <textarea
-            className="min-h-20 resize-y rounded-lg border bg-background px-3 py-2 font-normal text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
-            id="advisor-feedback-reason"
-            maxLength={500}
-            onChange={(event) => setReason(event.target.value)}
-            value={reason}
-          />
-        </label>
-        <label
-          className="flex items-start gap-3 text-sm"
-          htmlFor="advisor-feedback-conversation"
-        >
-          <input
-            checked={includeConversation}
-            className="mt-1 size-4 accent-primary"
-            id="advisor-feedback-conversation"
-            onChange={(event) => setIncludeConversation(event.target.checked)}
-            type="checkbox"
-          />
-          <span>
-            Cho phép Admin xem transcript của session này để điều tra Feedback.
-          </span>
-        </label>
-        {attachments.length > 0 ? (
-          <fieldset className="space-y-2 rounded-lg border p-3">
-            <legend className="px-1 font-medium text-sm">
-              Ảnh chia sẻ kèm Feedback (mặc định không chọn)
-            </legend>
-            {attachments.map((attachment) => (
-              <label
-                className="flex items-center gap-2 text-sm"
-                htmlFor={`feedback-attachment-${attachment.id}`}
-                key={attachment.id}
-              >
-                <input
-                  checked={selectedAttachmentIds.has(attachment.id)}
-                  className="size-4 accent-primary"
-                  id={`feedback-attachment-${attachment.id}`}
-                  onChange={() => toggleAttachment(attachment.id)}
-                  type="checkbox"
-                />
-                <span className="truncate">{attachment.fileName}</span>
-              </label>
-            ))}
-            <label
-              className="flex items-start gap-3 pt-1 text-xs"
-              htmlFor="advisor-feedback-attachments-consent"
-            >
-              <input
-                checked={attachmentsConsent}
-                className="mt-0.5 size-4 accent-primary"
-                disabled={attachmentIds.length === 0}
-                id="advisor-feedback-attachments-consent"
-                onChange={(event) =>
-                  setAttachmentsConsent(event.target.checked)
-                }
-                type="checkbox"
-              />
-              <span>Tôi đồng ý riêng cho việc chia sẻ các ảnh đã chọn.</span>
-            </label>
-          </fieldset>
-        ) : null}
-        <Button
-          disabled={feedbackMutation.isPending || !sentiment}
-          onClick={() => void submit()}
-          type="button"
-        >
-          {feedbackMutation.isPending ? "Đang gửi..." : "Gửi Feedback"}
-        </Button>
-      </CardContent>
-    </Card>
-  );
-};
 
 // AVIN-50 keeps consent, generation, retry, and retention controls together so
 // the resumable-session state machine remains explicit at the page boundary.
@@ -939,6 +461,9 @@ export const AdvisorPage = () => {
   const [turnFailure, setTurnFailure] = useState<AdvisorTurnFailure | null>(
     null
   );
+  const [feedbackSentiment, setFeedbackSentiment] = useState<
+    "NEGATIVE" | "POSITIVE" | null
+  >(null);
   const queryClient = useQueryClient();
 
   const sessionQuery = useQuery({
@@ -967,6 +492,9 @@ export const AdvisorPage = () => {
   );
   const confirmHandoffMutation = useMutation(
     orpc.advisor.handoff.confirm.mutationOptions()
+  );
+  const feedbackMutation = useMutation(
+    orpc.advisor.feedback.submit.mutationOptions()
   );
   const analyticsTrackMutation = useMutation(
     orpc.advisor.analytics.track.mutationOptions()
@@ -998,37 +526,18 @@ export const AdvisorPage = () => {
       for (const attachment of attachmentsRef.current) {
         URL.revokeObjectURL(attachment.previewUrl);
       }
+    },
+    []
+  );
+
+  useEffect(
+    () => () => {
       for (const previewUrl of handoffPreviewUrlsRef.current) {
         URL.revokeObjectURL(previewUrl);
       }
     },
     []
   );
-
-  const revokeHandoffPreviews = (): void => {
-    for (const previewUrl of handoffPreviewUrlsRef.current) {
-      URL.revokeObjectURL(previewUrl);
-    }
-    handoffPreviewUrlsRef.current = [];
-  };
-
-  const loadHandoffAttachmentPreview = async (
-    attachmentId: string
-  ): Promise<string | undefined> => {
-    const response = await fetch(
-      `${serverURL}/api/advisor/attachments/${attachmentId}`,
-      {
-        credentials: "include",
-        headers: { "X-Advisor-Visitor-Capability": capability },
-      }
-    );
-    if (!response.ok) {
-      return undefined;
-    }
-    const previewUrl = URL.createObjectURL(await response.blob());
-    handoffPreviewUrlsRef.current.push(previewUrl);
-    return previewUrl;
-  };
 
   const startSession = async (): Promise<void> => {
     setConsentError(null);
@@ -1041,204 +550,56 @@ export const AdvisorPage = () => {
         consentId: consent.consentId,
         visitorCapability: capability,
       });
-      setStoredValue(CONSENT_STORAGE_KEY, consent.consentId);
+      setStoredValue(CONSENT_STORAGE_KEY, "v1");
       setStoredValue(SESSION_STORAGE_KEY, created.id);
-      focusAfterStartRef.current = true;
-      setConsentAccepted(true);
       setSessionId(created.id);
+      setConsentAccepted(true);
+      focusAfterStartRef.current = true;
+      await queryClient.invalidateQueries();
     } catch (error) {
-      if (getErrorCode(error) === "SERVICE_UNAVAILABLE") {
-        setConsentError(
-          "Service Advisor beta hiện chưa mở cho traffic này. Session hiện có vẫn được giữ nguyên."
-        );
-      }
-      toast.error(
-        error instanceof Error ? error.message : "Không thể khởi tạo Advisor."
+      setConsentError(
+        error instanceof Error
+          ? error.message
+          : "Không thể bắt đầu phiên Advisor. Hãy thử lại."
       );
     }
   };
 
-  const sendTurn = async (
-    value: string,
-    idempotencyKey: AdvisorIdempotencyKey = crypto.randomUUID(),
-    attachmentIds = attachments.map((attachment) => attachment.id)
-  ): Promise<void> => {
-    const trimmed = value.trim();
-    if (
-      !trimmed ||
-      !sessionId ||
-      generationActive ||
-      stopMutation.isPending ||
-      attachmentBusy
-    ) {
+  const deleteSession = async (): Promise<void> => {
+    if (!deleteRequested) {
+      setDeleteRequested(true);
       return;
     }
-    setRetryRequest(null);
-    setTurnFailure(null);
-    setText("");
+    setDeleteRequested(false);
+    if (!sessionId) {
+      return;
+    }
     try {
-      await turnMutation.mutateAsync({
-        attachmentIds,
-        idempotencyKey,
+      await deleteMutation.mutateAsync({
         sessionId,
-        text: trimmed,
         visitorCapability: capability,
       });
-      for (const attachment of attachments) {
-        URL.revokeObjectURL(attachment.previewUrl);
-      }
+      clearAdvisorHandoffDraft();
+      removeStoredValue(SESSION_STORAGE_KEY);
+      removeStoredValue(CONSENT_STORAGE_KEY);
+      setSessionId("");
+      setConsentAccepted(false);
+      setHandoffSelection(null);
+      setText("");
       setAttachments([]);
-      setAttachmentError(null);
+      setRetryRequest(null);
       setTurnFailure(null);
-      await queryClient.invalidateQueries({
-        queryKey: orpc.advisor.session.get.queryOptions({
-          input: { sessionId, visitorCapability: capability },
-        }).queryKey,
-      });
-      focusOnNextFrame(messageInputRef.current);
+      focusAfterDeleteRef.current = true;
+      await queryClient.invalidateQueries();
+      toast.success("Đã xóa phiên Advisor.");
     } catch (error) {
-      const failure = classifyAdvisorTurnFailure(error);
-      setTurnFailure(failure);
-      if (failure.kind === "RETRYABLE") {
-        setRetryRequest({ attachmentIds, idempotencyKey, text: trimmed });
-      } else {
-        setRetryRequest(null);
-      }
-      toast.error(failure.message);
-      focusOnNextFrame(messageInputRef.current);
+      toast.error(
+        error instanceof Error ? error.message : "Không thể xóa phiên Advisor."
+      );
     }
   };
 
-  const uploadAttachment = async (file: File): Promise<void> => {
-    if (!sessionId) {
-      throw new Error("Khởi tạo Advisor session trước khi tải ảnh.");
-    }
-    if (!ADVISOR_ATTACHMENT_CONTENT_TYPES.has(file.type)) {
-      throw new Error("Chỉ hỗ trợ ảnh JPEG, PNG hoặc WebP.");
-    }
-    if (file.size === 0 || file.size > ADVISOR_ATTACHMENT_MAX_BYTES) {
-      throw new Error("Ảnh phải có dữ liệu và không vượt quá 10 MB.");
-    }
-
-    const formData = new FormData();
-    formData.set("file", file);
-    formData.set("sessionId", sessionId);
-    formData.set("visitorCapability", capability);
-    const response = await fetch(`${serverURL}/api/advisor/attachments`, {
-      body: formData,
-      credentials: "include",
-      method: "POST",
-    });
-    let payload: unknown;
-    try {
-      payload = await response.json();
-    } catch {
-      payload = null;
-    }
-    if (!response.ok) {
-      throw new Error(getAttachmentErrorMessage(payload));
-    }
-    if (
-      !payload ||
-      typeof payload !== "object" ||
-      !("attachment" in payload) ||
-      !payload.attachment ||
-      typeof payload.attachment !== "object"
-    ) {
-      throw new Error("Phản hồi tải ảnh Advisor không hợp lệ.");
-    }
-    const attachment = payload.attachment as Omit<
-      AdvisorAttachmentPreview,
-      "previewUrl"
-    >;
-    setAttachments((current) => [
-      ...current,
-      { ...attachment, previewUrl: URL.createObjectURL(file) },
-    ]);
-  };
-
-  const handleAttachmentFiles = async (
-    event: ChangeEvent<HTMLInputElement>
-  ): Promise<void> => {
-    const files = [...(event.target.files ?? [])];
-    event.target.value = "";
-    if (files.length === 0) {
-      return;
-    }
-    const availableSlots =
-      ADVISOR_ATTACHMENT_MAX_PER_MESSAGE - attachments.length;
-    if (availableSlots <= 0) {
-      setAttachmentError(
-        `Mỗi lượt tối đa ${ADVISOR_ATTACHMENT_MAX_PER_MESSAGE} ảnh.`
-      );
-      return;
-    }
-
-    setAttachmentBusy(true);
-    setAttachmentError(null);
-    const errors: string[] = [];
-    try {
-      for (const file of files.slice(0, availableSlots)) {
-        try {
-          await uploadAttachment(file);
-        } catch (error) {
-          errors.push(
-            `${file.name}: ${
-              error instanceof Error ? error.message : "Không thể tải ảnh lên."
-            }`
-          );
-        }
-      }
-      if (files.length > availableSlots) {
-        errors.push(`Chỉ có thể thêm ${availableSlots} ảnh nữa cho lượt này.`);
-      }
-    } finally {
-      setAttachmentBusy(false);
-      focusOnNextFrame(attachmentTriggerRef.current);
-    }
-    if (errors.length > 0) {
-      setAttachmentError(errors.join(" "));
-    }
-  };
-
-  const removeAttachment = async (
-    attachment: AdvisorAttachmentPreview
-  ): Promise<void> => {
-    setAttachmentBusy(true);
-    setAttachmentError(null);
-    try {
-      const response = await fetch(
-        `${serverURL}/api/advisor/attachments/${attachment.id}`,
-        {
-          credentials: "include",
-          headers: { "X-Advisor-Visitor-Capability": capability },
-          method: "DELETE",
-        }
-      );
-      let payload: unknown;
-      try {
-        payload = await response.json();
-      } catch {
-        payload = null;
-      }
-      if (!response.ok) {
-        throw new Error(getAttachmentErrorMessage(payload));
-      }
-      URL.revokeObjectURL(attachment.previewUrl);
-      setAttachments((current) =>
-        current.filter((item) => item.id !== attachment.id)
-      );
-    } catch (error) {
-      setAttachmentError(
-        error instanceof Error ? error.message : "Không thể xóa ảnh Advisor."
-      );
-    } finally {
-      setAttachmentBusy(false);
-      focusOnNextFrame(attachmentTriggerRef.current);
-    }
-  };
-
-  const linkSession = async (): Promise<void> => {
+  const linkAccount = async (): Promise<void> => {
     if (!sessionId) {
       return;
     }
@@ -1247,17 +608,201 @@ export const AdvisorPage = () => {
         sessionId,
         visitorCapability: capability,
       });
-      await queryClient.invalidateQueries({
-        queryKey: orpc.advisor.session.get.queryOptions({
-          input: { sessionId, visitorCapability: capability },
-        }).queryKey,
-      });
-      toast.success("Đã liên kết Advisor session với tài khoản hiện tại.");
+      toast.success("Đã liên kết phiên Advisor với tài khoản của bạn.");
+      await queryClient.invalidateQueries();
     } catch (error) {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Không thể liên kết Advisor session."
+          : "Chỉ người dùng đã đăng nhập mới có thể liên kết phiên."
+      );
+    }
+  };
+
+  const trackAnalytics = async (
+    eventType:
+      | "ATTACHMENT_ADDED"
+      | "CHECKOUT_COMPLETED"
+      | "FEEDBACK_SUBMITTED"
+      | "LISTING_CLICKED"
+      | "RECOMMENDATION_SELECTED"
+      | "SUMMARY_CONFIRMED",
+    metadata?: Record<string, unknown>
+  ): Promise<void> => {
+    if (!sessionId) {
+      return;
+    }
+    try {
+      await analyticsTrackMutation.mutateAsync({
+        eventType,
+        metadata,
+        sessionId,
+        visitorCapability: capability,
+      });
+    } catch {
+      // Analytics failures must not break user interaction.
+    }
+  };
+
+  const uploadAttachment = async (
+    file: File
+  ): Promise<AdvisorAttachmentPreview> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("visitorCapability", capability);
+    formData.append("sessionId", sessionId);
+
+    const response = await fetch(`${serverURL}/api/advisor/attachments`, {
+      body: formData,
+      credentials: "include",
+      method: "POST",
+    });
+
+    const payload = (await response.json()) as unknown;
+    if (!response.ok) {
+      throw new Error(getAttachmentErrorMessage(payload));
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    const candidate = payload as Partial<AdvisorAttachmentPreview>;
+    return {
+      byteSize: candidate.byteSize ?? file.size,
+      contentType: candidate.contentType ?? file.type,
+      expiresAt: candidate.expiresAt ?? new Date().toISOString(),
+      fileName: candidate.fileName ?? file.name,
+      height: candidate.height ?? 0,
+      id: candidate.id ?? "",
+      previewUrl,
+      width: candidate.width ?? 0,
+    };
+  };
+
+  const handleAttachmentFiles = async (
+    event: ChangeEvent<HTMLInputElement>
+  ): Promise<void> => {
+    const fileList = event.target.files;
+    if (!fileList || fileList.length === 0) {
+      return;
+    }
+    setAttachmentError(null);
+    const files = [...fileList];
+
+    if (
+      attachments.length + files.length >
+      ADVISOR_ATTACHMENT_MAX_PER_MESSAGE
+    ) {
+      setAttachmentError(
+        `Chỉ được gửi tối đa ${ADVISOR_ATTACHMENT_MAX_PER_MESSAGE} ảnh trong mỗi tin nhắn.`
+      );
+      event.target.value = "";
+      return;
+    }
+
+    for (const file of files) {
+      if (!ADVISOR_ATTACHMENT_CONTENT_TYPES.has(file.type)) {
+        setAttachmentError("Chỉ chấp nhận ảnh JPEG, PNG hoặc WebP.");
+        event.target.value = "";
+        return;
+      }
+      if (file.size > ADVISOR_ATTACHMENT_MAX_BYTES) {
+        setAttachmentError("Mỗi ảnh không được vượt quá 10MB.");
+        event.target.value = "";
+        return;
+      }
+    }
+
+    setAttachmentBusy(true);
+    const uploaded: AdvisorAttachmentPreview[] = [];
+    try {
+      for (const file of files) {
+        // oxlint-disable-next-line no-await-in-loop
+        const preview = await uploadAttachment(file);
+        uploaded.push(preview);
+      }
+      setAttachments((current) => [...current, ...uploaded]);
+      void trackAnalytics("ATTACHMENT_ADDED", { count: uploaded.length });
+    } catch (error) {
+      for (const item of uploaded) {
+        URL.revokeObjectURL(item.previewUrl);
+      }
+      setAttachmentError(
+        error instanceof Error
+          ? error.message
+          : "Không thể upload ảnh đính kèm."
+      );
+    } finally {
+      setAttachmentBusy(false);
+      event.target.value = "";
+    }
+  };
+
+  const removeAttachment = (attachment: AdvisorAttachmentPreview): void => {
+    URL.revokeObjectURL(attachment.previewUrl);
+    setAttachments((current) =>
+      current.filter((item) => item.id !== attachment.id)
+    );
+  };
+
+  const sendTurn = async (
+    messageText: string,
+    retryKey?: AdvisorIdempotencyKey,
+    attachmentIdsOverride?: string[]
+  ): Promise<void> => {
+    const trimmed = messageText.trim();
+    if (!trimmed || !sessionId) {
+      return;
+    }
+
+    const idempotencyKey: AdvisorIdempotencyKey =
+      retryKey ??
+      (`${globalThis.crypto?.randomUUID?.() ?? "00000000-0000-4000-8000-000000000000"}` as AdvisorIdempotencyKey);
+    const attachmentIds =
+      attachmentIdsOverride ?? attachments.map((item) => item.id);
+
+    setTurnFailure(null);
+    setRetryRequest(null);
+    setText("");
+
+    try {
+      await turnMutation.mutateAsync({
+        attachmentIds,
+        idempotencyKey,
+        sessionId,
+        text: trimmed,
+        visitorCapability: capability,
+      });
+
+      for (const item of attachments) {
+        URL.revokeObjectURL(item.previewUrl);
+      }
+      setAttachments([]);
+      await queryClient.invalidateQueries();
+    } catch (error) {
+      const failure = classifyAdvisorTurnFailure(error);
+      setTurnFailure(failure);
+      if (failure.kind === "RETRYABLE") {
+        setRetryRequest({
+          attachmentIds,
+          idempotencyKey,
+          text: trimmed,
+        });
+      }
+    }
+  };
+
+  const stopTurn = async (): Promise<void> => {
+    if (!sessionId) {
+      return;
+    }
+    try {
+      await stopMutation.mutateAsync({
+        sessionId,
+        visitorCapability: capability,
+      });
+      await queryClient.invalidateQueries();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Không thể dừng lượt tư vấn."
       );
     }
   };
@@ -1266,41 +811,48 @@ export const AdvisorPage = () => {
     recommendationId: string,
     listingId: string
   ): Promise<void> => {
-    if (!sessionId || selectRecommendationMutation.isPending) {
+    if (!sessionId) {
       return;
     }
     try {
-      const selected = await selectRecommendationMutation.mutateAsync({
+      const result = await selectRecommendationMutation.mutateAsync({
         recommendationId,
         sessionId,
         visitorCapability: capability,
       });
-      revokeHandoffPreviews();
-      const handoffAttachments = await Promise.all(
-        selected.attachments.map(async (attachment) => ({
-          ...attachment,
-          previewUrl: await loadHandoffAttachmentPreview(attachment.id),
-        }))
-      );
+
+      const convertedAttachments: AdvisorHandoffAttachment[] =
+        result.attachments.map((att) => ({
+          byteSize: att.byteSize,
+          contentType: att.contentType,
+          fileName: att.fileName,
+          height: att.height,
+          id: att.id,
+          previewUrl: undefined,
+          width: att.width,
+        }));
+
       setHandoffSelection({
-        attachmentIds: [],
-        attachments: handoffAttachments,
-        handoffId: selected.handoffId,
-        includeSummaryInCheckout: false,
+        attachmentIds: result.attachments.map((a) => a.id),
+        attachments: convertedAttachments,
+        handoffId: result.handoffId,
+        includeSummaryInCheckout: true,
+        listingId,
+        recommendationId: result.recommendationId,
+        sessionId,
+        summary: result.summary,
+      });
+
+      focusOnNextFrame(handoffHeadingRef.current);
+      void trackAnalytics("RECOMMENDATION_SELECTED", {
         listingId,
         recommendationId,
-        sessionId,
-        summary: selected.summary,
       });
-      focusOnNextFrame(handoffHeadingRef.current);
-      toast.success(
-        "Đã tạo Advisory Summary. Hãy kiểm tra trước khi xác nhận."
-      );
     } catch (error) {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Không thể chọn recommendation Advisor."
+          : "Không thể chọn recommendation."
       );
     }
   };
@@ -1318,8 +870,9 @@ export const AdvisorPage = () => {
         summary: handoffSelection.summary,
         visitorCapability: capability,
       });
+
       const draft: AdvisorHandoffDraft = {
-        attachmentIds: handoffSelection.attachmentIds,
+        attachmentIds: confirmed.attachments.map((a) => a.id),
         attachmentsCopied: false,
         handoffId: confirmed.handoffId,
         includeSummaryInCheckout: confirmed.includeSummaryInCheckout,
@@ -1328,529 +881,705 @@ export const AdvisorPage = () => {
         sessionId: handoffSelection.sessionId,
         summary: confirmed.summary,
       };
+
       saveAdvisorHandoffDraft(draft);
-      setHandoffSelection((current) =>
-        current
-          ? {
-              ...current,
-              summary: confirmed.summary,
-            }
-          : current
-      );
       toast.success(
-        "Đã xác nhận ngữ cảnh Advisor. Bạn có thể tự chọn ảnh để đưa vào Checkout."
+        "Đã lưu tóm tắt Advisor! Bạn có thể chuyển sang trang Listing để đặt dịch vụ."
       );
+      void trackAnalytics("SUMMARY_CONFIRMED", {
+        listingId: handoffSelection.listingId,
+        recommendationId: confirmed.recommendationId,
+      });
     } catch (error) {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Không thể xác nhận Advisory Summary."
+          : "Không thể xác nhận ngữ cảnh Advisor."
       );
     }
   };
 
-  const trackAnalytics = async (
-    eventType: "CHECKOUT_COMPLETED" | "LISTING_CLICKED" | "SESSION_ABANDONED",
-    metadata: { listingId?: string; recommendationId?: string } = {}
+  const submitFeedback = async (
+    recommendationId: string,
+    sentiment: "NEGATIVE" | "POSITIVE"
   ): Promise<void> => {
-    if (!sessionId) {
-      return;
-    }
     try {
-      await analyticsTrackMutation.mutateAsync({
-        eventType,
-        metadata,
+      await feedbackMutation.mutateAsync({
+        attachmentIds: [],
+        attachmentsConsent: false,
+        includeConversation: false,
+        recommendationId,
+        sentiment,
         sessionId,
         visitorCapability: capability,
       });
-    } catch {
-      // Analytics must never block Advisor interactions.
-    }
-  };
-
-  const stopTurn = async (): Promise<void> => {
-    if (!sessionId) {
-      return;
-    }
-    try {
-      await stopMutation.mutateAsync({
-        sessionId,
-        visitorCapability: capability,
-      });
-      await queryClient.invalidateQueries({
-        queryKey: orpc.advisor.session.get.queryOptions({
-          input: { sessionId, visitorCapability: capability },
-        }).queryKey,
-      });
-      focusOnNextFrame(messageInputRef.current);
-      toast.success("Đã yêu cầu dừng lượt tư vấn.");
-    } catch (error) {
-      focusOnNextFrame(messageInputRef.current);
-      toast.error(
-        error instanceof Error ? error.message : "Không thể dừng lượt tư vấn."
-      );
-    }
-  };
-
-  const deleteSession = async (): Promise<void> => {
-    if (!sessionId) {
-      return;
-    }
-    try {
-      await deleteMutation.mutateAsync({
-        sessionId,
-        visitorCapability: capability,
-      });
-      removeStoredValue(CONSENT_STORAGE_KEY);
-      removeStoredValue(SESSION_STORAGE_KEY);
-      for (const attachment of attachments) {
-        URL.revokeObjectURL(attachment.previewUrl);
-      }
-      setAttachments([]);
-      setAttachmentError(null);
-      setSessionId("");
-      focusAfterDeleteRef.current = true;
-      setConsentAccepted(false);
-      setConsentChecked(false);
-      setDeleteRequested(false);
-      const handoffDraft = getAdvisorHandoffDraft();
-      if (
-        handoffDraft?.sessionId === sessionId &&
-        !handoffDraft.attachmentsCopied
-      ) {
-        clearAdvisorHandoffDraft();
-      }
-      revokeHandoffPreviews();
-      setHandoffSelection(null);
-      toast.success("Advisor session đã được xóa.");
+      setFeedbackSentiment(sentiment);
+      toast.success("Cảm ơn bạn đã gửi đánh giá cho Advisor!");
     } catch (error) {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Không thể xóa Advisor session."
+          : "Không thể gửi Advisor Feedback."
       );
     }
   };
 
   const messages = sessionQuery.data?.messages ?? [];
   const recommendations = sessionQuery.data?.recommendations ?? [];
-  const latestAssistant = messages
-    .toReversed()
-    .find((message) => message.role === "ASSISTANT");
-  const question = parseQuestion(latestAssistant?.metadata?.question);
-  const browsePath = parseBrowsePath(latestAssistant?.metadata?.browsePath);
-  const feedbackRecommendation =
-    recommendations.find((recommendation) => recommendation.isCurrent) ??
-    recommendations[0];
-  const feedbackAttachments = getAdvisorFeedbackAttachments(
-    handoffSelection,
-    feedbackRecommendation?.id
+
+  const lastAssistantMessage = messages.findLast((m) => m.role === "ASSISTANT");
+
+  const question = parseQuestion(
+    lastAssistantMessage?.metadata &&
+      typeof lastAssistantMessage.metadata === "object" &&
+      "question" in lastAssistantMessage.metadata
+      ? lastAssistantMessage.metadata.question
+      : null
+  );
+
+  const browsePath = parseBrowsePath(
+    lastAssistantMessage?.metadata &&
+      typeof lastAssistantMessage.metadata === "object" &&
+      "browsePath" in lastAssistantMessage.metadata
+      ? lastAssistantMessage.metadata.browsePath
+      : null
   );
 
   if (!consentAccepted) {
     return (
-      <Shell className="min-h-[calc(100vh-12rem)]" variant="default">
-        <div className="flex min-h-[calc(100vh-14rem)] items-center justify-center py-8">
-          <ConsentPanel
-            checked={consentChecked}
-            consentRef={consentRef}
-            errorMessage={consentError}
-            onAccept={() => void startSession()}
-            onChange={setConsentChecked}
-            pending={consentMutation.isPending || sessionMutation.isPending}
-          />
-        </div>
+      <Shell variant="centered" className="p-4">
+        <ConsentPanel
+          checked={consentChecked}
+          consentRef={consentRef}
+          errorMessage={consentError}
+          onAccept={() => void startSession()}
+          onChange={setConsentChecked}
+          pending={consentMutation.isPending || sessionMutation.isPending}
+        />
       </Shell>
     );
   }
 
   return (
-    <Shell className="min-h-[calc(100vh-12rem)]" variant="default">
-      <div className="mx-auto w-full max-w-5xl space-y-5 py-6 sm:py-10">
-        <header className="flex flex-wrap items-end justify-between gap-4">
-          <div className="space-y-2">
-            <p className="font-semibold text-primary text-sm">
-              Service Advisor · AI beta
-            </p>
-            <h1 className="font-black text-3xl tracking-tight sm:text-4xl">
-              Tìm đúng dịch vụ từ nhu cầu của bạn
-            </h1>
-            <p className="max-w-3xl text-muted-foreground">
-              Viết bằng tiếng Việt, English hoặc trộn cả hai. AI beta sẽ hỏi
-              từng câu một và chỉ gợi ý các Listing SERVICE đang có thể mua. Đây
-              không phải cam kết phù hợp hay bảo đảm khả dụng.
+    <div className="relative min-h-[calc(100vh-4rem)] flex flex-col bg-background text-foreground selection:bg-primary/20 selection:text-primary">
+      {/* App-Theme Unified Header Bar */}
+      <header className="sticky top-16 z-20 flex h-14 items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur-xl sm:px-8">
+        <div className="flex items-center gap-3">
+          <div className="flex size-8 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">
+            <Sparkles className="size-4" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="font-semibold text-sm text-foreground sm:text-base">
+                Service Advisor
+              </h1>
+              <Badge
+                variant="secondary"
+                className="font-mono text-[10px] bg-primary/10 text-primary border-primary/20"
+              >
+                AI Beta
+              </Badge>
+            </div>
+            <p className="hidden text-xs text-muted-foreground sm:block">
+              Tự động đối soát Playbook & gợi ý dịch vụ kỹ thuật chính xác
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              disabled={linkMutation.isPending || deleteMutation.isPending}
-              onClick={() => void linkSession()}
-              size="sm"
-              type="button"
-              variant="outline"
-            >
-              Liên kết tài khoản
-            </Button>
-            <Button
-              disabled={linkMutation.isPending || deleteMutation.isPending}
-              onClick={() => {
-                if (!deleteRequested) {
-                  setDeleteRequested(true);
-                  return;
-                }
-                void deleteSession();
-              }}
-              size="sm"
-              type="button"
-              variant="ghost"
-            >
-              {deleteRequested ? "Bấm lại để xác nhận xóa" : "Xóa phiên"}
-            </Button>
-          </div>
-        </header>
+        </div>
 
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void linkAccount()}
+            className="gap-1.5"
+          >
+            <UserCheck className="size-3.5 text-muted-foreground" />
+            <span className="hidden sm:inline">Liên kết tài khoản</span>
+          </Button>
+
+          <Button
+            type="button"
+            variant={deleteRequested ? "destructive" : "outline"}
+            size="sm"
+            aria-label={
+              deleteRequested ? "Bấm lại để xác nhận xóa" : "Xóa phiên"
+            }
+            onClick={() => void deleteSession()}
+            className="gap-1.5"
+          >
+            <Trash2 className="size-3.5" />
+            <span>{deleteRequested ? "Xác nhận xóa" : "Xóa phiên"}</span>
+          </Button>
+        </div>
+      </header>
+
+      {/* Main Centered Stream Area */}
+      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 pt-6 pb-48 sm:px-6">
         {sessionQuery.isError ? (
           <div
-            className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-destructive text-sm"
+            className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-destructive text-sm"
             role="alert"
           >
             Không thể tải phiên Advisor. Hãy tải lại trang để thử lại.
           </div>
         ) : null}
 
-        <output aria-atomic="true" aria-live="polite" className="sr-only">
-          {generationActive
-            ? "Advisor đang xử lý lượt tư vấn."
-            : (turnFailure?.message ?? "")}
-        </output>
-
-        <Card className="overflow-hidden">
-          <CardContent className="space-y-4 p-4 sm:p-6">
-            <div
-              aria-label="Lịch sử hội thoại Advisor"
-              aria-busy={generationActive}
-              aria-live="polite"
-              aria-relevant="additions"
-              className="max-h-[min(55vh,38rem)] min-h-72 space-y-3 overflow-y-auto rounded-xl bg-muted/20 p-4"
-              role="log"
-            >
-              {messages.length === 0 ? (
-                <div className="flex h-64 items-center justify-center text-center text-muted-foreground text-sm">
-                  Hãy mô tả một Service Need để bắt đầu.
-                </div>
-              ) : (
-                messages.map((message) => (
-                  <ConversationMessage
-                    key={message.id}
-                    role={message.role}
-                    text={message.text}
-                  />
-                ))
-              )}
-              {generationActive ? (
-                <output className="flex items-center justify-between gap-3 text-muted-foreground text-sm">
-                  <span>
-                    Advisor đang kiểm tra Playbook và catalog công khai...
-                  </span>
-                  <Button
-                    disabled={stopMutation.isPending}
-                    onClick={() => void stopTurn()}
-                    size="sm"
-                    type="button"
-                    variant="outline"
-                  >
-                    {stopMutation.isPending ? "Đang dừng..." : "Dừng"}
-                  </Button>
-                </output>
-              ) : null}
-            </div>
-
-            {browsePath ? (
-              <a
-                className="inline-flex min-h-9 items-center rounded-md border px-3 font-medium text-primary text-sm underline-offset-4 hover:underline"
-                href={browsePath}
-              >
-                {browsePath.startsWith("/listing/")
-                  ? "Mở Listing đã kiểm tra"
-                  : "Duyệt danh mục liên quan"}
-              </a>
-            ) : null}
-
-            {question ? (
-              <fieldset className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
-                <legend className="px-1 font-semibold text-sm">
-                  Câu hỏi tiếp theo
-                </legend>
-                <p className="text-sm">{question.prompt}</p>
-                <div className="flex flex-wrap gap-2">
-                  {question.options.map((option) => (
-                    <Button
-                      key={option.value}
-                      onClick={() => void sendTurn(option.label)}
-                      type="button"
-                      variant="outline"
-                    >
-                      {option.label}
-                    </Button>
-                  ))}
-                </div>
-              </fieldset>
-            ) : null}
-
-            <div className="space-y-2 rounded-xl border border-dashed bg-muted/10 p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="font-medium text-sm">
-                    Ảnh tham khảo (tuỳ chọn)
-                  </p>
-                  <p className="text-muted-foreground text-xs">
-                    JPEG, PNG hoặc WebP · tối đa{" "}
-                    {ADVISOR_ATTACHMENT_MAX_PER_MESSAGE} ảnh/lượt,{" "}
-                    {ADVISOR_ATTACHMENT_MAX_PER_SESSION} ảnh/session
-                  </p>
-                </div>
-                <input
-                  accept="image/jpeg,image/png,image/webp"
-                  aria-label="Chọn ảnh tham khảo"
-                  className="sr-only"
-                  disabled={
-                    attachmentBusy || generationActive || stopMutation.isPending
-                  }
-                  multiple
-                  onChange={(event) => void handleAttachmentFiles(event)}
-                  ref={attachmentInputRef}
-                  type="file"
-                />
-                <Button
-                  disabled={
-                    attachmentBusy ||
-                    generationActive ||
-                    stopMutation.isPending ||
-                    attachments.length >= ADVISOR_ATTACHMENT_MAX_PER_MESSAGE
-                  }
-                  onClick={() => attachmentInputRef.current?.click()}
-                  ref={attachmentTriggerRef}
-                  size="sm"
-                  type="button"
-                  variant="outline"
-                >
-                  {attachmentBusy ? "Đang xử lý..." : "Thêm ảnh"}
-                </Button>
+        {/* Conversation Stream */}
+        <div
+          aria-busy={generationActive}
+          aria-label="Lịch sử hội thoại Advisor"
+          aria-live="polite"
+          className="space-y-6"
+          role="log"
+        >
+          {messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
+              <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
+                <Sparkles className="size-6" />
               </div>
-              {attachments.length > 0 ? (
-                <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {attachments.map((attachment) => (
-                    <li
-                      className="group relative overflow-hidden rounded-lg border bg-background"
-                      key={attachment.id}
-                    >
-                      <img
-                        alt={`Ảnh tham khảo ${attachment.fileName}`}
-                        className="aspect-square w-full object-cover"
-                        src={attachment.previewUrl}
-                      />
-                      <div className="flex items-center justify-between gap-2 p-2">
-                        <span className="truncate text-xs">
-                          {attachment.fileName}
-                        </span>
-                        <Button
-                          aria-label={`Xóa ảnh ${attachment.fileName}`}
-                          disabled={attachmentBusy || generationActive}
-                          onClick={() => void removeAttachment(attachment)}
-                          size="icon-sm"
-                          type="button"
-                          variant="ghost"
-                        >
-                          ×
-                        </Button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-              {attachmentError ? (
-                <p className="text-destructive text-sm" role="alert">
-                  {attachmentError}
-                </p>
-              ) : null}
-            </div>
-
-            <form
-              className="flex flex-col gap-2 sm:flex-row"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void sendTurn(text);
-              }}
-            >
-              <p className="sr-only" id="advisor-message-hint">
-                Không gửi password, OTP, access token, thông tin thanh toán hoặc
-                giấy tờ định danh.
+              <h2 className="font-semibold text-base text-foreground">
+                Bạn đang gặp vấn đề hay cần tìm dịch vụ gì?
+              </h2>
+              <p className="max-w-md text-xs text-muted-foreground leading-relaxed">
+                Mô tả chi tiết sự cố (kèm ảnh chụp màn hình lỗi nếu có). Advisor
+                sẽ tự động đối soát kho Playbook để chọn đúng gói dịch vụ và
+                Seller uy tín nhất.
               </p>
-              <label className="sr-only" htmlFor="advisor-message">
-                Mô tả Service Need
-              </label>
-              <textarea
-                aria-label="Mô tả Service Need"
-                aria-describedby="advisor-message-hint"
-                className="min-h-12 flex-1 resize-y rounded-lg border bg-background px-3 py-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
-                disabled={generationActive || stopMutation.isPending}
-                id="advisor-message"
-                onChange={(event) => setText(event.target.value)}
-                ref={messageInputRef}
-                placeholder="Ví dụ: Tôi cần setup account cho website cá nhân..."
-                value={text}
-              />
+            </div>
+          ) : (
+            messages.map((message) => (
+              <div key={message.id} className="space-y-3">
+                {message.role === "USER" ? (
+                  <div className="flex justify-end">
+                    <div className="max-w-[85%] space-y-2 rounded-2xl rounded-tr-sm bg-secondary text-secondary-foreground px-4 py-3 text-sm shadow-sm ring-1 ring-border/50 leading-relaxed">
+                      <p className="whitespace-pre-wrap">{message.text}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex gap-3">
+                    <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary ring-1 ring-primary/20">
+                      <Sparkles className="size-4" />
+                    </div>
+
+                    <div className="flex-1 space-y-4 text-sm">
+                      {/* Assistant Text Bubble */}
+                      <div className="rounded-2xl rounded-tl-sm border border-border bg-card text-card-foreground p-4 text-sm shadow-sm leading-relaxed whitespace-pre-wrap">
+                        {message.text}
+                      </div>
+
+                      {/* Browse Path Link */}
+                      {browsePath ? (
+                        <a
+                          href={browsePath}
+                          className={cn(
+                            buttonVariants({ size: "sm", variant: "outline" }),
+                            "hover:border-primary hover:text-primary w-fit inline-flex"
+                          )}
+                        >
+                          {browsePath.startsWith("/listing/")
+                            ? "Mở Listing đã kiểm tra"
+                            : "Duyệt danh mục liên quan"}
+                          <ArrowRight className="size-3 ml-1" />
+                        </a>
+                      ) : null}
+
+                      {/* Question Options */}
+                      {question ? (
+                        <div className="space-y-2 rounded-2xl border border-border bg-muted/40 p-4">
+                          <p className="font-medium text-xs text-foreground">
+                            {question.prompt}
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {question.options.map((option) => (
+                              <Button
+                                key={option.value}
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => void sendTurn(option.label)}
+                                className="rounded-xl border-border bg-card text-xs text-foreground hover:border-primary hover:bg-primary/10 hover:text-primary transition-all active:scale-98"
+                              >
+                                {option.label}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {/* Inlined Recommendations (Matching this turn) */}
+                      {recommendations.length > 0 ? (
+                        <div className="space-y-3 pt-2">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-xs uppercase tracking-wider text-muted-foreground">
+                              Dịch vụ đề xuất từ Advisor (
+                              {recommendations.length})
+                            </span>
+                            <Badge
+                              variant="secondary"
+                              className="text-xs text-primary font-mono"
+                            >
+                              Khớp danh mục
+                            </Badge>
+                          </div>
+
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            {recommendations.flatMap((recommendation) =>
+                              recommendation.listings.map((listing) => (
+                                <div
+                                  key={listing.id}
+                                  className="flex flex-col justify-between rounded-2xl border border-border bg-card text-card-foreground p-4 shadow-sm transition-all hover:border-primary/50"
+                                >
+                                  <div className="space-y-2.5">
+                                    <div className="flex items-center justify-between">
+                                      <Badge
+                                        variant="secondary"
+                                        className="text-[10px] font-medium"
+                                      >
+                                        {listing.seller.name}
+                                      </Badge>
+                                      <div className="flex items-center gap-1 text-amber-500 text-xs">
+                                        <Star className="size-3 fill-amber-500" />
+                                        <span className="font-semibold">
+                                          {listing.ratingScore.toFixed(1)}
+                                        </span>
+                                        <span className="text-muted-foreground text-[10px]">
+                                          ({listing.completedOrderCount} đơn)
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    <h4 className="font-semibold text-sm text-foreground line-clamp-2 leading-snug">
+                                      {listing.title}
+                                    </h4>
+
+                                    {/* Price & Package Info */}
+                                    <div className="space-y-1.5 rounded-xl bg-muted/60 p-2.5 border border-border/70">
+                                      <div className="flex items-baseline justify-between">
+                                        <span className="text-[11px] text-muted-foreground">
+                                          {listing.servicePackage
+                                            ? `Gói: ${listing.servicePackage.name}`
+                                            : "Giá khởi điểm"}
+                                        </span>
+                                        <span className="font-bold text-sm text-primary">
+                                          {formatVND(
+                                            listing.servicePackage
+                                              ?.priceAmount ??
+                                              listing.priceAmount
+                                          )}
+                                        </span>
+                                      </div>
+
+                                      <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t border-border/60">
+                                        {listing.processingTimeHours ? (
+                                          <span className="flex items-center gap-1">
+                                            <Clock className="size-3 text-muted-foreground" />
+                                            {listing.processingTimeHours}h
+                                          </span>
+                                        ) : null}
+                                        <span className="flex items-center gap-1">
+                                          <ShieldCheck className="size-3 text-primary" />
+                                          {formatWarranty(
+                                            listing.warrantyPolicy
+                                          )}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* Reasons */}
+                                    {listing.reasons &&
+                                    listing.reasons.length > 0 ? (
+                                      <ul className="space-y-1 text-[11px] text-muted-foreground">
+                                        {listing.reasons
+                                          .slice(0, 2)
+                                          .map((r) => (
+                                            <li
+                                              key={r}
+                                              className="flex items-start gap-1.5"
+                                            >
+                                              <CheckCircle2 className="mt-0.5 size-3 shrink-0 text-primary" />
+                                              <span className="line-clamp-1">
+                                                {r}
+                                              </span>
+                                            </li>
+                                          ))}
+                                      </ul>
+                                    ) : null}
+                                  </div>
+
+                                  <div className="mt-4 flex flex-col gap-2 pt-2 border-t border-border/60">
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      onClick={() =>
+                                        void selectRecommendation(
+                                          recommendation.id,
+                                          listing.id
+                                        )
+                                      }
+                                      className="w-full gap-1.5"
+                                    >
+                                      <Share2 className="size-3.5" />
+                                      Tạo tóm tắt cho Checkout
+                                    </Button>
+
+                                    <a
+                                      href={getListingPathWithAdvisorPackage(
+                                        listing.listingPath,
+                                        listing.servicePackage?.id ?? null
+                                      )}
+                                      onClick={() => {
+                                        void trackAnalytics("LISTING_CLICKED", {
+                                          listingId: listing.id,
+                                          recommendationId: recommendation.id,
+                                        });
+                                      }}
+                                      className={cn(
+                                        buttonVariants({
+                                          size: "sm",
+                                          variant: "ghost",
+                                        }),
+                                        "w-full text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center justify-center"
+                                      )}
+                                    >
+                                      Xem chi tiết Listing
+                                      <ExternalLink className="size-3 ml-1" />
+                                    </a>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {/* Inlined Handoff Selection Card */}
+                      {handoffSelection ? (
+                        <div
+                          ref={handoffHeadingRef}
+                          tabIndex={-1}
+                          className="rounded-2xl border border-primary/40 bg-card text-card-foreground p-4 shadow-md space-y-3"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Share2 className="size-4 text-primary" />
+                              <h3 className="font-semibold text-xs text-foreground">
+                                Ngữ cảnh chuyển giao vào Buyer Checkout Note
+                              </h3>
+                            </div>
+                            <span className="text-[10px] text-primary font-mono">
+                              Tùy chỉnh trước khi lưu
+                            </span>
+                          </div>
+
+                          <label
+                            className="grid gap-1.5 text-xs text-muted-foreground"
+                            htmlFor="handoff-summary-text"
+                          >
+                            Tóm tắt sự cố:
+                            <Textarea
+                              id="handoff-summary-text"
+                              value={handoffSelection.summary}
+                              onChange={(e) =>
+                                setHandoffSelection((curr) =>
+                                  curr
+                                    ? { ...curr, summary: e.target.value }
+                                    : curr
+                                )
+                              }
+                              rows={3}
+                              className="rounded-xl border-border bg-background px-3 py-2 text-xs font-mono text-foreground focus-visible:ring-primary"
+                            />
+                          </label>
+
+                          <label
+                            className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer"
+                            htmlFor="handoff-inc-chk"
+                          >
+                            <input
+                              id="handoff-inc-chk"
+                              type="checkbox"
+                              checked={
+                                handoffSelection.includeSummaryInCheckout
+                              }
+                              onChange={(e) =>
+                                setHandoffSelection((curr) =>
+                                  curr
+                                    ? {
+                                        ...curr,
+                                        includeSummaryInCheckout:
+                                          e.target.checked,
+                                      }
+                                    : curr
+                                )
+                              }
+                              className="size-3.5 rounded border-border accent-primary"
+                            />
+                            Tự động đưa tóm tắt này vào Buyer Checkout Note khi
+                            thanh toán
+                          </label>
+
+                          <Button
+                            type="button"
+                            disabled={
+                              confirmHandoffMutation.isPending ||
+                              !handoffSelection.summary.trim()
+                            }
+                            onClick={() => void confirmHandoff()}
+                            className="w-full gap-2"
+                            size="sm"
+                          >
+                            <CheckCircle2 className="size-4" />
+                            {confirmHandoffMutation.isPending
+                              ? "Đang lưu..."
+                              : "Xác nhận ngữ cảnh Advisor"}
+                          </Button>
+                        </div>
+                      ) : null}
+
+                      {/* Inlined Feedback */}
+                      {recommendations[0] ? (
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/80 text-xs text-muted-foreground">
+                          <span>Đánh giá kết quả gợi ý:</span>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={
+                                feedbackSentiment === "POSITIVE"
+                                  ? "secondary"
+                                  : "outline"
+                              }
+                              aria-label="Đánh giá hữu ích"
+                              onClick={() => {
+                                const [rec] = recommendations;
+                                if (rec) {
+                                  void submitFeedback(rec.id, "POSITIVE");
+                                }
+                              }}
+                              className={`gap-1 ${
+                                feedbackSentiment === "POSITIVE"
+                                  ? "border-primary bg-primary/10 text-primary"
+                                  : "text-muted-foreground"
+                              }`}
+                            >
+                              <ThumbsUp className="size-3" />
+                              <span>Hữu ích</span>
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={
+                                feedbackSentiment === "NEGATIVE"
+                                  ? "secondary"
+                                  : "outline"
+                              }
+                              aria-label="Đánh giá chưa phù hợp"
+                              onClick={() => {
+                                const [rec] = recommendations;
+                                if (rec) {
+                                  void submitFeedback(rec.id, "NEGATIVE");
+                                }
+                              }}
+                              className={`gap-1 ${
+                                feedbackSentiment === "NEGATIVE"
+                                  ? "border-destructive bg-destructive/10 text-destructive"
+                                  : "text-muted-foreground"
+                              }`}
+                            >
+                              <ThumbsDown className="size-3" />
+                              <span>Chưa phù hợp</span>
+                            </Button>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+
+          {/* Active Generation Indicator */}
+          {generationActive ? (
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 text-xs text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Sparkles className="size-4 animate-spin text-primary" />
+                <span className="animate-pulse">
+                  Advisor đang phân tích Playbook và catalog dịch vụ...
+                </span>
+              </div>
               <Button
-                disabled={
-                  !text.trim() ||
-                  attachmentBusy ||
-                  generationActive ||
-                  stopMutation.isPending
-                }
-                type="submit"
+                disabled={stopMutation.isPending}
+                onClick={() => void stopTurn()}
+                size="sm"
+                type="button"
+                variant="outline"
               >
-                Gửi
+                {stopMutation.isPending ? "Đang dừng..." : "Dừng"}
               </Button>
-            </form>
+            </div>
+          ) : null}
 
-            {retryRequest ? (
-              <div
-                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm"
-                role="alert"
-              >
-                <span>Lượt tư vấn chưa hoàn tất; chưa tạo recommendation.</span>
-                <Button
-                  onClick={() =>
-                    void sendTurn(
-                      retryRequest.text,
-                      retryRequest.idempotencyKey,
-                      retryRequest.attachmentIds
-                    )
-                  }
-                  size="sm"
-                  type="button"
-                  variant="outline"
+          {/* Failure Alert */}
+          {turnFailure ? (
+            <div
+              className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive space-y-1.5"
+              role="alert"
+            >
+              <div className="flex items-center gap-2 font-semibold">
+                <ShieldAlert className="size-4" />
+                <span>{getAdvisorTurnFailureLabel(turnFailure.kind)}</span>
+              </div>
+              <p>{turnFailure.message}</p>
+              {turnFailure.kind === "DAILY_QUOTA" ||
+              turnFailure.kind === "PROVIDER_UNAVAILABLE" ? (
+                <Link
+                  className="inline-flex font-medium text-primary underline underline-offset-4 hover:opacity-80"
+                  to="/category"
                 >
-                  Thử lại
-                </Button>
-              </div>
-            ) : null}
-            {turnFailure ? (
-              <div
-                className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm"
-                role="alert"
+                  Duyệt catalog thủ công
+                </Link>
+              ) : null}
+            </div>
+          ) : null}
+
+          {/* Retry Request Action */}
+          {retryRequest ? (
+            <div
+              className="flex items-center justify-between rounded-xl border border-border bg-card p-3 text-xs text-muted-foreground"
+              role="alert"
+            >
+              <span>Lượt tư vấn chưa hoàn tất; chưa tạo recommendation.</span>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  void sendTurn(
+                    retryRequest.text,
+                    retryRequest.idempotencyKey,
+                    retryRequest.attachmentIds
+                  )
+                }
               >
-                <p>
-                  <span className="font-semibold">
-                    {getAdvisorTurnFailureLabel(turnFailure.kind)}
-                    {" — "}
+                Thử lại
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      </main>
+
+      {/* Fixed Bottom Floating Composer Dock */}
+      <footer className="fixed inset-x-0 bottom-0 z-20 bg-gradient-to-t from-background via-background/95 to-transparent pt-6 pb-6 backdrop-blur-sm">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6">
+          {/* Attachment Preview Tray */}
+          {attachments.length > 0 ? (
+            <div className="mb-2 flex flex-wrap gap-2">
+              {attachments.map((attachment) => (
+                <div
+                  key={attachment.id}
+                  className="flex items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1 text-xs text-foreground shadow-sm"
+                >
+                  <ImageIcon className="size-3.5 text-primary" />
+                  <span className="max-w-40 truncate">
+                    {attachment.fileName}
                   </span>
-                  {turnFailure.message}
-                </p>
-                {turnFailure.kind === "DAILY_QUOTA" ||
-                turnFailure.kind === "PROVIDER_UNAVAILABLE" ? (
-                  <Link
-                    className="mt-2 inline-flex font-medium text-primary underline underline-offset-4"
-                    to="/category"
+                  <button
+                    type="button"
+                    aria-label={`Xóa ảnh ${attachment.fileName}`}
+                    disabled={attachmentBusy || generationActive}
+                    onClick={() => removeAttachment(attachment)}
+                    className="text-muted-foreground hover:text-foreground"
                   >
-                    Duyệt catalog thủ công
-                  </Link>
-                ) : null}
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
+                    <X className="size-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : null}
 
-        {recommendations.length > 0 ? (
-          <section
-            aria-labelledby="advisor-recommendations"
-            className="space-y-3"
+          {attachmentError ? (
+            <p className="mb-2 text-xs text-destructive" role="alert">
+              {attachmentError}
+            </p>
+          ) : null}
+
+          {/* Hidden File Input */}
+          <input
+            accept="image/jpeg,image/png,image/webp"
+            aria-label="Chọn ảnh tham khảo"
+            className="sr-only"
+            disabled={
+              attachmentBusy || generationActive || stopMutation.isPending
+            }
+            multiple
+            onChange={(event) => void handleAttachmentFiles(event)}
+            ref={attachmentInputRef}
+            type="file"
+          />
+
+          {/* Unified Composer Container */}
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void sendTurn(text);
+            }}
+            className="relative flex items-end gap-2 rounded-2xl border border-border bg-card/95 p-2.5 shadow-2xl backdrop-blur-xl focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20"
           >
-            <h2 className="font-bold text-xl" id="advisor-recommendations">
-              Gợi ý từ Advisor
-            </h2>
-            {recommendations.map((recommendation) => (
-              <RecommendationCard
-                key={recommendation.id}
-                onListingClick={(listingId) => {
-                  void trackAnalytics("LISTING_CLICKED", {
-                    listingId,
-                    recommendationId: recommendation.id,
-                  });
-                }}
-                onSelect={(recommendationId, listingId) => {
-                  void selectRecommendation(recommendationId, listingId);
-                }}
-                recommendation={recommendation}
-              />
-            ))}
-          </section>
-        ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label="Đính kèm ảnh lỗi (Tối đa 3 ảnh)"
+              disabled={
+                attachmentBusy ||
+                generationActive ||
+                stopMutation.isPending ||
+                attachments.length >= ADVISOR_ATTACHMENT_MAX_PER_MESSAGE
+              }
+              onClick={() => attachmentInputRef.current?.click()}
+              ref={attachmentTriggerRef}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Paperclip className="size-4" />
+            </Button>
 
-        {handoffSelection ? (
-          <AdvisorHandoffPanel
-            attachments={handoffSelection.attachments}
-            attachmentIds={handoffSelection.attachmentIds}
-            headingRef={handoffHeadingRef}
-            includeSummaryInCheckout={handoffSelection.includeSummaryInCheckout}
-            listingId={handoffSelection.listingId}
-            onAttachmentToggle={(attachmentId) => {
-              setHandoffSelection((current) => {
-                if (!current) {
-                  return current;
+            <textarea
+              aria-label="Mô tả Service Need"
+              className="max-h-32 min-h-9 flex-1 resize-none bg-transparent py-1.5 text-sm text-foreground placeholder:text-muted-foreground outline-none"
+              disabled={generationActive || stopMutation.isPending}
+              id="advisor-message"
+              onChange={(event) => setText(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  void sendTurn(text);
                 }
-                const selected = new Set(current.attachmentIds);
-                if (selected.has(attachmentId)) {
-                  selected.delete(attachmentId);
-                } else {
-                  selected.add(attachmentId);
-                }
-                return { ...current, attachmentIds: [...selected] };
-              });
-            }}
-            onIncludeSummaryChange={(includeSummaryInCheckout) => {
-              setHandoffSelection((current) =>
-                current ? { ...current, includeSummaryInCheckout } : current
-              );
-            }}
-            onListingClick={(listingId) => {
-              void trackAnalytics("LISTING_CLICKED", {
-                listingId,
-                recommendationId: handoffSelection.recommendationId,
-              });
-            }}
-            onListingChange={(nextListingId) => {
-              setHandoffSelection((current) =>
-                current ? { ...current, listingId: nextListingId } : current
-              );
-            }}
-            onSummaryChange={(summary) => {
-              setHandoffSelection((current) =>
-                current ? { ...current, summary } : current
-              );
-            }}
-            onConfirm={() => void confirmHandoff()}
-            pending={confirmHandoffMutation.isPending}
-            recommendation={recommendations.find(
-              (recommendation) =>
-                recommendation.id === handoffSelection.recommendationId
-            )}
-            summary={handoffSelection.summary}
-          />
-        ) : null}
+              }}
+              placeholder="Ví dụ: Tôi cần mở khóa Facebook checkpoint 282 trong 24h..."
+              ref={messageInputRef}
+              rows={1}
+              value={text}
+            />
 
-        {feedbackRecommendation ? (
-          <AdvisorFeedbackPanel
-            attachments={feedbackAttachments}
-            onSubmitted={() => {
-              toast.success("Đã ghi nhận Advisor Feedback.");
-            }}
-            recommendationId={feedbackRecommendation.id}
-            sessionId={sessionId}
-            visitorCapability={capability}
-          />
-        ) : null}
-      </div>
-    </Shell>
+            <Button
+              type="submit"
+              size="icon"
+              aria-label="Gửi yêu cầu"
+              disabled={
+                !text.trim() ||
+                attachmentBusy ||
+                generationActive ||
+                stopMutation.isPending
+              }
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              <Send className="size-4" />
+            </Button>
+          </form>
+        </div>
+      </footer>
+    </div>
   );
 };
