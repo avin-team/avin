@@ -20,10 +20,26 @@ export const siteConfig: SiteConfig = {
   mainNav: [{ href: "/category", title: "Dịch vụ" }],
   name: "Avin",
   socialLinks: [
-    { href: "#", label: "Facebook" },
-    { href: "#", label: "YouTube" },
-    { href: "#", label: "TikTok" },
-    { href: "#", label: "Instagram" },
-    { href: "#", label: "X" },
+    {
+      href: "https://www.facebook.com/vuduyhoanavin05",
+      label: "Facebook",
+    },
+    {
+      href: "https://www.tiktok.com/@todun2710",
+      label: "TikTok",
+    },
+    { href: "https://x.com/vu_duy_hoan", label: "X" },
+    {
+      href: "https://www.threads.com/@vu.duy.hoan",
+      label: "Threads",
+    },
+    {
+      href: "https://www.instagram.com/vu.duy.hoan",
+      label: "Instagram",
+    },
+    {
+      href: "https://www.youtube.com/@vuduyhoan_avin05",
+      label: "YouTube",
+    },
   ],
 };

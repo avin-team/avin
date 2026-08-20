@@ -4,6 +4,7 @@ import {
   FacebookIcon,
   InstagramIcon,
   TikTokIcon,
+  ThreadsIcon,
   XIcon,
   YouTubeIcon,
 } from "@/components/icons/social-icons";
@@ -15,6 +16,7 @@ const socialIconMap: Record<
 > = {
   Facebook: FacebookIcon,
   Instagram: InstagramIcon,
+  Threads: ThreadsIcon,
   TikTok: TikTokIcon,
   X: XIcon,
   YouTube: YouTubeIcon,
@@ -34,18 +36,6 @@ export const Footer = () => (
           </div>
           <span className="font-bold text-foreground">{siteConfig.name}</span>
         </Link>
-
-        <nav className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground">
-          {siteConfig.mainNav.map((item) => (
-            <Link
-              className="transition-colors hover:text-foreground"
-              key={item.title}
-              to={item.href as string}
-            >
-              {item.title}
-            </Link>
-          ))}
-        </nav>
 
         <div className="flex items-center gap-4">
           {siteConfig.socialLinks.map((link) => {
