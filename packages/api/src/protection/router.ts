@@ -24,15 +24,28 @@ import {
   providerApplicationIdInputSchema,
   providerApplicationListInputSchema,
   providerApplicationSubmissionInputSchema,
+  providerProfileRevisionDecisionInputSchema,
+  providerProfileRevisionIdInputSchema,
+  providerProfileRevisionListInputSchema,
+  providerProfileRevisionDraftInputSchema,
+  providerProfileRevisionSubmissionInputSchema,
+  providerProfileStatusInputSchema,
 } from "./provider-application";
 import {
+  decideProviderProfileRevision,
   decideProviderApplication,
   getProviderApplicationForAdmin,
   getProviderApplicationSnapshot,
+  getProviderProfileRevisionForAdmin,
   getPublicProviderProfile,
+  listProviderProfileRevisions,
   listProviderApplications,
+  publishProviderProfileStatus,
   saveProviderApplicationDraft,
+  saveProviderProfileRevisionDraft,
+  startProviderProfileRevision,
   submitProviderApplication,
+  submitProviderProfileRevision,
 } from "./provider-application-service";
 
 const providerNotificationListInput = z
@@ -52,6 +65,16 @@ const providerReviewerProcedure = protectionAdminProcedure({
   target: {
     id: "PROTECTION_PROVIDER_APPLICATION_QUEUE",
     type: "PROTECTION_PROVIDER_APPLICATION_QUEUE",
+  },
+});
+
+const providerProfileRevisionReviewerProcedure = protectionAdminProcedure({
+  action: "protection.provider_profile_revision.review",
+  capability: PROTECTION_ADMIN_CAPABILITY.PROVIDER_REVIEWER,
+  purpose: "Review Provider profile revisions and publish immutable versions",
+  target: {
+    id: "PROTECTION_PROVIDER_PROFILE_REVISION_QUEUE",
+    type: "PROTECTION_PROVIDER_PROFILE_REVISION_QUEUE",
   },
 });
 
@@ -88,6 +111,46 @@ export const protectionRouter = {
       .input(providerApplicationListInputSchema)
       .handler(({ context, input }) =>
         listProviderApplications(context.db, input)
+      ),
+  },
+
+  adminProviderProfileRevisions: {
+    decide: providerProfileRevisionReviewerProcedure
+      .input(providerProfileRevisionDecisionInputSchema)
+      .handler(({ context, input }) =>
+        decideProviderProfileRevision({
+          database: context.db,
+          decision: input.decision,
+          reason: input.reason,
+          reviewerUserId: context.session.user.id,
+          revisionId: input.id,
+        })
+      ),
+
+    get: providerProfileRevisionReviewerProcedure
+      .input(providerProfileRevisionIdInputSchema)
+      .handler(({ context, input }) =>
+        getProviderProfileRevisionForAdmin(context.db, input.id)
+      ),
+
+    list: providerProfileRevisionReviewerProcedure
+      .input(providerProfileRevisionListInputSchema)
+      .handler(({ context, input }) =>
+        listProviderProfileRevisions(context.db, input)
+      ),
+  },
+
+  adminProviderProfiles: {
+    publishStatus: providerProfileRevisionReviewerProcedure
+      .input(providerProfileStatusInputSchema)
+      .handler(({ context, input }) =>
+        publishProviderProfileStatus({
+          database: context.db,
+          profileId: input.id,
+          reviewerUserId: context.session.user.id,
+          status: input.status,
+          statusReason: input.statusReason,
+        })
       ),
   },
 
@@ -147,6 +210,36 @@ export const protectionRouter = {
         userId: context.session.user.id,
       })
     ),
+  },
+
+  providerProfileRevision: {
+    getMine: providerProcedure.handler(({ context }) =>
+      getProviderApplicationSnapshot(context.db, context.session.user.id)
+    ),
+
+    saveDraft: providerProcedure
+      .input(providerProfileRevisionDraftInputSchema)
+      .handler(({ context, input }) =>
+        saveProviderProfileRevisionDraft(
+          context.db,
+          context.session.user.id,
+          input
+        )
+      ),
+
+    start: providerProcedure.handler(({ context }) =>
+      startProviderProfileRevision(context.db, context.session.user.id)
+    ),
+
+    submit: providerProcedure
+      .input(providerProfileRevisionSubmissionInputSchema)
+      .handler(({ context, input }) =>
+        submitProviderProfileRevision(
+          context.db,
+          context.session.user.id,
+          input
+        )
+      ),
   },
 
   providerWorkspace: providerProcedure.handler(async ({ context }) => {

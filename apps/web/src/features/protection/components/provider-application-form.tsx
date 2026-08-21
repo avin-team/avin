@@ -11,8 +11,14 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { toast } from "sonner";
 
-import { useProviderApplicationActions } from "../api/provider-api";
-import type { ProviderApplication } from "../api/provider-api";
+import {
+  useProviderApplicationActions,
+  useProviderProfileRevisionActions,
+} from "../api/provider-api";
+import type {
+  ProviderApplication,
+  ProviderProfileRevision,
+} from "../api/provider-api";
 
 interface ProviderApplicationFormState {
   ageEvidenceReference: string;
@@ -65,7 +71,7 @@ const emptyFormState = (): ProviderApplicationFormState => ({
 const readText = (value: string | null | undefined): string => value ?? "";
 
 const getFormState = (
-  application: ProviderApplication | null
+  application: ProviderApplication | ProviderProfileRevision | null
 ): ProviderApplicationFormState => {
   if (!application) {
     return emptyFormState();
@@ -197,13 +203,35 @@ const hasSubmissionMinimum = (state: ProviderApplicationFormState): boolean => {
 
 const fieldClassName = "w-full";
 
+const getSubmitErrorMessage = (
+  error: unknown,
+  mode: "application" | "revision"
+) => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return mode === "revision"
+    ? "Không thể gửi yêu cầu cập nhật profile."
+    : "Không thể gửi hồ sơ Provider.";
+};
+
+const getSubmitLabel = (mode: "application" | "revision"): string =>
+  mode === "revision"
+    ? "Gửi yêu cầu cập nhật để xét duyệt"
+    : "Gửi hồ sơ để xét duyệt";
+
 export const ProviderApplicationForm = ({
   application,
+  mode = "application",
 }: {
-  application: ProviderApplication | null;
+  application: ProviderApplication | ProviderProfileRevision | null;
+  mode?: "application" | "revision";
 }) => {
   const [form, setForm] = useState(() => getFormState(application));
-  const { saveDraft, submit } = useProviderApplicationActions();
+  const applicationActions = useProviderApplicationActions();
+  const revisionActions = useProviderProfileRevisionActions();
+  const { saveDraft, submit } =
+    mode === "revision" ? revisionActions : applicationActions;
 
   const updateField = <K extends keyof ProviderApplicationFormState>(
     field: K,
@@ -235,7 +263,11 @@ export const ProviderApplicationForm = ({
   const handleSaveDraft = async () => {
     try {
       await saveDraft.mutateAsync(toDraft(form));
-      toast.success("Đã lưu bản nháp hồ sơ Provider.");
+      toast.success(
+        mode === "revision"
+          ? "Đã lưu bản nháp yêu cầu cập nhật profile."
+          : "Đã lưu bản nháp hồ sơ Provider."
+      );
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Không thể lưu bản nháp."
@@ -254,11 +286,13 @@ export const ProviderApplicationForm = ({
 
     try {
       await submit.mutateAsync(toSubmission(form));
-      toast.success("Đã gửi hồ sơ Provider để Reviewer xem xét.");
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Không thể gửi hồ sơ Provider."
+      toast.success(
+        mode === "revision"
+          ? "Đã gửi yêu cầu cập nhật profile để Reviewer xem xét."
+          : "Đã gửi hồ sơ Provider để Reviewer xem xét."
       );
+    } catch (error) {
+      toast.error(getSubmitErrorMessage(error, mode));
     }
   };
 
@@ -551,7 +585,7 @@ export const ProviderApplicationForm = ({
           {saveDraft.isPending ? "Đang lưu..." : "Lưu bản nháp"}
         </Button>
         <Button disabled={disabled} type="submit">
-          {submit.isPending ? "Đang gửi..." : "Gửi hồ sơ để xét duyệt"}
+          {submit.isPending ? "Đang gửi..." : getSubmitLabel(mode)}
         </Button>
       </div>
     </form>

@@ -9,6 +9,11 @@ vi.mock("@/features/protection/api/provider-api", () => ({
     submit: { isPending: false, mutateAsync: vi.fn() },
   }),
   useProviderNotifications: () => ({ data: null }),
+  useProviderProfileRevisionActions: () => ({
+    saveDraft: { isPending: false, mutateAsync: vi.fn() },
+    start: { isPending: false, mutateAsync: vi.fn() },
+    submit: { isPending: false, mutateAsync: vi.fn() },
+  }),
   useProviderWorkspace: () => ({
     data: {
       identity: {

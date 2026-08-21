@@ -1,7 +1,12 @@
+import { Button } from "@avin/ui/components/button";
+import { toast } from "sonner";
+
 import {
   useProviderNotifications,
+  useProviderProfileRevisionActions,
   useProviderWorkspace,
 } from "../api/provider-api";
+import type { ProviderWorkspace } from "../api/provider-api";
 import { ProviderApplicationForm } from "../components/provider-application-form";
 
 const APPLICATION_STATUS_LABELS = {
@@ -11,6 +16,101 @@ const APPLICATION_STATUS_LABELS = {
   PENDING_REVIEW: "Đang chờ Reviewer",
   REJECTED: "Đã bị từ chối",
 } as const;
+
+const PROFILE_STATUS_LABELS = {
+  ACTIVE: "Đang hoạt động",
+  REMOVED_FOR_FRAUD: "Đã gỡ vì gian lận",
+  SUSPENDED_PENDING_REVIEW: "Tạm ngưng, chờ xem xét",
+  WITHDRAWAL_PENDING: "Đang chờ rút khỏi chương trình",
+  WITHDRAWN: "Đã rút khỏi chương trình",
+} as const;
+
+const ProviderProfileRevisionPanel = ({
+  profileRevision,
+  publicProfile,
+}: {
+  profileRevision: ProviderWorkspace["profileRevision"];
+  publicProfile: ProviderWorkspace["publicProfile"];
+}) => {
+  const { start: startRevision } = useProviderProfileRevisionActions();
+  const canEditRevision =
+    profileRevision?.status === "DRAFT" ||
+    profileRevision?.status === "CHANGES_REQUESTED";
+  const canStartRevision = Boolean(
+    publicProfile &&
+    (!profileRevision ||
+      profileRevision.status === "APPROVED" ||
+      profileRevision.status === "REJECTED")
+  );
+
+  const handleStartRevision = async () => {
+    try {
+      await startRevision.mutateAsync({});
+      toast.success("Đã tạo bản nháp yêu cầu cập nhật profile.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Không thể tạo yêu cầu cập nhật profile."
+      );
+    }
+  };
+
+  return (
+    <>
+      {profileRevision?.status === "PENDING_REVIEW" ? (
+        <article className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-6 shadow-sm">
+          <h2 className="font-semibold text-xl">
+            Yêu cầu cập nhật profile đang chờ duyệt
+          </h2>
+          <p className="mt-2 text-muted-foreground text-sm">
+            Version public hiện tại vẫn là nguồn chính thức cho tới khi Reviewer
+            phát hành version mới.
+          </p>
+        </article>
+      ) : null}
+
+      {canStartRevision ? (
+        <article className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
+          <h2 className="font-semibold text-xl">Cập nhật profile công khai</h2>
+          <p className="mt-2 text-muted-foreground text-sm">
+            Provider chỉ có thể gửi yêu cầu. Mọi thay đổi định danh, dịch vụ
+            hoặc thanh toán đều phải được Reviewer xác minh lại.
+          </p>
+          <Button
+            className="mt-4"
+            disabled={startRevision.isPending}
+            onClick={handleStartRevision}
+            type="button"
+          >
+            {startRevision.isPending
+              ? "Đang tạo bản nháp..."
+              : "Yêu cầu chỉnh sửa profile"}
+          </Button>
+        </article>
+      ) : null}
+
+      {canEditRevision && profileRevision ? (
+        <article className="rounded-2xl border border-primary/30 bg-primary/5 p-6 shadow-sm">
+          <div className="mb-6">
+            <h2 className="font-semibold text-xl">
+              Yêu cầu cập nhật profile · bản {profileRevision.revisionNumber}
+            </h2>
+            <p className="mt-2 text-muted-foreground text-sm">
+              Bản public hiện tại không thay đổi trong lúc yêu cầu này chờ
+              duyệt.
+            </p>
+          </div>
+          <ProviderApplicationForm
+            application={profileRevision}
+            key={profileRevision.id}
+            mode="revision"
+          />
+        </article>
+      ) : null}
+    </>
+  );
+};
 
 export const ProviderWorkspacePage = () => {
   const workspace = useProviderWorkspace();
@@ -86,8 +186,8 @@ export const ProviderWorkspacePage = () => {
                 Hồ sơ công khai đã phát hành
               </h2>
               <p className="mt-2 text-muted-foreground text-sm">
-                Chỉ các trường tối thiểu đã được Admin duyệt mới xuất hiện ở
-                profile công khai.
+                Version hiện tại: {workspace.data.publicProfile.versionNumber} ·{" "}
+                {PROFILE_STATUS_LABELS[workspace.data.publicProfile.status]}
               </p>
               <a
                 className="mt-4 inline-flex font-medium text-primary text-sm underline underline-offset-4"
@@ -97,6 +197,11 @@ export const ProviderWorkspacePage = () => {
               </a>
             </article>
           ) : null}
+
+          <ProviderProfileRevisionPanel
+            profileRevision={workspace.data.profileRevision}
+            publicProfile={workspace.data.publicProfile}
+          />
 
           {notifications.data ? (
             <article className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm">

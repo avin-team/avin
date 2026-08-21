@@ -2,9 +2,11 @@ import { user } from "@avin/db/schema/auth";
 import {
   protectionProviderApplication,
   protectionProviderProfile,
+  protectionProviderProfileRevision,
+  protectionProviderProfileVersion,
 } from "@avin/db/schema/protection";
 import { ORPCError } from "@orpc/server";
-import { and, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 
 import {
   createNotificationEvent,
@@ -24,6 +26,10 @@ import type {
 type Database = Context["db"];
 type ProviderApplication = typeof protectionProviderApplication.$inferSelect;
 type ProviderProfile = typeof protectionProviderProfile.$inferSelect;
+type ProviderProfileRevision =
+  typeof protectionProviderProfileRevision.$inferSelect;
+type ProviderProfileVersion =
+  typeof protectionProviderProfileVersion.$inferSelect;
 
 const providerProfilePath = (profileSlug: string): string =>
   `/avin-check/provider/${profileSlug}`;
@@ -60,16 +66,61 @@ export const toProviderApplicationView = (
   updatedAt: application.updatedAt.toISOString(),
 });
 
-export const toProviderProfileView = (profile: ProviderProfile) => ({
-  displayName: profile.displayName,
+const toProviderProfileHistoryView = (version: ProviderProfileVersion) => ({
+  publishedAt: version.publishedAt.toISOString(),
+  status: version.status,
+  statusReason: version.statusReason,
+  versionNumber: version.versionNumber,
+});
+
+export const toProviderProfileView = (
+  profile: ProviderProfile,
+  version?: ProviderProfileVersion | null,
+  history: ProviderProfileVersion[] = []
+) => ({
+  displayName: version?.displayName ?? profile.displayName,
+  history: history.map(toProviderProfileHistoryView),
   id: profile.id,
-  officialChannels: profile.officialChannels,
+  officialChannels: version?.officialChannels ?? profile.officialChannels,
   profileSlug: profile.profileSlug,
   publicUrl: providerProfilePath(profile.profileSlug),
-  publishedAt: profile.publishedAt.toISOString(),
-  services: profile.services,
-  status: profile.status,
-  verifiedAt: profile.verifiedAt.toISOString(),
+  publishedAt: (version?.publishedAt ?? profile.publishedAt).toISOString(),
+  services: version?.services ?? profile.services,
+  status: version?.status ?? profile.status,
+  statusReason: version?.statusReason ?? null,
+  verifiedAt: (version?.verifiedAt ?? profile.verifiedAt).toISOString(),
+  versionId: version?.id ?? profile.id,
+  versionNumber: version?.versionNumber ?? 1,
+});
+
+export const toProviderProfileRevisionView = (
+  revision: ProviderProfileRevision
+) => ({
+  ageEvidenceReference: revision.ageEvidenceReference,
+  baseVersionId: revision.baseVersionId,
+  createdAt: revision.createdAt.toISOString(),
+  fullName: revision.fullName,
+  id: revision.id,
+  identityEvidenceReference: revision.identityEvidenceReference,
+  officialChannelEvidenceReference: revision.officialChannelEvidenceReference,
+  officialChannels: revision.officialChannels,
+  operatingHistoryEvidenceReference: revision.operatingHistoryEvidenceReference,
+  operatingSince: revision.operatingSince,
+  paymentAccount: revision.paymentAccount,
+  paymentDisclosureConsent: revision.paymentDisclosureConsent,
+  paymentEvidenceReference: revision.paymentEvidenceReference,
+  policyAcceptedAt: toIso(revision.policyAcceptedAt),
+  policyVersion: revision.policyVersion,
+  profileId: revision.profileId,
+  providerUserId: revision.providerUserId,
+  reviewReason: revision.reviewReason,
+  reviewedAt: toIso(revision.reviewedAt),
+  reviewedByUserId: revision.reviewedByUserId,
+  revisionNumber: revision.revisionNumber,
+  services: revision.services,
+  status: revision.status,
+  submittedAt: toIso(revision.submittedAt),
+  updatedAt: revision.updatedAt.toISOString(),
 });
 
 const toAdminApplicationView = (
@@ -110,6 +161,89 @@ const findProviderProfile = async (
   return profile ?? null;
 };
 
+const findLatestProviderProfileVersion = async (
+  database: Database,
+  profileId: string
+): Promise<ProviderProfileVersion | null> => {
+  const [version] = await database
+    .select()
+    .from(protectionProviderProfileVersion)
+    .where(eq(protectionProviderProfileVersion.profileId, profileId))
+    .orderBy(desc(protectionProviderProfileVersion.versionNumber))
+    .limit(1);
+  return version ?? null;
+};
+
+const findProviderProfileVersionHistory = async (
+  database: Database,
+  profileId: string
+): Promise<ProviderProfileVersion[]> => {
+  const versions = await database
+    .select()
+    .from(protectionProviderProfileVersion)
+    .where(eq(protectionProviderProfileVersion.profileId, profileId))
+    .orderBy(asc(protectionProviderProfileVersion.versionNumber))
+    .execute();
+  return versions;
+};
+
+const findLatestProviderProfileRevision = async (
+  database: Database,
+  profileId: string
+): Promise<ProviderProfileRevision | null> => {
+  const [revision] = await database
+    .select()
+    .from(protectionProviderProfileRevision)
+    .where(eq(protectionProviderProfileRevision.profileId, profileId))
+    .orderBy(desc(protectionProviderProfileRevision.revisionNumber))
+    .limit(1);
+  return revision ?? null;
+};
+
+const getProviderProfilePublicView = async (
+  database: Database,
+  profile: ProviderProfile
+) => {
+  const [version, history] = await Promise.all([
+    findLatestProviderProfileVersion(database, profile.id),
+    findProviderProfileVersionHistory(database, profile.id),
+  ]);
+  return toProviderProfileView(profile, version, history);
+};
+
+const ensureProviderProfileVersion = async (
+  database: Database,
+  profile: ProviderProfile
+): Promise<ProviderProfileVersion> => {
+  const existing = await findLatestProviderProfileVersion(database, profile.id);
+  if (existing) {
+    return existing;
+  }
+
+  const [created] = await database
+    .insert(protectionProviderProfileVersion)
+    .values({
+      displayName: profile.displayName,
+      officialChannels: profile.officialChannels,
+      profileId: profile.id,
+      profileSlug: profile.profileSlug,
+      publishedAt: profile.publishedAt,
+      services: profile.services,
+      sourceApplicationId: profile.applicationId,
+      status: profile.status,
+      verifiedAt: profile.verifiedAt,
+      versionNumber: 1,
+    })
+    .returning();
+
+  if (!created) {
+    throw new ORPCError("CONFLICT", {
+      message: "Provider profile version could not be created",
+    });
+  }
+  return created;
+};
+
 export const getProviderApplicationSnapshot = async (
   database: Database,
   providerUserId: string
@@ -119,9 +253,19 @@ export const getProviderApplicationSnapshot = async (
     findProviderProfile(database, providerUserId),
   ]);
 
+  const [publicProfile, profileRevision] = profile
+    ? await Promise.all([
+        getProviderProfilePublicView(database, profile),
+        findLatestProviderProfileRevision(database, profile.id),
+      ])
+    : [null, null];
+
   return {
     application: application ? toProviderApplicationView(application) : null,
-    publicProfile: profile ? toProviderProfileView(profile) : null,
+    profileRevision: profileRevision
+      ? toProviderProfileRevisionView(profileRevision)
+      : null,
+    publicProfile,
   };
 };
 
@@ -387,8 +531,651 @@ export const getProviderApplicationForAdmin = async (
       name: row.applicant.name,
     },
     application: toProviderApplicationView(row.application),
-    publicProfile: row.profile ? toProviderProfileView(row.profile) : null,
+    publicProfile: row.profile
+      ? await getProviderProfilePublicView(database, row.profile)
+      : null,
   };
+};
+
+export const startProviderProfileRevision = async (
+  database: Database,
+  providerUserId: string
+) => {
+  const profile = await findProviderProfile(database, providerUserId);
+  if (!profile) {
+    throw new ORPCError("NOT_FOUND", {
+      message: "Provider profile does not exist",
+    });
+  }
+
+  const latestRevision = await findLatestProviderProfileRevision(
+    database,
+    profile.id
+  );
+  if (latestRevision?.status === "PENDING_REVIEW") {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Provider profile revision is already pending review",
+    });
+  }
+  if (
+    latestRevision &&
+    ["DRAFT", "CHANGES_REQUESTED"].includes(latestRevision.status)
+  ) {
+    return toProviderProfileRevisionView(latestRevision);
+  }
+
+  const baseVersion = await ensureProviderProfileVersion(database, profile);
+  const [created] = await database
+    .insert(protectionProviderProfileRevision)
+    .values({
+      baseVersionId: baseVersion.id,
+      fullName: baseVersion.displayName,
+      officialChannels: baseVersion.officialChannels,
+      operatingSince: null,
+      profileId: profile.id,
+      providerUserId,
+      revisionNumber: (latestRevision?.revisionNumber ?? 0) + 1,
+      services: baseVersion.services,
+      status: "DRAFT",
+    })
+    .returning();
+
+  if (!created) {
+    throw new ORPCError("CONFLICT", {
+      message: "Provider profile revision could not be created",
+    });
+  }
+  return toProviderProfileRevisionView(created);
+};
+
+export const saveProviderProfileRevisionDraft = async (
+  database: Database,
+  providerUserId: string,
+  input: Record<string, unknown>
+) => {
+  const profile = await findProviderProfile(database, providerUserId);
+  if (!profile) {
+    throw new ORPCError("NOT_FOUND", {
+      message: "Provider profile does not exist",
+    });
+  }
+
+  let revision = await findLatestProviderProfileRevision(database, profile.id);
+  if (!revision || ["APPROVED", "REJECTED"].includes(revision.status)) {
+    await startProviderProfileRevision(database, providerUserId);
+    revision = await findLatestProviderProfileRevision(database, profile.id);
+  }
+  if (!revision) {
+    throw new ORPCError("CONFLICT", {
+      message: "Provider profile revision could not be loaded",
+    });
+  }
+  if (revision.status === "PENDING_REVIEW") {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Provider profile revision is already pending review",
+    });
+  }
+
+  const now = new Date();
+  const { policyAccepted, ...draftFields } = input;
+  const { policyAcceptedAt: existingPolicyAcceptedAt } = revision;
+  let policyAcceptedAt = existingPolicyAcceptedAt;
+  if (policyAccepted === true) {
+    policyAcceptedAt = now;
+  } else if (policyAccepted === false) {
+    policyAcceptedAt = null;
+  }
+
+  const [updated] = await database
+    .update(protectionProviderProfileRevision)
+    .set({
+      ...draftFields,
+      policyAcceptedAt,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(protectionProviderProfileRevision.id, revision.id),
+        eq(protectionProviderProfileRevision.providerUserId, providerUserId),
+        eq(protectionProviderProfileRevision.status, revision.status)
+      )
+    )
+    .returning();
+
+  if (!updated) {
+    throw new ORPCError("CONFLICT", {
+      message: "Provider profile revision changed concurrently",
+    });
+  }
+  return getProviderApplicationSnapshot(database, providerUserId);
+};
+
+export const submitProviderProfileRevision = async (
+  database: Database,
+  providerUserId: string,
+  input: unknown
+) => {
+  let submission;
+  try {
+    submission = validateProviderApplicationSubmission(input);
+  } catch (error) {
+    return throwApplicationMutationError(error);
+  }
+
+  const profile = await findProviderProfile(database, providerUserId);
+  if (!profile) {
+    throw new ORPCError("NOT_FOUND", {
+      message: "Provider profile does not exist",
+    });
+  }
+  const existing = await findLatestProviderProfileRevision(
+    database,
+    profile.id
+  );
+  if (!existing) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Start a Provider profile revision before submitting it",
+    });
+  }
+  if (existing.status === "PENDING_REVIEW") {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Provider profile revision is already pending review",
+    });
+  }
+  if (["APPROVED", "REJECTED"].includes(existing.status)) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Start a new Provider profile revision before submitting it",
+    });
+  }
+
+  const now = new Date();
+  const { policyAccepted: _policyAccepted, ...submissionFields } = submission;
+  const result = await database.transaction(async (transaction) => {
+    const currentVersion = await findLatestProviderProfileVersion(
+      transaction,
+      profile.id
+    );
+    if (!currentVersion || currentVersion.id !== existing.baseVersionId) {
+      throw new ORPCError("CONFLICT", {
+        message: "Provider profile changed; start a new revision",
+      });
+    }
+
+    assertProviderApplicationTransition(existing.status, "PENDING_REVIEW");
+    const [updated] = await transaction
+      .update(protectionProviderProfileRevision)
+      .set({
+        ...submissionFields,
+        policyAcceptedAt: now,
+        reviewReason: null,
+        status: "PENDING_REVIEW",
+        submittedAt: now,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(protectionProviderProfileRevision.id, existing.id),
+          eq(protectionProviderProfileRevision.providerUserId, providerUserId),
+          eq(protectionProviderProfileRevision.status, existing.status)
+        )
+      )
+      .returning();
+
+    if (!updated) {
+      throw new ORPCError("CONFLICT", {
+        message: "Provider profile revision changed concurrently",
+      });
+    }
+
+    await createNotificationEvent(transaction, {
+      body: "Yêu cầu cập nhật profile Provider của bạn đã được gửi để xem xét.",
+      context: {
+        profileId: profile.id,
+        revisionId: updated.id,
+        revisionNumber: updated.revisionNumber,
+      },
+      email: {
+        htmlBody:
+          "<p>Yêu cầu cập nhật profile Provider của bạn đã được gửi để xem xét.</p>",
+        recipientUserIds: [providerUserId],
+        subject: "Avin Check: yêu cầu cập nhật profile đã được gửi",
+        textBody:
+          "Yêu cầu cập nhật profile Provider của bạn đã được gửi để xem xét.",
+      },
+      eventType: "protection_provider_profile_revision.submitted",
+      recipients: [
+        { targetPath: "/provider", userId: providerUserId },
+        ...(await listNotificationRecipientsByRole(transaction, {
+          role: "ADMIN",
+          targetPath: "/avin-check/provider-revisions",
+        })),
+      ],
+      sourceId: `${updated.id}:${updated.revisionNumber}:submitted`,
+      sourceType: "PROTECTION_PROVIDER_PROFILE_REVISION",
+      title: "Yêu cầu cập nhật profile Provider mới",
+    });
+    const snapshot = await getProviderApplicationSnapshot(
+      transaction,
+      providerUserId
+    );
+    return { revision: updated, snapshot };
+  });
+  return {
+    ...result.snapshot,
+    profileRevision: toProviderProfileRevisionView(result.revision),
+  };
+};
+
+const toAdminProfileRevisionView = (
+  revision: ProviderProfileRevision,
+  applicant: { email: string; id: string; name: string }
+) => ({
+  applicantEmail: applicant.email,
+  applicantId: applicant.id,
+  applicantName: applicant.name,
+  fullName: revision.fullName,
+  id: revision.id,
+  profileId: revision.profileId,
+  reviewReason: revision.reviewReason,
+  revisionNumber: revision.revisionNumber,
+  services: revision.services,
+  status: revision.status,
+  submittedAt: toIso(revision.submittedAt),
+});
+
+export const listProviderProfileRevisions = async (
+  database: Database,
+  input?: { search?: string; status?: ProviderApplicationStatus }
+) => {
+  const rows = await database
+    .select({
+      applicant: user,
+      revision: protectionProviderProfileRevision,
+    })
+    .from(protectionProviderProfileRevision)
+    .innerJoin(
+      user,
+      eq(protectionProviderProfileRevision.providerUserId, user.id)
+    )
+    .orderBy(desc(protectionProviderProfileRevision.createdAt));
+  const normalizedSearch = input?.search?.trim().toLowerCase();
+
+  return rows.flatMap(({ applicant, revision }) => {
+    if (input?.status && revision.status !== input.status) {
+      return [];
+    }
+    if (
+      normalizedSearch &&
+      ![applicant.name, applicant.email, revision.fullName, revision.services]
+        .filter((value): value is string => Boolean(value))
+        .some((value) => value.toLowerCase().includes(normalizedSearch))
+    ) {
+      return [];
+    }
+    return [toAdminProfileRevisionView(revision, applicant)];
+  });
+};
+
+export const getProviderProfileRevisionForAdmin = async (
+  database: Database,
+  revisionId: string
+) => {
+  const [row] = await database
+    .select({
+      applicant: user,
+      profile: protectionProviderProfile,
+      revision: protectionProviderProfileRevision,
+    })
+    .from(protectionProviderProfileRevision)
+    .innerJoin(
+      user,
+      eq(protectionProviderProfileRevision.providerUserId, user.id)
+    )
+    .innerJoin(
+      protectionProviderProfile,
+      eq(
+        protectionProviderProfileRevision.profileId,
+        protectionProviderProfile.id
+      )
+    )
+    .where(eq(protectionProviderProfileRevision.id, revisionId))
+    .limit(1);
+
+  if (!row) {
+    throw new ORPCError("NOT_FOUND", {
+      message: "Provider profile revision does not exist",
+    });
+  }
+
+  return {
+    applicant: {
+      email: row.applicant.email,
+      id: row.applicant.id,
+      name: row.applicant.name,
+    },
+    profileId: row.profile.id,
+    profileRevision: toProviderProfileRevisionView(row.revision),
+    publicProfile: await getProviderProfilePublicView(database, row.profile),
+  };
+};
+
+const escapeHtml = (value: string): string =>
+  value.replaceAll(
+    /[&<>'"]/gu,
+    (character) =>
+      ({
+        '"': "&quot;",
+        "&": "&amp;",
+        "'": "&#39;",
+        "<": "&lt;",
+        ">": "&gt;",
+      })[character] ?? character
+  );
+
+const getProfileRevisionDecisionNotification = (
+  decision: ProviderApplicationDecision
+) => {
+  if (decision === "APPROVED") {
+    return {
+      body: "Yêu cầu cập nhật profile Provider của bạn đã được duyệt và phát hành thành version mới.",
+      eventType: "protection_provider_profile_revision.approved" as const,
+      subject: "Avin Check: cập nhật profile Provider đã được duyệt",
+      title: "Cập nhật profile Provider đã được duyệt",
+    };
+  }
+  if (decision === "CHANGES_REQUESTED") {
+    return {
+      body: "Yêu cầu cập nhật profile Provider cần được bổ sung hoặc chỉnh sửa theo lý do của Reviewer.",
+      eventType:
+        "protection_provider_profile_revision.changes_requested" as const,
+      subject: "Avin Check: cần chỉnh sửa yêu cầu cập nhật profile",
+      title: "Yêu cầu cập nhật profile cần chỉnh sửa",
+    };
+  }
+  return {
+    body: "Yêu cầu cập nhật profile Provider đã bị từ chối theo lý do của Reviewer.",
+    eventType: "protection_provider_profile_revision.rejected" as const,
+    subject: "Avin Check: yêu cầu cập nhật profile bị từ chối",
+    title: "Yêu cầu cập nhật profile bị từ chối",
+  };
+};
+
+export const decideProviderProfileRevision = async ({
+  database,
+  decision,
+  reason,
+  reviewerUserId,
+  revisionId,
+}: {
+  database: Database;
+  decision: ProviderApplicationDecision;
+  reason?: string;
+  reviewerUserId: string;
+  revisionId: string;
+}) => {
+  const normalizedReason = reason?.trim();
+  if (decision !== "APPROVED" && !normalizedReason) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "A reason is required for Provider profile changes or rejection",
+    });
+  }
+
+  const now = new Date();
+  const result = await database.transaction(async (transaction) => {
+    const [revision] = await transaction
+      .select()
+      .from(protectionProviderProfileRevision)
+      .where(eq(protectionProviderProfileRevision.id, revisionId))
+      .limit(1);
+    if (!revision) {
+      throw new ORPCError("NOT_FOUND", {
+        message: "Provider profile revision does not exist",
+      });
+    }
+    if (revision.status !== "PENDING_REVIEW") {
+      throw new ORPCError("BAD_REQUEST", {
+        message: "Only pending Provider profile revisions can be decided",
+      });
+    }
+
+    const [profile] = await transaction
+      .select()
+      .from(protectionProviderProfile)
+      .where(eq(protectionProviderProfile.id, revision.profileId))
+      .limit(1);
+    if (!profile) {
+      throw new ORPCError("NOT_FOUND", {
+        message: "Provider profile does not exist",
+      });
+    }
+
+    const currentVersion = await findLatestProviderProfileVersion(
+      transaction,
+      profile.id
+    );
+    if (!currentVersion) {
+      throw new ORPCError("CONFLICT", {
+        message: "Provider profile has no published version",
+      });
+    }
+    if (decision === "APPROVED") {
+      if (currentVersion.id !== revision.baseVersionId) {
+        throw new ORPCError("CONFLICT", {
+          message: "Provider profile changed; review the latest revision",
+        });
+      }
+      try {
+        validateProviderApplicationSubmission(
+          {
+            ageEvidenceReference: revision.ageEvidenceReference,
+            fullName: revision.fullName,
+            identityEvidenceReference: revision.identityEvidenceReference,
+            officialChannelEvidenceReference:
+              revision.officialChannelEvidenceReference,
+            officialChannels: revision.officialChannels,
+            operatingHistoryEvidenceReference:
+              revision.operatingHistoryEvidenceReference,
+            operatingSince: revision.operatingSince,
+            paymentAccount: revision.paymentAccount,
+            paymentDisclosureConsent: revision.paymentDisclosureConsent,
+            paymentEvidenceReference: revision.paymentEvidenceReference,
+            policyAccepted: Boolean(revision.policyAcceptedAt),
+            policyVersion: revision.policyVersion,
+            services: revision.services,
+          },
+          now
+        );
+      } catch (error) {
+        return throwApplicationMutationError(error);
+      }
+    }
+
+    assertProviderApplicationTransition(revision.status, decision);
+    const [updated] = await transaction
+      .update(protectionProviderProfileRevision)
+      .set({
+        reviewReason: decision === "APPROVED" ? null : normalizedReason,
+        reviewedAt: now,
+        reviewedByUserId: reviewerUserId,
+        status: decision,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(protectionProviderProfileRevision.id, revisionId),
+          eq(protectionProviderProfileRevision.status, "PENDING_REVIEW")
+        )
+      )
+      .returning();
+    if (!updated) {
+      throw new ORPCError("CONFLICT", {
+        message: "Provider profile revision was decided by another Reviewer",
+      });
+    }
+
+    let profileVersion: ProviderProfileVersion | null = null;
+    if (decision === "APPROVED") {
+      if (
+        typeof updated.fullName !== "string" ||
+        typeof updated.services !== "string"
+      ) {
+        throw new ORPCError("BAD_REQUEST", {
+          message: "Approved Provider profile data is incomplete",
+        });
+      }
+      const [createdVersion] = await transaction
+        .insert(protectionProviderProfileVersion)
+        .values({
+          displayName: updated.fullName,
+          officialChannels: updated.officialChannels ?? {},
+          profileId: profile.id,
+          profileSlug: profile.profileSlug,
+          publishedAt: now,
+          publishedByUserId: reviewerUserId,
+          services: updated.services,
+          sourceApplicationId: profile.applicationId,
+          status: profile.status,
+          verifiedAt: now,
+          versionNumber: currentVersion.versionNumber + 1,
+        })
+        .returning();
+      profileVersion = createdVersion ?? null;
+      if (!profileVersion) {
+        throw new ORPCError("CONFLICT", {
+          message: "Provider profile version could not be published",
+        });
+      }
+
+      const [updatedProfile] = await transaction
+        .update(protectionProviderProfile)
+        .set({
+          displayName: updated.fullName,
+          officialChannels: updated.officialChannels ?? {},
+          publishedAt: now,
+          services: updated.services,
+          updatedAt: now,
+          verifiedAt: now,
+        })
+        .where(eq(protectionProviderProfile.id, profile.id))
+        .returning();
+      if (!updatedProfile) {
+        throw new ORPCError("CONFLICT", {
+          message: "Provider profile could not be updated",
+        });
+      }
+    }
+
+    const copy = getProfileRevisionDecisionNotification(decision);
+    const decisionReason = normalizedReason ?? "Đã đạt yêu cầu xét duyệt.";
+    await createNotificationEvent(transaction, {
+      body: copy.body,
+      context: {
+        decision,
+        profileId: profile.id,
+        revisionId: updated.id,
+        revisionNumber: updated.revisionNumber,
+      },
+      email: {
+        htmlBody: `<p>${copy.body}</p><p>Lý do: ${escapeHtml(decisionReason)}</p>`,
+        recipientUserIds: [updated.providerUserId],
+        subject: copy.subject,
+        textBody: `${copy.body} Lý do: ${decisionReason}`,
+      },
+      eventType: copy.eventType,
+      recipients: [{ targetPath: "/provider", userId: updated.providerUserId }],
+      sourceId: `${updated.id}:${decision}`,
+      sourceType: "PROTECTION_PROVIDER_PROFILE_REVISION",
+      title: copy.title,
+    });
+
+    return {
+      profileId: profile.id,
+      profileVersion,
+      revision: updated,
+    };
+  });
+
+  const profile = await findProviderProfile(
+    database,
+    result.revision.providerUserId
+  );
+  return {
+    profileRevision: toProviderProfileRevisionView(result.revision),
+    publicProfile: profile
+      ? await getProviderProfilePublicView(database, profile)
+      : null,
+  };
+};
+
+export const publishProviderProfileStatus = ({
+  database,
+  profileId,
+  reviewerUserId,
+  status,
+  statusReason,
+}: {
+  database: Database;
+  profileId: string;
+  reviewerUserId: string;
+  status: ProviderProfile["status"];
+  statusReason?: string;
+}) => {
+  const now = new Date();
+  return database.transaction(async (transaction) => {
+    const [profile] = await transaction
+      .select()
+      .from(protectionProviderProfile)
+      .where(eq(protectionProviderProfile.id, profileId))
+      .limit(1);
+    if (!profile) {
+      throw new ORPCError("NOT_FOUND", {
+        message: "Provider profile does not exist",
+      });
+    }
+    const currentVersion = await findLatestProviderProfileVersion(
+      transaction,
+      profile.id
+    );
+    if (!currentVersion) {
+      throw new ORPCError("CONFLICT", {
+        message: "Provider profile has no published version",
+      });
+    }
+    const [createdVersion] = await transaction
+      .insert(protectionProviderProfileVersion)
+      .values({
+        displayName: currentVersion.displayName,
+        officialChannels: currentVersion.officialChannels,
+        profileId: profile.id,
+        profileSlug: profile.profileSlug,
+        publishedAt: now,
+        publishedByUserId: reviewerUserId,
+        services: currentVersion.services,
+        sourceApplicationId: profile.applicationId,
+        status,
+        statusReason: statusReason?.trim() || null,
+        verifiedAt: currentVersion.verifiedAt,
+        versionNumber: currentVersion.versionNumber + 1,
+      })
+      .returning();
+    if (!createdVersion) {
+      throw new ORPCError("CONFLICT", {
+        message: "Provider profile status version could not be published",
+      });
+    }
+    const [updatedProfile] = await transaction
+      .update(protectionProviderProfile)
+      .set({ status, updatedAt: now })
+      .where(eq(protectionProviderProfile.id, profile.id))
+      .returning();
+    if (!updatedProfile) {
+      throw new ORPCError("CONFLICT", {
+        message: "Provider profile status could not be updated",
+      });
+    }
+
+    return getProviderProfilePublicView(transaction, updatedProfile);
+  });
 };
 
 const getDecisionNotification = (decision: ProviderApplicationDecision) => {
@@ -415,19 +1202,6 @@ const getDecisionNotification = (decision: ProviderApplicationDecision) => {
     title: "Hồ sơ Provider bị từ chối",
   };
 };
-
-const escapeHtml = (value: string): string =>
-  value.replaceAll(
-    /[&<>'"]/gu,
-    (character) =>
-      ({
-        '"': "&quot;",
-        "&": "&amp;",
-        "'": "&#39;",
-        "<": "&lt;",
-        ">": "&gt;",
-      })[character] ?? character
-  );
 
 export const decideProviderApplication = ({
   applicationId,
@@ -520,6 +1294,7 @@ export const decideProviderApplication = ({
     }
 
     let profile: ProviderProfile | null = null;
+    let profileVersion: ProviderProfileVersion | null = null;
     if (decision === "APPROVED") {
       if (
         typeof updated.fullName !== "string" ||
@@ -548,6 +1323,35 @@ export const decideProviderApplication = ({
         })
         .returning();
       profile = createdProfile ?? null;
+
+      if (!profile) {
+        throw new ORPCError("CONFLICT", {
+          message: "Provider profile could not be published",
+        });
+      }
+
+      const [createdVersion] = await transaction
+        .insert(protectionProviderProfileVersion)
+        .values({
+          displayName,
+          officialChannels: updated.officialChannels ?? {},
+          profileId: profile.id,
+          profileSlug: profile.profileSlug,
+          publishedAt: now,
+          publishedByUserId: reviewerUserId,
+          services,
+          sourceApplicationId: updated.id,
+          status: "ACTIVE",
+          verifiedAt: now,
+          versionNumber: 1,
+        })
+        .returning();
+      profileVersion = createdVersion ?? null;
+      if (!profileVersion) {
+        throw new ORPCError("CONFLICT", {
+          message: "Provider profile version could not be published",
+        });
+      }
     }
 
     const copy = getDecisionNotification(decision);
@@ -573,7 +1377,10 @@ export const decideProviderApplication = ({
 
     return {
       application: toProviderApplicationView(updated),
-      publicProfile: profile ? toProviderProfileView(profile) : null,
+      publicProfile:
+        profile && profileVersion
+          ? toProviderProfileView(profile, profileVersion, [profileVersion])
+          : null,
     };
   });
 };
@@ -592,5 +1399,5 @@ export const getPublicProviderProfile = async (
       message: "Provider profile does not exist",
     });
   }
-  return toProviderProfileView(profile);
+  return getProviderProfilePublicView(database, profile);
 };

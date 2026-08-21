@@ -80,6 +80,11 @@ export const sidebarData: SidebarData = {
           title: "Duyệt Provider",
           url: "/avin-check/providers",
         },
+        {
+          icon: ShieldCheckIcon,
+          title: "Duyệt cập nhật profile",
+          url: "/avin-check/provider-revisions",
+        },
       ],
       title: "Bảo vệ giao dịch bên ngoài",
     },

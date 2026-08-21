@@ -1,6 +1,8 @@
 import {
   protectionProviderApplication,
   protectionProviderProfile,
+  protectionProviderProfileRevision,
+  protectionProviderProfileVersion,
 } from "@avin/db/schema/protection";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -20,14 +22,26 @@ const { createNotificationEvent } =
   await import("../notifications/notification");
 const { decideProviderApplication, submitProviderApplication } =
   await import("./provider-application-service");
+const {
+  decideProviderProfileRevision,
+  getPublicProviderProfile,
+  publishProviderProfileStatus,
+  saveProviderProfileRevisionDraft,
+  startProviderProfileRevision,
+  submitProviderProfileRevision,
+} = await import("./provider-application-service");
 
 type ApplicationRow = typeof protectionProviderApplication.$inferSelect;
 type ProfileRow = typeof protectionProviderProfile.$inferSelect;
+type ProfileRevisionRow = typeof protectionProviderProfileRevision.$inferSelect;
+type ProfileVersionRow = typeof protectionProviderProfileVersion.$inferSelect;
 type Database = Parameters<typeof submitProviderApplication>[0];
 
 interface ProviderApplicationState {
   application: ApplicationRow | null;
   profile: ProfileRow | null;
+  revisions: ProfileRevisionRow[];
+  versions: ProfileVersionRow[];
 }
 
 const validSubmission: ProviderApplicationSubmission = {
@@ -85,23 +99,115 @@ const createApplication = (
   updatedAt: timestamp,
 });
 
+const createProfile = (): ProfileRow => ({
+  applicationId: "application-1",
+  createdAt: timestamp,
+  displayName: validSubmission.fullName,
+  id: "profile-1",
+  officialChannels: validSubmission.officialChannels,
+  profileSlug: "nguyen-provider-provider1",
+  providerUserId: "provider-1",
+  publishedAt: timestamp,
+  services: validSubmission.services,
+  status: "ACTIVE",
+  updatedAt: timestamp,
+  verifiedAt: timestamp,
+});
+
+const createProfileVersion = (
+  versionNumber = 1,
+  overrides: Partial<ProfileVersionRow> = {}
+): ProfileVersionRow => ({
+  createdAt: timestamp,
+  displayName: validSubmission.fullName,
+  id: `profile-version-${versionNumber}`,
+  officialChannels: validSubmission.officialChannels,
+  profileId: "profile-1",
+  profileSlug: "nguyen-provider-provider1",
+  publishedAt: timestamp,
+  publishedByUserId: "admin-1",
+  services: validSubmission.services,
+  sourceApplicationId: "application-1",
+  status: "ACTIVE",
+  statusReason: null,
+  verifiedAt: timestamp,
+  versionNumber,
+  ...overrides,
+});
+
+const createProfileRevision = (
+  status: ProfileRevisionRow["status"] = "DRAFT",
+  overrides: Partial<ProfileRevisionRow> = {}
+): ProfileRevisionRow => ({
+  ageEvidenceReference: validSubmission.ageEvidenceReference,
+  baseVersionId: "profile-version-1",
+  createdAt: timestamp,
+  fullName: validSubmission.fullName,
+  id: "profile-revision-1",
+  identityEvidenceReference: validSubmission.identityEvidenceReference,
+  officialChannelEvidenceReference:
+    validSubmission.officialChannelEvidenceReference,
+  officialChannels: validSubmission.officialChannels,
+  operatingHistoryEvidenceReference:
+    validSubmission.operatingHistoryEvidenceReference,
+  operatingSince: validSubmission.operatingSince,
+  paymentAccount: validSubmission.paymentAccount,
+  paymentDisclosureConsent: validSubmission.paymentDisclosureConsent,
+  paymentEvidenceReference: validSubmission.paymentEvidenceReference,
+  policyAcceptedAt: timestamp,
+  policyVersion: validSubmission.policyVersion,
+  profileId: "profile-1",
+  providerUserId: "provider-1",
+  reviewReason: null,
+  reviewedAt: null,
+  reviewedByUserId: null,
+  revisionNumber: 1,
+  services: validSubmission.services,
+  status,
+  submittedAt: null,
+  updatedAt: timestamp,
+  ...overrides,
+});
+
 const createDatabase = (state: ProviderApplicationState): Database => {
   const select = vi.fn(() => {
     let table: unknown;
     const query = {
+      execute: vi.fn(() => {
+        if (table === protectionProviderProfileVersion) {
+          return state.versions;
+        }
+        if (table === protectionProviderProfileRevision) {
+          return state.revisions;
+        }
+        return [];
+      }),
       from: vi.fn((nextTable: unknown) => {
         table = nextTable;
         return query;
       }),
-      limit: vi.fn(() => {
+      limit: vi.fn((requestedLimit = 1) => {
         if (table === protectionProviderApplication) {
           return state.application ? [state.application] : [];
         }
         if (table === protectionProviderProfile) {
           return state.profile ? [state.profile] : [];
         }
+        if (table === protectionProviderProfileVersion) {
+          const versions = state.versions.toSorted(
+            (left, right) => right.versionNumber - left.versionNumber
+          );
+          return requestedLimit === 1 ? versions.slice(0, 1) : versions;
+        }
+        if (table === protectionProviderProfileRevision) {
+          const revisions = state.revisions.toSorted(
+            (left, right) => right.revisionNumber - left.revisionNumber
+          );
+          return requestedLimit === 1 ? revisions.slice(0, 1) : revisions;
+        }
         return [];
       }),
+      orderBy: vi.fn(() => query),
       where: vi.fn(() => query),
     };
     return query;
@@ -121,21 +227,34 @@ const createDatabase = (state: ProviderApplicationState): Database => {
         }
         if (table === protectionProviderProfile) {
           state.profile = {
-            applicationId: "application-1",
-            createdAt: timestamp,
+            ...createProfile(),
             displayName: String(values.displayName),
-            id: "profile-1",
             officialChannels:
               values.officialChannels as ProfileRow["officialChannels"],
             profileSlug: String(values.profileSlug),
             providerUserId: String(values.providerUserId),
-            publishedAt: timestamp,
             services: String(values.services),
-            status: "ACTIVE",
-            updatedAt: timestamp,
-            verifiedAt: timestamp,
           };
           return [state.profile];
+        }
+        if (table === protectionProviderProfileVersion) {
+          const version = createProfileVersion(
+            Number(values.versionNumber),
+            values as Partial<ProfileVersionRow>
+          );
+          state.versions.push(version);
+          return [version];
+        }
+        if (table === protectionProviderProfileRevision) {
+          const revision = createProfileRevision(
+            String(values.status ?? "DRAFT") as ProfileRevisionRow["status"],
+            {
+              ...values,
+              id: `profile-revision-${state.revisions.length + 1}`,
+            } as Partial<ProfileRevisionRow>
+          );
+          state.revisions.push(revision);
+          return [revision];
         }
         return [];
       }),
@@ -152,6 +271,23 @@ const createDatabase = (state: ProviderApplicationState): Database => {
               ...values,
             } as ApplicationRow;
             return [state.application];
+          }
+          if (table === protectionProviderProfile && state.profile) {
+            state.profile = {
+              ...state.profile,
+              ...values,
+            } as ProfileRow;
+            return [state.profile];
+          }
+          if (table === protectionProviderProfileRevision) {
+            const [revision] = state.revisions;
+            if (revision) {
+              state.revisions[0] = {
+                ...revision,
+                ...values,
+              } as ProfileRevisionRow;
+              return [state.revisions[0]];
+            }
           }
           return [];
         }),
@@ -181,6 +317,8 @@ describe("Provider application review workflow", () => {
     const state: ProviderApplicationState = {
       application: null,
       profile: null,
+      revisions: [],
+      versions: [],
     };
     const database = createDatabase(state);
 
@@ -223,6 +361,7 @@ describe("Provider application review workflow", () => {
       status: "ACTIVE",
     });
     expect(state.application?.status).toBe("APPROVED");
+    expect(state.versions).toHaveLength(1);
     expect(createNotificationEvent).toHaveBeenLastCalledWith(
       expect.anything(),
       expect.objectContaining({
@@ -235,6 +374,8 @@ describe("Provider application review workflow", () => {
     const state: ProviderApplicationState = {
       application: createApplication("PENDING_REVIEW"),
       profile: null,
+      revisions: [],
+      versions: [],
     };
     const database = createDatabase(state);
 
@@ -256,5 +397,93 @@ describe("Provider application review workflow", () => {
         eventType: "protection_provider_application.rejected",
       })
     );
+  });
+
+  it("keeps pending revisions private and publishes immutable history", async () => {
+    const state: ProviderApplicationState = {
+      application: createApplication("APPROVED"),
+      profile: createProfile(),
+      revisions: [],
+      versions: [createProfileVersion()],
+    };
+    const database = createDatabase(state);
+
+    const started = await startProviderProfileRevision(database, "provider-1");
+    expect(started).toMatchObject({
+      baseVersionId: "profile-version-1",
+      revisionNumber: 1,
+      status: "DRAFT",
+    });
+
+    await saveProviderProfileRevisionDraft(
+      database,
+      "provider-1",
+      validSubmission
+    );
+    await submitProviderProfileRevision(
+      database,
+      "provider-1",
+      validSubmission
+    );
+
+    const pendingProfile = await getPublicProviderProfile(
+      database,
+      "nguyen-provider-provider1"
+    );
+    expect(pendingProfile).toMatchObject({
+      displayName: "Nguyen Provider",
+      status: "ACTIVE",
+      versionNumber: 1,
+    });
+    expect(pendingProfile).not.toHaveProperty("fullName");
+    expect(state.revisions[0]?.status).toBe("PENDING_REVIEW");
+
+    const approved = await decideProviderProfileRevision({
+      database,
+      decision: "APPROVED",
+      reviewerUserId: "admin-1",
+      revisionId: "profile-revision-1",
+    });
+    expect(approved.publicProfile).toMatchObject({
+      profileSlug: "nguyen-provider-provider1",
+      versionNumber: 2,
+    });
+    expect(state.versions).toHaveLength(2);
+    expect(state.versions[0]).toMatchObject({
+      displayName: "Nguyen Provider",
+      versionNumber: 1,
+    });
+
+    await expect(
+      decideProviderProfileRevision({
+        database,
+        decision: "APPROVED",
+        reviewerUserId: "admin-1",
+        revisionId: "profile-revision-1",
+      })
+    ).rejects.toThrow("Only pending Provider profile revisions can be decided");
+
+    const withdrawn = await publishProviderProfileStatus({
+      database,
+      profileId: "profile-1",
+      reviewerUserId: "admin-1",
+      status: "WITHDRAWN",
+      statusReason: "Provider yêu cầu rút khỏi chương trình.",
+    });
+    expect(withdrawn).toMatchObject({
+      profileSlug: "nguyen-provider-provider1",
+      status: "WITHDRAWN",
+      statusReason: "Provider yêu cầu rút khỏi chương trình.",
+      versionNumber: 3,
+    });
+    expect(withdrawn.history).toEqual([
+      expect.objectContaining({ status: "ACTIVE", versionNumber: 1 }),
+      expect.objectContaining({ status: "ACTIVE", versionNumber: 2 }),
+      expect.objectContaining({
+        status: "WITHDRAWN",
+        statusReason: "Provider yêu cầu rút khỏi chương trình.",
+        versionNumber: 3,
+      }),
+    ]);
   });
 });

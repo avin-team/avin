@@ -17,6 +17,16 @@ export const providerApplicationStatuses = [
 export type ProviderApplicationStatus =
   (typeof providerApplicationStatuses)[number];
 
+export const providerProfileStatuses = [
+  "ACTIVE",
+  "SUSPENDED_PENDING_REVIEW",
+  "WITHDRAWAL_PENDING",
+  "WITHDRAWN",
+  "REMOVED_FOR_FRAUD",
+] as const;
+
+export type ProviderProfileStatus = (typeof providerProfileStatuses)[number];
+
 export type ProviderApplicationDecision = Exclude<
   ProviderApplicationStatus,
   "DRAFT" | "PENDING_REVIEW"
@@ -86,6 +96,35 @@ export const providerApplicationSubmissionInputSchema =
 export type ProviderApplicationSubmission = z.infer<
   typeof providerApplicationSubmissionInputSchema
 >;
+
+export const providerProfileRevisionDraftInputSchema =
+  providerApplicationDraftInputSchema;
+
+export const providerProfileRevisionSubmissionInputSchema =
+  providerApplicationSubmissionInputSchema;
+
+export const providerProfileRevisionDecisionInputSchema = z.object({
+  decision: z.enum(["APPROVED", "CHANGES_REQUESTED", "REJECTED"]),
+  id: z.uuid(),
+  reason: z.string().trim().max(2000).optional(),
+});
+
+export const providerProfileRevisionIdInputSchema = z.object({
+  id: z.uuid(),
+});
+
+export const providerProfileRevisionListInputSchema = z
+  .object({
+    search: z.string().trim().max(200).optional(),
+    status: z.enum(providerApplicationStatuses).optional(),
+  })
+  .optional();
+
+export const providerProfileStatusInputSchema = z.object({
+  id: z.uuid(),
+  status: z.enum(providerProfileStatuses),
+  statusReason: z.string().trim().max(2000).optional(),
+});
 
 export const providerApplicationDecisionInputSchema = z.object({
   decision: z.enum(["APPROVED", "CHANGES_REQUESTED", "REJECTED"]),

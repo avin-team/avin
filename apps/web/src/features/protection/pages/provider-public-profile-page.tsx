@@ -11,6 +11,14 @@ import { useParams } from "@tanstack/react-router";
 
 import { orpc } from "@/utils/orpc";
 
+const PROFILE_STATUS_LABELS = {
+  ACTIVE: "Đang hoạt động",
+  REMOVED_FOR_FRAUD: "Đã gỡ vì gian lận",
+  SUSPENDED_PENDING_REVIEW: "Tạm ngưng, chờ xem xét",
+  WITHDRAWAL_PENDING: "Đang chờ rút khỏi chương trình",
+  WITHDRAWN: "Đã rút khỏi chương trình",
+} as const;
+
 export const ProviderPublicProfilePage = () => {
   const { slug } = useParams({ from: "/(public)/avin-check/provider/$slug" });
   const profileQuery = useQuery(
@@ -42,7 +50,7 @@ export const ProviderPublicProfilePage = () => {
     >
       <header className="flex flex-col gap-3">
         <Badge className="w-fit" variant="outline">
-          Avin Check · Provider đã được duyệt
+          Avin Check · {PROFILE_STATUS_LABELS[profile.status]}
         </Badge>
         <h1
           className="font-bold text-4xl tracking-tight"
@@ -54,6 +62,11 @@ export const ProviderPublicProfilePage = () => {
           Profile tối thiểu này được phát hành bởi quy trình Admin của Avin
           Check. Provider không tự chỉnh sửa hoặc tự phát hành phiên bản này.
         </p>
+        {profile.statusReason ? (
+          <p className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm">
+            {profile.statusReason}
+          </p>
+        ) : null}
       </header>
 
       <Card>
@@ -67,6 +80,31 @@ export const ProviderPublicProfilePage = () => {
           <p className="whitespace-pre-wrap text-sm leading-7">
             {profile.services}
           </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Lịch sử version</CardTitle>
+          <CardDescription>
+            URL này ổn định để đối chiếu trạng thái và version đã phát hành.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-2 text-sm">
+          {profile.history.map((version) => (
+            <div
+              className="flex flex-wrap justify-between gap-2 rounded-lg border p-3"
+              key={version.versionNumber}
+            >
+              <span>
+                Version {version.versionNumber} ·{" "}
+                {PROFILE_STATUS_LABELS[version.status]}
+              </span>
+              <span className="text-muted-foreground">
+                {version.publishedAt}
+              </span>
+            </div>
+          ))}
         </CardContent>
       </Card>
 

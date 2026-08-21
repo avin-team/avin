@@ -141,3 +141,104 @@ export const protectionProviderProfile = pgTable(
     index("protection_provider_profile_status_idx").on(table.status),
   ]
 );
+
+export const protectionProviderProfileVersion = pgTable(
+  "protection_provider_profile_version",
+  {
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    displayName: text("display_name").notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    officialChannels: jsonb("official_channels")
+      .$type<ProviderOfficialChannels>()
+      .notNull(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => protectionProviderProfile.id, {
+        onDelete: "restrict",
+      }),
+    profileSlug: text("profile_slug").notNull(),
+    publishedAt: timestamp("published_at").defaultNow().notNull(),
+    publishedByUserId: text("published_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    services: text("services").notNull(),
+    sourceApplicationId: uuid("source_application_id").references(
+      () => protectionProviderApplication.id,
+      { onDelete: "set null" }
+    ),
+    status: protectionProviderProfileStatus("status").notNull(),
+    statusReason: text("status_reason"),
+    verifiedAt: timestamp("verified_at").defaultNow().notNull(),
+    versionNumber: integer("version_number").notNull(),
+  },
+  (table) => [
+    uniqueIndex("protection_provider_profile_version_number_idx").on(
+      table.profileId,
+      table.versionNumber
+    ),
+    index("protection_provider_profile_version_slug_idx").on(table.profileSlug),
+  ]
+);
+
+export const protectionProviderProfileRevision = pgTable(
+  "protection_provider_profile_revision",
+  {
+    ageEvidenceReference: text("age_evidence_reference"),
+    baseVersionId: uuid("base_version_id")
+      .notNull()
+      .references(() => protectionProviderProfileVersion.id, {
+        onDelete: "restrict",
+      }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    fullName: text("full_name"),
+    id: uuid("id").defaultRandom().primaryKey(),
+    identityEvidenceReference: text("identity_evidence_reference"),
+    officialChannelEvidenceReference: text(
+      "official_channel_evidence_reference"
+    ),
+    officialChannels:
+      jsonb("official_channels").$type<ProviderOfficialChannels>(),
+    operatingHistoryEvidenceReference: text(
+      "operating_history_evidence_reference"
+    ),
+    operatingSince: date("operating_since", { mode: "string" }),
+    paymentAccount: jsonb("payment_account").$type<ProviderPaymentAccount>(),
+    paymentDisclosureConsent: boolean("payment_disclosure_consent"),
+    paymentEvidenceReference: text("payment_evidence_reference"),
+    policyAcceptedAt: timestamp("policy_accepted_at"),
+    policyVersion: text("policy_version"),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => protectionProviderProfile.id, {
+        onDelete: "restrict",
+      }),
+    providerUserId: text("provider_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    reviewReason: text("review_reason"),
+    reviewedAt: timestamp("reviewed_at"),
+    reviewedByUserId: text("reviewed_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    revisionNumber: integer("revision_number").notNull(),
+    services: text("services"),
+    status: protectionProviderApplicationStatus("status")
+      .default("DRAFT")
+      .notNull(),
+    submittedAt: timestamp("submitted_at"),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("protection_provider_profile_revision_number_idx").on(
+      table.profileId,
+      table.revisionNumber
+    ),
+    index("protection_provider_profile_revision_status_idx").on(table.status),
+    index("protection_provider_profile_revision_submitted_idx").on(
+      table.submittedAt
+    ),
+  ]
+);

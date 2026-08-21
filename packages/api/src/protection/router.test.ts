@@ -125,6 +125,7 @@ describe("Avin Check public launch status", () => {
         source: "PROVIDER_IDENTITY",
         visibility: "PRIVATE",
       },
+      profileRevision: null,
       publicProfile: null,
     });
 
