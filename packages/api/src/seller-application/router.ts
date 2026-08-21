@@ -21,6 +21,7 @@ import {
   findLatestSellerApplication,
   findSellerProfile,
   requestPhoneOtpInputSchema,
+  selectRoleInputSchema,
   submitApplicationInputSchema,
   updateDraftProfileInputSchema,
   verifyPhoneOtpInputSchema,
@@ -348,6 +349,34 @@ export const sellerApplicationRouter = {
 
       return {
         message: "Mã OTP đã được gửi đến số điện thoại",
+        success: true,
+      };
+    }),
+
+  selectRole: protectedProcedure
+    .input(selectRoleInputSchema)
+    .handler(async ({ context, input }) => {
+      const userId = context.session.user.id;
+      const [updated] = await context.db
+        .update(user)
+        .set({
+          role: input.role,
+          updatedAt: new Date(),
+        })
+        .where(eq(user.id, userId))
+        .returning({
+          id: user.id,
+          role: user.role,
+        });
+
+      if (!updated) {
+        throw new ORPCError("NOT_FOUND", {
+          message: "Người dùng không tồn tại",
+        });
+      }
+
+      return {
+        role: updated.role,
         success: true,
       };
     }),

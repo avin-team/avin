@@ -199,11 +199,6 @@ export const createAuth = (surface: AuthSurface = "storefront") => {
       google: {
         clientId: env.GOOGLE_CLIENT_ID,
         clientSecret: env.GOOGLE_CLIENT_SECRET,
-        // Prevent Google sign-in from silently creating accounts.
-        // The client must explicitly pass requestSignUp: true to allow
-        // new user creation (sign-up mode). Sign-in mode omits it,
-        // so unregistered users get an error instead of a new account.
-        disableImplicitSignUp: true,
         prompt: "select_account",
       },
     },

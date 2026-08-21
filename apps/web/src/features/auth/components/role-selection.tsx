@@ -9,20 +9,26 @@ import {
 
 interface RoleSelectionStepProps {
   onSelectRole: (role: AccountRole) => void;
+  disabled?: boolean;
 }
 
-export const RoleSelectionStep = ({ onSelectRole }: RoleSelectionStepProps) => (
+export const RoleSelectionStep = ({
+  onSelectRole,
+  disabled = false,
+}: RoleSelectionStepProps) => (
   <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
     <p className="font-medium text-muted-foreground text-sm">
-      Vui lòng chọn vai trò bạn muốn đăng ký:
+      Vui lòng chọn vai trò bạn muốn tiếp tục:
     </p>
 
     <div className="grid gap-4">
       <button
         className={cn(
           "group relative flex items-start gap-4 rounded-xl border border-border p-4 text-left transition-all duration-200",
-          "hover:border-primary/50 hover:bg-accent/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          "hover:border-primary/50 hover:bg-accent/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          disabled && "pointer-events-none opacity-50"
         )}
+        disabled={disabled}
         onClick={() => onSelectRole(ACCOUNT_ROLE.BUYER)}
         type="button"
       >
@@ -43,8 +49,10 @@ export const RoleSelectionStep = ({ onSelectRole }: RoleSelectionStepProps) => (
       <button
         className={cn(
           "group relative flex items-start gap-4 rounded-xl border border-border p-4 text-left transition-all duration-200",
-          "hover:border-primary/50 hover:bg-accent/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          "hover:border-primary/50 hover:bg-accent/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          disabled && "pointer-events-none opacity-50"
         )}
+        disabled={disabled}
         onClick={() => onSelectRole(ACCOUNT_ROLE.SELLER)}
         type="button"
       >

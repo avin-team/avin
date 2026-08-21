@@ -11,6 +11,7 @@ describe("seller application router interface", () => {
       "getProfile",
       "markOnboardingSeen",
       "requestPhoneOtp",
+      "selectRole",
       "submitApplication",
       "updateDraftProfile",
       "verifyPhoneOtp",

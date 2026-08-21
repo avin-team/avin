@@ -8,7 +8,7 @@ import {
 } from "@avin/ui/components/card";
 
 import { Shell } from "@/components/shell";
-import { SignInForm } from "@/features/auth/components/sign-in-form";
+import { GoogleSignInButton } from "@/features/auth/components/google-sign-in-button";
 import type { PostSignInRoute } from "@/features/auth/components/sign-in-form";
 
 interface RoleSignInPageProps {
@@ -20,8 +20,8 @@ interface RoleSignInPageProps {
 
 export const RoleSignInPage = ({
   description,
-  expectedRole,
-  redirectTo,
+  expectedRole: _expectedRole,
+  redirectTo = "/",
   title,
 }: RoleSignInPageProps) => (
   <Shell variant="centered">
@@ -31,7 +31,7 @@ export const RoleSignInPage = ({
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
-        <SignInForm expectedRole={expectedRole} redirectTo={redirectTo} />
+        <GoogleSignInButton redirectTo={redirectTo} />
       </CardContent>
     </Card>
   </Shell>

@@ -129,7 +129,7 @@ export const UserMenu = () => {
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator className="my-1" />
-          {isSeller && (
+          {isSeller ? (
             <DropdownMenuItem
               onClick={async () => {
                 await navigate({
@@ -144,6 +144,17 @@ export const UserMenu = () => {
               {canViewStore && profile?.storeSlug
                 ? "Xem gian hàng"
                 : "Hoàn tất đăng ký"}
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem
+              onClick={async () => {
+                await navigate({
+                  to: "/onboarding",
+                });
+              }}
+            >
+              <StorefrontIcon className="me-2 size-4" />
+              Trở thành người bán
             </DropdownMenuItem>
           )}
           <DropdownMenuItem

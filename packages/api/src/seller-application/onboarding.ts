@@ -8,6 +8,10 @@ import { z } from "zod";
 
 import type { Context } from "../runtime/context";
 
+export const selectRoleInputSchema = z.object({
+  role: z.enum(["BUYER", "SELLER"]),
+});
+
 export const updateDraftProfileInputSchema = z.object({
   avatarUrl: z.union([z.url(), z.literal("")]).optional(),
   bankAccount: bankAccountSchema.optional(),
