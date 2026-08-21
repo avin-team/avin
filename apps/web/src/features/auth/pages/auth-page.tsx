@@ -90,13 +90,22 @@ export const AuthPage = () => {
       <DecorIcon position="bottom-right" />
 
       <div className="flex w-full max-w-sm animate-in flex-col gap-6">
-        <header className="flex flex-col gap-1 text-center">
-          <h1 className="font-bold text-2xl tracking-wide">
-            Chào mừng đến Avin
-          </h1>
-          <p className="text-base text-muted-foreground">
-            Đăng nhập hoặc đăng ký tài khoản để tiếp tục.
-          </p>
+        <header className="flex flex-col items-center gap-3 text-center">
+          <div className="relative flex size-12 items-center justify-center overflow-hidden rounded-2xl border border-border/60 bg-muted/20 shadow-xs">
+            <img
+              alt="Avin Logo"
+              className="size-full object-cover"
+              src="/logo.webp"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <h1 className="font-bold text-2xl tracking-wide">
+              Chào mừng đến Avin
+            </h1>
+            <p className="text-base text-muted-foreground">
+              Đăng nhập hoặc đăng ký tài khoản để tiếp tục.
+            </p>
+          </div>
         </header>
 
         <div className="flex flex-col gap-6 animate-in fade-in duration-300">

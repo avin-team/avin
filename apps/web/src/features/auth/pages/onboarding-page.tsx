@@ -55,13 +55,22 @@ export const OnboardingPage = () => {
         <DecorIcon position="bottom-right" />
 
         <div className="flex w-full max-w-lg animate-in flex-col gap-6">
-          <header className="flex flex-col gap-1 text-center">
-            <h1 className="font-bold text-2xl tracking-wide">
-              Chào mừng bạn đến với Avin!
-            </h1>
-            <p className="text-base text-muted-foreground">
-              Vui lòng chọn vai trò để thiết lập trải nghiệm phù hợp nhất.
-            </p>
+          <header className="flex flex-col items-center gap-3 text-center">
+            <div className="relative flex size-12 items-center justify-center overflow-hidden rounded-2xl border border-border/60 bg-muted/20 shadow-xs">
+              <img
+                alt="Avin Logo"
+                className="size-full object-cover"
+                src="/logo.webp"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <h1 className="font-bold text-2xl tracking-wide">
+                Chào mừng bạn đến với Avin!
+              </h1>
+              <p className="text-base text-muted-foreground">
+                Vui lòng chọn vai trò để thiết lập trải nghiệm phù hợp nhất.
+              </p>
+            </div>
           </header>
 
           <RoleSelectionStep
