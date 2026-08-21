@@ -24,7 +24,7 @@ export interface ProtectionAuditTarget {
 
 export interface ProtectionAdminProcedureOptions {
   action: string;
-  capability: ProtectionAdminCapability;
+  capability: ProtectionAdminCapability | readonly ProtectionAdminCapability[];
   purpose: string;
   target?: ProtectionAuditTarget;
 }
@@ -32,7 +32,9 @@ export interface ProtectionAdminProcedureOptions {
 export const assertProtectionAdminAccess = (
   actor: ProtectionAdminActor,
   assignedCapabilities: readonly string[],
-  requiredCapability: ProtectionAdminCapability
+  requiredCapability:
+    | ProtectionAdminCapability
+    | readonly ProtectionAdminCapability[]
 ): void => {
   if (!isAccountRole(actor.role) || actor.role !== ACCOUNT_ROLE.ADMIN) {
     throw new ORPCError("FORBIDDEN");
@@ -45,7 +47,14 @@ export const assertProtectionAdminAccess = (
     });
   }
 
-  if (!hasProtectionAdminCapability(assignedCapabilities, requiredCapability)) {
+  const requiredCapabilities = Array.isArray(requiredCapability)
+    ? requiredCapability
+    : [requiredCapability];
+  if (
+    !requiredCapabilities.some((capability) =>
+      hasProtectionAdminCapability(assignedCapabilities, capability)
+    )
+  ) {
     throw new ORPCError("FORBIDDEN", {
       message: "A dedicated Avin Check Admin capability is required.",
     });

@@ -20,6 +20,14 @@ const RISK_REPORT_TYPE_LABELS = {
   SOCIAL_GAME_ACCOUNT: "Tài khoản social / game",
 } as const;
 
+const SUPPORT_OUTCOME_LABELS = {
+  HANDLED_BY_PROGRAM: "Đã được chương trình xử lý",
+  HANDLED_BY_PROVIDER: "Đã được Provider xử lý",
+  INELIGIBLE: "Không thuộc phạm vi hỗ trợ",
+  UNDER_VERIFICATION: "Đang xác minh",
+  VIOLATION_CONFIRMED: "Đã xác nhận vi phạm",
+} as const;
+
 const riskWarningDateFormatter = new Intl.DateTimeFormat("vi-VN", {
   dateStyle: "medium",
   timeStyle: "short",
@@ -150,6 +158,19 @@ export const PublicRiskWarningDetailPage = () => {
       </header>
 
       <PublicWarningStatusNotice status={warning.status} />
+
+      {warning.supportOutcome ? (
+        <Alert>
+          <AlertTitle>
+            Kết quả hỗ trợ: {SUPPORT_OUTCOME_LABELS[warning.supportOutcome]}
+          </AlertTitle>
+          <AlertDescription>
+            Đây là kết quả xử lý thủ công, không phải cam kết bồi thường tự
+            động. Avin Check không công khai số tiền, biên nhận hoặc trao đổi
+            riêng tư.
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
         <Card>

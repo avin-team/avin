@@ -98,6 +98,16 @@ describe("Protection Admin capability matrix", () => {
     ).resolves.toBe("allowed");
   });
 
+  it("allows any capability from a delegated capability set", () => {
+    expect(() =>
+      assertProtectionAdminAccess(
+        { id: "admin-1", role: ACCOUNT_ROLE.ADMIN, twoFactorEnabled: true },
+        ["BOND_OPERATOR"],
+        ["RISK_MODERATOR", "BOND_OPERATOR"]
+      )
+    ).not.toThrow();
+  });
+
   it("does not treat a coarse Admin role as a protection capability", async () => {
     await expect(
       call(createProcedure("PROVIDER_REVIEWER"), undefined, {

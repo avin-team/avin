@@ -125,6 +125,49 @@ export const protectionProviderBondAdjustmentStatus = pgEnum(
   ["APPLIED", "PENDING_APPROVAL", "REJECTED"]
 );
 
+export const protectionSupportReviewStatus = pgEnum(
+  "protection_support_review_status",
+  [
+    "ELIGIBILITY_REVIEW",
+    "INELIGIBLE",
+    "ELIGIBLE",
+    "PENDING_APPROVAL",
+    "APPROVED",
+    "DECLINED",
+  ]
+);
+
+export const protectionSupportReviewPublicOutcome = pgEnum(
+  "protection_support_review_public_outcome",
+  [
+    "UNDER_VERIFICATION",
+    "INELIGIBLE",
+    "HANDLED_BY_PROVIDER",
+    "HANDLED_BY_PROGRAM",
+    "VIOLATION_CONFIRMED",
+  ]
+);
+
+export const protectionSupportTransactionChannel = pgEnum(
+  "protection_support_transaction_channel",
+  ["FACEBOOK", "ZALO", "OTHER"]
+);
+
+export const protectionSupportTransactionScope = pgEnum(
+  "protection_support_transaction_scope",
+  [
+    "DIRECT",
+    "IMPERSONATOR",
+    "INDIRECT",
+    "GDV",
+    "WEBSITE_OPERATED",
+    "AGENT_DEPOSIT",
+    "LENDING",
+    "LOWER_PRIORITY_GROUP",
+    "OUT_OF_SCOPE",
+  ]
+);
+
 export const providerOfficialChannelsSchema = z.object({
   facebookId: z.string().trim().max(200).optional(),
   facebookUrl: z.url().optional(),
@@ -750,6 +793,140 @@ export const protectionProviderBondAdjustment = pgTable(
     ),
     index("protection_provider_bond_adjustment_status_idx").on(
       table.status,
+      table.createdAt
+    ),
+  ]
+);
+
+export const protectionSupportReview = pgTable(
+  "protection_support_review",
+  {
+    approvalReason: text("approval_reason"),
+    approvedAt: timestamp("approved_at"),
+    approvedByUserId: text("approved_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    approvedServiceConfirmed: boolean("approved_service_confirmed"),
+    bondAdjustmentId: uuid("bond_adjustment_id").references(
+      () => protectionProviderBondAdjustment.id,
+      { onDelete: "set null" }
+    ),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    eligibilityReason: text("eligibility_reason"),
+    evidenceSufficient: boolean("evidence_sufficient"),
+    externalActionReference: text("external_action_reference"),
+    historicalRecommendedTransactionLimit: integer(
+      "historical_recommended_transaction_limit"
+    ),
+    id: uuid("id").defaultRandom().primaryKey(),
+    incidentId: uuid("incident_id")
+      .notNull()
+      .unique()
+      .references(() => protectionProviderRiskIncident.id, {
+        onDelete: "restrict",
+      }),
+    ineligibilityReason: text("ineligibility_reason"),
+    outcomeReason: text("outcome_reason"),
+    outcomeRecordedAt: timestamp("outcome_recorded_at"),
+    outcomeRecordedByUserId: text("outcome_recorded_by_user_id").references(
+      () => user.id,
+      { onDelete: "set null" }
+    ),
+    preTransactionVideoPresent: boolean("pre_transaction_video_present"),
+    privateEvidenceReference: text("private_evidence_reference"),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => protectionProviderProfile.id, {
+        onDelete: "restrict",
+      }),
+    profileVersionId: uuid("profile_version_id")
+      .notNull()
+      .references(() => protectionProviderProfileVersion.id, {
+        onDelete: "restrict",
+      }),
+    providerIdentityConfirmed: boolean("provider_identity_confirmed"),
+    providerUserId: text("provider_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    publicOutcome: protectionSupportReviewPublicOutcome("public_outcome"),
+    recommendedSupportAmount: integer("recommended_support_amount"),
+    reconsiderationCount: integer("reconsideration_count").default(0).notNull(),
+    reconsiderationEvidenceReference: text(
+      "reconsideration_evidence_reference"
+    ),
+    reconsiderationReason: text("reconsideration_reason"),
+    reconsideredAt: timestamp("reconsidered_at"),
+    registeredPaymentIdentityConfirmed: boolean(
+      "registered_payment_identity_confirmed"
+    ),
+    requiredProcessCompleted: boolean("required_process_completed"),
+    reviewedAt: timestamp("reviewed_at"),
+    reviewedByUserId: text("reviewed_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    riskReportId: uuid("risk_report_id")
+      .notNull()
+      .references(() => protectionRiskReport.id, { onDelete: "restrict" }),
+    startedAt: timestamp("started_at").defaultNow().notNull(),
+    startedByUserId: text("started_by_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    status: protectionSupportReviewStatus("status")
+      .default("ELIGIBILITY_REVIEW")
+      .notNull(),
+    supportAmount: integer("support_amount"),
+    transactionChannel: protectionSupportTransactionChannel(
+      "transaction_channel"
+    ),
+    transactionLawfulConfirmed: boolean("transaction_lawful_confirmed"),
+    transactionOccurredAt: timestamp("transaction_occurred_at"),
+    transactionProfileVersionId: uuid(
+      "transaction_profile_version_id"
+    ).references(() => protectionProviderProfileVersion.id, {
+      onDelete: "restrict",
+    }),
+    transactionScope: protectionSupportTransactionScope("transaction_scope"),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+    verifiedActualLoss: integer("verified_actual_loss"),
+  },
+  (table) => [
+    index("protection_support_review_profile_status_idx").on(
+      table.profileId,
+      table.status,
+      table.createdAt
+    ),
+    index("protection_support_review_report_idx").on(table.riskReportId),
+    index("protection_support_review_status_idx").on(
+      table.status,
+      table.createdAt
+    ),
+    index("protection_support_review_provider_status_idx").on(
+      table.providerUserId,
+      table.status
+    ),
+  ]
+);
+
+export const protectionSupportReviewHistory = pgTable(
+  "protection_support_review_history",
+  {
+    actorUserId: text("actor_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    reason: text("reason"),
+    status: protectionSupportReviewStatus("status").notNull(),
+    supportReviewId: uuid("support_review_id")
+      .notNull()
+      .references(() => protectionSupportReview.id, { onDelete: "restrict" }),
+  },
+  (table) => [
+    index("protection_support_review_history_review_idx").on(
+      table.supportReviewId,
       table.createdAt
     ),
   ]

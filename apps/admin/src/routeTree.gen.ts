@@ -22,6 +22,7 @@ import { Route as AuthenticatedAvinCheckRouteImport } from './routes/_authentica
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedAvinCheckIndexRouteImport } from './routes/_authenticated/avin-check/index'
 import { Route as AuthenticatedAvinCheckBondRouteImport } from './routes/_authenticated/avin-check/bond'
+import { Route as AuthenticatedAvinCheckSupportReviewsRouteImport } from './routes/_authenticated/avin-check/support-reviews'
 import { Route as AuthenticatedCategoriesIndexRouteImport } from './routes/_authenticated/categories/index'
 import { Route as AuthenticatedDisputesIndexRouteImport } from './routes/_authenticated/disputes/index'
 import { Route as AuthenticatedDisputesDisputeIdRouteImport } from './routes/_authenticated/disputes/$disputeId'
@@ -104,6 +105,12 @@ const AuthenticatedAvinCheckBondRoute =
   AuthenticatedAvinCheckBondRouteImport.update({
     id: '/bond',
     path: '/bond',
+    getParentRoute: () => AuthenticatedAvinCheckRoute,
+  } as any)
+const AuthenticatedAvinCheckSupportReviewsRoute =
+  AuthenticatedAvinCheckSupportReviewsRouteImport.update({
+    id: '/support-reviews',
+    path: '/support-reviews',
     getParentRoute: () => AuthenticatedAvinCheckRoute,
   } as any)
 const AuthenticatedCategoriesIndexRoute =
@@ -221,6 +228,7 @@ export interface FileRoutesByFullPath {
   '/avin-check': typeof AuthenticatedAvinCheckRouteWithChildren
   '/settings': typeof AuthenticatedSettingsRoute
   '/avin-check/bond': typeof AuthenticatedAvinCheckBondRoute
+  '/avin-check/support-reviews': typeof AuthenticatedAvinCheckSupportReviewsRoute
   '/disputes/$disputeId': typeof AuthenticatedDisputesDisputeIdRoute
   '/seller-applications/$applicationId': typeof AuthenticatedSellerApplicationsApplicationIdRoute
   '/sellers/$sellerId': typeof AuthenticatedSellersSellerIdRoute
@@ -251,6 +259,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsRoute
   '/': typeof AuthenticatedIndexRoute
   '/avin-check/bond': typeof AuthenticatedAvinCheckBondRoute
+  '/avin-check/support-reviews': typeof AuthenticatedAvinCheckSupportReviewsRoute
   '/disputes/$disputeId': typeof AuthenticatedDisputesDisputeIdRoute
   '/seller-applications/$applicationId': typeof AuthenticatedSellerApplicationsApplicationIdRoute
   '/sellers/$sellerId': typeof AuthenticatedSellersSellerIdRoute
@@ -284,6 +293,7 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/avin-check/bond': typeof AuthenticatedAvinCheckBondRoute
+  '/_authenticated/avin-check/support-reviews': typeof AuthenticatedAvinCheckSupportReviewsRoute
   '/_authenticated/disputes/$disputeId': typeof AuthenticatedDisputesDisputeIdRoute
   '/_authenticated/seller-applications/$applicationId': typeof AuthenticatedSellerApplicationsApplicationIdRoute
   '/_authenticated/sellers/$sellerId': typeof AuthenticatedSellersSellerIdRoute
@@ -317,6 +327,7 @@ export interface FileRouteTypes {
     | '/avin-check'
     | '/settings'
     | '/avin-check/bond'
+    | '/avin-check/support-reviews'
     | '/disputes/$disputeId'
     | '/seller-applications/$applicationId'
     | '/sellers/$sellerId'
@@ -347,6 +358,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/'
     | '/avin-check/bond'
+    | '/avin-check/support-reviews'
     | '/disputes/$disputeId'
     | '/seller-applications/$applicationId'
     | '/sellers/$sellerId'
@@ -379,6 +391,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/_authenticated/'
     | '/_authenticated/avin-check/bond'
+    | '/_authenticated/avin-check/support-reviews'
     | '/_authenticated/disputes/$disputeId'
     | '/_authenticated/seller-applications/$applicationId'
     | '/_authenticated/sellers/$sellerId'
@@ -501,6 +514,13 @@ declare module '@tanstack/react-router' {
       path: '/bond'
       fullPath: '/avin-check/bond'
       preLoaderRoute: typeof AuthenticatedAvinCheckBondRouteImport
+      parentRoute: typeof AuthenticatedAvinCheckRoute
+    }
+    '/_authenticated/avin-check/support-reviews': {
+      id: '/_authenticated/avin-check/support-reviews'
+      path: '/support-reviews'
+      fullPath: '/avin-check/support-reviews'
+      preLoaderRoute: typeof AuthenticatedAvinCheckSupportReviewsRouteImport
       parentRoute: typeof AuthenticatedAvinCheckRoute
     }
     '/_authenticated/categories/': {
@@ -627,6 +647,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedAvinCheckRouteChildren {
   AuthenticatedAvinCheckBondRoute: typeof AuthenticatedAvinCheckBondRoute
+  AuthenticatedAvinCheckSupportReviewsRoute: typeof AuthenticatedAvinCheckSupportReviewsRoute
   AuthenticatedAvinCheckIndexRoute: typeof AuthenticatedAvinCheckIndexRoute
   AuthenticatedAvinCheckProviderRevisionsRevisionIdRoute: typeof AuthenticatedAvinCheckProviderRevisionsRevisionIdRoute
   AuthenticatedAvinCheckProvidersApplicationIdRoute: typeof AuthenticatedAvinCheckProvidersApplicationIdRoute
@@ -639,6 +660,8 @@ interface AuthenticatedAvinCheckRouteChildren {
 const AuthenticatedAvinCheckRouteChildren: AuthenticatedAvinCheckRouteChildren =
   {
     AuthenticatedAvinCheckBondRoute: AuthenticatedAvinCheckBondRoute,
+    AuthenticatedAvinCheckSupportReviewsRoute:
+      AuthenticatedAvinCheckSupportReviewsRoute,
     AuthenticatedAvinCheckIndexRoute: AuthenticatedAvinCheckIndexRoute,
     AuthenticatedAvinCheckProviderRevisionsRevisionIdRoute:
       AuthenticatedAvinCheckProviderRevisionsRevisionIdRoute,

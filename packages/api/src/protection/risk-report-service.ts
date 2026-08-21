@@ -7,6 +7,7 @@ import {
   protectionRiskReportEmailDelivery,
   protectionRiskReportHistory,
   protectionRiskReporterSession,
+  protectionSupportReview,
 } from "@avin/db/schema/protection";
 import { env } from "@avin/env/server";
 import { ORPCError } from "@orpc/server";
@@ -64,6 +65,8 @@ type RiskIdentifier = typeof protectionRiskIdentifier.$inferSelect;
 type RiskEvidence = typeof protectionRiskEvidence.$inferSelect;
 type RiskDerivative = typeof protectionRiskEvidenceDerivative.$inferSelect;
 type RiskHistory = typeof protectionRiskReportHistory.$inferSelect;
+type SupportReviewPublicOutcome =
+  typeof protectionSupportReview.$inferSelect.publicOutcome;
 
 const RISK_EMAIL_CODE_TTL_MS = 10 * 60 * 1000;
 const RISK_EMAIL_CODE_COOLDOWN_MS = 60 * 1000;
@@ -1337,6 +1340,7 @@ const toPublicWarningView = (
   evidence: RiskEvidence[],
   derivatives: RiskDerivative[],
   history: RiskHistory[],
+  supportOutcome: SupportReviewPublicOutcome,
   supabaseUrl: string
 ) => {
   const isRemoved = report.status === "REMOVED";
@@ -1408,9 +1412,23 @@ const toPublicWarningView = (
       : report.publicSummary,
     publishedAt: toIso(report.publishedAt),
     status: report.status,
+    supportOutcome: isRemoved ? null : supportOutcome,
     type: report.type,
     violationType: isRemoved ? null : report.violationType,
   };
+};
+
+const getPublicSupportOutcome = async (
+  database: Database,
+  reportId: string
+): Promise<SupportReviewPublicOutcome> => {
+  const [review] = await database
+    .select({ publicOutcome: protectionSupportReview.publicOutcome })
+    .from(protectionSupportReview)
+    .where(eq(protectionSupportReview.riskReportId, reportId))
+    .orderBy(desc(protectionSupportReview.updatedAt))
+    .limit(1);
+  return review?.publicOutcome ?? null;
 };
 
 export const listPublicRiskWarnings = async (
@@ -1434,13 +1452,17 @@ export const listPublicRiskWarnings = async (
 
   return Promise.all(
     reports.map(async (report) => {
-      const materials = await loadReportMaterials(database, report.id);
+      const [materials, supportOutcome] = await Promise.all([
+        loadReportMaterials(database, report.id),
+        getPublicSupportOutcome(database, report.id),
+      ]);
       return toPublicWarningView(
         report,
         materials.identifiers,
         materials.evidence,
         materials.derivatives,
         materials.history,
+        supportOutcome,
         supabaseUrl
       );
     })
@@ -1472,13 +1494,17 @@ export const getPublicRiskWarning = async (
       message: "Public risk warning not found",
     });
   }
-  const materials = await loadReportMaterials(database, report.id);
+  const [materials, supportOutcome] = await Promise.all([
+    loadReportMaterials(database, report.id),
+    getPublicSupportOutcome(database, report.id),
+  ]);
   return toPublicWarningView(
     report,
     materials.identifiers,
     materials.evidence,
     materials.derivatives,
     materials.history,
+    supportOutcome,
     supabaseUrl
   );
 };

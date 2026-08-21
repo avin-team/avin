@@ -6,6 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
+import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -20,6 +21,10 @@ import type {
   ProviderRiskIncident,
   ProviderRiskIncidentCandidate,
 } from "../api/risk-reports-api";
+import {
+  useAdminSupportReviews,
+  useStartAdminSupportReview,
+} from "../api/support-reviews-api";
 
 const STATUS_LABELS: Record<ProviderRiskIncident["status"], string> = {
   AWAITING_PROVIDER_RESPONSE: "Chờ phản hồi Provider",
@@ -38,6 +43,8 @@ const ProviderIncidentCard = ({
   const [reason, setReason] = useState("");
   const confirmFraud = useConfirmAdminProviderRiskIncidentFraud();
   const review = useReviewAdminProviderRiskIncident();
+  const supportReviews = useAdminSupportReviews({ incidentId: incident.id });
+  const startSupportReview = useStartAdminSupportReview();
   const canReview =
     incident.status === "PROVIDER_RESPONDED" ||
     incident.status === "RESPONSE_EXPIRED";
@@ -85,6 +92,22 @@ const ProviderIncidentCard = ({
     }
   };
 
+  const handleStartSupportReview = async () => {
+    try {
+      await startSupportReview.mutateAsync({
+        incidentId: incident.id,
+        reason: "Incident đã được Moderator đưa vào xem xét Support Review.",
+      });
+      toast.success("Đã mở Support Review riêng tư.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Không thể mở Support Review."
+      );
+    }
+  };
+
+  const supportReview = supportReviews.data?.[0];
+
   return (
     <div className="grid gap-3 rounded-xl border bg-muted/20 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -111,6 +134,35 @@ const ProviderIncidentCard = ({
         Evidence Provider: {incident.evidence.length} tệp · lịch sử:{" "}
         {incident.history.length} sự kiện
       </p>
+      {incident.status === "UNDER_REVIEW" ? (
+        <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">
+          <p className="font-medium">Support Review riêng tư</p>
+          <p className="mt-1 text-muted-foreground">
+            Chỉ mở từ incident đã được Moderator xem xét; không có public claim
+            form và không tự động tạo khoản chi trả.
+          </p>
+          {supportReview ? (
+            <Link
+              className="mt-3 inline-flex font-medium text-primary underline underline-offset-4"
+              to="/avin-check/support-reviews"
+            >
+              Mở Support Review · {supportReview.status}
+            </Link>
+          ) : (
+            <Button
+              className="mt-3"
+              disabled={startSupportReview.isPending}
+              onClick={() => void handleStartSupportReview()}
+              size="sm"
+              type="button"
+            >
+              {startSupportReview.isPending
+                ? "Đang mở..."
+                : "Mở Support Review"}
+            </Button>
+          )}
+        </div>
+      ) : null}
       {canReview || canConfirm ? (
         <div className="grid gap-3">
           <label

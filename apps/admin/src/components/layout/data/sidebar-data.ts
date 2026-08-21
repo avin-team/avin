@@ -82,6 +82,11 @@ export const sidebarData: SidebarData = {
         },
         {
           icon: ShieldCheckIcon,
+          title: "Support Review",
+          url: "/avin-check/support-reviews",
+        },
+        {
+          icon: ShieldCheckIcon,
           title: "Duyệt Provider",
           url: "/avin-check/providers",
         },

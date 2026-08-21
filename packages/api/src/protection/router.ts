@@ -123,6 +123,24 @@ import {
   submitRiskReport,
   verifyRiskReportEmailCode,
 } from "./risk-report-service";
+import {
+  supportReviewDecisionInputSchema,
+  supportReviewEligibilityInputSchema,
+  supportReviewIdInputSchema,
+  supportReviewListInputSchema,
+  supportReviewOutcomeInputSchema,
+  supportReviewReconsiderInputSchema,
+  supportReviewStartInputSchema,
+} from "./support-review";
+import {
+  approveSupportReview,
+  evaluateSupportReview,
+  getAdminSupportReview,
+  listSupportReviewsForAdmin,
+  reconsiderSupportReview,
+  recordSupportReviewOutcome,
+  startSupportReview,
+} from "./support-review-service";
 
 const providerNotificationListInput = z
   .object({
@@ -203,6 +221,50 @@ const providerBondManagerProcedure = protectionAdminProcedure({
   target: {
     id: "PROTECTION_PROVIDER_BOND_QUEUE",
     type: "PROTECTION_PROVIDER_BOND_QUEUE",
+  },
+});
+
+const supportReviewReadProcedure = protectionAdminProcedure({
+  action: "protection.support_review.read",
+  capability: [
+    PROTECTION_ADMIN_CAPABILITY.RISK_MODERATOR,
+    PROTECTION_ADMIN_CAPABILITY.BOND_OPERATOR,
+    PROTECTION_ADMIN_CAPABILITY.PROTECTION_MANAGER,
+  ],
+  purpose: "Read private Support Review records and outcomes",
+  target: {
+    id: "PROTECTION_SUPPORT_REVIEW_QUEUE",
+    type: "PROTECTION_SUPPORT_REVIEW_QUEUE",
+  },
+});
+
+const supportReviewModeratorProcedure = protectionAdminProcedure({
+  action: "protection.support_review.moderate",
+  capability: PROTECTION_ADMIN_CAPABILITY.RISK_MODERATOR,
+  purpose: "Evaluate eligible direct Provider-linked support cases",
+  target: {
+    id: "PROTECTION_SUPPORT_REVIEW_QUEUE",
+    type: "PROTECTION_SUPPORT_REVIEW_QUEUE",
+  },
+});
+
+const supportReviewOperatorProcedure = protectionAdminProcedure({
+  action: "protection.support_review.record_outcome",
+  capability: PROTECTION_ADMIN_CAPABILITY.BOND_OPERATOR,
+  purpose: "Record off-platform support outcome and Bond allocation",
+  target: {
+    id: "PROTECTION_SUPPORT_REVIEW_QUEUE",
+    type: "PROTECTION_SUPPORT_REVIEW_QUEUE",
+  },
+});
+
+const supportReviewManagerProcedure = protectionAdminProcedure({
+  action: "protection.support_review.approve",
+  capability: PROTECTION_ADMIN_CAPABILITY.PROTECTION_MANAGER,
+  purpose: "Approve dual-controlled Support Review outcomes",
+  target: {
+    id: "PROTECTION_SUPPORT_REVIEW_QUEUE",
+    type: "PROTECTION_SUPPORT_REVIEW_QUEUE",
   },
 });
 
@@ -425,6 +487,70 @@ export const protectionRouter = {
       .input(riskReportDerivativeInputSchema)
       .handler(({ context, input }) =>
         registerRiskReportDerivative({ database: context.db, ...input })
+      ),
+  },
+
+  adminSupportReviews: {
+    approve: supportReviewManagerProcedure
+      .input(supportReviewDecisionInputSchema)
+      .handler(({ context, input }) =>
+        approveSupportReview({
+          approverUserId: context.session.user.id,
+          database: context.db,
+          input,
+        })
+      ),
+
+    evaluate: supportReviewModeratorProcedure
+      .input(supportReviewEligibilityInputSchema)
+      .handler(({ context, input }) =>
+        evaluateSupportReview({
+          database: context.db,
+          input,
+          reviewerUserId: context.session.user.id,
+        })
+      ),
+
+    get: supportReviewReadProcedure
+      .input(supportReviewIdInputSchema)
+      .handler(({ context, input }) =>
+        getAdminSupportReview(context.db, input.reviewId)
+      ),
+
+    list: supportReviewReadProcedure
+      .input(supportReviewListInputSchema)
+      .handler(({ context, input }) =>
+        listSupportReviewsForAdmin(context.db, input)
+      ),
+
+    reconsider: supportReviewModeratorProcedure
+      .input(supportReviewReconsiderInputSchema)
+      .handler(({ context, input }) =>
+        reconsiderSupportReview({
+          database: context.db,
+          input,
+          reviewerUserId: context.session.user.id,
+        })
+      ),
+
+    recordOutcome: supportReviewOperatorProcedure
+      .input(supportReviewOutcomeInputSchema)
+      .handler(({ context, input }) =>
+        recordSupportReviewOutcome({
+          database: context.db,
+          input,
+          recorderUserId: context.session.user.id,
+        })
+      ),
+
+    start: supportReviewModeratorProcedure
+      .input(supportReviewStartInputSchema)
+      .handler(({ context, input }) =>
+        startSupportReview({
+          database: context.db,
+          ...input,
+          reviewerUserId: context.session.user.id,
+        })
       ),
   },
 
