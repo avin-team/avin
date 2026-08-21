@@ -42,6 +42,7 @@ import { Route as AuthenticatedSellerStoreRouteImport } from './routes/_authenti
 import { Route as AuthenticatedSellerStorePreviewRouteImport } from './routes/_authenticated/seller/store-preview'
 import { Route as AuthenticatedWalletIndexRouteImport } from './routes/_authenticated/wallet/index'
 import { Route as AuthenticatedWalletDepositRouteImport } from './routes/_authenticated/wallet/deposit'
+import { Route as publicAvinCheckProviderSlugRouteImport } from './routes/(public)/avin-check/provider/$slug'
 import { Route as AuthenticatedSellerListingsIdRouteImport } from './routes/_authenticated/seller/listings/$id'
 
 const authRouteRoute = authRouteRouteImport.update({
@@ -215,6 +216,12 @@ const AuthenticatedWalletDepositRoute =
     path: '/wallet/deposit',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const publicAvinCheckProviderSlugRoute =
+  publicAvinCheckProviderSlugRouteImport.update({
+    id: '/provider/$slug',
+    path: '/provider/$slug',
+    getParentRoute: () => publicAvinCheckRoute,
+  } as any)
 const AuthenticatedSellerListingsIdRoute =
   AuthenticatedSellerListingsIdRouteImport.update({
     id: '/$id',
@@ -231,7 +238,7 @@ export interface FileRoutesByFullPath {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
-  '/avin-check': typeof publicAvinCheckRoute
+  '/avin-check': typeof publicAvinCheckRouteWithChildren
   '/cart': typeof AuthenticatedCartRoute
   '/chat': typeof AuthenticatedChatRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
@@ -253,6 +260,7 @@ export interface FileRoutesByFullPath {
   '/category/': typeof publicCategoryIndexRoute
   '/orders/': typeof AuthenticatedOrdersIndexRoute
   '/wallet/': typeof AuthenticatedWalletIndexRoute
+  '/avin-check/provider/$slug': typeof publicAvinCheckProviderSlugRoute
   '/seller/listings/$id': typeof AuthenticatedSellerListingsIdRoute
 }
 export interface FileRoutesByTo {
@@ -263,7 +271,7 @@ export interface FileRoutesByTo {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
-  '/avin-check': typeof publicAvinCheckRoute
+  '/avin-check': typeof publicAvinCheckRouteWithChildren
   '/cart': typeof AuthenticatedCartRoute
   '/chat': typeof AuthenticatedChatRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
@@ -285,6 +293,7 @@ export interface FileRoutesByTo {
   '/category': typeof publicCategoryIndexRoute
   '/orders': typeof AuthenticatedOrdersIndexRoute
   '/wallet': typeof AuthenticatedWalletIndexRoute
+  '/avin-check/provider/$slug': typeof publicAvinCheckProviderSlugRoute
   '/seller/listings/$id': typeof AuthenticatedSellerListingsIdRoute
 }
 export interface FileRoutesById {
@@ -299,7 +308,7 @@ export interface FileRoutesById {
   '/(errors)/404': typeof errors404Route
   '/(errors)/500': typeof errors500Route
   '/(errors)/503': typeof errors503Route
-  '/(public)/avin-check': typeof publicAvinCheckRoute
+  '/(public)/avin-check': typeof publicAvinCheckRouteWithChildren
   '/_authenticated/cart': typeof AuthenticatedCartRoute
   '/_authenticated/chat': typeof AuthenticatedChatRoute
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
@@ -322,6 +331,7 @@ export interface FileRoutesById {
   '/(public)/category/': typeof publicCategoryIndexRoute
   '/_authenticated/orders/': typeof AuthenticatedOrdersIndexRoute
   '/_authenticated/wallet/': typeof AuthenticatedWalletIndexRoute
+  '/(public)/avin-check/provider/$slug': typeof publicAvinCheckProviderSlugRoute
   '/_authenticated/seller/listings/$id': typeof AuthenticatedSellerListingsIdRoute
 }
 export interface FileRouteTypes {
@@ -357,6 +367,7 @@ export interface FileRouteTypes {
     | '/category/'
     | '/orders/'
     | '/wallet/'
+    | '/avin-check/provider/$slug'
     | '/seller/listings/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -389,6 +400,7 @@ export interface FileRouteTypes {
     | '/category'
     | '/orders'
     | '/wallet'
+    | '/avin-check/provider/$slug'
     | '/seller/listings/$id'
   id:
     | '__root__'
@@ -425,6 +437,7 @@ export interface FileRouteTypes {
     | '/(public)/category/'
     | '/_authenticated/orders/'
     | '/_authenticated/wallet/'
+    | '/(public)/avin-check/provider/$slug'
     | '/_authenticated/seller/listings/$id'
   fileRoutesById: FileRoutesById
 }
@@ -673,6 +686,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedWalletDepositRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/(public)/avin-check/provider/$slug': {
+      id: '/(public)/avin-check/provider/$slug'
+      path: '/provider/$slug'
+      fullPath: '/avin-check/provider/$slug'
+      preLoaderRoute: typeof publicAvinCheckProviderSlugRouteImport
+      parentRoute: typeof publicAvinCheckRoute
+    }
     '/_authenticated/seller/listings/$id': {
       id: '/_authenticated/seller/listings/$id'
       path: '/$id'
@@ -697,8 +717,20 @@ const authRouteRouteWithChildren = authRouteRoute._addFileChildren(
   authRouteRouteChildren,
 )
 
+interface publicAvinCheckRouteChildren {
+  publicAvinCheckProviderSlugRoute: typeof publicAvinCheckProviderSlugRoute
+}
+
+const publicAvinCheckRouteChildren: publicAvinCheckRouteChildren = {
+  publicAvinCheckProviderSlugRoute: publicAvinCheckProviderSlugRoute,
+}
+
+const publicAvinCheckRouteWithChildren = publicAvinCheckRoute._addFileChildren(
+  publicAvinCheckRouteChildren,
+)
+
 interface publicRouteRouteChildren {
-  publicAvinCheckRoute: typeof publicAvinCheckRoute
+  publicAvinCheckRoute: typeof publicAvinCheckRouteWithChildren
   publicIndexRoute: typeof publicIndexRoute
   publicCategoryParentSlugRoute: typeof publicCategoryParentSlugRoute
   publicListingIdRoute: typeof publicListingIdRoute
@@ -707,7 +739,7 @@ interface publicRouteRouteChildren {
 }
 
 const publicRouteRouteChildren: publicRouteRouteChildren = {
-  publicAvinCheckRoute: publicAvinCheckRoute,
+  publicAvinCheckRoute: publicAvinCheckRouteWithChildren,
   publicIndexRoute: publicIndexRoute,
   publicCategoryParentSlugRoute: publicCategoryParentSlugRoute,
   publicListingIdRoute: publicListingIdRoute,

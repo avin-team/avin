@@ -75,6 +75,11 @@ export const sidebarData: SidebarData = {
           title: "Avin Check & Launch Gates",
           url: "/avin-check",
         },
+        {
+          icon: ShieldCheckIcon,
+          title: "Duyệt Provider",
+          url: "/avin-check/providers",
+        },
       ],
       title: "Bảo vệ giao dịch bên ngoài",
     },

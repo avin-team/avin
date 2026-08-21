@@ -1,7 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-
-import { ProtectionLaunchGatesPage } from "@/features/protection/pages/protection-launch-gates-page";
+import { Outlet, createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authenticated/avin-check")({
-  component: ProtectionLaunchGatesPage,
+  component: Outlet,
 });

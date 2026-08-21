@@ -1,4 +1,8 @@
 export const notificationEventTypes = [
+  "protection_provider_application.approved",
+  "protection_provider_application.changes_requested",
+  "protection_provider_application.rejected",
+  "protection_provider_application.submitted",
   "seller_application.submitted",
   "seller_application.approved",
   "seller_application.rejected",

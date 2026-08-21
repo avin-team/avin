@@ -51,12 +51,22 @@ const createAdminContext = (
   },
 });
 
+const emptyProviderDatabase = {
+  select: () => ({
+    from: () => ({
+      where: () => ({
+        limit: () => Promise.resolve([]),
+      }),
+    }),
+  }),
+} as unknown as Context["db"];
+
 describe("Avin Check public launch status", () => {
   it("exposes the safe default no-money pilot status", async () => {
     const result = await call(protectionRouter.launchStatus, undefined, {
       context: {
         audit: { record: () => Promise.resolve() },
-        db,
+        db: emptyProviderDatabase,
         session: null,
       },
     });
@@ -73,7 +83,7 @@ describe("Avin Check public launch status", () => {
     const result = await call(protectionRouter.providerWorkspace, undefined, {
       context: {
         audit: { record: () => Promise.resolve() },
-        db,
+        db: emptyProviderDatabase,
         session: {
           session: {
             createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -105,6 +115,7 @@ describe("Avin Check public launch status", () => {
     });
 
     expect(result).toEqual({
+      application: null,
       identity: {
         id: "provider-1",
         name: "Provider One",
@@ -114,11 +125,7 @@ describe("Avin Check public launch status", () => {
         source: "PROVIDER_IDENTITY",
         visibility: "PRIVATE",
       },
-      publicProfile: {
-        source: "PUBLISHED_PROVIDER_PROFILE_VERSION",
-        status: "NOT_PUBLISHED",
-        visibility: "PUBLIC",
-      },
+      publicProfile: null,
     });
 
     await expect(
@@ -170,6 +177,42 @@ describe("Avin Check public launch status", () => {
           false
         ),
       })
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("protects and audits the Provider Reviewer queue", async () => {
+    const auditEvents: AuditEvent[] = [];
+
+    await expect(
+      call(
+        protectionRouter.adminProviderApplications.list,
+        { status: "PENDING_REVIEW" },
+        {
+          context: createAdminContext([], true, auditEvents),
+        }
+      )
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+
+    expect(auditEvents[0]).toMatchObject({
+      action: "protection.provider_application.review",
+      outcome: "FAILURE",
+      purpose: "Review Provider applications and publish approved profiles",
+      targetId: "PROTECTION_PROVIDER_APPLICATION_QUEUE",
+      targetType: "PROTECTION_PROVIDER_APPLICATION_QUEUE",
+    });
+
+    await expect(
+      call(
+        protectionRouter.adminProviderApplications.list,
+        { status: "PENDING_REVIEW" },
+        {
+          context: createAdminContext(
+            [PROTECTION_ADMIN_CAPABILITY.PROVIDER_REVIEWER],
+            false,
+            auditEvents
+          ),
+        }
+      )
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });

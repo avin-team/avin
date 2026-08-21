@@ -12,6 +12,7 @@
     "./listing/seller-workspace": "./src/listing/seller-workspace.ts",
     "./notifications/email-delivery": "./src/notifications/email-delivery.ts",
     "./protection/launch-gates": "./src/protection/launch-gates.ts",
+    "./protection/provider-application": "./src/protection/provider-application.ts",
     "./protection/router": "./src/protection/router.ts",
     "./router": "./src/router.ts",
     "./seller-store/profile": "./src/seller-store/profile.ts",

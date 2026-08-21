@@ -20,6 +20,7 @@ import { Route as errors503RouteImport } from './routes/(errors)/503'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedAvinCheckRouteImport } from './routes/_authenticated/avin-check'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedAvinCheckIndexRouteImport } from './routes/_authenticated/avin-check/index'
 import { Route as AuthenticatedCategoriesIndexRouteImport } from './routes/_authenticated/categories/index'
 import { Route as AuthenticatedDisputesIndexRouteImport } from './routes/_authenticated/disputes/index'
 import { Route as AuthenticatedDisputesDisputeIdRouteImport } from './routes/_authenticated/disputes/$disputeId'
@@ -31,6 +32,8 @@ import { Route as AuthenticatedSellerApplicationsApplicationIdRouteImport } from
 import { Route as AuthenticatedSellersIndexRouteImport } from './routes/_authenticated/sellers/index'
 import { Route as AuthenticatedSellersSellerIdRouteImport } from './routes/_authenticated/sellers/$sellerId'
 import { Route as AuthenticatedWithdrawalsIndexRouteImport } from './routes/_authenticated/withdrawals/index'
+import { Route as AuthenticatedAvinCheckProvidersIndexRouteImport } from './routes/_authenticated/avin-check/providers/index'
+import { Route as AuthenticatedAvinCheckProvidersApplicationIdRouteImport } from './routes/_authenticated/avin-check/providers/$applicationId'
 
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
@@ -86,6 +89,12 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedAvinCheckIndexRoute =
+  AuthenticatedAvinCheckIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAvinCheckRoute,
+  } as any)
 const AuthenticatedCategoriesIndexRoute =
   AuthenticatedCategoriesIndexRouteImport.update({
     id: '/categories/',
@@ -152,6 +161,18 @@ const AuthenticatedWithdrawalsIndexRoute =
     path: '/withdrawals/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAvinCheckProvidersIndexRoute =
+  AuthenticatedAvinCheckProvidersIndexRouteImport.update({
+    id: '/providers/',
+    path: '/providers/',
+    getParentRoute: () => AuthenticatedAvinCheckRoute,
+  } as any)
+const AuthenticatedAvinCheckProvidersApplicationIdRoute =
+  AuthenticatedAvinCheckProvidersApplicationIdRouteImport.update({
+    id: '/providers/$applicationId',
+    path: '/providers/$applicationId',
+    getParentRoute: () => AuthenticatedAvinCheckRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -162,11 +183,12 @@ export interface FileRoutesByFullPath {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
-  '/avin-check': typeof AuthenticatedAvinCheckRoute
+  '/avin-check': typeof AuthenticatedAvinCheckRouteWithChildren
   '/settings': typeof AuthenticatedSettingsRoute
   '/disputes/$disputeId': typeof AuthenticatedDisputesDisputeIdRoute
   '/seller-applications/$applicationId': typeof AuthenticatedSellerApplicationsApplicationIdRoute
   '/sellers/$sellerId': typeof AuthenticatedSellersSellerIdRoute
+  '/avin-check/': typeof AuthenticatedAvinCheckIndexRoute
   '/categories/': typeof AuthenticatedCategoriesIndexRoute
   '/disputes/': typeof AuthenticatedDisputesIndexRoute
   '/listings/': typeof AuthenticatedListingsIndexRoute
@@ -175,6 +197,8 @@ export interface FileRoutesByFullPath {
   '/seller-applications/': typeof AuthenticatedSellerApplicationsIndexRoute
   '/sellers/': typeof AuthenticatedSellersIndexRoute
   '/withdrawals/': typeof AuthenticatedWithdrawalsIndexRoute
+  '/avin-check/providers/$applicationId': typeof AuthenticatedAvinCheckProvidersApplicationIdRoute
+  '/avin-check/providers/': typeof AuthenticatedAvinCheckProvidersIndexRoute
 }
 export interface FileRoutesByTo {
   '/sign-in': typeof SignInRoute
@@ -184,12 +208,12 @@ export interface FileRoutesByTo {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
-  '/avin-check': typeof AuthenticatedAvinCheckRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/': typeof AuthenticatedIndexRoute
   '/disputes/$disputeId': typeof AuthenticatedDisputesDisputeIdRoute
   '/seller-applications/$applicationId': typeof AuthenticatedSellerApplicationsApplicationIdRoute
   '/sellers/$sellerId': typeof AuthenticatedSellersSellerIdRoute
+  '/avin-check': typeof AuthenticatedAvinCheckIndexRoute
   '/categories': typeof AuthenticatedCategoriesIndexRoute
   '/disputes': typeof AuthenticatedDisputesIndexRoute
   '/listings': typeof AuthenticatedListingsIndexRoute
@@ -198,6 +222,8 @@ export interface FileRoutesByTo {
   '/seller-applications': typeof AuthenticatedSellerApplicationsIndexRoute
   '/sellers': typeof AuthenticatedSellersIndexRoute
   '/withdrawals': typeof AuthenticatedWithdrawalsIndexRoute
+  '/avin-check/providers/$applicationId': typeof AuthenticatedAvinCheckProvidersApplicationIdRoute
+  '/avin-check/providers': typeof AuthenticatedAvinCheckProvidersIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -209,12 +235,13 @@ export interface FileRoutesById {
   '/(errors)/404': typeof errors404Route
   '/(errors)/500': typeof errors500Route
   '/(errors)/503': typeof errors503Route
-  '/_authenticated/avin-check': typeof AuthenticatedAvinCheckRoute
+  '/_authenticated/avin-check': typeof AuthenticatedAvinCheckRouteWithChildren
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/disputes/$disputeId': typeof AuthenticatedDisputesDisputeIdRoute
   '/_authenticated/seller-applications/$applicationId': typeof AuthenticatedSellerApplicationsApplicationIdRoute
   '/_authenticated/sellers/$sellerId': typeof AuthenticatedSellersSellerIdRoute
+  '/_authenticated/avin-check/': typeof AuthenticatedAvinCheckIndexRoute
   '/_authenticated/categories/': typeof AuthenticatedCategoriesIndexRoute
   '/_authenticated/disputes/': typeof AuthenticatedDisputesIndexRoute
   '/_authenticated/listings/': typeof AuthenticatedListingsIndexRoute
@@ -223,6 +250,8 @@ export interface FileRoutesById {
   '/_authenticated/seller-applications/': typeof AuthenticatedSellerApplicationsIndexRoute
   '/_authenticated/sellers/': typeof AuthenticatedSellersIndexRoute
   '/_authenticated/withdrawals/': typeof AuthenticatedWithdrawalsIndexRoute
+  '/_authenticated/avin-check/providers/$applicationId': typeof AuthenticatedAvinCheckProvidersApplicationIdRoute
+  '/_authenticated/avin-check/providers/': typeof AuthenticatedAvinCheckProvidersIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -240,6 +269,7 @@ export interface FileRouteTypes {
     | '/disputes/$disputeId'
     | '/seller-applications/$applicationId'
     | '/sellers/$sellerId'
+    | '/avin-check/'
     | '/categories/'
     | '/disputes/'
     | '/listings/'
@@ -248,6 +278,8 @@ export interface FileRouteTypes {
     | '/seller-applications/'
     | '/sellers/'
     | '/withdrawals/'
+    | '/avin-check/providers/$applicationId'
+    | '/avin-check/providers/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/sign-in'
@@ -257,12 +289,12 @@ export interface FileRouteTypes {
     | '/404'
     | '/500'
     | '/503'
-    | '/avin-check'
     | '/settings'
     | '/'
     | '/disputes/$disputeId'
     | '/seller-applications/$applicationId'
     | '/sellers/$sellerId'
+    | '/avin-check'
     | '/categories'
     | '/disputes'
     | '/listings'
@@ -271,6 +303,8 @@ export interface FileRouteTypes {
     | '/seller-applications'
     | '/sellers'
     | '/withdrawals'
+    | '/avin-check/providers/$applicationId'
+    | '/avin-check/providers'
   id:
     | '__root__'
     | '/_authenticated'
@@ -287,6 +321,7 @@ export interface FileRouteTypes {
     | '/_authenticated/disputes/$disputeId'
     | '/_authenticated/seller-applications/$applicationId'
     | '/_authenticated/sellers/$sellerId'
+    | '/_authenticated/avin-check/'
     | '/_authenticated/categories/'
     | '/_authenticated/disputes/'
     | '/_authenticated/listings/'
@@ -295,6 +330,8 @@ export interface FileRouteTypes {
     | '/_authenticated/seller-applications/'
     | '/_authenticated/sellers/'
     | '/_authenticated/withdrawals/'
+    | '/_authenticated/avin-check/providers/$applicationId'
+    | '/_authenticated/avin-check/providers/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -387,6 +424,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/avin-check/': {
+      id: '/_authenticated/avin-check/'
+      path: '/'
+      fullPath: '/avin-check/'
+      preLoaderRoute: typeof AuthenticatedAvinCheckIndexRouteImport
+      parentRoute: typeof AuthenticatedAvinCheckRoute
+    }
     '/_authenticated/categories/': {
       id: '/_authenticated/categories/'
       path: '/categories'
@@ -464,11 +508,45 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedWithdrawalsIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/avin-check/providers/': {
+      id: '/_authenticated/avin-check/providers/'
+      path: '/providers'
+      fullPath: '/avin-check/providers/'
+      preLoaderRoute: typeof AuthenticatedAvinCheckProvidersIndexRouteImport
+      parentRoute: typeof AuthenticatedAvinCheckRoute
+    }
+    '/_authenticated/avin-check/providers/$applicationId': {
+      id: '/_authenticated/avin-check/providers/$applicationId'
+      path: '/providers/$applicationId'
+      fullPath: '/avin-check/providers/$applicationId'
+      preLoaderRoute: typeof AuthenticatedAvinCheckProvidersApplicationIdRouteImport
+      parentRoute: typeof AuthenticatedAvinCheckRoute
+    }
   }
 }
 
+interface AuthenticatedAvinCheckRouteChildren {
+  AuthenticatedAvinCheckIndexRoute: typeof AuthenticatedAvinCheckIndexRoute
+  AuthenticatedAvinCheckProvidersApplicationIdRoute: typeof AuthenticatedAvinCheckProvidersApplicationIdRoute
+  AuthenticatedAvinCheckProvidersIndexRoute: typeof AuthenticatedAvinCheckProvidersIndexRoute
+}
+
+const AuthenticatedAvinCheckRouteChildren: AuthenticatedAvinCheckRouteChildren =
+  {
+    AuthenticatedAvinCheckIndexRoute: AuthenticatedAvinCheckIndexRoute,
+    AuthenticatedAvinCheckProvidersApplicationIdRoute:
+      AuthenticatedAvinCheckProvidersApplicationIdRoute,
+    AuthenticatedAvinCheckProvidersIndexRoute:
+      AuthenticatedAvinCheckProvidersIndexRoute,
+  }
+
+const AuthenticatedAvinCheckRouteWithChildren =
+  AuthenticatedAvinCheckRoute._addFileChildren(
+    AuthenticatedAvinCheckRouteChildren,
+  )
+
 interface AuthenticatedRouteChildren {
-  AuthenticatedAvinCheckRoute: typeof AuthenticatedAvinCheckRoute
+  AuthenticatedAvinCheckRoute: typeof AuthenticatedAvinCheckRouteWithChildren
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedDisputesDisputeIdRoute: typeof AuthenticatedDisputesDisputeIdRoute
@@ -485,7 +563,7 @@ interface AuthenticatedRouteChildren {
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
-  AuthenticatedAvinCheckRoute: AuthenticatedAvinCheckRoute,
+  AuthenticatedAvinCheckRoute: AuthenticatedAvinCheckRouteWithChildren,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedDisputesDisputeIdRoute: AuthenticatedDisputesDisputeIdRoute,

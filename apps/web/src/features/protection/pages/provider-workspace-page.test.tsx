@@ -4,6 +4,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ProviderWorkspacePage } from "./provider-workspace-page";
 
 vi.mock("@/features/protection/api/provider-api", () => ({
+  useProviderApplicationActions: () => ({
+    saveDraft: { isPending: false, mutateAsync: vi.fn() },
+    submit: { isPending: false, mutateAsync: vi.fn() },
+  }),
+  useProviderNotifications: () => ({ data: null }),
   useProviderWorkspace: () => ({
     data: {
       identity: {
@@ -39,11 +44,13 @@ describe("ProviderWorkspacePage", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/Hồ sơ Provider riêng/iu)).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Hồ sơ công khai" })
+      screen.getByRole("heading", { name: "Đăng ký Provider" })
     ).toBeInTheDocument();
     expect(
       screen.getByText(/Không có số dư marketplace/iu)
     ).toBeInTheDocument();
-    expect(screen.getByText(/chưa được phát hành/iu)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Provider không thể tự phát hành profile công khai/iu)
+    ).toBeInTheDocument();
   });
 });

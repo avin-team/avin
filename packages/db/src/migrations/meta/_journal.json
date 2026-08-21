@@ -232,6 +232,13 @@
       "when": 1787302067073,
       "tag": "0032_unique_quicksilver",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1787303191809,
+      "tag": "0033_tired_proteus",
+      "breakpoints": true
     }
   ]
 }
