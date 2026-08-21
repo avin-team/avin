@@ -3,7 +3,6 @@ import { useSearch } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { toast } from "sonner";
 
-import { Shell } from "@/components/shell";
 import { DecorIcon } from "@/features/auth/components/decor-icon";
 import { GoogleSignInButton } from "@/features/auth/components/google-sign-in-button";
 
@@ -77,40 +76,38 @@ export const AuthPage = () => {
   }, [search]);
 
   return (
-    <Shell variant="centered">
-      <section
-        className={cn(
-          "relative flex w-full max-w-sm flex-col justify-between p-6 md:p-8",
-          "dark:bg-[radial-gradient(50%_80%_at_20%_0%,--theme(--color-foreground/.1),transparent)]"
-        )}
-      >
-        <div className="absolute -inset-y-6 -left-px w-px bg-border" />
-        <div className="absolute -inset-y-6 -right-px w-px bg-border" />
-        <div className="absolute -inset-x-6 -top-px h-px bg-border" />
-        <div className="absolute -inset-x-6 -bottom-px h-px bg-border" />
-        <DecorIcon position="top-left" />
-        <DecorIcon position="bottom-right" />
+    <section
+      className={cn(
+        "relative flex w-full max-w-sm flex-col justify-between p-6 md:p-8",
+        "dark:bg-[radial-gradient(50%_80%_at_20%_0%,--theme(--color-foreground/.1),transparent)]"
+      )}
+    >
+      <div className="absolute -inset-y-6 -left-px w-px bg-border" />
+      <div className="absolute -inset-y-6 -right-px w-px bg-border" />
+      <div className="absolute -inset-x-6 -top-px h-px bg-border" />
+      <div className="absolute -inset-x-6 -bottom-px h-px bg-border" />
+      <DecorIcon position="top-left" />
+      <DecorIcon position="bottom-right" />
 
-        <div className="flex w-full max-w-sm animate-in flex-col gap-6">
-          <header className="flex flex-col gap-1 text-center">
-            <h1 className="font-bold text-2xl tracking-wide">
-              Chào mừng đến Avin
-            </h1>
-            <p className="text-base text-muted-foreground">
-              Đăng nhập hoặc đăng ký tài khoản để tiếp tục.
-            </p>
-          </header>
-
-          <div className="flex flex-col gap-6 animate-in fade-in duration-300">
-            <GoogleSignInButton />
-          </div>
-
-          <p className="text-muted-foreground text-xs text-center">
-            Khi tiếp tục, bạn đồng ý với Điều khoản dịch vụ và Chính sách bảo
-            mật của Avin.
+      <div className="flex w-full max-w-sm animate-in flex-col gap-6">
+        <header className="flex flex-col gap-1 text-center">
+          <h1 className="font-bold text-2xl tracking-wide">
+            Chào mừng đến Avin
+          </h1>
+          <p className="text-base text-muted-foreground">
+            Đăng nhập hoặc đăng ký tài khoản để tiếp tục.
           </p>
+        </header>
+
+        <div className="flex flex-col gap-6 animate-in fade-in duration-300">
+          <GoogleSignInButton />
         </div>
-      </section>
-    </Shell>
+
+        <p className="text-muted-foreground text-xs text-center">
+          Khi tiếp tục, bạn đồng ý với Điều khoản dịch vụ và Chính sách bảo mật
+          của Avin.
+        </p>
+      </div>
+    </section>
   );
 };

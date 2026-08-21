@@ -7,7 +7,6 @@ import {
   CardTitle,
 } from "@avin/ui/components/card";
 
-import { Shell } from "@/components/shell";
 import { GoogleSignInButton } from "@/features/auth/components/google-sign-in-button";
 import type { PostSignInRoute } from "@/features/auth/components/sign-in-form";
 
@@ -24,15 +23,13 @@ export const RoleSignInPage = ({
   redirectTo = "/",
   title,
 }: RoleSignInPageProps) => (
-  <Shell variant="centered">
-    <Card className="mx-auto w-full max-w-md">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <GoogleSignInButton redirectTo={redirectTo} />
-      </CardContent>
-    </Card>
-  </Shell>
+  <Card className="mx-auto w-full max-w-md">
+    <CardHeader>
+      <CardTitle>{title}</CardTitle>
+      <CardDescription>{description}</CardDescription>
+    </CardHeader>
+    <CardContent>
+      <GoogleSignInButton redirectTo={redirectTo} />
+    </CardContent>
+  </Card>
 );
