@@ -10,8 +10,8 @@ const AuthRouteLayout = () => (
 );
 
 export const Route = createFileRoute("/(auth)")({
-  beforeLoad: async () => {
-    await requireGuest();
+  beforeLoad: async ({ context }) => {
+    await requireGuest(context?.queryClient);
   },
   component: AuthRouteLayout,
 });

@@ -1,4 +1,5 @@
 import { ACCOUNT_ROLE } from "@avin/auth/permissions";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -39,7 +40,19 @@ vi.mock("sonner", () => ({
   },
 }));
 
-const renderForm = () => render(<SignInForm />);
+const createTestQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+    },
+  });
+
+const renderForm = (ui = <SignInForm />) => {
+  const queryClient = createTestQueryClient();
+  return render(
+    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
+  );
+};
 
 const fillAndSubmit = async (
   email = "buyer@test.com",
@@ -134,7 +147,9 @@ describe("SignInForm", () => {
       });
 
       const user = userEvent.setup();
-      render(<SignInForm expectedRole={ACCOUNT_ROLE.SELLER} redirectTo="/" />);
+      renderForm(
+        <SignInForm expectedRole={ACCOUNT_ROLE.SELLER} redirectTo="/" />
+      );
 
       await user.type(screen.getByLabelText("Email"), "seller@test.com");
       await user.type(screen.getByLabelText("Mật khẩu"), "password123");
@@ -155,7 +170,9 @@ describe("SignInForm", () => {
       });
 
       const user = userEvent.setup();
-      render(<SignInForm expectedRole={ACCOUNT_ROLE.SELLER} redirectTo="/" />);
+      renderForm(
+        <SignInForm expectedRole={ACCOUNT_ROLE.SELLER} redirectTo="/" />
+      );
 
       await user.type(screen.getByLabelText("Email"), "buyer@test.com");
       await user.type(screen.getByLabelText("Mật khẩu"), "password123");

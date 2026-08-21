@@ -1,16 +1,21 @@
+import type { QueryClient } from "@tanstack/react-query";
 import { redirect } from "@tanstack/react-router";
 
-import { authClient } from "@/features/auth/api/auth-client";
 import { isMobileViewport } from "@/utils/mobile-viewport";
+import { queryClient as defaultQueryClient } from "@/utils/orpc";
 
-export const redirectMobileGuest = async () => {
+import { resolveSessionData } from "../api/session-query";
+
+export const redirectMobileGuest = async (
+  queryClient: QueryClient = defaultQueryClient
+) => {
   if (!isMobileViewport()) {
     return;
   }
 
-  const session = await authClient.getSession();
+  const sessionData = await resolveSessionData(queryClient);
 
-  if (!session.data) {
+  if (!sessionData?.user) {
     throw redirect({ to: "/login" });
   }
 };

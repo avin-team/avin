@@ -9,14 +9,17 @@ import {
 import { Input } from "@avin/ui/components/input";
 import { Spinner } from "@avin/ui/components/spinner";
 import { useForm } from "@tanstack/react-form";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 
 import { authClient } from "@/features/auth/api/auth-client";
+import { invalidateAuthSession } from "@/features/auth/api/session-query";
 import { twoFactorCodeSchema } from "@/features/auth/schemas/auth-schemas";
 
 export const TwoFactorLoginForm = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const form = useForm({
     defaultValues: {
       code: "",
@@ -33,11 +36,13 @@ export const TwoFactorLoginForm = () => {
           return;
         }
 
+        await invalidateAuthSession(queryClient);
         await navigate({ to: "/" });
       } catch {
         toast.error("Không thể xác minh lúc này. Vui lòng thử lại.");
       }
     },
+
     validators: {
       onSubmit: twoFactorCodeSchema,
     },

@@ -5,13 +5,12 @@ import { WalletIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 
-import { authClient } from "@/features/auth/api/auth-client";
+import { useSession } from "@/features/auth/api/session-query";
 import { walletSummaryQueryOptions } from "@/features/wallet/api/wallet-api";
 import { formatVND } from "@/utils/format";
 
 export const WalletButton = () => {
-  const { data: session, isPending: isSessionPending } =
-    authClient.useSession();
+  const { data: session, isPending: isSessionPending } = useSession();
   const isBuyer = session?.user.role === ACCOUNT_ROLE.BUYER;
 
   const summaryQuery = useQuery({

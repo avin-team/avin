@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { getHeaderActionVisibility } from "@/components/layout/header-action-visibility";
 import { siteConfig } from "@/config/site";
-import { authClient } from "@/features/auth/api/auth-client";
+import { useSession } from "@/features/auth/api/session-query";
 import { UserMenu } from "@/features/auth/components/user-menu";
 import { ChatButton } from "@/features/chat/components/chat-button";
 import { CartButton } from "@/features/commerce/components/cart-button";
@@ -41,7 +41,7 @@ export const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
-  const { data: session } = authClient.useSession();
+  const { data: session } = useSession();
   const role = session?.user.role;
   const isSeller = role === ACCOUNT_ROLE.SELLER;
   const sellerProfileQuery = useQuery({

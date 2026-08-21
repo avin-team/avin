@@ -33,9 +33,10 @@ vi.mock("@avin/ui/components/badge", () => ({
     <span {...props}>{children}</span>
   ),
 }));
-vi.mock("@/features/auth/api/auth-client", () => ({
-  authClient: { useSession: mocks.useSession },
+vi.mock("@/features/auth/api/session-query", () => ({
+  useSession: mocks.useSession,
 }));
+
 vi.mock("@/utils/orpc", () => ({
   orpc: {
     commerce: {

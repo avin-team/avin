@@ -11,6 +11,7 @@ import { OnboardingPage } from "./onboarding-page";
 
 const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
+  invalidateQueries: vi.fn(),
   mutateAsync: vi.fn(),
   navigate: vi.fn(),
   toastSuccess: vi.fn(),
@@ -24,6 +25,9 @@ vi.mock("@tanstack/react-query", () => ({
   useMutation: () => ({
     isPending: false,
     mutateAsync: mocks.mutateAsync,
+  }),
+  useQueryClient: () => ({
+    invalidateQueries: mocks.invalidateQueries,
   }),
 }));
 
@@ -79,7 +83,7 @@ describe("OnboardingPage", () => {
 
     await waitFor(() => {
       expect(mocks.mutateAsync).toHaveBeenCalledWith({ role: "BUYER" });
-      expect(mocks.getSession).toHaveBeenCalled();
+      expect(mocks.invalidateQueries).toHaveBeenCalled();
       expect(mocks.navigate).toHaveBeenCalledWith({ to: "/" });
       expect(mocks.toastSuccess).toHaveBeenCalledWith(
         "Chào mừng bạn đến với Avin!"
@@ -97,7 +101,7 @@ describe("OnboardingPage", () => {
 
     await waitFor(() => {
       expect(mocks.mutateAsync).toHaveBeenCalledWith({ role: "SELLER" });
-      expect(mocks.getSession).toHaveBeenCalled();
+      expect(mocks.invalidateQueries).toHaveBeenCalled();
       expect(mocks.navigate).toHaveBeenCalledWith({
         to: "/seller/onboarding",
       });

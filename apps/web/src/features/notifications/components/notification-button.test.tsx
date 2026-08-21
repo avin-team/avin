@@ -42,10 +42,8 @@ vi.mock("@tanstack/react-router", () => ({
   ),
 }));
 
-vi.mock("@/features/auth/api/auth-client", () => ({
-  authClient: {
-    useSession: () => ({ data: { user: { id: "user-1" } }, isPending: false }),
-  },
+vi.mock("@/features/auth/api/session-query", () => ({
+  useSession: () => ({ data: { user: { id: "user-1" } }, isPending: false }),
 }));
 
 vi.mock("../api/notifications-api", () => ({

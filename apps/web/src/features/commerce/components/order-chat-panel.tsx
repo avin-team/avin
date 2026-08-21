@@ -492,6 +492,8 @@ const useOrderChatRealtimeChannel = ({
       return;
     }
 
+    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
+
     supabasePublic.realtime.setAuth(accessToken);
     const channel = supabasePublic
       .channel(channelName, { config: { private: true } })
@@ -519,13 +521,21 @@ const useOrderChatRealtimeChannel = ({
           void recoverMessagesAfter();
           return;
         }
-        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-          void refetchRealtimeToken();
+        if (
+          (status === "CHANNEL_ERROR" || status === "TIMED_OUT") &&
+          !retryTimeout
+        ) {
+          retryTimeout = setTimeout(() => {
+            void refetchRealtimeToken();
+          }, 10_000);
         }
       });
     channelRef.current = channel;
 
     return () => {
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+      }
       broadcastTyping(false);
       if (typingIndicatorTimeoutRef.current) {
         clearTimeout(typingIndicatorTimeoutRef.current);
@@ -533,6 +543,7 @@ const useOrderChatRealtimeChannel = ({
       channelRef.current = null;
       setIsOtherTyping(false);
       setIsOtherParticipantPresent(false);
+      void channel.unsubscribe();
       void supabasePublic.removeChannel(channel);
     };
   }, [
@@ -868,9 +879,10 @@ export const OrderChatPanel = ({
       onError: () => toast.error("Không thể mở tệp đính kèm"),
     })
   );
-  const realtimeTokenQuery = useQuery(
-    orpc.commerce.chat.getRealtimeToken.queryOptions({ input: { orderId } })
-  );
+  const realtimeTokenQuery = useQuery({
+    ...orpc.commerce.chat.getRealtimeToken.queryOptions({ input: { orderId } }),
+    staleTime: 5 * 60 * 1000,
+  });
   const { data: realtimeToken, refetch: refetchRealtimeToken } =
     realtimeTokenQuery;
   const attachmentUpload = useUploadFiles({
@@ -911,7 +923,7 @@ export const OrderChatPanel = ({
 
   React.useEffect(() => {
     const expiresInSeconds = realtimeToken?.expiresInSeconds;
-    if (!expiresInSeconds) {
+    if (!expiresInSeconds || !realtimeToken?.accessToken) {
       return;
     }
 
@@ -923,7 +935,11 @@ export const OrderChatPanel = ({
       void refetchRealtimeToken();
     }, refreshDelayMs);
     return () => clearTimeout(refreshTimer);
-  }, [realtimeToken?.expiresInSeconds, refetchRealtimeToken]);
+  }, [
+    realtimeToken?.accessToken,
+    realtimeToken?.expiresInSeconds,
+    refetchRealtimeToken,
+  ]);
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
