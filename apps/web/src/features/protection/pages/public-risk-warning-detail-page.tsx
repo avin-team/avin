@@ -237,6 +237,13 @@ export const PublicRiskWarningDetailPage = () => {
             >
               Gửi report mới
             </Link>
+            <Link
+              className="mt-3 ml-4 inline-flex font-medium text-primary underline underline-offset-4"
+              search={{ reportId: warning.reportId }}
+              to="/avin-check/correction"
+            >
+              Yêu cầu đính chính
+            </Link>
           </CardContent>
         </Card>
 

@@ -59,6 +59,7 @@ const createProfile = (): ProfileRow => ({
   publishedAt: timestamp,
   services: "Game account support",
   status: "ACTIVE",
+  statusReason: null,
   updatedAt: timestamp,
   verifiedAt: timestamp,
 });
@@ -101,13 +102,14 @@ const createReport = (): ReportRow => ({
   narrative: "Moderated report",
   platform: "Facebook",
   policyVersionId: null,
+  possibleDuplicateOfReportId: null,
   publicSlug: "warning-1",
   publicSummary: "Public warning summary",
   publishedAt: timestamp,
   reporterEmail: "reporter@example.com",
   reporterName: "Reporter",
   reporterPhone: "0123456789",
-  reporterSessionId: "reporter-session-1",
+  reporterRelationship: "NO_PROVIDER_RELATIONSHIP",
   reporterUserId: "reporter-1",
   reporterZalo: null,
   reviewReason: null,
@@ -120,6 +122,9 @@ const createReport = (): ReportRow => ({
   updatedAt: timestamp,
   urgency: "NORMAL",
   violationType: null,
+  withdrawalReason: null,
+  withdrawalRequestedAt: null,
+  withdrawalStatus: "NONE",
 });
 
 const createIncident = (status: IncidentRow["status"]): IncidentRow => ({

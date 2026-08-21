@@ -69,6 +69,21 @@ export const protectionRiskReportStatus = pgEnum(
   ]
 );
 
+export const protectionRiskReportWithdrawalStatus = pgEnum(
+  "protection_risk_report_withdrawal_status",
+  ["NONE", "REQUESTED", "APPROVED", "DECLINED"]
+);
+
+export const protectionRiskReporterRelationship = pgEnum(
+  "protection_risk_reporter_relationship",
+  ["NO_PROVIDER_RELATIONSHIP", "SELF_PROVIDER", "OTHER_PROVIDER"]
+);
+
+export const protectionRiskCorrectionStatus = pgEnum(
+  "protection_risk_correction_status",
+  ["REQUESTED", "UNDER_REVIEW", "APPROVED", "REJECTED"]
+);
+
 export const protectionRiskIdentifierType = pgEnum(
   "protection_risk_identifier_type",
   [
@@ -347,6 +362,7 @@ export const protectionProviderProfile = pgTable(
     status: protectionProviderProfileStatus("status")
       .default("ACTIVE")
       .notNull(),
+    statusReason: text("status_reason"),
     updatedAt: timestamp("updated_at")
       .defaultNow()
       .$onUpdate(() => new Date())
@@ -503,26 +519,35 @@ export const protectionProviderPolicyAcceptance = pgTable(
   ]
 );
 
-export const protectionRiskReporterSession = pgTable(
-  "protection_risk_reporter_session",
+export const protectionProviderOwnershipChange = pgTable(
+  "protection_provider_ownership_change",
   {
     createdAt: timestamp("created_at").defaultNow().notNull(),
-    email: text("email").notNull(),
-    emailHash: text("email_hash").notNull(),
-    expiresAt: timestamp("expires_at").notNull(),
+    fromUserId: text("from_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
     id: uuid("id").defaultRandom().primaryKey(),
-    ipHash: text("ip_hash"),
-    lastUsedAt: timestamp("last_used_at"),
-    tokenHash: text("token_hash").notNull(),
+    identityEvidenceReference: text("identity_evidence_reference").notNull(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => protectionProviderProfile.id, { onDelete: "restrict" }),
+    reason: text("reason").notNull(),
+    toUserId: text("to_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    transferredByUserId: text("transferred_by_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
   },
   (table) => [
-    index("protection_risk_reporter_session_email_hash_idx").on(
-      table.emailHash
+    index("protection_provider_ownership_change_profile_idx").on(
+      table.profileId,
+      table.createdAt
     ),
-    uniqueIndex("protection_risk_reporter_session_token_hash_idx").on(
-      table.tokenHash
+    index("protection_provider_ownership_change_target_idx").on(
+      table.toUserId,
+      table.createdAt
     ),
-    index("protection_risk_reporter_session_expires_idx").on(table.expiresAt),
   ]
 );
 
@@ -539,19 +564,19 @@ export const protectionRiskReport = pgTable(
       () => protectionPolicyVersion.id,
       { onDelete: "restrict" }
     ),
+    possibleDuplicateOfReportId: uuid("possible_duplicate_of_report_id"),
     publicSlug: text("public_slug"),
     publicSummary: text("public_summary"),
     publishedAt: timestamp("published_at"),
     reporterEmail: text("reporter_email").notNull(),
     reporterName: text("reporter_name"),
     reporterPhone: text("reporter_phone"),
-    reporterSessionId: uuid("reporter_session_id").references(
-      () => protectionRiskReporterSession.id,
-      { onDelete: "restrict" }
+    reporterRelationship: protectionRiskReporterRelationship(
+      "reporter_relationship"
     ),
-    reporterUserId: text("reporter_user_id")
-      .notNull()
-      .references(() => user.id, { onDelete: "restrict" }),
+    reporterUserId: text("reporter_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
     reporterZalo: text("reporter_zalo"),
     reviewReason: text("review_reason"),
     reviewedAt: timestamp("reviewed_at"),
@@ -570,15 +595,24 @@ export const protectionRiskReport = pgTable(
       .notNull(),
     urgency: protectionRiskReportUrgency("urgency").default("NORMAL").notNull(),
     violationType: protectionRiskReportWebsiteViolation("violation_type"),
+    withdrawalReason: text("withdrawal_reason"),
+    withdrawalRequestedAt: timestamp("withdrawal_requested_at"),
+    withdrawalStatus: protectionRiskReportWithdrawalStatus("withdrawal_status")
+      .default("NONE")
+      .notNull(),
   },
   (table) => [
     uniqueIndex("protection_risk_report_public_slug_idx").on(table.publicSlug),
     index("protection_risk_report_status_idx").on(table.status),
     index("protection_risk_report_submitted_idx").on(table.submittedAt),
-    index("protection_risk_report_reporter_session_idx").on(
-      table.reporterSessionId
-    ),
     index("protection_risk_report_reporter_user_idx").on(table.reporterUserId),
+    index("protection_risk_report_duplicate_idx").on(
+      table.possibleDuplicateOfReportId
+    ),
+    index("protection_risk_report_withdrawal_idx").on(
+      table.withdrawalStatus,
+      table.withdrawalRequestedAt
+    ),
   ]
 );
 
@@ -680,6 +714,48 @@ export const protectionRiskReportHistory = pgTable(
       table.reportId,
       table.createdAt
     ),
+  ]
+);
+
+export const protectionRiskCorrectionRequest = pgTable(
+  "protection_risk_correction_request",
+  {
+    authorityEvidenceReference: text("authority_evidence_reference").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    reason: text("reason").notNull(),
+    reportId: uuid("report_id")
+      .notNull()
+      .references(() => protectionRiskReport.id, { onDelete: "cascade" }),
+    requesterEmail: text("requester_email").notNull(),
+    requesterName: text("requester_name").notNull(),
+    requesterRelationship: text("requester_relationship").notNull(),
+    requesterUserId: text("requester_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    reviewReason: text("review_reason"),
+    reviewedAt: timestamp("reviewed_at"),
+    reviewedByUserId: text("reviewed_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    status: protectionRiskCorrectionStatus("status")
+      .default("REQUESTED")
+      .notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("protection_risk_correction_report_idx").on(
+      table.reportId,
+      table.createdAt
+    ),
+    index("protection_risk_correction_requester_idx").on(
+      table.requesterUserId,
+      table.createdAt
+    ),
+    index("protection_risk_correction_status_idx").on(table.status),
   ]
 );
 

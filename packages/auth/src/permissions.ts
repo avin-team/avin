@@ -4,7 +4,6 @@ import { adminAc, defaultStatements } from "better-auth/plugins/admin/access";
 export const ACCOUNT_ROLE = {
   ADMIN: "ADMIN",
   BUYER: "BUYER",
-  PROVIDER: "PROVIDER",
   SELLER: "SELLER",
 } as const;
 
@@ -73,11 +72,6 @@ export const sellerRole = marketplaceAccessControl.newRole({
   user: [],
 });
 
-export const providerRole = marketplaceAccessControl.newRole({
-  session: [],
-  user: [],
-});
-
 export const adminRole = marketplaceAccessControl.newRole({
   ...adminAc.statements,
 });
@@ -85,6 +79,5 @@ export const adminRole = marketplaceAccessControl.newRole({
 export const marketplaceRoles = {
   [ACCOUNT_ROLE.ADMIN]: adminRole,
   [ACCOUNT_ROLE.BUYER]: buyerRole,
-  [ACCOUNT_ROLE.PROVIDER]: providerRole,
   [ACCOUNT_ROLE.SELLER]: sellerRole,
 };

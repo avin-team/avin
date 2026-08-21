@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as authRouteRouteImport } from './routes/(auth)/route'
 import { Route as publicRouteRouteImport } from './routes/(public)/route'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
-import { Route as ProviderRouteRouteImport } from './routes/provider/route'
 import { Route as authLoginRouteImport } from './routes/(auth)/login'
 import { Route as errors401RouteImport } from './routes/(errors)/401'
 import { Route as errors403RouteImport } from './routes/(errors)/403'
@@ -27,12 +26,11 @@ import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authen
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedSecurityRouteImport } from './routes/_authenticated/security'
 import { Route as AuthenticatedTwoFactorRouteImport } from './routes/_authenticated/two-factor'
-import { Route as ProviderIndexRouteImport } from './routes/provider/index'
-import { Route as ProviderLoginRouteImport } from './routes/provider/login'
 import { Route as authSellerLoginRouteImport } from './routes/(auth)/seller/login'
 import { Route as publicAvinCheckIndexRouteImport } from './routes/(public)/avin-check/index'
 import { Route as publicAvinCheckApplyRouteImport } from './routes/(public)/avin-check/apply'
 import { Route as publicAvinCheckCheckRouteImport } from './routes/(public)/avin-check/check'
+import { Route as publicAvinCheckCorrectionRouteImport } from './routes/(public)/avin-check/correction'
 import { Route as publicAvinCheckDirectoryRouteImport } from './routes/(public)/avin-check/directory'
 import { Route as publicAvinCheckReportRouteImport } from './routes/(public)/avin-check/report'
 import { Route as publicAvinCheckWarningsRouteImport } from './routes/(public)/avin-check/warnings'
@@ -64,11 +62,6 @@ const publicRouteRoute = publicRouteRouteImport.update({
 } as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProviderRouteRoute = ProviderRouteRouteImport.update({
-  id: '/provider',
-  path: '/provider',
   getParentRoute: () => rootRouteImport,
 } as any)
 const authLoginRoute = authLoginRouteImport.update({
@@ -142,16 +135,6 @@ const AuthenticatedTwoFactorRoute = AuthenticatedTwoFactorRouteImport.update({
   path: '/two-factor',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const ProviderIndexRoute = ProviderIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => ProviderRouteRoute,
-} as any)
-const ProviderLoginRoute = ProviderLoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => ProviderRouteRoute,
-} as any)
 const authSellerLoginRoute = authSellerLoginRouteImport.update({
   id: '/seller/login',
   path: '/seller/login',
@@ -172,6 +155,12 @@ const publicAvinCheckCheckRoute = publicAvinCheckCheckRouteImport.update({
   path: '/check',
   getParentRoute: () => publicAvinCheckRoute,
 } as any)
+const publicAvinCheckCorrectionRoute =
+  publicAvinCheckCorrectionRouteImport.update({
+    id: '/correction',
+    path: '/correction',
+    getParentRoute: () => publicAvinCheckRoute,
+  } as any)
 const publicAvinCheckDirectoryRoute =
   publicAvinCheckDirectoryRouteImport.update({
     id: '/directory',
@@ -289,7 +278,6 @@ const AuthenticatedSellerListingsIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof publicIndexRoute
-  '/provider': typeof ProviderRouteRouteWithChildren
   '/login': typeof authLoginRoute
   '/401': typeof errors401Route
   '/403': typeof errors403Route
@@ -303,11 +291,10 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/security': typeof AuthenticatedSecurityRoute
   '/two-factor': typeof AuthenticatedTwoFactorRoute
-  '/provider/login': typeof ProviderLoginRoute
-  '/provider/': typeof ProviderIndexRoute
   '/seller/login': typeof authSellerLoginRoute
   '/avin-check/apply': typeof publicAvinCheckApplyRoute
   '/avin-check/check': typeof publicAvinCheckCheckRoute
+  '/avin-check/correction': typeof publicAvinCheckCorrectionRoute
   '/avin-check/directory': typeof publicAvinCheckDirectoryRoute
   '/avin-check/report': typeof publicAvinCheckReportRoute
   '/avin-check/warnings': typeof publicAvinCheckWarningsRoute
@@ -344,11 +331,10 @@ export interface FileRoutesByTo {
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/security': typeof AuthenticatedSecurityRoute
   '/two-factor': typeof AuthenticatedTwoFactorRoute
-  '/provider/login': typeof ProviderLoginRoute
-  '/provider': typeof ProviderIndexRoute
   '/seller/login': typeof authSellerLoginRoute
   '/avin-check/apply': typeof publicAvinCheckApplyRoute
   '/avin-check/check': typeof publicAvinCheckCheckRoute
+  '/avin-check/correction': typeof publicAvinCheckCorrectionRoute
   '/avin-check/directory': typeof publicAvinCheckDirectoryRoute
   '/avin-check/report': typeof publicAvinCheckReportRoute
   '/avin-check/warnings': typeof publicAvinCheckWarningsRoute
@@ -376,7 +362,6 @@ export interface FileRoutesById {
   '/(auth)': typeof authRouteRouteWithChildren
   '/(public)': typeof publicRouteRouteWithChildren
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
-  '/provider': typeof ProviderRouteRouteWithChildren
   '/(auth)/login': typeof authLoginRoute
   '/(errors)/401': typeof errors401Route
   '/(errors)/403': typeof errors403Route
@@ -390,12 +375,11 @@ export interface FileRoutesById {
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/security': typeof AuthenticatedSecurityRoute
   '/_authenticated/two-factor': typeof AuthenticatedTwoFactorRoute
-  '/provider/login': typeof ProviderLoginRoute
   '/(public)/': typeof publicIndexRoute
-  '/provider/': typeof ProviderIndexRoute
   '/(auth)/seller/login': typeof authSellerLoginRoute
   '/(public)/avin-check/apply': typeof publicAvinCheckApplyRoute
   '/(public)/avin-check/check': typeof publicAvinCheckCheckRoute
+  '/(public)/avin-check/correction': typeof publicAvinCheckCorrectionRoute
   '/(public)/avin-check/directory': typeof publicAvinCheckDirectoryRoute
   '/(public)/avin-check/report': typeof publicAvinCheckReportRoute
   '/(public)/avin-check/warnings': typeof publicAvinCheckWarningsRoute
@@ -422,7 +406,6 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/provider'
     | '/login'
     | '/401'
     | '/403'
@@ -436,11 +419,10 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/security'
     | '/two-factor'
-    | '/provider/login'
-    | '/provider/'
     | '/seller/login'
     | '/avin-check/apply'
     | '/avin-check/check'
+    | '/avin-check/correction'
     | '/avin-check/directory'
     | '/avin-check/report'
     | '/avin-check/warnings'
@@ -477,11 +459,10 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/security'
     | '/two-factor'
-    | '/provider/login'
-    | '/provider'
     | '/seller/login'
     | '/avin-check/apply'
     | '/avin-check/check'
+    | '/avin-check/correction'
     | '/avin-check/directory'
     | '/avin-check/report'
     | '/avin-check/warnings'
@@ -508,7 +489,6 @@ export interface FileRouteTypes {
     | '/(auth)'
     | '/(public)'
     | '/_authenticated'
-    | '/provider'
     | '/(auth)/login'
     | '/(errors)/401'
     | '/(errors)/403'
@@ -522,12 +502,11 @@ export interface FileRouteTypes {
     | '/_authenticated/onboarding'
     | '/_authenticated/security'
     | '/_authenticated/two-factor'
-    | '/provider/login'
     | '/(public)/'
-    | '/provider/'
     | '/(auth)/seller/login'
     | '/(public)/avin-check/apply'
     | '/(public)/avin-check/check'
+    | '/(public)/avin-check/correction'
     | '/(public)/avin-check/directory'
     | '/(public)/avin-check/report'
     | '/(public)/avin-check/warnings'
@@ -555,7 +534,6 @@ export interface RootRouteChildren {
   authRouteRoute: typeof authRouteRouteWithChildren
   publicRouteRoute: typeof publicRouteRouteWithChildren
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
-  ProviderRouteRoute: typeof ProviderRouteRouteWithChildren
   errors401Route: typeof errors401Route
   errors403Route: typeof errors403Route
   errors404Route: typeof errors404Route
@@ -584,13 +562,6 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/provider': {
-      id: '/provider'
-      path: '/provider'
-      fullPath: '/provider'
-      preLoaderRoute: typeof ProviderRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/(auth)/login': {
@@ -691,20 +662,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTwoFactorRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/provider/': {
-      id: '/provider/'
-      path: '/'
-      fullPath: '/provider/'
-      preLoaderRoute: typeof ProviderIndexRouteImport
-      parentRoute: typeof ProviderRouteRoute
-    }
-    '/provider/login': {
-      id: '/provider/login'
-      path: '/login'
-      fullPath: '/provider/login'
-      preLoaderRoute: typeof ProviderLoginRouteImport
-      parentRoute: typeof ProviderRouteRoute
-    }
     '/(auth)/seller/login': {
       id: '/(auth)/seller/login'
       path: '/seller/login'
@@ -731,6 +688,13 @@ declare module '@tanstack/react-router' {
       path: '/check'
       fullPath: '/avin-check/check'
       preLoaderRoute: typeof publicAvinCheckCheckRouteImport
+      parentRoute: typeof publicAvinCheckRoute
+    }
+    '/(public)/avin-check/correction': {
+      id: '/(public)/avin-check/correction'
+      path: '/correction'
+      fullPath: '/avin-check/correction'
+      preLoaderRoute: typeof publicAvinCheckCorrectionRouteImport
       parentRoute: typeof publicAvinCheckRoute
     }
     '/(public)/avin-check/directory': {
@@ -893,6 +857,7 @@ const authRouteRouteWithChildren = authRouteRoute._addFileChildren(
 interface publicAvinCheckRouteChildren {
   publicAvinCheckApplyRoute: typeof publicAvinCheckApplyRoute
   publicAvinCheckCheckRoute: typeof publicAvinCheckCheckRoute
+  publicAvinCheckCorrectionRoute: typeof publicAvinCheckCorrectionRoute
   publicAvinCheckDirectoryRoute: typeof publicAvinCheckDirectoryRoute
   publicAvinCheckReportRoute: typeof publicAvinCheckReportRoute
   publicAvinCheckWarningsRoute: typeof publicAvinCheckWarningsRoute
@@ -906,6 +871,7 @@ interface publicAvinCheckRouteChildren {
 const publicAvinCheckRouteChildren: publicAvinCheckRouteChildren = {
   publicAvinCheckApplyRoute: publicAvinCheckApplyRoute,
   publicAvinCheckCheckRoute: publicAvinCheckCheckRoute,
+  publicAvinCheckCorrectionRoute: publicAvinCheckCorrectionRoute,
   publicAvinCheckDirectoryRoute: publicAvinCheckDirectoryRoute,
   publicAvinCheckReportRoute: publicAvinCheckReportRoute,
   publicAvinCheckWarningsRoute: publicAvinCheckWarningsRoute,
@@ -994,25 +960,10 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
-interface ProviderRouteRouteChildren {
-  ProviderLoginRoute: typeof ProviderLoginRoute
-  ProviderIndexRoute: typeof ProviderIndexRoute
-}
-
-const ProviderRouteRouteChildren: ProviderRouteRouteChildren = {
-  ProviderLoginRoute: ProviderLoginRoute,
-  ProviderIndexRoute: ProviderIndexRoute,
-}
-
-const ProviderRouteRouteWithChildren = ProviderRouteRoute._addFileChildren(
-  ProviderRouteRouteChildren,
-)
-
 const rootRouteChildren: RootRouteChildren = {
   authRouteRoute: authRouteRouteWithChildren,
   publicRouteRoute: publicRouteRouteWithChildren,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
-  ProviderRouteRoute: ProviderRouteRouteWithChildren,
   errors401Route: errors401Route,
   errors403Route: errors403Route,
   errors404Route: errors404Route,

@@ -56,6 +56,7 @@ const createProfile = (overrides: Partial<ProfileRow> = {}): ProfileRow => ({
   updatedAt: timestamp,
   verifiedAt: timestamp,
   ...overrides,
+  statusReason: overrides.statusReason ?? null,
 });
 
 const createVersion = (
@@ -93,13 +94,14 @@ const createReport = (overrides: Partial<ReportRow> = {}): ReportRow => ({
   id: "report-1",
   narrative: "A moderated report",
   platform: null,
+  possibleDuplicateOfReportId: null,
   publicSlug: "warning-1",
   publicSummary: "Public warning summary",
   publishedAt: timestamp,
   reporterEmail: "reporter@example.com",
   reporterName: "Reporter",
   reporterPhone: "0123456789",
-  reporterSessionId: "reporter-session-1",
+  reporterRelationship: "NO_PROVIDER_RELATIONSHIP",
   reporterUserId: "reporter-1",
   reporterZalo: null,
   reviewReason: null,
@@ -112,6 +114,9 @@ const createReport = (overrides: Partial<ReportRow> = {}): ReportRow => ({
   updatedAt: timestamp,
   urgency: "NORMAL",
   violationType: null,
+  withdrawalReason: null,
+  withdrawalRequestedAt: null,
+  withdrawalStatus: "NONE",
   ...overrides,
   policyVersionId: overrides.policyVersionId ?? null,
 });

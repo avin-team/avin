@@ -12,12 +12,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-export const accountRole = pgEnum("account_role", [
-  "BUYER",
-  "SELLER",
-  "ADMIN",
-  "PROVIDER",
-]);
+export const accountRole = pgEnum("account_role", ["BUYER", "SELLER", "ADMIN"]);
 
 export const auditOutcome = pgEnum("audit_outcome", ["SUCCESS", "FAILURE"]);
 

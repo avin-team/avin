@@ -50,7 +50,7 @@ export const authenticatedProcedure = publicProcedure.use(
 export const protectedProcedure = authenticatedProcedure.use(
   ({ context, next }) => {
     const { role } = context.session.user;
-    if (!isAccountRole(role) || role === ACCOUNT_ROLE.PROVIDER) {
+    if (!isAccountRole(role)) {
       throw new ORPCError("FORBIDDEN");
     }
 

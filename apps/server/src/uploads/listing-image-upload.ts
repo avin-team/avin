@@ -484,6 +484,14 @@ export const createRiskReportEvidenceUploadRouter = (
             "Đăng nhập Avin trước khi tải bằng chứng báo cáo"
           );
         }
+        if (
+          session.user.banned ||
+          (session.user.role !== "BUYER" && session.user.role !== "SELLER")
+        ) {
+          throw new RejectUpload(
+            "Tài khoản hiện tại không được phép tải bằng chứng báo cáo"
+          );
+        }
         try {
           await assertRiskReportEvidenceUploadAccess({
             database: db,

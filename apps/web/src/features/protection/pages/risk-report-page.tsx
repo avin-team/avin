@@ -94,6 +94,18 @@ const evidenceTypeOptions = {
 
 type EvidenceKind = (typeof evidenceTypeOptions)[ReportType][number]["value"];
 
+const reporterRelationshipOptions = [
+  {
+    label: "Tôi không có quan hệ Provider",
+    value: "NO_PROVIDER_RELATIONSHIP",
+  },
+  { label: "Tôi đang báo cáo chính Provider của mình", value: "SELF_PROVIDER" },
+  { label: "Tôi đang báo cáo một Provider khác", value: "OTHER_PROVIDER" },
+] as const;
+
+type ReporterRelationship =
+  (typeof reporterRelationshipOptions)[number]["value"];
+
 const websiteViolationOptions = [
   { label: "Lừa đảo lấy thông tin (phishing)", value: "PHISHING" },
   { label: "Phát tán mã độc", value: "MALWARE" },
@@ -346,6 +358,8 @@ export const RiskReportPage = () => {
   const [reportId, setReportId] = useState<string>();
   const [reporterPhone, setReporterPhone] = useState("");
   const [reporterZalo, setReporterZalo] = useState("");
+  const [reporterRelationship, setReporterRelationship] =
+    useState<ReporterRelationship>("NO_PROVIDER_RELATIONSHIP");
   const [riskFields, dispatchRiskFields] = useReducer(
     riskReportFieldsReducer,
     initialRiskReportFields
@@ -430,6 +444,7 @@ export const RiskReportPage = () => {
         narrative: narrative.trim() || undefined,
         ...(reportId ? { reportId } : {}),
         reporterPhone: reporterPhone.trim() || undefined,
+        reporterRelationship,
         reporterZalo: reporterZalo.trim() || undefined,
         type: reportType,
         urgency,
@@ -553,6 +568,32 @@ export const RiskReportPage = () => {
                 Tên và email được lấy từ account Avin đang đăng nhập và lưu
                 riêng cho việc xử lý báo cáo.
               </p>
+              <label
+                className="grid gap-1.5 text-sm font-medium sm:col-span-2"
+                htmlFor="risk-reporter-relationship"
+              >
+                Quan hệ với Provider (nếu có)
+                <select
+                  className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                  id="risk-reporter-relationship"
+                  onChange={(event) =>
+                    setReporterRelationship(
+                      event.target.value as ReporterRelationship
+                    )
+                  }
+                  value={reporterRelationship}
+                >
+                  {reporterRelationshipOptions.map((item) => (
+                    <option key={item.value} value={item.value}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+                <span className="font-normal text-muted-foreground text-xs">
+                  Chỉ Risk Moderator nhìn thấy tín hiệu xung đột này; cảnh báo
+                  công khai không tiết lộ người gửi hay quan hệ Provider.
+                </span>
+              </label>
               <label
                 className="grid gap-1.5 text-sm font-medium"
                 htmlFor="risk-reporter-phone"

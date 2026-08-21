@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-
 import { z } from "zod";
 
 export const riskReportTypes = [
@@ -71,6 +69,23 @@ export const riskReportEvidenceKinds = [
 
 export type RiskReportEvidenceKind = (typeof riskReportEvidenceKinds)[number];
 
+export const riskReporterRelationships = [
+  "NO_PROVIDER_RELATIONSHIP",
+  "SELF_PROVIDER",
+  "OTHER_PROVIDER",
+] as const;
+
+export type RiskReporterRelationship =
+  (typeof riskReporterRelationships)[number];
+
+export const riskCorrectionRequesterRelationships = [
+  "SUBJECT",
+  "AUTHORIZED_REPRESENTATIVE",
+] as const;
+
+export type RiskCorrectionRequesterRelationship =
+  (typeof riskCorrectionRequesterRelationships)[number];
+
 export const riskReportEvidenceScanStatuses = [
   "PENDING",
   "CLEAN",
@@ -100,6 +115,10 @@ const riskReportUrgencySchema = z.enum(riskReportUrgencies);
 const riskReportWebsiteViolationTypeSchema = z.enum(
   riskReportWebsiteViolationTypes
 );
+const riskReporterRelationshipSchema = z.enum(riskReporterRelationships);
+const riskCorrectionRequesterRelationshipSchema = z.enum(
+  riskCorrectionRequesterRelationships
+);
 
 const reportNarrativeSchema = z.string().trim().max(10_000);
 const reportPhoneSchema = z.string().trim().min(6).max(50);
@@ -122,6 +141,7 @@ export const riskReportDraftInputSchema = z.object({
   platform: z.string().trim().max(200).optional(),
   reportId: z.uuid().optional(),
   reporterPhone: reportPhoneSchema.optional(),
+  reporterRelationship: riskReporterRelationshipSchema.optional(),
   reporterZalo: z.string().trim().max(100).optional(),
   type: riskReportTypeSchema,
   urgency: riskReportUrgencySchema.optional(),
@@ -135,6 +155,30 @@ export const riskReportOwnedInputSchema = z.object({
 });
 
 export type RiskReportOwnedInput = z.infer<typeof riskReportOwnedInputSchema>;
+
+export const riskReportWithdrawalInputSchema = z.object({
+  reason: z.string().trim().min(10).max(2000),
+  reportId: z.uuid(),
+});
+
+export const riskReportCorrectionRequestInputSchema = z.object({
+  authorityEvidenceReference: z.string().trim().min(1).max(500),
+  reason: z.string().trim().min(20).max(5000),
+  reportId: z.uuid(),
+  requesterRelationship: riskCorrectionRequesterRelationshipSchema,
+});
+
+export type RiskReportCorrectionRequestInput = z.infer<
+  typeof riskReportCorrectionRequestInputSchema
+>;
+
+export const riskReportCorrectionDecisionInputSchema = z.object({
+  decision: z.enum(["APPROVED", "REJECTED", "UNDER_REVIEW"]),
+  id: z.uuid(),
+  reason: z.string().trim().max(2000).optional(),
+});
+
+export const riskReportCorrectionIdInputSchema = z.object({ id: z.uuid() });
 
 export const riskReportMineInputSchema = z
   .object({ reportId: z.uuid().optional() })
@@ -242,9 +286,6 @@ export const isRiskReportUnderVerificationEligible = ({
   affectedVictimCount: number;
   urgency: RiskReportUrgency;
 }): boolean => urgency === "URGENT" || affectedVictimCount >= 2;
-
-export const hashRiskValue = (value: string): string =>
-  createHash("sha256").update(value).digest("hex");
 
 const normalizeWebsite = (value: string): string => {
   const url = new URL(value.trim());

@@ -43,6 +43,7 @@ const createProfile = (): ProfileRow => ({
   publishedAt: timestamp,
   services: "Game account support",
   status: "ACTIVE",
+  statusReason: null,
   updatedAt: timestamp,
   verifiedAt: timestamp,
 });

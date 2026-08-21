@@ -117,6 +117,7 @@ const createProfile = (): ProfileRow => ({
   publishedAt: timestamp,
   services: validSubmission.services,
   status: "ACTIVE",
+  statusReason: null,
   updatedAt: timestamp,
   verifiedAt: timestamp,
 });
@@ -245,6 +246,7 @@ const createDatabase = (state: ProviderApplicationState): Database => {
             profileSlug: String(values.profileSlug),
             providerUserId: String(values.providerUserId),
             services: String(values.services),
+            statusReason: null,
           };
           return [state.profile];
         }

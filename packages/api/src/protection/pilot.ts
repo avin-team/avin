@@ -155,9 +155,9 @@ export const inviteProtectionPilotProvider = async ({
     .from(user)
     .where(eq(user.email, normalizedEmail))
     .limit(1);
-  if (!provider || provider.role !== "PROVIDER") {
+  if (!provider || (provider.role !== "BUYER" && provider.role !== "SELLER")) {
     throw new ORPCError("NOT_FOUND", {
-      message: "A Provider account with this email does not exist",
+      message: "A Buyer or Seller account with this email does not exist",
     });
   }
 

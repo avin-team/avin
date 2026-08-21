@@ -1,4 +1,6 @@
 import {
+  protectionProviderProfile,
+  protectionRiskCorrectionRequest,
   protectionRiskEvidence,
   protectionRiskEvidenceDerivative,
   protectionRiskIdentifier,
@@ -9,7 +11,7 @@ import {
 } from "@avin/db/schema/protection";
 import { env } from "@avin/env/server";
 import { ORPCError } from "@orpc/server";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, ne } from "drizzle-orm";
 
 import {
   createNotificationEvent,
@@ -48,6 +50,8 @@ import type {
   RiskReportDraftInput,
   RiskReportEvidenceInput,
   RiskReportIdentifierInput,
+  RiskReportCorrectionRequestInput,
+  RiskReporterRelationship,
   RiskReportStatus,
   RiskReportSubmissionEvidence,
 } from "./risk-report";
@@ -58,10 +62,24 @@ type RiskIdentifier = typeof protectionRiskIdentifier.$inferSelect;
 type RiskEvidence = typeof protectionRiskEvidence.$inferSelect;
 type RiskDerivative = typeof protectionRiskEvidenceDerivative.$inferSelect;
 type RiskHistory = typeof protectionRiskReportHistory.$inferSelect;
+type RiskCorrection = typeof protectionRiskCorrectionRequest.$inferSelect;
 type SupportReviewPublicOutcome =
   typeof protectionSupportReview.$inferSelect.publicOutcome;
 
 const RISK_EMAIL_SOURCE_TYPE = "PROTECTION_RISK_REPORT";
+
+const REPORT_SUBMISSION_WINDOW_MS = 60 * 60 * 1000;
+const REPORT_SUBMISSIONS_PER_WINDOW = 5;
+
+interface ReportSubmissionRateLimitBucket {
+  count: number;
+  windowStartedAt: number;
+}
+
+const reportSubmissionRateLimitBuckets = new Map<
+  string,
+  ReportSubmissionRateLimitBucket
+>();
 
 const riskReportNotificationEvents: Partial<
   Record<RiskReportStatus, NotificationEventType>
@@ -87,6 +105,70 @@ const isRiskEvidenceContentType = (
 
 const throwBadRequest = (message: string): never => {
   throw new ORPCError("BAD_REQUEST", { message });
+};
+
+const reportSubmissionRateLimitKey = (
+  reporterUserId: string,
+  ipAddress?: string
+): string => `${reporterUserId}:${ipAddress?.trim() || "unknown"}`;
+
+export const assertRiskReportSubmissionAllowed = (
+  reporterUserId: string,
+  ipAddress?: string,
+  now = Date.now()
+): void => {
+  const key = reportSubmissionRateLimitKey(reporterUserId, ipAddress);
+  const existing = reportSubmissionRateLimitBuckets.get(key);
+  if (
+    !existing ||
+    now - existing.windowStartedAt >= REPORT_SUBMISSION_WINDOW_MS
+  ) {
+    reportSubmissionRateLimitBuckets.set(key, {
+      count: 1,
+      windowStartedAt: now,
+    });
+    return;
+  }
+
+  if (existing.count >= REPORT_SUBMISSIONS_PER_WINDOW) {
+    throw new ORPCError("TOO_MANY_REQUESTS", {
+      message:
+        "Bạn đã gửi quá nhiều báo cáo trong thời gian ngắn. Vui lòng thử lại sau.",
+    });
+  }
+
+  existing.count += 1;
+};
+
+export const resetRiskReportSubmissionRateLimitForTests = (): void => {
+  reportSubmissionRateLimitBuckets.clear();
+};
+
+const assertReporterRelationship = async (
+  database: Database,
+  reporterUserId: string,
+  relationship: RiskReporterRelationship | null | undefined
+): Promise<void> => {
+  const [providerProfile] = await database
+    .select({ id: protectionProviderProfile.id })
+    .from(protectionProviderProfile)
+    .where(eq(protectionProviderProfile.providerUserId, reporterUserId))
+    .limit(1);
+
+  if (providerProfile && !relationship) {
+    throwBadRequest(
+      "Provider Owners must declare whether this report concerns themselves or another Provider"
+    );
+  }
+
+  if (
+    !providerProfile &&
+    (relationship === "SELF_PROVIDER" || relationship === "OTHER_PROVIDER")
+  ) {
+    throwBadRequest(
+      "Only an approved Provider Owner can declare a Provider relationship"
+    );
+  }
 };
 
 const findOwnedReport = async (
@@ -162,8 +244,10 @@ const toDraftView = (
   identifiers: identifiers.map(toPrivateIdentifierView),
   narrative: report.narrative,
   platform: report.platform,
+  possibleDuplicateOfReportId: report.possibleDuplicateOfReportId,
   reporterName: report.reporterName,
   reporterPhone: report.reporterPhone,
+  reporterRelationship: report.reporterRelationship,
   reporterZalo: report.reporterZalo,
   reviewReason: report.reviewReason,
   status: report.status,
@@ -173,6 +257,23 @@ const toDraftView = (
   updatedAt: report.updatedAt.toISOString(),
   urgency: report.urgency,
   violationType: report.violationType,
+  withdrawalReason: report.withdrawalReason,
+  withdrawalRequestedAt: toIso(report.withdrawalRequestedAt),
+  withdrawalStatus: report.withdrawalStatus,
+});
+
+const toCorrectionView = (request: RiskCorrection) => ({
+  authorityEvidenceReference: request.authorityEvidenceReference,
+  createdAt: request.createdAt.toISOString(),
+  id: request.id,
+  reason: request.reason,
+  reportId: request.reportId,
+  requesterName: request.requesterName,
+  requesterRelationship: request.requesterRelationship,
+  reviewReason: request.reviewReason,
+  reviewedAt: toIso(request.reviewedAt),
+  status: request.status,
+  updatedAt: request.updatedAt.toISOString(),
 });
 
 const loadReportMaterials = async (
@@ -216,6 +317,50 @@ const loadReportMaterials = async (
 };
 
 type ReportMaterials = Awaited<ReturnType<typeof loadReportMaterials>>;
+
+const duplicateEligibleReportStatuses = [
+  "SUBMITTED",
+  "UNDER_REVIEW",
+  "CHANGES_REQUESTED",
+  "UNDER_VERIFICATION",
+  "PUBLISHED",
+  "CORRECTED",
+] as const;
+
+const findPossibleDuplicateReportId = async (
+  database: Database,
+  reportId: string,
+  identifiers: readonly RiskIdentifier[]
+): Promise<string | null> => {
+  for (const identifier of identifiers) {
+    const [candidate] = await database
+      .select({ reportId: protectionRiskReport.id })
+      .from(protectionRiskIdentifier)
+      .innerJoin(
+        protectionRiskReport,
+        eq(protectionRiskIdentifier.reportId, protectionRiskReport.id)
+      )
+      .where(
+        and(
+          eq(protectionRiskIdentifier.type, identifier.type),
+          eq(
+            protectionRiskIdentifier.normalizedValue,
+            identifier.normalizedValue
+          ),
+          ne(protectionRiskReport.id, reportId),
+          inArray(protectionRiskReport.status, duplicateEligibleReportStatuses)
+        )
+      )
+      .orderBy(desc(protectionRiskReport.updatedAt))
+      .limit(1);
+
+    if (candidate) {
+      return candidate.reportId;
+    }
+  }
+
+  return null;
+};
 
 const enqueueRiskEmail = async ({
   database,
@@ -327,7 +472,11 @@ const notifyRiskModerators = async (
   });
   await createNotificationEvent(database, {
     body: `Risk report ${report.id} is ${status.toLowerCase()}.`,
-    context: { status, type: report.type },
+    context: {
+      possibleDuplicateOfReportId: report.possibleDuplicateOfReportId,
+      status,
+      type: report.type,
+    },
     eventType,
     now,
     recipients,
@@ -345,6 +494,10 @@ const notifyRiskReporter = async (
 ): Promise<void> => {
   const eventType = riskReportNotificationEvents[status];
   if (!eventType) {
+    return;
+  }
+
+  if (!report.reporterUserId) {
     return;
   }
 
@@ -405,6 +558,9 @@ const buildRiskReportDraftUpdates = (
   if (input.platform !== undefined) {
     updates.platform = input.platform;
   }
+  if (input.reporterRelationship !== undefined) {
+    updates.reporterRelationship = input.reporterRelationship;
+  }
   if (input.reporterPhone !== undefined) {
     updates.reporterPhone = input.reporterPhone;
   }
@@ -432,9 +588,12 @@ const buildRiskReportDraftValues = (
   createdAt: now,
   narrative: input.narrative,
   platform: input.platform,
+  possibleDuplicateOfReportId: null,
   reporterEmail,
   reporterName,
   reporterPhone: input.reporterPhone,
+  reporterRelationship:
+    input.reporterRelationship ?? "NO_PROVIDER_RELATIONSHIP",
   reporterUserId,
   reporterZalo: input.reporterZalo,
   type: input.type,
@@ -460,8 +619,9 @@ export const saveRiskReportDraft = async ({
 }) => {
   let report: RiskReport | undefined;
 
+  let existingReport: RiskReport | undefined;
   if (input.reportId) {
-    [report] = await database
+    [existingReport] = await database
       .select()
       .from(protectionRiskReport)
       .where(
@@ -471,6 +631,15 @@ export const saveRiskReportDraft = async ({
         )
       )
       .limit(1);
+  }
+  await assertReporterRelationship(
+    database,
+    reporterUserId,
+    input.reporterRelationship ?? existingReport?.reporterRelationship
+  );
+
+  if (input.reportId) {
+    report = existingReport;
     if (!report) {
       throw new ORPCError("NOT_FOUND", { message: "Risk report not found" });
     }
@@ -532,6 +701,309 @@ export const saveRiskReportDraft = async ({
 
   const materials = await loadReportMaterials(database, report.id);
   return toDraftView(report, materials.identifiers, materials.evidence);
+};
+
+export const deleteRiskReportDraft = async ({
+  database,
+  reporterUserId,
+  reportId,
+}: {
+  database: Database;
+  reporterUserId: string;
+  reportId: string;
+}): Promise<{ deleted: true }> => {
+  const { report } = await findOwnedReport(database, reporterUserId, reportId);
+  if (report.status !== "DRAFT") {
+    throw new ORPCError("CONFLICT", {
+      message: "Only an unsent draft can be deleted.",
+    });
+  }
+
+  const deleted = await database
+    .delete(protectionRiskReport)
+    .where(eq(protectionRiskReport.id, report.id))
+    .returning({ id: protectionRiskReport.id });
+  if (deleted.length === 0) {
+    throw new ORPCError("CONFLICT", {
+      message: "Risk draft could not be deleted.",
+    });
+  }
+
+  return { deleted: true };
+};
+
+export const requestRiskReportWithdrawal = async ({
+  database,
+  input,
+  reporterUserId,
+  now = new Date(),
+}: {
+  database: Database;
+  input: { reason: string; reportId: string };
+  now?: Date;
+  reporterUserId: string;
+}) => {
+  const { report } = await findOwnedReport(
+    database,
+    reporterUserId,
+    input.reportId
+  );
+  if (report.status === "DRAFT") {
+    throw new ORPCError("CONFLICT", {
+      message: "Draft reports can be deleted instead of withdrawn.",
+    });
+  }
+  if (report.withdrawalStatus !== "NONE") {
+    throw new ORPCError("CONFLICT", {
+      message: "A withdrawal request already exists for this report.",
+    });
+  }
+
+  const reason = input.reason.trim();
+  const [updated] = await database
+    .update(protectionRiskReport)
+    .set({
+      updatedAt: now,
+      withdrawalReason: reason,
+      withdrawalRequestedAt: now,
+      withdrawalStatus: "REQUESTED",
+    })
+    .where(eq(protectionRiskReport.id, report.id))
+    .returning();
+  if (!updated) {
+    throw new ORPCError("CONFLICT", {
+      message: "Withdrawal request could not be created.",
+    });
+  }
+
+  await database.insert(protectionRiskReportHistory).values({
+    createdAt: now,
+    reason: `Withdrawal requested: ${reason}`,
+    reportId: report.id,
+    status: report.status,
+  });
+  const recipients = await listNotificationRecipientsByRole(database, {
+    role: "ADMIN",
+    targetPath: `/avin-check/risk-reports/${report.id}`,
+  });
+  await createNotificationEvent(database, {
+    body: `Báo cáo ${report.id} có yêu cầu rút lại cần được xem xét.`,
+    context: { status: report.status, type: report.type },
+    eventType: "protection_risk_report.withdrawal_requested",
+    now,
+    recipients,
+    sourceId: `${report.id}:withdrawal`,
+    sourceType: "PROTECTION_RISK_REPORT",
+    title: "Yêu cầu rút lại báo cáo Avin Check",
+  });
+  await enqueueRiskEmail({
+    database,
+    eventType: "report.withdrawal_requested",
+    htmlBody:
+      "<p>Yêu cầu rút lại báo cáo Avin Check của bạn đã được tiếp nhận.</p>",
+    now,
+    recipientEmail: updated.reporterEmail,
+    reportId: updated.id,
+    sourceId: `${updated.id}:withdrawal`,
+    sourceType: RISK_EMAIL_SOURCE_TYPE,
+    subject: "Avin Check: đã tiếp nhận yêu cầu rút lại",
+    textBody:
+      "Yêu cầu rút lại báo cáo Avin Check của bạn đã được tiếp nhận. Bạn có thể theo dõi trong mục Báo cáo của tôi.",
+  });
+
+  const materials = await loadReportMaterials(database, updated.id);
+  return toDraftView(updated, materials.identifiers, materials.evidence);
+};
+
+export const requestRiskReportCorrection = async ({
+  database,
+  input,
+  requesterEmail,
+  requesterName,
+  requesterUserId,
+  now = new Date(),
+}: {
+  database: Database;
+  input: RiskReportCorrectionRequestInput;
+  now?: Date;
+  requesterEmail: string;
+  requesterName: string;
+  requesterUserId: string;
+}) => {
+  const [report] = await database
+    .select({
+      id: protectionRiskReport.id,
+      status: protectionRiskReport.status,
+    })
+    .from(protectionRiskReport)
+    .where(eq(protectionRiskReport.id, input.reportId))
+    .limit(1);
+  if (!report || !isPublicRiskReportStatus(report.status)) {
+    throw new ORPCError("NOT_FOUND", {
+      message: "Only a public Risk Report can receive a correction request.",
+    });
+  }
+
+  const [existing] = await database
+    .select({ id: protectionRiskCorrectionRequest.id })
+    .from(protectionRiskCorrectionRequest)
+    .where(
+      and(
+        eq(protectionRiskCorrectionRequest.reportId, input.reportId),
+        eq(protectionRiskCorrectionRequest.requesterUserId, requesterUserId),
+        inArray(protectionRiskCorrectionRequest.status, [
+          "REQUESTED",
+          "UNDER_REVIEW",
+        ])
+      )
+    )
+    .limit(1);
+  if (existing) {
+    throw new ORPCError("CONFLICT", {
+      message: "Bạn đã có một yêu cầu đính chính đang được xem xét.",
+    });
+  }
+
+  const [request] = await database
+    .insert(protectionRiskCorrectionRequest)
+    .values({
+      authorityEvidenceReference: input.authorityEvidenceReference,
+      createdAt: now,
+      reason: input.reason,
+      reportId: input.reportId,
+      requesterEmail,
+      requesterName,
+      requesterRelationship: input.requesterRelationship,
+      requesterUserId,
+      updatedAt: now,
+    })
+    .returning();
+  if (!request) {
+    throw new ORPCError("CONFLICT", {
+      message: "Yêu cầu đính chính không thể tạo.",
+    });
+  }
+
+  const recipients = await listNotificationRecipientsByRole(database, {
+    role: "ADMIN",
+    targetPath: `/avin-check/risk-reports/${input.reportId}`,
+  });
+  await createNotificationEvent(database, {
+    body: `Risk Report ${input.reportId} có yêu cầu đính chính mới.`,
+    context: { requesterRelationship: input.requesterRelationship },
+    eventType: "protection_risk_correction.requested",
+    now,
+    recipients,
+    sourceId: request.id,
+    sourceType: "PROTECTION_RISK_CORRECTION",
+    title: "Yêu cầu đính chính Avin Check mới",
+  });
+
+  return toCorrectionView(request);
+};
+
+export const listRiskReportCorrectionsForRequester = async ({
+  database,
+  requesterUserId,
+}: {
+  database: Database;
+  requesterUserId: string;
+}) => {
+  const requests = await database
+    .select()
+    .from(protectionRiskCorrectionRequest)
+    .where(eq(protectionRiskCorrectionRequest.requesterUserId, requesterUserId))
+    .orderBy(desc(protectionRiskCorrectionRequest.updatedAt));
+  return requests.map(toCorrectionView);
+};
+
+export const listRiskReportCorrectionsForAdmin = async (database: Database) => {
+  const requests = await database
+    .select()
+    .from(protectionRiskCorrectionRequest)
+    .orderBy(desc(protectionRiskCorrectionRequest.updatedAt));
+  return requests.map(toCorrectionView);
+};
+
+export const decideRiskReportCorrection = async ({
+  database,
+  decision,
+  id,
+  reason,
+  reviewerUserId,
+  now = new Date(),
+}: {
+  database: Database;
+  decision: "APPROVED" | "REJECTED" | "UNDER_REVIEW";
+  id: string;
+  now?: Date;
+  reason?: string;
+  reviewerUserId: string;
+}) => {
+  const [request] = await database
+    .select()
+    .from(protectionRiskCorrectionRequest)
+    .where(eq(protectionRiskCorrectionRequest.id, id))
+    .limit(1);
+  if (!request) {
+    throw new ORPCError("NOT_FOUND", {
+      message: "Correction request not found.",
+    });
+  }
+  if (request.status !== "REQUESTED" && request.status !== "UNDER_REVIEW") {
+    throw new ORPCError("CONFLICT", {
+      message: "This correction request has already been finalized.",
+    });
+  }
+  if (decision === "REJECTED" && !reason?.trim()) {
+    throwBadRequest("A reason is required when rejecting a correction request");
+  }
+
+  const [updated] = await database
+    .update(protectionRiskCorrectionRequest)
+    .set({
+      reviewReason: reason?.trim() || null,
+      reviewedAt: decision === "UNDER_REVIEW" ? null : now,
+      reviewedByUserId: decision === "UNDER_REVIEW" ? null : reviewerUserId,
+      status: decision,
+      updatedAt: now,
+    })
+    .where(eq(protectionRiskCorrectionRequest.id, id))
+    .returning();
+  if (!updated) {
+    throw new ORPCError("CONFLICT", {
+      message: "Correction request changed concurrently.",
+    });
+  }
+
+  let eventType: NotificationEventType;
+  if (decision === "APPROVED") {
+    eventType = "protection_risk_correction.approved";
+  } else if (decision === "REJECTED") {
+    eventType = "protection_risk_correction.rejected";
+  } else {
+    eventType = "protection_risk_correction.requested";
+  }
+
+  if (updated.requesterUserId) {
+    await createNotificationEvent(database, {
+      body: `Yêu cầu đính chính của bạn đang ở trạng thái ${decision.toLowerCase()}.`,
+      context: { decision },
+      eventType,
+      now,
+      recipients: [
+        {
+          targetPath: "/avin-check/reports",
+          userId: updated.requesterUserId,
+        },
+      ],
+      sourceId: updated.id,
+      sourceType: "PROTECTION_RISK_CORRECTION",
+      title: "Avin Check: cập nhật yêu cầu đính chính",
+    });
+  }
+
+  return toCorrectionView(updated);
 };
 
 export const getRiskReportMine = async ({
@@ -671,19 +1143,27 @@ export const assertRiskReportEvidenceUploadAccess = async ({
 
 export const submitRiskReport = async ({
   database,
+  ipAddress,
   input,
   now = new Date(),
   reporterUserId,
 }: {
   database: Database;
+  ipAddress?: string;
   input: { reportId: string };
   now?: Date;
   reporterUserId: string;
 }) => {
+  assertRiskReportSubmissionAllowed(reporterUserId, ipAddress);
   const { report } = await findOwnedReport(
     database,
     reporterUserId,
     input.reportId
+  );
+  await assertReporterRelationship(
+    database,
+    reporterUserId,
+    report.reporterRelationship
   );
   const materials = await loadReportMaterials(database, report.id);
   try {
@@ -703,9 +1183,19 @@ export const submitRiskReport = async ({
     );
   }
 
+  const possibleDuplicateOfReportId = await findPossibleDuplicateReportId(
+    database,
+    report.id,
+    materials.identifiers
+  );
   const [updated] = await database
     .update(protectionRiskReport)
-    .set({ status: "SUBMITTED", submittedAt: now, updatedAt: now })
+    .set({
+      possibleDuplicateOfReportId,
+      status: "SUBMITTED",
+      submittedAt: now,
+      updatedAt: now,
+    })
     .where(eq(protectionRiskReport.id, report.id))
     .returning();
   if (!updated) {
@@ -761,16 +1251,19 @@ export const listRiskReportsForAdmin = async (
       claimedLoss: report.claimedLoss,
       id: report.id,
       platform: report.platform,
+      possibleDuplicateOfReportId: report.possibleDuplicateOfReportId,
       primaryIdentifier:
         identifiers.find((item) => item.isPrimary)?.maskedValue ?? null,
       reporterEmail: report.reporterEmail,
       reporterName: report.reporterName,
+      reporterRelationship: report.reporterRelationship,
       status: report.status,
       submittedAt: toIso(report.submittedAt),
       type: report.type,
       updatedAt: report.updatedAt.toISOString(),
       urgency: report.urgency,
       violationType: report.violationType,
+      withdrawalStatus: report.withdrawalStatus,
     });
   }
   return result;
@@ -789,6 +1282,15 @@ export const getRiskReportForAdmin = async (
     throw new ORPCError("NOT_FOUND", { message: "Risk report not found" });
   }
   const materials = await loadReportMaterials(database, report.id);
+  const [reporterProviderProfile] = report.reporterUserId
+    ? await database
+        .select({ id: protectionProviderProfile.id })
+        .from(protectionProviderProfile)
+        .where(
+          eq(protectionProviderProfile.providerUserId, report.reporterUserId)
+        )
+        .limit(1)
+    : [];
   const derivativesByEvidenceId = new Map(
     materials.derivatives.map((item) => [item.evidenceId, item])
   );
@@ -814,11 +1316,21 @@ export const getRiskReportForAdmin = async (
     })),
     narrative: report.narrative,
     platform: report.platform,
+    possibleDuplicateOfReportId: report.possibleDuplicateOfReportId,
+    providerConflictSignal:
+      report.reporterRelationship &&
+      report.reporterRelationship !== "NO_PROVIDER_RELATIONSHIP"
+        ? {
+            providerProfileId: reporterProviderProfile?.id ?? null,
+            relationship: report.reporterRelationship,
+          }
+        : null,
     publicSlug: report.publicSlug,
     publicSummary: report.publicSummary,
     reporterEmail: report.reporterEmail,
     reporterName: report.reporterName,
     reporterPhone: report.reporterPhone,
+    reporterRelationship: report.reporterRelationship,
     reporterZalo: report.reporterZalo,
     reviewReason: report.reviewReason,
     reviewedAt: toIso(report.reviewedAt),
@@ -830,6 +1342,9 @@ export const getRiskReportForAdmin = async (
     updatedAt: report.updatedAt.toISOString(),
     urgency: report.urgency,
     violationType: report.violationType,
+    withdrawalReason: report.withdrawalReason,
+    withdrawalRequestedAt: toIso(report.withdrawalRequestedAt),
+    withdrawalStatus: report.withdrawalStatus,
   };
 };
 
@@ -1286,6 +1801,7 @@ const toPublicWarningView = (
       ? "Warning này đã được gỡ khỏi danh mục công khai."
       : report.publicSummary,
     publishedAt: toIso(report.publishedAt),
+    reportId: report.id,
     status: report.status,
     supportOutcome: isRemoved ? null : supportOutcome,
     type: report.type,

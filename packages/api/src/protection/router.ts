@@ -2,7 +2,6 @@ import { PROTECTION_ADMIN_CAPABILITY } from "@avin/auth/permissions";
 import { z } from "zod";
 
 import {
-  authenticatedProcedure,
   providerProcedure,
   providerSensitiveProcedure,
   publicProcedure,
@@ -86,6 +85,7 @@ import {
   providerProfileRevisionDraftInputSchema,
   providerProfileRevisionSubmissionInputSchema,
   providerProfileStatusInputSchema,
+  providerOwnershipRelinkInputSchema,
 } from "./provider-application";
 import {
   decideProviderProfileRevision,
@@ -97,6 +97,7 @@ import {
   listProviderProfileRevisions,
   listProviderApplications,
   publishProviderProfileStatus,
+  relinkProviderOwnership,
   saveProviderApplicationDraft,
   saveProviderProfileRevisionDraft,
   startProviderProfileRevision,
@@ -142,22 +143,31 @@ import {
   riskReportAdminDecisionInputSchema,
   riskReportAdminIdInputSchema,
   riskReportAdminListInputSchema,
+  riskReportCorrectionDecisionInputSchema,
+  riskReportCorrectionRequestInputSchema,
   riskReportDerivativeInputSchema,
   riskReportDraftInputSchema,
   riskReportEvidenceInputSchema,
   riskReportMineInputSchema,
   riskReportOwnedInputSchema,
+  riskReportWithdrawalInputSchema,
 } from "./risk-report";
 import {
   addRiskReportEvidence,
   createRiskReportOriginalEvidenceUrl,
+  decideRiskReportCorrection,
   decideRiskReport,
+  deleteRiskReportDraft,
   getPublicRiskWarning,
   getRiskReportForAdmin,
   getRiskReportMine,
+  listRiskReportCorrectionsForAdmin,
+  listRiskReportCorrectionsForRequester,
   listPublicRiskWarnings,
   listRiskReportsForAdmin,
   registerRiskReportDerivative,
+  requestRiskReportCorrection,
+  requestRiskReportWithdrawal,
   saveRiskReportDraft,
   submitRiskReport,
 } from "./risk-report-service";
@@ -278,6 +288,16 @@ const providerProfileRevisionReviewerProcedure = protectionAdminProcedure({
   },
 });
 
+const providerOwnershipManagerProcedure = protectionAdminProcedure({
+  action: "protection.provider_ownership.relink",
+  capability: PROTECTION_ADMIN_CAPABILITY.PROTECTION_MANAGER,
+  purpose: "Relink a Provider standing to a proven Buyer or Seller account",
+  target: {
+    id: "PROTECTION_PROVIDER_OWNERSHIP",
+    type: "PROTECTION_PROVIDER_OWNERSHIP",
+  },
+});
+
 const riskModeratorProcedure = protectionAdminProcedure({
   action: "protection.risk_report.review",
   capability: PROTECTION_ADMIN_CAPABILITY.RISK_MODERATOR,
@@ -286,6 +306,16 @@ const riskModeratorProcedure = protectionAdminProcedure({
   target: {
     id: "PROTECTION_RISK_REPORT_QUEUE",
     type: "PROTECTION_RISK_REPORT_QUEUE",
+  },
+});
+
+const riskCorrectionModeratorProcedure = protectionAdminProcedure({
+  action: "protection.risk_correction.review",
+  capability: PROTECTION_ADMIN_CAPABILITY.RISK_MODERATOR,
+  purpose: "Review private Avin Check Risk Report correction requests",
+  target: {
+    id: "PROTECTION_RISK_CORRECTION_QUEUE",
+    type: "PROTECTION_RISK_CORRECTION_QUEUE",
   },
 });
 
@@ -654,6 +684,16 @@ export const protectionRouter = {
           statusReason: input.statusReason,
         })
       ),
+
+    relinkOwnership: providerOwnershipManagerProcedure
+      .input(providerOwnershipRelinkInputSchema)
+      .handler(({ context, input }) =>
+        relinkProviderOwnership({
+          database: context.db,
+          input,
+          transferredByUserId: context.session.user.id,
+        })
+      ),
   },
 
   adminProviderRiskIncidents: {
@@ -709,6 +749,24 @@ export const protectionRouter = {
           reviewerUserId: context.session.user.id,
         })
       ),
+  },
+
+  adminRiskCorrections: {
+    decide: riskCorrectionModeratorProcedure
+      .input(riskReportCorrectionDecisionInputSchema)
+      .handler(({ context, input }) =>
+        decideRiskReportCorrection({
+          database: context.db,
+          decision: input.decision,
+          id: input.id,
+          reason: input.reason,
+          reviewerUserId: context.session.user.id,
+        })
+      ),
+
+    list: riskCorrectionModeratorProcedure.handler(({ context }) =>
+      listRiskReportCorrectionsForAdmin(context.db)
+    ),
   },
 
   adminRiskReports: {
@@ -1064,13 +1122,30 @@ export const protectionRouter = {
   },
 
   riskReport: {
-    addEvidence: authenticatedProcedure
+    addEvidence: providerProcedure
       .input(riskReportEvidenceInputSchema)
       .handler(({ context, input }) =>
         addRiskReportEvidence(context.db, input, context.session.user.id)
       ),
 
-    getMine: authenticatedProcedure
+    correctionsMine: providerProcedure.handler(({ context }) =>
+      listRiskReportCorrectionsForRequester({
+        database: context.db,
+        requesterUserId: context.session.user.id,
+      })
+    ),
+
+    deleteDraft: providerProcedure
+      .input(riskReportOwnedInputSchema)
+      .handler(({ context, input }) =>
+        deleteRiskReportDraft({
+          database: context.db,
+          reportId: input.reportId,
+          reporterUserId: context.session.user.id,
+        })
+      ),
+
+    getMine: providerProcedure
       .input(riskReportMineInputSchema)
       .handler(({ context, input }) =>
         getRiskReportMine({
@@ -1080,7 +1155,29 @@ export const protectionRouter = {
         })
       ),
 
-    saveDraft: authenticatedProcedure
+    requestCorrection: providerProcedure
+      .input(riskReportCorrectionRequestInputSchema)
+      .handler(({ context, input }) =>
+        requestRiskReportCorrection({
+          database: context.db,
+          input,
+          requesterEmail: context.session.user.email,
+          requesterName: context.session.user.name,
+          requesterUserId: context.session.user.id,
+        })
+      ),
+
+    requestWithdrawal: providerProcedure
+      .input(riskReportWithdrawalInputSchema)
+      .handler(({ context, input }) =>
+        requestRiskReportWithdrawal({
+          database: context.db,
+          input,
+          reporterUserId: context.session.user.id,
+        })
+      ),
+
+    saveDraft: providerProcedure
       .input(riskReportDraftInputSchema)
       .handler(({ context, input }) =>
         saveRiskReportDraft({
@@ -1092,12 +1189,13 @@ export const protectionRouter = {
         })
       ),
 
-    submit: authenticatedProcedure
+    submit: providerProcedure
       .input(riskReportOwnedInputSchema)
       .handler(({ context, input }) =>
         submitRiskReport({
           database: context.db,
           input,
+          ipAddress: context.ipAddress,
           reporterUserId: context.session.user.id,
         })
       ),

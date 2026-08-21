@@ -6,7 +6,6 @@ import {
   createRiskReportPublicPath,
   getRiskIdentifierPublicValue,
   getRiskReportIdentifierTypes,
-  hashRiskValue,
   isRiskReportUnderVerificationEligible,
   isPublicRiskReportStatus,
   maskRiskIdentifier,
@@ -46,13 +45,6 @@ describe("Risk report contracts", () => {
         "https://untrusted.example/provider-one"
       )
     ).toBeNull();
-  });
-
-  it("keeps OTP and reporter token material one-way at the contract boundary", () => {
-    expect(hashRiskValue("email@example.com")).toMatch(/^[a-f0-9]{64}$/u);
-    expect(hashRiskValue("email@example.com")).toBe(
-      hashRiskValue("email@example.com")
-    );
   });
 
   it("allows only the documented lifecycle transitions", () => {

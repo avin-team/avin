@@ -141,6 +141,13 @@ export const providerApplicationListInputSchema = z
 
 export const providerApplicationIdInputSchema = z.object({ id: z.uuid() });
 
+export const providerOwnershipRelinkInputSchema = z.object({
+  identityEvidenceReference: evidenceReference,
+  profileId: z.uuid(),
+  reason: z.string().trim().min(20).max(2000),
+  targetUserId: z.string().trim().min(1).max(200),
+});
+
 const allowedTransitions: Record<
   ProviderApplicationStatus,
   readonly ProviderApplicationStatus[]

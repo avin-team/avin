@@ -1,4 +1,5 @@
 import { Badge } from "@avin/ui/components/badge";
+import { Button } from "@avin/ui/components/button";
 import {
   Card,
   CardContent,
@@ -6,8 +7,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
-import { useQuery } from "@tanstack/react-query";
+import { Textarea } from "@avin/ui/components/textarea";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { useState } from "react";
 
 import { Shell } from "@/components/shell";
 import { orpc } from "@/utils/orpc";
@@ -25,8 +28,27 @@ const REPORT_STATUS_LABELS = {
 } as const;
 
 export const RiskReportWorkspacePage = () => {
+  const [withdrawalReportId, setWithdrawalReportId] = useState<string>();
+  const [withdrawalReason, setWithdrawalReason] = useState("");
   const reports = useQuery(
     orpc.protection.riskReport.getMine.queryOptions({ input: {} })
+  );
+  const corrections = useQuery(
+    orpc.protection.riskReport.correctionsMine.queryOptions()
+  );
+  const deleteDraft = useMutation(
+    orpc.protection.riskReport.deleteDraft.mutationOptions({
+      onSuccess: () => reports.refetch(),
+    })
+  );
+  const requestWithdrawal = useMutation(
+    orpc.protection.riskReport.requestWithdrawal.mutationOptions({
+      onSuccess: async () => {
+        setWithdrawalReportId(undefined);
+        setWithdrawalReason("");
+        await reports.refetch();
+      },
+    })
   );
 
   return (
@@ -111,6 +133,108 @@ export const RiskReportWorkspacePage = () => {
                     Thông tin moderation riêng tư chỉ hiển thị theo trạng thái.
                   </p>
                 )}
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {report.status === "DRAFT" ? (
+                    <Button
+                      disabled={deleteDraft.isPending}
+                      onClick={() =>
+                        void deleteDraft.mutateAsync({ reportId: report.id })
+                      }
+                      type="button"
+                      variant="outline"
+                    >
+                      Xoá bản nháp
+                    </Button>
+                  ) : null}
+                  {report.status !== "DRAFT" &&
+                  report.withdrawalStatus === "NONE" ? (
+                    <Button
+                      onClick={() => setWithdrawalReportId(report.id)}
+                      type="button"
+                      variant="outline"
+                    >
+                      Yêu cầu rút lại
+                    </Button>
+                  ) : null}
+                  {report.withdrawalStatus === "REQUESTED" ? (
+                    <Badge variant="secondary">
+                      Đang chờ xử lý yêu cầu rút lại
+                    </Badge>
+                  ) : null}
+                </div>
+                {withdrawalReportId === report.id ? (
+                  <div className="mt-4 grid gap-2 rounded-lg border p-3">
+                    <label
+                      className="grid gap-1.5 font-medium"
+                      htmlFor={`withdrawal-reason-${report.id}`}
+                    >
+                      Lý do rút lại
+                      <Textarea
+                        id={`withdrawal-reason-${report.id}`}
+                        minLength={10}
+                        onChange={(event) =>
+                          setWithdrawalReason(event.target.value)
+                        }
+                        placeholder="Vui lòng nêu lý do để Moderator xem xét."
+                        value={withdrawalReason}
+                      />
+                    </label>
+                    <div className="flex gap-2">
+                      <Button
+                        disabled={
+                          requestWithdrawal.isPending ||
+                          withdrawalReason.trim().length < 10
+                        }
+                        onClick={() =>
+                          void requestWithdrawal.mutateAsync({
+                            reason: withdrawalReason,
+                            reportId: report.id,
+                          })
+                        }
+                        type="button"
+                      >
+                        Gửi yêu cầu
+                      </Button>
+                      <Button
+                        onClick={() => setWithdrawalReportId(undefined)}
+                        type="button"
+                        variant="ghost"
+                      >
+                        Huỷ
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
+          ))}
+        </section>
+      ) : null}
+
+      {corrections.data && corrections.data.length > 0 ? (
+        <section
+          aria-labelledby="risk-correction-list-heading"
+          className="grid gap-4"
+        >
+          <h2 className="font-bold text-2xl" id="risk-correction-list-heading">
+            Yêu cầu đính chính của tôi
+          </h2>
+          {corrections.data.map((request) => (
+            <Card key={request.id}>
+              <CardHeader>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <CardTitle>Mã báo cáo: {request.reportId}</CardTitle>
+                    <CardDescription>
+                      Cập nhật{" "}
+                      {new Date(request.updatedAt).toLocaleString("vi-VN")}
+                    </CardDescription>
+                  </div>
+                  <Badge variant="outline">{request.status}</Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="text-muted-foreground text-sm">
+                {request.reviewReason ?? request.reason}
               </CardContent>
             </Card>
           ))}

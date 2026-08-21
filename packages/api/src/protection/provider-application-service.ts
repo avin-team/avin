@@ -1,7 +1,11 @@
 import { user } from "@avin/db/schema/auth";
 import {
+  protectionProviderBondAccount,
+  protectionProviderBondAdjustment,
+  protectionProviderBondWithdrawal,
   protectionPolicyVersion,
   protectionProviderApplication,
+  protectionProviderOwnershipChange,
   protectionProviderProfile,
   protectionProviderProfileRevision,
   protectionProviderProfileVersion,
@@ -22,6 +26,7 @@ import {
   assertProviderApplicationTransition,
   createProviderProfileSlug,
   CURRENT_PROVIDER_POLICY_VERSION,
+  providerOwnershipRelinkInputSchema,
   validateProviderApplicationSubmission,
 } from "./provider-application";
 import type {
@@ -57,13 +62,8 @@ const toIso = (value: Date | null): string | null =>
 
 const assertProviderApplicationEligibility = async (
   database: Database,
-  providerUserId: string,
-  hasExistingApplication: boolean
+  providerUserId: string
 ): Promise<void> => {
-  if (hasExistingApplication) {
-    return;
-  }
-
   const [latestFraudAction] = await database
     .select({
       newState: sellerEnforcementAction.newState,
@@ -77,20 +77,49 @@ const assertProviderApplicationEligibility = async (
     )
     .limit(1);
 
-  if (
+  const confirmedFraud =
     latestFraudAction?.newState === "BANNED" &&
-    latestFraudAction.reasonCode === "FRAUD_RISK"
-  ) {
-    throw new ORPCError("FORBIDDEN", {
-      message:
-        "A confirmed marketplace fraud enforcement blocks a new Provider application until Admin review.",
-    });
+    latestFraudAction.reasonCode === "FRAUD_RISK";
+  if (!confirmedFraud) {
+    return;
   }
+
+  const [existingProfile] = await database
+    .select({
+      id: protectionProviderProfile.id,
+      status: protectionProviderProfile.status,
+    })
+    .from(protectionProviderProfile)
+    .where(eq(protectionProviderProfile.providerUserId, providerUserId))
+    .limit(1);
+
+  if (existingProfile) {
+    if (existingProfile.status === "ACTIVE") {
+      await database
+        .update(protectionProviderProfile)
+        .set({
+          status: "SUSPENDED_PENDING_REVIEW",
+          statusReason:
+            "Confirmed marketplace fraud requires an Avin Check Provider review.",
+          updatedAt: new Date(),
+        })
+        .where(eq(protectionProviderProfile.id, existingProfile.id));
+    }
+    return;
+  }
+
+  throw new ORPCError("FORBIDDEN", {
+    message:
+      "A confirmed marketplace fraud enforcement blocks a new Provider application until Admin review.",
+  });
 };
 
 const assertNoDuplicateProviderIdentity = async (
   database: Database,
-  application: ProviderApplication
+  application: Pick<
+    ProviderApplication,
+    "id" | "identityEvidenceReference" | "providerUserId"
+  >
 ): Promise<void> => {
   if (!application.identityEvidenceReference) {
     throw new ORPCError("BAD_REQUEST", {
@@ -99,7 +128,10 @@ const assertNoDuplicateProviderIdentity = async (
   }
 
   const [duplicateIdentity] = await database
-    .select({ id: protectionProviderApplication.id })
+    .select({
+      id: protectionProviderApplication.id,
+      providerUserId: protectionProviderApplication.providerUserId,
+    })
     .from(protectionProviderApplication)
     .where(
       and(
@@ -119,7 +151,12 @@ const assertNoDuplicateProviderIdentity = async (
     )
     .limit(1);
 
-  if (duplicateIdentity && duplicateIdentity.id !== application.id) {
+  if (
+    duplicateIdentity &&
+    duplicateIdentity.id !== application.id &&
+    duplicateIdentity.providerUserId &&
+    duplicateIdentity.providerUserId !== application.providerUserId
+  ) {
     throw new ORPCError("CONFLICT", {
       message:
         "This verified identity is already linked to another Provider standing.",
@@ -197,8 +234,9 @@ export const toProviderProfileView = (
     recommendedTransactionLimit: currentVersion.recommendedTransactionLimit,
     relatedWarnings,
     services: currentVersion.services,
-    status: currentVersion.status,
-    statusReason: currentVersion.statusReason,
+    status:
+      profile.status === "ACTIVE" ? currentVersion.status : profile.status,
+    statusReason: profile.statusReason ?? currentVersion.statusReason,
     verifiedAt: currentVersion.verifiedAt.toISOString(),
     versionId: currentVersion.id,
     versionNumber: currentVersion.versionNumber,
@@ -280,6 +318,132 @@ const findProviderProfile = async (
     .where(eq(protectionProviderProfile.providerUserId, providerUserId))
     .limit(1);
   return profile ?? null;
+};
+
+export const relinkProviderOwnership = async ({
+  database,
+  input,
+  transferredByUserId,
+}: {
+  database: Database;
+  input: {
+    identityEvidenceReference: string;
+    profileId: string;
+    reason: string;
+    targetUserId: string;
+  };
+  transferredByUserId: string;
+}) => {
+  const parsedInput = providerOwnershipRelinkInputSchema.parse(input);
+  const [profile] = await database
+    .select()
+    .from(protectionProviderProfile)
+    .where(eq(protectionProviderProfile.id, parsedInput.profileId))
+    .limit(1);
+  if (!profile) {
+    throw new ORPCError("NOT_FOUND", {
+      message: "Provider profile not found",
+    });
+  }
+
+  const [application] = await database
+    .select()
+    .from(protectionProviderApplication)
+    .where(eq(protectionProviderApplication.id, profile.applicationId))
+    .limit(1);
+  if (
+    !application?.identityEvidenceReference ||
+    application.identityEvidenceReference !==
+      parsedInput.identityEvidenceReference
+  ) {
+    throw new ORPCError("FORBIDDEN", {
+      message:
+        "Ownership can only be relinked with the verified identity evidence already approved for this Provider.",
+    });
+  }
+  if (profile.providerUserId === parsedInput.targetUserId) {
+    throw new ORPCError("CONFLICT", {
+      message: "The target account already owns this Provider profile.",
+    });
+  }
+
+  const [targetUser] = await database
+    .select({ banned: user.banned, id: user.id, role: user.role })
+    .from(user)
+    .where(eq(user.id, parsedInput.targetUserId))
+    .limit(1);
+  if (
+    !targetUser ||
+    (targetUser.role !== "BUYER" && targetUser.role !== "SELLER")
+  ) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Provider ownership can only move to a Buyer or Seller account.",
+    });
+  }
+  if (targetUser.banned) {
+    throw new ORPCError("FORBIDDEN", {
+      message: "The target account is locked.",
+    });
+  }
+
+  const [targetProfile] = await database
+    .select({ id: protectionProviderProfile.id })
+    .from(protectionProviderProfile)
+    .where(eq(protectionProviderProfile.providerUserId, targetUser.id))
+    .limit(1);
+  if (targetProfile) {
+    throw new ORPCError("CONFLICT", {
+      message: "The target account already owns a Provider standing.",
+    });
+  }
+
+  const now = new Date();
+  await database.transaction(async (transaction) => {
+    await transaction
+      .update(protectionProviderApplication)
+      .set({ providerUserId: targetUser.id, updatedAt: now })
+      .where(eq(protectionProviderApplication.id, application.id));
+    await transaction
+      .update(protectionProviderProfile)
+      .set({ providerUserId: targetUser.id, updatedAt: now })
+      .where(eq(protectionProviderProfile.id, profile.id));
+    await transaction
+      .update(protectionProviderProfileRevision)
+      .set({ providerUserId: targetUser.id, updatedAt: now })
+      .where(eq(protectionProviderProfileRevision.profileId, profile.id));
+    await transaction
+      .update(protectionProviderRiskIncident)
+      .set({ providerUserId: targetUser.id, updatedAt: now })
+      .where(eq(protectionProviderRiskIncident.providerProfileId, profile.id));
+    await transaction
+      .update(protectionProviderBondAccount)
+      .set({ providerUserId: targetUser.id, updatedAt: now })
+      .where(eq(protectionProviderBondAccount.providerProfileId, profile.id));
+    await transaction
+      .update(protectionProviderBondAdjustment)
+      .set({ providerUserId: targetUser.id, updatedAt: now })
+      .where(eq(protectionProviderBondAdjustment.profileId, profile.id));
+    await transaction
+      .update(protectionProviderBondWithdrawal)
+      .set({ providerUserId: targetUser.id })
+      .where(eq(protectionProviderBondWithdrawal.profileId, profile.id));
+    await transaction.insert(protectionProviderOwnershipChange).values({
+      createdAt: now,
+      fromUserId: profile.providerUserId,
+      identityEvidenceReference: parsedInput.identityEvidenceReference,
+      profileId: profile.id,
+      reason: parsedInput.reason,
+      toUserId: targetUser.id,
+      transferredByUserId,
+    });
+  });
+
+  return {
+    fromUserId: profile.providerUserId,
+    profileId: profile.id,
+    toUserId: targetUser.id,
+    transferredAt: now.toISOString(),
+  };
 };
 
 const findLatestProviderProfileVersion = async (
@@ -509,11 +673,7 @@ export const saveProviderApplicationDraft = async (
   input: Record<string, unknown>
 ) => {
   const existing = await findProviderApplication(database, providerUserId);
-  await assertProviderApplicationEligibility(
-    database,
-    providerUserId,
-    Boolean(existing)
-  );
+  await assertProviderApplicationEligibility(database, providerUserId);
   if (existing?.status === "PENDING_REVIEW") {
     throw new ORPCError("BAD_REQUEST", {
       message: "Provider application is already pending review",
@@ -601,11 +761,7 @@ export const submitProviderApplication = async (
   }
 
   const existing = await findProviderApplication(database, providerUserId);
-  await assertProviderApplicationEligibility(
-    database,
-    providerUserId,
-    Boolean(existing)
-  );
+  await assertProviderApplicationEligibility(database, providerUserId);
   if (existing?.status === "PENDING_REVIEW") {
     throw new ORPCError("BAD_REQUEST", {
       message: "Provider application is already pending review",
@@ -1250,6 +1406,7 @@ export const decideProviderProfileRevision = async ({
       } catch (error) {
         return throwApplicationMutationError(error);
       }
+      await assertNoDuplicateProviderIdentity(transaction, revision);
     }
 
     assertProviderApplicationTransition(revision.status, decision);
@@ -1444,7 +1601,11 @@ export const publishProviderProfileStatusInTransaction = async ({
   }
   const [updatedProfile] = await database
     .update(protectionProviderProfile)
-    .set({ status, updatedAt: now })
+    .set({
+      status,
+      statusReason: statusReason?.trim() || null,
+      updatedAt: now,
+    })
     .where(eq(protectionProviderProfile.id, profile.id))
     .returning();
   if (!updatedProfile) {

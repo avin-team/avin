@@ -16,7 +16,7 @@ import {
 } from "./procedures";
 
 const createContext = (
-  role: (typeof ACCOUNT_ROLE)[keyof typeof ACCOUNT_ROLE],
+  role: string,
   twoFactorEnabled = true,
   userId = "user-1",
   auditEvents: AuditEvent[] = [],
@@ -82,7 +82,7 @@ describe("protected procedure authorization", () => {
 
     await expect(
       call(procedure, undefined, {
-        context: createContext(ACCOUNT_ROLE.PROVIDER),
+        context: createContext("PROVIDER"),
       })
     ).rejects.toMatchObject({
       code: "FORBIDDEN",
@@ -104,7 +104,7 @@ describe("Provider procedure authorization", () => {
     }
   );
 
-  it.each([ACCOUNT_ROLE.ADMIN, ACCOUNT_ROLE.PROVIDER])(
+  it.each([ACCOUNT_ROLE.ADMIN, "PROVIDER"])(
     "rejects a %s session",
     async (role) => {
       const procedure = providerProcedure.handler(() => "provider-private");
