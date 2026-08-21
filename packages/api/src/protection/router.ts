@@ -1,6 +1,9 @@
-import { PROTECTION_ADMIN_CAPABILITY } from "@avin/auth/permissions";
+import {
+  ACCOUNT_ROLE,
+  PROTECTION_ADMIN_CAPABILITY,
+} from "@avin/auth/permissions";
 
-import { publicProcedure } from "../access/procedures";
+import { providerProcedure, publicProcedure } from "../access/procedures";
 import { getProtectionLaunchConfiguration } from "./configuration";
 import {
   PROTECTION_MODULE_NAME,
@@ -21,4 +24,21 @@ export const protectionRouter = {
   launchStatus: publicProcedure.handler(() =>
     getProtectionLaunchStatus(getProtectionLaunchConfiguration())
   ),
+
+  providerWorkspace: providerProcedure.handler(({ context }) => ({
+    identity: {
+      id: context.session.user.id,
+      name: context.session.user.name,
+      role: ACCOUNT_ROLE.PROVIDER,
+    },
+    privateProviderRecord: {
+      source: "PROVIDER_IDENTITY",
+      visibility: "PRIVATE",
+    },
+    publicProfile: {
+      source: "PUBLISHED_PROVIDER_PROFILE_VERSION",
+      status: "NOT_PUBLISHED",
+      visibility: "PUBLIC",
+    },
+  })),
 };

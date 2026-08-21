@@ -69,6 +69,65 @@ describe("Avin Check public launch status", () => {
     expect(result.providerBondRecognition.blockers).toContain("NO_MONEY_PILOT");
   });
 
+  it("exposes only a private Provider workspace projection", async () => {
+    const result = await call(protectionRouter.providerWorkspace, undefined, {
+      context: {
+        audit: { record: () => Promise.resolve() },
+        db,
+        session: {
+          session: {
+            createdAt: new Date("2026-01-01T00:00:00.000Z"),
+            expiresAt: new Date("2026-01-08T00:00:00.000Z"),
+            id: "provider-session",
+            ipAddress: null,
+            token: "provider-token",
+            updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+            userAgent: null,
+            userId: "provider-1",
+          },
+          user: {
+            banExpires: null,
+            banReason: null,
+            banned: false,
+            createdAt: new Date("2026-01-01T00:00:00.000Z"),
+            email: "provider@example.com",
+            emailVerified: true,
+            hasSeenSellerOnboarding: false,
+            id: "provider-1",
+            image: null,
+            name: "Provider One",
+            role: ACCOUNT_ROLE.PROVIDER,
+            twoFactorEnabled: true,
+            updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+          },
+        },
+      },
+    });
+
+    expect(result).toEqual({
+      identity: {
+        id: "provider-1",
+        name: "Provider One",
+        role: ACCOUNT_ROLE.PROVIDER,
+      },
+      privateProviderRecord: {
+        source: "PROVIDER_IDENTITY",
+        visibility: "PRIVATE",
+      },
+      publicProfile: {
+        source: "PUBLISHED_PROVIDER_PROFILE_VERSION",
+        status: "NOT_PUBLISHED",
+        visibility: "PUBLIC",
+      },
+    });
+
+    await expect(
+      call(protectionRouter.providerWorkspace, undefined, {
+        context: createAdminContext([], true),
+      })
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
   it("protects the Admin launch status behind the manager capability", async () => {
     const auditEvents: AuditEvent[] = [];
 

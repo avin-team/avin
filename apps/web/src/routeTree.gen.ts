@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as authRouteRouteImport } from './routes/(auth)/route'
 import { Route as publicRouteRouteImport } from './routes/(public)/route'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as ProviderRouteRouteImport } from './routes/provider/route'
 import { Route as authLoginRouteImport } from './routes/(auth)/login'
 import { Route as errors401RouteImport } from './routes/(errors)/401'
 import { Route as errors403RouteImport } from './routes/(errors)/403'
@@ -26,6 +27,8 @@ import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authen
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedSecurityRouteImport } from './routes/_authenticated/security'
 import { Route as AuthenticatedTwoFactorRouteImport } from './routes/_authenticated/two-factor'
+import { Route as ProviderIndexRouteImport } from './routes/provider/index'
+import { Route as ProviderLoginRouteImport } from './routes/provider/login'
 import { Route as authSellerLoginRouteImport } from './routes/(auth)/seller/login'
 import { Route as publicCategoryIndexRouteImport } from './routes/(public)/category/index'
 import { Route as publicCategoryParentSlugRouteImport } from './routes/(public)/category/$parentSlug'
@@ -51,6 +54,11 @@ const publicRouteRoute = publicRouteRouteImport.update({
 } as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProviderRouteRoute = ProviderRouteRouteImport.update({
+  id: '/provider',
+  path: '/provider',
   getParentRoute: () => rootRouteImport,
 } as any)
 const authLoginRoute = authLoginRouteImport.update({
@@ -123,6 +131,16 @@ const AuthenticatedTwoFactorRoute = AuthenticatedTwoFactorRouteImport.update({
   id: '/two-factor',
   path: '/two-factor',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const ProviderIndexRoute = ProviderIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ProviderRouteRoute,
+} as any)
+const ProviderLoginRoute = ProviderLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => ProviderRouteRoute,
 } as any)
 const authSellerLoginRoute = authSellerLoginRouteImport.update({
   id: '/seller/login',
@@ -206,6 +224,7 @@ const AuthenticatedSellerListingsIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof publicIndexRoute
+  '/provider': typeof ProviderRouteRouteWithChildren
   '/login': typeof authLoginRoute
   '/401': typeof errors401Route
   '/403': typeof errors403Route
@@ -219,6 +238,8 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/security': typeof AuthenticatedSecurityRoute
   '/two-factor': typeof AuthenticatedTwoFactorRoute
+  '/provider/login': typeof ProviderLoginRoute
+  '/provider/': typeof ProviderIndexRoute
   '/seller/login': typeof authSellerLoginRoute
   '/category/$parentSlug': typeof publicCategoryParentSlugRoute
   '/listing/$id': typeof publicListingIdRoute
@@ -249,6 +270,8 @@ export interface FileRoutesByTo {
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/security': typeof AuthenticatedSecurityRoute
   '/two-factor': typeof AuthenticatedTwoFactorRoute
+  '/provider/login': typeof ProviderLoginRoute
+  '/provider': typeof ProviderIndexRoute
   '/seller/login': typeof authSellerLoginRoute
   '/category/$parentSlug': typeof publicCategoryParentSlugRoute
   '/listing/$id': typeof publicListingIdRoute
@@ -269,6 +292,7 @@ export interface FileRoutesById {
   '/(auth)': typeof authRouteRouteWithChildren
   '/(public)': typeof publicRouteRouteWithChildren
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/provider': typeof ProviderRouteRouteWithChildren
   '/(auth)/login': typeof authLoginRoute
   '/(errors)/401': typeof errors401Route
   '/(errors)/403': typeof errors403Route
@@ -282,7 +306,9 @@ export interface FileRoutesById {
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/security': typeof AuthenticatedSecurityRoute
   '/_authenticated/two-factor': typeof AuthenticatedTwoFactorRoute
+  '/provider/login': typeof ProviderLoginRoute
   '/(public)/': typeof publicIndexRoute
+  '/provider/': typeof ProviderIndexRoute
   '/(auth)/seller/login': typeof authSellerLoginRoute
   '/(public)/category/$parentSlug': typeof publicCategoryParentSlugRoute
   '/(public)/listing/$id': typeof publicListingIdRoute
@@ -302,6 +328,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/provider'
     | '/login'
     | '/401'
     | '/403'
@@ -315,6 +342,8 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/security'
     | '/two-factor'
+    | '/provider/login'
+    | '/provider/'
     | '/seller/login'
     | '/category/$parentSlug'
     | '/listing/$id'
@@ -345,6 +374,8 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/security'
     | '/two-factor'
+    | '/provider/login'
+    | '/provider'
     | '/seller/login'
     | '/category/$parentSlug'
     | '/listing/$id'
@@ -364,6 +395,7 @@ export interface FileRouteTypes {
     | '/(auth)'
     | '/(public)'
     | '/_authenticated'
+    | '/provider'
     | '/(auth)/login'
     | '/(errors)/401'
     | '/(errors)/403'
@@ -377,7 +409,9 @@ export interface FileRouteTypes {
     | '/_authenticated/onboarding'
     | '/_authenticated/security'
     | '/_authenticated/two-factor'
+    | '/provider/login'
     | '/(public)/'
+    | '/provider/'
     | '/(auth)/seller/login'
     | '/(public)/category/$parentSlug'
     | '/(public)/listing/$id'
@@ -398,6 +432,7 @@ export interface RootRouteChildren {
   authRouteRoute: typeof authRouteRouteWithChildren
   publicRouteRoute: typeof publicRouteRouteWithChildren
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  ProviderRouteRoute: typeof ProviderRouteRouteWithChildren
   errors401Route: typeof errors401Route
   errors403Route: typeof errors403Route
   errors404Route: typeof errors404Route
@@ -426,6 +461,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/provider': {
+      id: '/provider'
+      path: '/provider'
+      fullPath: '/provider'
+      preLoaderRoute: typeof ProviderRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/(auth)/login': {
@@ -525,6 +567,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/two-factor'
       preLoaderRoute: typeof AuthenticatedTwoFactorRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/provider/': {
+      id: '/provider/'
+      path: '/'
+      fullPath: '/provider/'
+      preLoaderRoute: typeof ProviderIndexRouteImport
+      parentRoute: typeof ProviderRouteRoute
+    }
+    '/provider/login': {
+      id: '/provider/login'
+      path: '/login'
+      fullPath: '/provider/login'
+      preLoaderRoute: typeof ProviderLoginRouteImport
+      parentRoute: typeof ProviderRouteRoute
     }
     '/(auth)/seller/login': {
       id: '/(auth)/seller/login'
@@ -715,10 +771,25 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface ProviderRouteRouteChildren {
+  ProviderLoginRoute: typeof ProviderLoginRoute
+  ProviderIndexRoute: typeof ProviderIndexRoute
+}
+
+const ProviderRouteRouteChildren: ProviderRouteRouteChildren = {
+  ProviderLoginRoute: ProviderLoginRoute,
+  ProviderIndexRoute: ProviderIndexRoute,
+}
+
+const ProviderRouteRouteWithChildren = ProviderRouteRoute._addFileChildren(
+  ProviderRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   authRouteRoute: authRouteRouteWithChildren,
   publicRouteRoute: publicRouteRouteWithChildren,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  ProviderRouteRoute: ProviderRouteRouteWithChildren,
   errors401Route: errors401Route,
   errors403Route: errors403Route,
   errors404Route: errors404Route,

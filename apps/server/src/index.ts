@@ -1,7 +1,7 @@
 import { createContext } from "@avin/api/context";
 import { appRouter } from "@avin/api/router";
 import { handleSePayWebhook } from "@avin/api/wallet/webhook";
-import { adminAuth, auth } from "@avin/auth";
+import { adminAuth, auth, providerAuth } from "@avin/auth";
 import { AUTH_SURFACE_HEADER } from "@avin/auth/auth-surfaces";
 import { env } from "@avin/env/server";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
@@ -81,6 +81,9 @@ app.use(
 app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 app.on(["POST", "GET"], "/api/admin-auth/*", (c) =>
   adminAuth.handler(c.req.raw)
+);
+app.on(["POST", "GET"], "/api/provider-auth/*", (c) =>
+  providerAuth.handler(c.req.raw)
 );
 
 app.post("/api/upload", (c) => {

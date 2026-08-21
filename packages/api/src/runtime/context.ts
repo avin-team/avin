@@ -1,4 +1,4 @@
-import { adminAuth, auth } from "@avin/auth";
+import { adminAuth, auth, providerAuth } from "@avin/auth";
 import { AUTH_SURFACE, getAuthSurface } from "@avin/auth/auth-surfaces";
 import type { ProtectionAdminCapability } from "@avin/auth/permissions";
 import { db } from "@avin/db";
@@ -37,10 +37,13 @@ export const createContext = async ({
   context,
   storage,
 }: CreateContextOptions): Promise<Context> => {
-  const authClient =
-    getAuthSurface(context.req.raw.headers) === AUTH_SURFACE.ADMIN
-      ? adminAuth
-      : auth;
+  const authSurface = getAuthSurface(context.req.raw.headers);
+  let authClient = auth;
+  if (authSurface === AUTH_SURFACE.ADMIN) {
+    authClient = adminAuth;
+  } else if (authSurface === AUTH_SURFACE.PROVIDER) {
+    authClient = providerAuth;
+  }
   const session = await authClient.api.getSession({
     headers: context.req.raw.headers,
   });

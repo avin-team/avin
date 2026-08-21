@@ -40,4 +40,12 @@ describe("AvinCheckLandingPage", () => {
       screen.getByRole("link", { name: "Tiếp tục khám phá dịch vụ Avin" })
     ).toHaveAttribute("href", "/category");
   });
+
+  it("provides a dedicated Provider sign-in path", () => {
+    render(<AvinCheckLandingPage />);
+
+    expect(
+      screen.getByRole("link", { name: "Đăng nhập Đối tác Avin" })
+    ).toHaveAttribute("href", "/provider/login");
+  });
 });

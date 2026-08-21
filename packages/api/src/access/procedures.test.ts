@@ -10,6 +10,7 @@ import {
   assertAccountAccess,
   auditedAdminProcedure,
   buyerProcedure,
+  providerProcedure,
   protectedProcedure,
 } from "./procedures";
 
@@ -73,6 +74,45 @@ describe("protected procedure authorization", () => {
       code: "UNAUTHORIZED",
     });
   });
+
+  it("rejects a Provider from marketplace-protected procedures", async () => {
+    const procedure = protectedProcedure.handler(() => "marketplace-private");
+
+    await expect(
+      call(procedure, undefined, {
+        context: createContext(ACCOUNT_ROLE.PROVIDER),
+      })
+    ).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+  });
+});
+
+describe("Provider procedure authorization", () => {
+  it("accepts a Provider session", async () => {
+    const procedure = providerProcedure.handler(() => "provider-private");
+
+    await expect(
+      call(procedure, undefined, {
+        context: createContext(ACCOUNT_ROLE.PROVIDER),
+      })
+    ).resolves.toBe("provider-private");
+  });
+
+  it.each([ACCOUNT_ROLE.ADMIN, ACCOUNT_ROLE.BUYER, ACCOUNT_ROLE.SELLER])(
+    "rejects a %s session",
+    async (role) => {
+      const procedure = providerProcedure.handler(() => "provider-private");
+
+      await expect(
+        call(procedure, undefined, {
+          context: createContext(role),
+        })
+      ).rejects.toMatchObject({
+        code: "FORBIDDEN",
+      });
+    }
+  );
 });
 
 describe("admin procedure authorization", () => {
