@@ -12,7 +12,7 @@ import {
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 
-import { authClient } from "@/features/auth/api/auth-client";
+import { useSession } from "@/features/auth/api/session-query";
 
 import {
   useNotificationActions,
@@ -24,9 +24,9 @@ import { formatNotificationText, formatNotificationTitle } from "../utils";
 const RECENT_NOTIFICATION_LIMIT = 3;
 
 export const NotificationButton = () => {
-  const { data: session, isPending: isSessionPending } =
-    authClient.useSession();
+  const { data: session, isPending: isSessionPending } = useSession();
   const isAuthenticated = Boolean(session);
+
   const unreadQuery = useNotificationUnreadCount(isAuthenticated);
   const notificationsQuery = useNotifications({ enabled: isAuthenticated });
   const { markAllRead, markRead } = useNotificationActions();

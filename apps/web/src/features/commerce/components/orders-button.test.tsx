@@ -26,8 +26,8 @@ vi.mock("@avin/ui/components/button", () => ({
     </button>
   ),
 }));
-vi.mock("@/features/auth/api/auth-client", () => ({
-  authClient: { useSession: mocks.useSession },
+vi.mock("@/features/auth/api/session-query", () => ({
+  useSession: mocks.useSession,
 }));
 
 describe("OrdersButton", () => {

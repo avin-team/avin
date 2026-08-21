@@ -1,16 +1,20 @@
+import type { QueryClient } from "@tanstack/react-query";
 import { redirect } from "@tanstack/react-router";
 
-import { authClient } from "@/features/auth/api/auth-client";
+import { queryClient as defaultQueryClient } from "@/utils/orpc";
 
-export const requireSession = async () => {
-  const session = await authClient.getSession();
+import { resolveSessionData } from "../api/session-query";
 
-  if (!session.data) {
-    redirect({
-      throw: true,
+export const requireSession = async (
+  queryClient: QueryClient = defaultQueryClient
+) => {
+  const sessionData = await resolveSessionData(queryClient);
+
+  if (!sessionData?.user) {
+    throw redirect({
       to: "/login",
     });
   }
 
-  return session;
+  return { data: sessionData };
 };

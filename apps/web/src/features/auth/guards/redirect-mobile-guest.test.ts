@@ -1,3 +1,4 @@
+import { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { redirectMobileGuest } from "@/features/auth/guards/redirect-mobile-guest";
@@ -20,13 +21,20 @@ const setViewportWidth = (width: number) => {
 };
 
 describe("redirectMobileGuest", () => {
+  let queryClient: QueryClient;
+
   beforeEach(() => {
     getSession.mockReset();
     setViewportWidth(768);
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+      },
+    });
   });
 
   it("does not fetch a session for desktop visitors", async () => {
-    await expect(redirectMobileGuest()).resolves.toBeUndefined();
+    await expect(redirectMobileGuest(queryClient)).resolves.toBeUndefined();
     expect(getSession).not.toHaveBeenCalled();
   });
 
@@ -38,14 +46,14 @@ describe("redirectMobileGuest", () => {
       },
     });
 
-    await expect(redirectMobileGuest()).resolves.toBeUndefined();
+    await expect(redirectMobileGuest(queryClient)).resolves.toBeUndefined();
   });
 
   it("redirects unauthenticated mobile visitors to login", async () => {
     setViewportWidth(767);
     getSession.mockResolvedValue({ data: null });
 
-    await expect(redirectMobileGuest()).rejects.toMatchObject({
+    await expect(redirectMobileGuest(queryClient)).rejects.toMatchObject({
       options: {
         to: "/login",
       },
