@@ -30,6 +30,7 @@ import { Route as AuthenticatedTwoFactorRouteImport } from './routes/_authentica
 import { Route as ProviderIndexRouteImport } from './routes/provider/index'
 import { Route as ProviderLoginRouteImport } from './routes/provider/login'
 import { Route as authSellerLoginRouteImport } from './routes/(auth)/seller/login'
+import { Route as publicAvinCheckCheckRouteImport } from './routes/(public)/avin-check/check'
 import { Route as publicAvinCheckDirectoryRouteImport } from './routes/(public)/avin-check/directory'
 import { Route as publicAvinCheckReportRouteImport } from './routes/(public)/avin-check/report'
 import { Route as publicAvinCheckWarningsRouteImport } from './routes/(public)/avin-check/warnings'
@@ -151,6 +152,11 @@ const authSellerLoginRoute = authSellerLoginRouteImport.update({
   id: '/seller/login',
   path: '/seller/login',
   getParentRoute: () => authRouteRoute,
+} as any)
+const publicAvinCheckCheckRoute = publicAvinCheckCheckRouteImport.update({
+  id: '/check',
+  path: '/check',
+  getParentRoute: () => publicAvinCheckRoute,
 } as any)
 const publicAvinCheckDirectoryRoute =
   publicAvinCheckDirectoryRouteImport.update({
@@ -274,6 +280,7 @@ export interface FileRoutesByFullPath {
   '/provider/login': typeof ProviderLoginRoute
   '/provider/': typeof ProviderIndexRoute
   '/seller/login': typeof authSellerLoginRoute
+  '/avin-check/check': typeof publicAvinCheckCheckRoute
   '/avin-check/directory': typeof publicAvinCheckDirectoryRoute
   '/avin-check/report': typeof publicAvinCheckReportRoute
   '/avin-check/warnings': typeof publicAvinCheckWarningsRoute
@@ -311,6 +318,7 @@ export interface FileRoutesByTo {
   '/provider/login': typeof ProviderLoginRoute
   '/provider': typeof ProviderIndexRoute
   '/seller/login': typeof authSellerLoginRoute
+  '/avin-check/check': typeof publicAvinCheckCheckRoute
   '/avin-check/directory': typeof publicAvinCheckDirectoryRoute
   '/avin-check/report': typeof publicAvinCheckReportRoute
   '/avin-check/warnings': typeof publicAvinCheckWarningsRoute
@@ -353,6 +361,7 @@ export interface FileRoutesById {
   '/(public)/': typeof publicIndexRoute
   '/provider/': typeof ProviderIndexRoute
   '/(auth)/seller/login': typeof authSellerLoginRoute
+  '/(public)/avin-check/check': typeof publicAvinCheckCheckRoute
   '/(public)/avin-check/directory': typeof publicAvinCheckDirectoryRoute
   '/(public)/avin-check/report': typeof publicAvinCheckReportRoute
   '/(public)/avin-check/warnings': typeof publicAvinCheckWarningsRoute
@@ -393,6 +402,7 @@ export interface FileRouteTypes {
     | '/provider/login'
     | '/provider/'
     | '/seller/login'
+    | '/avin-check/check'
     | '/avin-check/directory'
     | '/avin-check/report'
     | '/avin-check/warnings'
@@ -430,6 +440,7 @@ export interface FileRouteTypes {
     | '/provider/login'
     | '/provider'
     | '/seller/login'
+    | '/avin-check/check'
     | '/avin-check/directory'
     | '/avin-check/report'
     | '/avin-check/warnings'
@@ -471,6 +482,7 @@ export interface FileRouteTypes {
     | '/(public)/'
     | '/provider/'
     | '/(auth)/seller/login'
+    | '/(public)/avin-check/check'
     | '/(public)/avin-check/directory'
     | '/(public)/avin-check/report'
     | '/(public)/avin-check/warnings'
@@ -652,6 +664,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authSellerLoginRouteImport
       parentRoute: typeof authRouteRoute
     }
+    '/(public)/avin-check/check': {
+      id: '/(public)/avin-check/check'
+      path: '/check'
+      fullPath: '/avin-check/check'
+      preLoaderRoute: typeof publicAvinCheckCheckRouteImport
+      parentRoute: typeof publicAvinCheckRoute
+    }
     '/(public)/avin-check/directory': {
       id: '/(public)/avin-check/directory'
       path: '/directory'
@@ -796,6 +815,7 @@ const authRouteRouteWithChildren = authRouteRoute._addFileChildren(
 )
 
 interface publicAvinCheckRouteChildren {
+  publicAvinCheckCheckRoute: typeof publicAvinCheckCheckRoute
   publicAvinCheckDirectoryRoute: typeof publicAvinCheckDirectoryRoute
   publicAvinCheckReportRoute: typeof publicAvinCheckReportRoute
   publicAvinCheckWarningsRoute: typeof publicAvinCheckWarningsRoute
@@ -804,6 +824,7 @@ interface publicAvinCheckRouteChildren {
 }
 
 const publicAvinCheckRouteChildren: publicAvinCheckRouteChildren = {
+  publicAvinCheckCheckRoute: publicAvinCheckCheckRoute,
   publicAvinCheckDirectoryRoute: publicAvinCheckDirectoryRoute,
   publicAvinCheckReportRoute: publicAvinCheckReportRoute,
   publicAvinCheckWarningsRoute: publicAvinCheckWarningsRoute,

@@ -39,6 +39,7 @@ import {
   createRiskReportPublicSlug,
   generateRiskEmailCode,
   generateRiskReporterToken,
+  getRiskIdentifierPublicValue,
   getRiskReportIdentifierTypes,
   getRiskReporterEmailIdentifier,
   hashRiskValue,
@@ -504,8 +505,10 @@ const buildIdentifierRows = (
       identifier.type,
       identifier.value
     );
-    const publicValue =
-      identifier.type === "WEBSITE" ? new URL(normalizedValue).hostname : null;
+    const publicValue = getRiskIdentifierPublicValue(
+      identifier.type,
+      normalizedValue
+    );
     return {
       isPrimary: index === 0,
       maskedValue: maskRiskIdentifier(identifier.type, normalizedValue),
@@ -1389,7 +1392,10 @@ const toPublicWarningView = (
       ? []
       : identifiers.map((item) => ({
           maskedValue: item.maskedValue,
-          publicValue: item.publicValue,
+          publicValue: getRiskIdentifierPublicValue(
+            item.type,
+            item.normalizedValue
+          ),
           type: item.type,
         })),
     platform: isRemoved ? null : report.platform,

@@ -24,6 +24,14 @@ export const riskReportStatuses = [
 
 export type RiskReportStatus = (typeof riskReportStatuses)[number];
 
+export const publicRiskReportStatuses = [
+  "PUBLISHED",
+  "CORRECTED",
+  "UNDER_VERIFICATION",
+] as const satisfies readonly RiskReportStatus[];
+
+export type PublicRiskReportStatus = (typeof publicRiskReportStatuses)[number];
+
 export const riskReportWebsiteViolationTypes = [
   "PHISHING",
   "MALWARE",
@@ -288,6 +296,40 @@ const normalizeWebsite = (value: string): string => {
   return url.toString().replace(/\/$/u, "");
 };
 
+const PUBLIC_SOCIAL_PROFILE_HOSTS = new Set([
+  "discord.com",
+  "discord.gg",
+  "facebook.com",
+  "instagram.com",
+  "roblox.com",
+  "steamcommunity.com",
+  "t.me",
+  "telegram.me",
+  "tiktok.com",
+  "twitter.com",
+  "x.com",
+  "youtube.com",
+  "youtu.be",
+]);
+
+const normalizeProfileIdentifier = (value: string): string => {
+  if (!/^https?:\/\//iu.test(value)) {
+    return value.replaceAll(/\s+/gu, " ").toLowerCase();
+  }
+
+  const url = new URL(value);
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error("Profile identifier must use HTTP or HTTPS");
+  }
+  url.hash = "";
+  url.hostname = url.hostname.toLowerCase();
+  url.pathname = url.pathname.toLowerCase();
+  if (url.pathname === "/") {
+    url.pathname = "";
+  }
+  return url.toString().replace(/\/$/u, "");
+};
+
 export const normalizeRiskIdentifier = (
   type: RiskReportIdentifierType,
   value: string
@@ -313,7 +355,53 @@ export const normalizeRiskIdentifier = (
     return normalized.replaceAll(/[\s.-]/gu, "").toLowerCase();
   }
 
+  if (type === "SOCIAL_ACCOUNT" || type === "PLATFORM_ACCOUNT") {
+    return normalizeProfileIdentifier(normalized);
+  }
+
   return normalized.replaceAll(/\s+/gu, " ").toLowerCase();
+};
+
+export const getRiskIdentifierPublicValue = (
+  type: RiskReportIdentifierType,
+  normalizedValue: string
+): string | null => {
+  if (type === "WEBSITE") {
+    try {
+      return new URL(normalizedValue).hostname;
+    } catch {
+      return null;
+    }
+  }
+
+  if (type !== "SOCIAL_ACCOUNT" && type !== "PLATFORM_ACCOUNT") {
+    return null;
+  }
+
+  if (!/^https?:\/\//iu.test(normalizedValue)) {
+    return null;
+  }
+
+  let url: URL;
+  try {
+    url = new URL(normalizedValue);
+  } catch {
+    return null;
+  }
+  const hostname = url.hostname.toLowerCase().replace(/^www\./u, "");
+  if (
+    !PUBLIC_SOCIAL_PROFILE_HOSTS.has(hostname) ||
+    url.username ||
+    url.password ||
+    url.port ||
+    url.search ||
+    !url.pathname ||
+    url.pathname === "/"
+  ) {
+    return null;
+  }
+
+  return url.toString().replace(/\/$/u, "");
 };
 
 export const maskRiskIdentifier = (

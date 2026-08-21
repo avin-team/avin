@@ -4,6 +4,7 @@ import {
   assertRiskReportSubmission,
   assertRiskReportTransition,
   createRiskReportPublicPath,
+  getRiskIdentifierPublicValue,
   getRiskReportIdentifierTypes,
   hashRiskValue,
   isRiskReportUnderVerificationEligible,
@@ -24,6 +25,27 @@ describe("Risk report contracts", () => {
     expect(
       maskRiskIdentifier("WEBSITE", "https://Example.com/path#secret")
     ).toBe("example.com");
+  });
+
+  it("only exposes approved public profile URLs without query strings", () => {
+    expect(
+      getRiskIdentifierPublicValue(
+        "SOCIAL_ACCOUNT",
+        "https://facebook.com/provider-one"
+      )
+    ).toBe("https://facebook.com/provider-one");
+    expect(
+      getRiskIdentifierPublicValue(
+        "SOCIAL_ACCOUNT",
+        "https://facebook.com/provider-one?tracking=secret"
+      )
+    ).toBeNull();
+    expect(
+      getRiskIdentifierPublicValue(
+        "SOCIAL_ACCOUNT",
+        "https://untrusted.example/provider-one"
+      )
+    ).toBeNull();
   });
 
   it("keeps OTP and reporter token material one-way at the contract boundary", () => {

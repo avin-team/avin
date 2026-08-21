@@ -32,6 +32,23 @@ import {
 import { createListingImageStorage } from "./uploads/storage";
 
 const app = new Hono();
+const PUBLIC_RISK_LOOKUP_RPC_PATH = "/rpc/protection/publicRiskLookup/";
+
+export const isPublicRiskLookupRequest = (request: Request): boolean =>
+  new URL(request.url).pathname.startsWith(PUBLIC_RISK_LOOKUP_RPC_PATH);
+
+const withNoStoreHeaders = (response: Response): Response => {
+  const headers = new Headers(response.headers);
+  headers.set("Cache-Control", "no-store");
+  headers.set("Expires", "0");
+  headers.set("Pragma", "no-cache");
+  return new Response(response.body, {
+    headers,
+    status: response.status,
+    statusText: response.statusText,
+  });
+};
+
 const listingImageStorage = createListingImageStorage();
 const listingImageUploadRouter = listingImageStorage
   ? createListingImageUploadRouter(listingImageStorage.client)
@@ -225,7 +242,9 @@ app.use("/*", async (c, next) => {
   });
 
   if (rpcResult.matched) {
-    return rpcResult.response;
+    return isPublicRiskLookupRequest(c.req.raw)
+      ? withNoStoreHeaders(rpcResult.response)
+      : rpcResult.response;
   }
 
   const apiResult = await apiHandler.handle(c.req.raw, {

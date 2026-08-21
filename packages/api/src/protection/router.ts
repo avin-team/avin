@@ -54,6 +54,11 @@ import {
   searchProviderDirectory,
 } from "./provider-directory";
 import {
+  getPublicRiskStatistics,
+  publicRiskIdentifierLookupInputSchema,
+  searchPublicRiskIdentifiers,
+} from "./risk-lookup";
+import {
   publicRiskWarningIdInputSchema,
   publicRiskWarningListInputSchema,
   riskReportAdminDecisionInputSchema,
@@ -376,6 +381,18 @@ export const protectionRouter = {
     .handler(({ context, input }) =>
       getPublicProviderProfile(context.db, input.slug)
     ),
+
+  publicRiskLookup: {
+    search: publicProcedure
+      .input(publicRiskIdentifierLookupInputSchema)
+      .handler(({ context, input }) =>
+        searchPublicRiskIdentifiers(context.db, input, context.ipAddress)
+      ),
+
+    statistics: publicProcedure.handler(({ context }) =>
+      getPublicRiskStatistics(context.db, context.ipAddress)
+    ),
+  },
 
   publicRiskWarnings: {
     get: publicProcedure

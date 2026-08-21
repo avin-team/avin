@@ -92,6 +92,12 @@ export const AvinCheckLandingPage = () => (
           </Link>
           <Link
             className="inline-flex h-11 items-center rounded-4xl border border-border px-5 font-medium text-sm transition hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            to="/avin-check/check"
+          >
+            Tra cứu Risk Identifier
+          </Link>
+          <Link
+            className="inline-flex h-11 items-center rounded-4xl border border-border px-5 font-medium text-sm transition hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             to="/avin-check/warnings"
           >
             Đọc cảnh báo công khai
