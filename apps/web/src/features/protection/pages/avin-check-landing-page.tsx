@@ -84,6 +84,12 @@ export const AvinCheckLandingPage = () => (
           >
             Đăng nhập Đối tác Avin
           </Link>
+          <Link
+            className="inline-flex h-11 items-center rounded-4xl border border-border px-5 font-medium text-sm transition hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            to="/avin-check/directory"
+          >
+            Mở Provider Directory
+          </Link>
           <span className="text-muted-foreground text-sm">
             Khu vực kiểm tra đang được mở dần theo chính sách.
           </span>

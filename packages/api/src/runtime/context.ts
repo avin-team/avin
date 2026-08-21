@@ -50,6 +50,10 @@ export const createContext = async ({
   return {
     audit: auditRecorder,
     db,
+    ipAddress:
+      context.req.raw.headers.get("cf-connecting-ip") ??
+      context.req.raw.headers.get("x-real-ip") ??
+      context.req.raw.headers.get("x-forwarded-for")?.split(",")[0]?.trim(),
     session,
     storage,
   };
@@ -58,6 +62,7 @@ export const createContext = async ({
 export interface Context {
   audit: AuditRecorder;
   db: typeof db;
+  ipAddress?: string;
   protectionCapabilities?: readonly ProtectionAdminCapability[];
   session: MarketplaceSession | null;
   storage?: ManagedObjectStore;

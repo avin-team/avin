@@ -30,6 +30,7 @@ import { Route as AuthenticatedTwoFactorRouteImport } from './routes/_authentica
 import { Route as ProviderIndexRouteImport } from './routes/provider/index'
 import { Route as ProviderLoginRouteImport } from './routes/provider/login'
 import { Route as authSellerLoginRouteImport } from './routes/(auth)/seller/login'
+import { Route as publicAvinCheckDirectoryRouteImport } from './routes/(public)/avin-check/directory'
 import { Route as publicCategoryIndexRouteImport } from './routes/(public)/category/index'
 import { Route as publicCategoryParentSlugRouteImport } from './routes/(public)/category/$parentSlug'
 import { Route as publicListingIdRouteImport } from './routes/(public)/listing/$id'
@@ -148,6 +149,12 @@ const authSellerLoginRoute = authSellerLoginRouteImport.update({
   path: '/seller/login',
   getParentRoute: () => authRouteRoute,
 } as any)
+const publicAvinCheckDirectoryRoute =
+  publicAvinCheckDirectoryRouteImport.update({
+    id: '/directory',
+    path: '/directory',
+    getParentRoute: () => publicAvinCheckRoute,
+  } as any)
 const publicCategoryIndexRoute = publicCategoryIndexRouteImport.update({
   id: '/category/',
   path: '/category/',
@@ -248,6 +255,7 @@ export interface FileRoutesByFullPath {
   '/provider/login': typeof ProviderLoginRoute
   '/provider/': typeof ProviderIndexRoute
   '/seller/login': typeof authSellerLoginRoute
+  '/avin-check/directory': typeof publicAvinCheckDirectoryRoute
   '/category/$parentSlug': typeof publicCategoryParentSlugRoute
   '/listing/$id': typeof publicListingIdRoute
   '/store/$slug': typeof publicStoreSlugRoute
@@ -281,6 +289,7 @@ export interface FileRoutesByTo {
   '/provider/login': typeof ProviderLoginRoute
   '/provider': typeof ProviderIndexRoute
   '/seller/login': typeof authSellerLoginRoute
+  '/avin-check/directory': typeof publicAvinCheckDirectoryRoute
   '/category/$parentSlug': typeof publicCategoryParentSlugRoute
   '/listing/$id': typeof publicListingIdRoute
   '/store/$slug': typeof publicStoreSlugRoute
@@ -319,6 +328,7 @@ export interface FileRoutesById {
   '/(public)/': typeof publicIndexRoute
   '/provider/': typeof ProviderIndexRoute
   '/(auth)/seller/login': typeof authSellerLoginRoute
+  '/(public)/avin-check/directory': typeof publicAvinCheckDirectoryRoute
   '/(public)/category/$parentSlug': typeof publicCategoryParentSlugRoute
   '/(public)/listing/$id': typeof publicListingIdRoute
   '/(public)/store/$slug': typeof publicStoreSlugRoute
@@ -355,6 +365,7 @@ export interface FileRouteTypes {
     | '/provider/login'
     | '/provider/'
     | '/seller/login'
+    | '/avin-check/directory'
     | '/category/$parentSlug'
     | '/listing/$id'
     | '/store/$slug'
@@ -388,6 +399,7 @@ export interface FileRouteTypes {
     | '/provider/login'
     | '/provider'
     | '/seller/login'
+    | '/avin-check/directory'
     | '/category/$parentSlug'
     | '/listing/$id'
     | '/store/$slug'
@@ -425,6 +437,7 @@ export interface FileRouteTypes {
     | '/(public)/'
     | '/provider/'
     | '/(auth)/seller/login'
+    | '/(public)/avin-check/directory'
     | '/(public)/category/$parentSlug'
     | '/(public)/listing/$id'
     | '/(public)/store/$slug'
@@ -602,6 +615,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authSellerLoginRouteImport
       parentRoute: typeof authRouteRoute
     }
+    '/(public)/avin-check/directory': {
+      id: '/(public)/avin-check/directory'
+      path: '/directory'
+      fullPath: '/avin-check/directory'
+      preLoaderRoute: typeof publicAvinCheckDirectoryRouteImport
+      parentRoute: typeof publicAvinCheckRoute
+    }
     '/(public)/category/': {
       id: '/(public)/category/'
       path: '/category'
@@ -718,10 +738,12 @@ const authRouteRouteWithChildren = authRouteRoute._addFileChildren(
 )
 
 interface publicAvinCheckRouteChildren {
+  publicAvinCheckDirectoryRoute: typeof publicAvinCheckDirectoryRoute
   publicAvinCheckProviderSlugRoute: typeof publicAvinCheckProviderSlugRoute
 }
 
 const publicAvinCheckRouteChildren: publicAvinCheckRouteChildren = {
+  publicAvinCheckDirectoryRoute: publicAvinCheckDirectoryRoute,
   publicAvinCheckProviderSlugRoute: publicAvinCheckProviderSlugRoute,
 }
 

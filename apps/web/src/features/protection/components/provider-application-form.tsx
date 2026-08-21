@@ -26,6 +26,7 @@ interface ProviderApplicationFormState {
   identityEvidenceReference: string;
   officialChannelEvidenceReference: string;
   officialChannels: {
+    facebookId: string;
     facebookUrl: string;
     websiteUrl: string;
     zalo: string;
@@ -50,6 +51,7 @@ const emptyFormState = (): ProviderApplicationFormState => ({
   identityEvidenceReference: "",
   officialChannelEvidenceReference: "",
   officialChannels: {
+    facebookId: "",
     facebookUrl: "",
     websiteUrl: "",
     zalo: "",
@@ -90,6 +92,7 @@ const getFormState = (
       application.officialChannelEvidenceReference
     ),
     officialChannels: {
+      facebookId: readText(officialChannels.facebookId),
       facebookUrl: readText(officialChannels.facebookUrl),
       websiteUrl: readText(officialChannels.websiteUrl),
       zalo: readText(officialChannels.zalo),
@@ -126,6 +129,7 @@ const toDraft = (
     state.officialChannelEvidenceReference
   ),
   officialChannels: {
+    facebookId: optionalText(state.officialChannels.facebookId),
     facebookUrl: optionalText(state.officialChannels.facebookUrl),
     websiteUrl: optionalText(state.officialChannels.websiteUrl),
     zalo: optionalText(state.officialChannels.zalo),
@@ -156,6 +160,7 @@ const toSubmission = (
   officialChannelEvidenceReference:
     state.officialChannelEvidenceReference.trim(),
   officialChannels: {
+    facebookId: optionalText(state.officialChannels.facebookId),
     facebookUrl: optionalText(state.officialChannels.facebookUrl),
     websiteUrl: optionalText(state.officialChannels.websiteUrl),
     zalo: optionalText(state.officialChannels.zalo),
@@ -396,6 +401,17 @@ export const ProviderApplicationForm = ({
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-2">
+            <Label htmlFor="provider-facebook-id">Facebook ID</Label>
+            <Input
+              disabled={disabled}
+              id="provider-facebook-id"
+              onChange={(event) =>
+                updateChannel("facebookId", event.target.value)
+              }
+              value={form.officialChannels.facebookId}
+            />
+          </div>
           <div className="grid gap-2">
             <Label htmlFor="provider-facebook">Facebook URL</Label>
             <Input

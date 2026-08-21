@@ -50,6 +50,7 @@ const validSubmission: ProviderApplicationSubmission = {
   identityEvidenceReference: "evidence/identity/provider-1",
   officialChannelEvidenceReference: "evidence/channels/provider-1",
   officialChannels: {
+    facebookId: "facebook-123",
     facebookUrl: "https://facebook.com/provider-one",
   },
   operatingHistoryEvidenceReference: "evidence/operating/provider-1",
@@ -122,6 +123,7 @@ const createProfileVersion = (
   displayName: validSubmission.fullName,
   id: `profile-version-${versionNumber}`,
   officialChannels: validSubmission.officialChannels,
+  paymentAccount: validSubmission.paymentAccount,
   profileId: "profile-1",
   profileSlug: "nguyen-provider-provider1",
   publishedAt: timestamp,
@@ -360,6 +362,10 @@ describe("Provider application review workflow", () => {
       publicUrl: "/avin-check/provider/nguyen-provider-provider1",
       status: "ACTIVE",
     });
+    expect(approved.publicProfile).not.toHaveProperty("paymentAccount");
+    expect(approved.publicProfile?.officialChannels).not.toHaveProperty(
+      "facebookId"
+    );
     expect(state.application?.status).toBe("APPROVED");
     expect(state.versions).toHaveLength(1);
     expect(createNotificationEvent).toHaveBeenLastCalledWith(

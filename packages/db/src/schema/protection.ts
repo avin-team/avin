@@ -32,6 +32,7 @@ export const protectionProviderProfileStatus = pgEnum(
 );
 
 export const providerOfficialChannelsSchema = z.object({
+  facebookId: z.string().trim().max(200).optional(),
   facebookUrl: z.url().optional(),
   websiteUrl: z.url().optional(),
   zalo: z.string().trim().max(100).optional(),
@@ -151,6 +152,7 @@ export const protectionProviderProfileVersion = pgTable(
     officialChannels: jsonb("official_channels")
       .$type<ProviderOfficialChannels>()
       .notNull(),
+    paymentAccount: jsonb("payment_account").$type<ProviderPaymentAccount>(),
     profileId: uuid("profile_id")
       .notNull()
       .references(() => protectionProviderProfile.id, {

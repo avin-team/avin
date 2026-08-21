@@ -5,6 +5,7 @@ import {
   protectionProviderProfileRevision,
   protectionProviderProfileVersion,
 } from "@avin/db/schema/protection";
+import type { ProviderOfficialChannels } from "@avin/db/schema/protection";
 import { ORPCError } from "@orpc/server";
 import { and, asc, desc, eq } from "drizzle-orm";
 
@@ -33,6 +34,14 @@ type ProviderProfileVersion =
 
 const providerProfilePath = (profileSlug: string): string =>
   `/avin-check/provider/${profileSlug}`;
+
+const toPublicProviderOfficialChannels = (
+  channels: ProviderOfficialChannels | null | undefined
+) => ({
+  facebookUrl: channels?.facebookUrl,
+  websiteUrl: channels?.websiteUrl,
+  zalo: channels?.zalo,
+});
 
 const toIso = (value: Date | null): string | null =>
   value?.toISOString() ?? null;
@@ -81,7 +90,9 @@ export const toProviderProfileView = (
   displayName: version?.displayName ?? profile.displayName,
   history: history.map(toProviderProfileHistoryView),
   id: profile.id,
-  officialChannels: version?.officialChannels ?? profile.officialChannels,
+  officialChannels: toPublicProviderOfficialChannels(
+    version?.officialChannels ?? profile.officialChannels
+  ),
   profileSlug: profile.profileSlug,
   publicUrl: providerProfilePath(profile.profileSlug),
   publishedAt: (version?.publishedAt ?? profile.publishedAt).toISOString(),
@@ -225,6 +236,7 @@ const ensureProviderProfileVersion = async (
     .values({
       displayName: profile.displayName,
       officialChannels: profile.officialChannels,
+      paymentAccount: null,
       profileId: profile.id,
       profileSlug: profile.profileSlug,
       publishedAt: profile.publishedAt,
@@ -1028,6 +1040,7 @@ export const decideProviderProfileRevision = async ({
         .values({
           displayName: updated.fullName,
           officialChannels: updated.officialChannels ?? {},
+          paymentAccount: updated.paymentAccount ?? null,
           profileId: profile.id,
           profileSlug: profile.profileSlug,
           publishedAt: now,
@@ -1146,6 +1159,7 @@ export const publishProviderProfileStatus = ({
       .values({
         displayName: currentVersion.displayName,
         officialChannels: currentVersion.officialChannels,
+        paymentAccount: currentVersion.paymentAccount,
         profileId: profile.id,
         profileSlug: profile.profileSlug,
         publishedAt: now,
@@ -1335,6 +1349,7 @@ export const decideProviderApplication = ({
         .values({
           displayName,
           officialChannels: updated.officialChannels ?? {},
+          paymentAccount: updated.paymentAccount ?? null,
           profileId: profile.id,
           profileSlug: profile.profileSlug,
           publishedAt: now,

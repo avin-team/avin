@@ -47,6 +47,12 @@ import {
   submitProviderApplication,
   submitProviderProfileRevision,
 } from "./provider-application-service";
+import {
+  listProviderDirectory,
+  providerDirectoryListInputSchema,
+  providerDirectorySearchInputSchema,
+  searchProviderDirectory,
+} from "./provider-directory";
 
 const providerNotificationListInput = z
   .object({
@@ -173,6 +179,20 @@ export const protectionRouter = {
       .input(providerApplicationSubmissionInputSchema)
       .handler(({ context, input }) =>
         submitProviderApplication(context.db, context.session.user.id, input)
+      ),
+  },
+
+  providerDirectory: {
+    list: publicProcedure
+      .input(providerDirectoryListInputSchema)
+      .handler(({ context, input }) =>
+        listProviderDirectory(context.db, input)
+      ),
+
+    search: publicProcedure
+      .input(providerDirectorySearchInputSchema)
+      .handler(({ context, input }) =>
+        searchProviderDirectory(context.db, input.query, context.ipAddress)
       ),
   },
 
