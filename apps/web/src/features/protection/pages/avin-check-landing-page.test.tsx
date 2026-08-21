@@ -41,11 +41,11 @@ describe("AvinCheckLandingPage", () => {
     ).toHaveAttribute("href", "/category");
   });
 
-  it("provides a dedicated Provider sign-in path", () => {
+  it("provides a shared Avin account path for Provider applications", () => {
     render(<AvinCheckLandingPage />);
 
     expect(
-      screen.getByRole("link", { name: "Đăng nhập Đối tác Avin" })
-    ).toHaveAttribute("href", "/provider/login");
+      screen.getByRole("link", { name: "Đăng ký Đối tác Avin" })
+    ).toHaveAttribute("href", "/avin-check/apply");
   });
 });

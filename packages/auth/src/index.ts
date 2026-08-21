@@ -13,7 +13,7 @@ import {
 import { admin, twoFactor } from "better-auth/plugins";
 import { Resend } from "resend";
 
-import { AUTH_SURFACE, AUTH_SURFACES } from "./auth-surfaces";
+import { AUTH_SURFACES } from "./auth-surfaces";
 import type { AuthSurface } from "./auth-surfaces";
 import {
   ACCOUNT_ROLE,
@@ -59,10 +59,6 @@ export const createAuth = (surface: AuthSurface = "storefront") => {
       user: {
         create: {
           before: async (data) => {
-            if (surface === AUTH_SURFACE.PROVIDER) {
-              return { data: { ...data, role: ACCOUNT_ROLE.PROVIDER } };
-            }
-
             // For Google (OAuth) sign-up: the client passes the intended role
             // via additionalData which is stored in the OAuth state.
             // The admin plugin defaults to BUYER, so we override here
@@ -145,18 +141,6 @@ export const createAuth = (surface: AuthSurface = "storefront") => {
         // that by re-injecting the validated role into the request body
         // so the admin plugin picks it up correctly.
         if (context.path === "/sign-up/email") {
-          if (surface === AUTH_SURFACE.PROVIDER) {
-            return {
-              context: {
-                ...context,
-                body: {
-                  ...context.body,
-                  role: ACCOUNT_ROLE.PROVIDER,
-                },
-              },
-            };
-          }
-
           const allowedRoles = [
             ACCOUNT_ROLE.BUYER,
             ACCOUNT_ROLE.SELLER,
@@ -239,4 +223,3 @@ export const createAuth = (surface: AuthSurface = "storefront") => {
 
 export const auth = createAuth();
 export const adminAuth = createAuth("admin");
-export const providerAuth = createAuth(AUTH_SURFACE.PROVIDER);

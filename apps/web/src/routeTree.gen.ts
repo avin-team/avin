@@ -30,10 +30,13 @@ import { Route as AuthenticatedTwoFactorRouteImport } from './routes/_authentica
 import { Route as ProviderIndexRouteImport } from './routes/provider/index'
 import { Route as ProviderLoginRouteImport } from './routes/provider/login'
 import { Route as authSellerLoginRouteImport } from './routes/(auth)/seller/login'
+import { Route as publicAvinCheckIndexRouteImport } from './routes/(public)/avin-check/index'
+import { Route as publicAvinCheckApplyRouteImport } from './routes/(public)/avin-check/apply'
 import { Route as publicAvinCheckCheckRouteImport } from './routes/(public)/avin-check/check'
 import { Route as publicAvinCheckDirectoryRouteImport } from './routes/(public)/avin-check/directory'
 import { Route as publicAvinCheckReportRouteImport } from './routes/(public)/avin-check/report'
 import { Route as publicAvinCheckWarningsRouteImport } from './routes/(public)/avin-check/warnings'
+import { Route as publicAvinCheckWorkspaceRouteImport } from './routes/(public)/avin-check/workspace'
 import { Route as publicCategoryIndexRouteImport } from './routes/(public)/category/index'
 import { Route as publicCategoryParentSlugRouteImport } from './routes/(public)/category/$parentSlug'
 import { Route as publicListingIdRouteImport } from './routes/(public)/listing/$id'
@@ -47,6 +50,7 @@ import { Route as AuthenticatedSellerStorePreviewRouteImport } from './routes/_a
 import { Route as AuthenticatedWalletIndexRouteImport } from './routes/_authenticated/wallet/index'
 import { Route as AuthenticatedWalletDepositRouteImport } from './routes/_authenticated/wallet/deposit'
 import { Route as publicAvinCheckProviderSlugRouteImport } from './routes/(public)/avin-check/provider/$slug'
+import { Route as publicAvinCheckReportsIndexRouteImport } from './routes/(public)/avin-check/reports/index'
 import { Route as publicAvinCheckWarningSlugRouteImport } from './routes/(public)/avin-check/warning/$slug'
 import { Route as AuthenticatedSellerListingsIdRouteImport } from './routes/_authenticated/seller/listings/$id'
 
@@ -153,6 +157,16 @@ const authSellerLoginRoute = authSellerLoginRouteImport.update({
   path: '/seller/login',
   getParentRoute: () => authRouteRoute,
 } as any)
+const publicAvinCheckIndexRoute = publicAvinCheckIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => publicAvinCheckRoute,
+} as any)
+const publicAvinCheckApplyRoute = publicAvinCheckApplyRouteImport.update({
+  id: '/apply',
+  path: '/apply',
+  getParentRoute: () => publicAvinCheckRoute,
+} as any)
 const publicAvinCheckCheckRoute = publicAvinCheckCheckRouteImport.update({
   id: '/check',
   path: '/check',
@@ -174,6 +188,12 @@ const publicAvinCheckWarningsRoute = publicAvinCheckWarningsRouteImport.update({
   path: '/warnings',
   getParentRoute: () => publicAvinCheckRoute,
 } as any)
+const publicAvinCheckWorkspaceRoute =
+  publicAvinCheckWorkspaceRouteImport.update({
+    id: '/workspace',
+    path: '/workspace',
+    getParentRoute: () => publicAvinCheckRoute,
+  } as any)
 const publicCategoryIndexRoute = publicCategoryIndexRouteImport.update({
   id: '/category/',
   path: '/category/',
@@ -248,6 +268,12 @@ const publicAvinCheckProviderSlugRoute =
     path: '/provider/$slug',
     getParentRoute: () => publicAvinCheckRoute,
   } as any)
+const publicAvinCheckReportsIndexRoute =
+  publicAvinCheckReportsIndexRouteImport.update({
+    id: '/reports/',
+    path: '/reports/',
+    getParentRoute: () => publicAvinCheckRoute,
+  } as any)
 const publicAvinCheckWarningSlugRoute =
   publicAvinCheckWarningSlugRouteImport.update({
     id: '/warning/$slug',
@@ -280,10 +306,12 @@ export interface FileRoutesByFullPath {
   '/provider/login': typeof ProviderLoginRoute
   '/provider/': typeof ProviderIndexRoute
   '/seller/login': typeof authSellerLoginRoute
+  '/avin-check/apply': typeof publicAvinCheckApplyRoute
   '/avin-check/check': typeof publicAvinCheckCheckRoute
   '/avin-check/directory': typeof publicAvinCheckDirectoryRoute
   '/avin-check/report': typeof publicAvinCheckReportRoute
   '/avin-check/warnings': typeof publicAvinCheckWarningsRoute
+  '/avin-check/workspace': typeof publicAvinCheckWorkspaceRoute
   '/category/$parentSlug': typeof publicCategoryParentSlugRoute
   '/listing/$id': typeof publicListingIdRoute
   '/store/$slug': typeof publicStoreSlugRoute
@@ -293,12 +321,14 @@ export interface FileRoutesByFullPath {
   '/seller/store': typeof AuthenticatedSellerStoreRoute
   '/seller/store-preview': typeof AuthenticatedSellerStorePreviewRoute
   '/wallet/deposit': typeof AuthenticatedWalletDepositRoute
+  '/avin-check/': typeof publicAvinCheckIndexRoute
   '/category/': typeof publicCategoryIndexRoute
   '/orders/': typeof AuthenticatedOrdersIndexRoute
   '/wallet/': typeof AuthenticatedWalletIndexRoute
   '/avin-check/provider/$slug': typeof publicAvinCheckProviderSlugRoute
   '/avin-check/warning/$slug': typeof publicAvinCheckWarningSlugRoute
   '/seller/listings/$id': typeof AuthenticatedSellerListingsIdRoute
+  '/avin-check/reports/': typeof publicAvinCheckReportsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof publicIndexRoute
@@ -308,7 +338,6 @@ export interface FileRoutesByTo {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
-  '/avin-check': typeof publicAvinCheckRouteWithChildren
   '/cart': typeof AuthenticatedCartRoute
   '/chat': typeof AuthenticatedChatRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
@@ -318,10 +347,12 @@ export interface FileRoutesByTo {
   '/provider/login': typeof ProviderLoginRoute
   '/provider': typeof ProviderIndexRoute
   '/seller/login': typeof authSellerLoginRoute
+  '/avin-check/apply': typeof publicAvinCheckApplyRoute
   '/avin-check/check': typeof publicAvinCheckCheckRoute
   '/avin-check/directory': typeof publicAvinCheckDirectoryRoute
   '/avin-check/report': typeof publicAvinCheckReportRoute
   '/avin-check/warnings': typeof publicAvinCheckWarningsRoute
+  '/avin-check/workspace': typeof publicAvinCheckWorkspaceRoute
   '/category/$parentSlug': typeof publicCategoryParentSlugRoute
   '/listing/$id': typeof publicListingIdRoute
   '/store/$slug': typeof publicStoreSlugRoute
@@ -331,12 +362,14 @@ export interface FileRoutesByTo {
   '/seller/store': typeof AuthenticatedSellerStoreRoute
   '/seller/store-preview': typeof AuthenticatedSellerStorePreviewRoute
   '/wallet/deposit': typeof AuthenticatedWalletDepositRoute
+  '/avin-check': typeof publicAvinCheckIndexRoute
   '/category': typeof publicCategoryIndexRoute
   '/orders': typeof AuthenticatedOrdersIndexRoute
   '/wallet': typeof AuthenticatedWalletIndexRoute
   '/avin-check/provider/$slug': typeof publicAvinCheckProviderSlugRoute
   '/avin-check/warning/$slug': typeof publicAvinCheckWarningSlugRoute
   '/seller/listings/$id': typeof AuthenticatedSellerListingsIdRoute
+  '/avin-check/reports': typeof publicAvinCheckReportsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -361,10 +394,12 @@ export interface FileRoutesById {
   '/(public)/': typeof publicIndexRoute
   '/provider/': typeof ProviderIndexRoute
   '/(auth)/seller/login': typeof authSellerLoginRoute
+  '/(public)/avin-check/apply': typeof publicAvinCheckApplyRoute
   '/(public)/avin-check/check': typeof publicAvinCheckCheckRoute
   '/(public)/avin-check/directory': typeof publicAvinCheckDirectoryRoute
   '/(public)/avin-check/report': typeof publicAvinCheckReportRoute
   '/(public)/avin-check/warnings': typeof publicAvinCheckWarningsRoute
+  '/(public)/avin-check/workspace': typeof publicAvinCheckWorkspaceRoute
   '/(public)/category/$parentSlug': typeof publicCategoryParentSlugRoute
   '/(public)/listing/$id': typeof publicListingIdRoute
   '/(public)/store/$slug': typeof publicStoreSlugRoute
@@ -374,12 +409,14 @@ export interface FileRoutesById {
   '/_authenticated/seller/store': typeof AuthenticatedSellerStoreRoute
   '/_authenticated/seller/store-preview': typeof AuthenticatedSellerStorePreviewRoute
   '/_authenticated/wallet/deposit': typeof AuthenticatedWalletDepositRoute
+  '/(public)/avin-check/': typeof publicAvinCheckIndexRoute
   '/(public)/category/': typeof publicCategoryIndexRoute
   '/_authenticated/orders/': typeof AuthenticatedOrdersIndexRoute
   '/_authenticated/wallet/': typeof AuthenticatedWalletIndexRoute
   '/(public)/avin-check/provider/$slug': typeof publicAvinCheckProviderSlugRoute
   '/(public)/avin-check/warning/$slug': typeof publicAvinCheckWarningSlugRoute
   '/_authenticated/seller/listings/$id': typeof AuthenticatedSellerListingsIdRoute
+  '/(public)/avin-check/reports/': typeof publicAvinCheckReportsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -402,10 +439,12 @@ export interface FileRouteTypes {
     | '/provider/login'
     | '/provider/'
     | '/seller/login'
+    | '/avin-check/apply'
     | '/avin-check/check'
     | '/avin-check/directory'
     | '/avin-check/report'
     | '/avin-check/warnings'
+    | '/avin-check/workspace'
     | '/category/$parentSlug'
     | '/listing/$id'
     | '/store/$slug'
@@ -415,12 +454,14 @@ export interface FileRouteTypes {
     | '/seller/store'
     | '/seller/store-preview'
     | '/wallet/deposit'
+    | '/avin-check/'
     | '/category/'
     | '/orders/'
     | '/wallet/'
     | '/avin-check/provider/$slug'
     | '/avin-check/warning/$slug'
     | '/seller/listings/$id'
+    | '/avin-check/reports/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -430,7 +471,6 @@ export interface FileRouteTypes {
     | '/404'
     | '/500'
     | '/503'
-    | '/avin-check'
     | '/cart'
     | '/chat'
     | '/notifications'
@@ -440,10 +480,12 @@ export interface FileRouteTypes {
     | '/provider/login'
     | '/provider'
     | '/seller/login'
+    | '/avin-check/apply'
     | '/avin-check/check'
     | '/avin-check/directory'
     | '/avin-check/report'
     | '/avin-check/warnings'
+    | '/avin-check/workspace'
     | '/category/$parentSlug'
     | '/listing/$id'
     | '/store/$slug'
@@ -453,12 +495,14 @@ export interface FileRouteTypes {
     | '/seller/store'
     | '/seller/store-preview'
     | '/wallet/deposit'
+    | '/avin-check'
     | '/category'
     | '/orders'
     | '/wallet'
     | '/avin-check/provider/$slug'
     | '/avin-check/warning/$slug'
     | '/seller/listings/$id'
+    | '/avin-check/reports'
   id:
     | '__root__'
     | '/(auth)'
@@ -482,10 +526,12 @@ export interface FileRouteTypes {
     | '/(public)/'
     | '/provider/'
     | '/(auth)/seller/login'
+    | '/(public)/avin-check/apply'
     | '/(public)/avin-check/check'
     | '/(public)/avin-check/directory'
     | '/(public)/avin-check/report'
     | '/(public)/avin-check/warnings'
+    | '/(public)/avin-check/workspace'
     | '/(public)/category/$parentSlug'
     | '/(public)/listing/$id'
     | '/(public)/store/$slug'
@@ -495,12 +541,14 @@ export interface FileRouteTypes {
     | '/_authenticated/seller/store'
     | '/_authenticated/seller/store-preview'
     | '/_authenticated/wallet/deposit'
+    | '/(public)/avin-check/'
     | '/(public)/category/'
     | '/_authenticated/orders/'
     | '/_authenticated/wallet/'
     | '/(public)/avin-check/provider/$slug'
     | '/(public)/avin-check/warning/$slug'
     | '/_authenticated/seller/listings/$id'
+    | '/(public)/avin-check/reports/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -664,6 +712,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authSellerLoginRouteImport
       parentRoute: typeof authRouteRoute
     }
+    '/(public)/avin-check/': {
+      id: '/(public)/avin-check/'
+      path: '/'
+      fullPath: '/avin-check/'
+      preLoaderRoute: typeof publicAvinCheckIndexRouteImport
+      parentRoute: typeof publicAvinCheckRoute
+    }
+    '/(public)/avin-check/apply': {
+      id: '/(public)/avin-check/apply'
+      path: '/apply'
+      fullPath: '/avin-check/apply'
+      preLoaderRoute: typeof publicAvinCheckApplyRouteImport
+      parentRoute: typeof publicAvinCheckRoute
+    }
     '/(public)/avin-check/check': {
       id: '/(public)/avin-check/check'
       path: '/check'
@@ -690,6 +752,13 @@ declare module '@tanstack/react-router' {
       path: '/warnings'
       fullPath: '/avin-check/warnings'
       preLoaderRoute: typeof publicAvinCheckWarningsRouteImport
+      parentRoute: typeof publicAvinCheckRoute
+    }
+    '/(public)/avin-check/workspace': {
+      id: '/(public)/avin-check/workspace'
+      path: '/workspace'
+      fullPath: '/avin-check/workspace'
+      preLoaderRoute: typeof publicAvinCheckWorkspaceRouteImport
       parentRoute: typeof publicAvinCheckRoute
     }
     '/(public)/category/': {
@@ -783,6 +852,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof publicAvinCheckProviderSlugRouteImport
       parentRoute: typeof publicAvinCheckRoute
     }
+    '/(public)/avin-check/reports/': {
+      id: '/(public)/avin-check/reports/'
+      path: '/reports'
+      fullPath: '/avin-check/reports/'
+      preLoaderRoute: typeof publicAvinCheckReportsIndexRouteImport
+      parentRoute: typeof publicAvinCheckRoute
+    }
     '/(public)/avin-check/warning/$slug': {
       id: '/(public)/avin-check/warning/$slug'
       path: '/warning/$slug'
@@ -815,21 +891,29 @@ const authRouteRouteWithChildren = authRouteRoute._addFileChildren(
 )
 
 interface publicAvinCheckRouteChildren {
+  publicAvinCheckApplyRoute: typeof publicAvinCheckApplyRoute
   publicAvinCheckCheckRoute: typeof publicAvinCheckCheckRoute
   publicAvinCheckDirectoryRoute: typeof publicAvinCheckDirectoryRoute
   publicAvinCheckReportRoute: typeof publicAvinCheckReportRoute
   publicAvinCheckWarningsRoute: typeof publicAvinCheckWarningsRoute
+  publicAvinCheckWorkspaceRoute: typeof publicAvinCheckWorkspaceRoute
+  publicAvinCheckIndexRoute: typeof publicAvinCheckIndexRoute
   publicAvinCheckProviderSlugRoute: typeof publicAvinCheckProviderSlugRoute
   publicAvinCheckWarningSlugRoute: typeof publicAvinCheckWarningSlugRoute
+  publicAvinCheckReportsIndexRoute: typeof publicAvinCheckReportsIndexRoute
 }
 
 const publicAvinCheckRouteChildren: publicAvinCheckRouteChildren = {
+  publicAvinCheckApplyRoute: publicAvinCheckApplyRoute,
   publicAvinCheckCheckRoute: publicAvinCheckCheckRoute,
   publicAvinCheckDirectoryRoute: publicAvinCheckDirectoryRoute,
   publicAvinCheckReportRoute: publicAvinCheckReportRoute,
   publicAvinCheckWarningsRoute: publicAvinCheckWarningsRoute,
+  publicAvinCheckWorkspaceRoute: publicAvinCheckWorkspaceRoute,
+  publicAvinCheckIndexRoute: publicAvinCheckIndexRoute,
   publicAvinCheckProviderSlugRoute: publicAvinCheckProviderSlugRoute,
   publicAvinCheckWarningSlugRoute: publicAvinCheckWarningSlugRoute,
+  publicAvinCheckReportsIndexRoute: publicAvinCheckReportsIndexRoute,
 }
 
 const publicAvinCheckRouteWithChildren = publicAvinCheckRoute._addFileChildren(

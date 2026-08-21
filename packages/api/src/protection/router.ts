@@ -1,10 +1,12 @@
-import {
-  ACCOUNT_ROLE,
-  PROTECTION_ADMIN_CAPABILITY,
-} from "@avin/auth/permissions";
+import { PROTECTION_ADMIN_CAPABILITY } from "@avin/auth/permissions";
 import { z } from "zod";
 
-import { providerProcedure, publicProcedure } from "../access/procedures";
+import {
+  authenticatedProcedure,
+  providerProcedure,
+  providerSensitiveProcedure,
+  publicProcedure,
+} from "../access/procedures";
 import {
   getUnreadNotificationCount,
   listNotifications,
@@ -145,8 +147,6 @@ import {
   riskReportEvidenceInputSchema,
   riskReportMineInputSchema,
   riskReportOwnedInputSchema,
-  riskReportRequestEmailCodeInputSchema,
-  riskReportVerifyEmailCodeInputSchema,
 } from "./risk-report";
 import {
   addRiskReportEvidence,
@@ -158,10 +158,8 @@ import {
   listPublicRiskWarnings,
   listRiskReportsForAdmin,
   registerRiskReportDerivative,
-  requestRiskReportEmailCode,
   saveRiskReportDraft,
   submitRiskReport,
-  verifyRiskReportEmailCode,
 } from "./risk-report-service";
 import {
   supportReviewDecisionInputSchema,
@@ -841,7 +839,7 @@ export const protectionRouter = {
         saveProviderApplicationDraft(context.db, context.session.user.id, input)
       ),
 
-    submit: providerProcedure
+    submit: providerSensitiveProcedure
       .input(providerApplicationSubmissionInputSchema)
       .handler(({ context, input }) =>
         submitProviderApplication(context.db, context.session.user.id, input)
@@ -856,7 +854,7 @@ export const protectionRouter = {
       })
     ),
 
-    request: providerProcedure
+    request: providerSensitiveProcedure
       .input(providerBondWithdrawalRequestInputSchema)
       .handler(({ context, input }) =>
         requestProviderBondWithdrawal({
@@ -952,7 +950,7 @@ export const protectionRouter = {
       startProviderProfileRevision(context.db, context.session.user.id)
     ),
 
-    submit: providerProcedure
+    submit: providerSensitiveProcedure
       .input(providerProfileRevisionSubmissionInputSchema)
       .handler(({ context, input }) =>
         submitProviderProfileRevision(
@@ -1017,11 +1015,11 @@ export const protectionRouter = {
       identity: {
         id: context.session.user.id,
         name: context.session.user.name,
-        role: ACCOUNT_ROLE.PROVIDER,
+        role: context.session.user.role,
       },
       policy,
       privateProviderRecord: {
-        source: "PROVIDER_IDENTITY",
+        source: "MARKETPLACE_ACCOUNT",
         visibility: "PRIVATE",
       },
       riskIncidents,
@@ -1066,42 +1064,41 @@ export const protectionRouter = {
   },
 
   riskReport: {
-    addEvidence: publicProcedure
+    addEvidence: authenticatedProcedure
       .input(riskReportEvidenceInputSchema)
       .handler(({ context, input }) =>
-        addRiskReportEvidence(context.db, input)
+        addRiskReportEvidence(context.db, input, context.session.user.id)
       ),
 
-    getMine: publicProcedure
+    getMine: authenticatedProcedure
       .input(riskReportMineInputSchema)
       .handler(({ context, input }) =>
         getRiskReportMine({
           database: context.db,
-          ...input,
+          reportId: input?.reportId,
+          reporterUserId: context.session.user.id,
         })
       ),
 
-    requestEmailCode: publicProcedure
-      .input(riskReportRequestEmailCodeInputSchema)
+    saveDraft: authenticatedProcedure
+      .input(riskReportDraftInputSchema)
       .handler(({ context, input }) =>
-        requestRiskReportEmailCode({ database: context.db, ...input })
+        saveRiskReportDraft({
+          database: context.db,
+          input,
+          reporterEmail: context.session.user.email,
+          reporterName: context.session.user.name,
+          reporterUserId: context.session.user.id,
+        })
       ),
 
-    saveDraft: publicProcedure
-      .input(riskReportDraftInputSchema)
-      .handler(({ context, input }) => saveRiskReportDraft(context.db, input)),
-
-    submit: publicProcedure
+    submit: authenticatedProcedure
       .input(riskReportOwnedInputSchema)
-      .handler(({ context, input }) => submitRiskReport(context.db, input)),
-
-    verifyEmailCode: publicProcedure
-      .input(riskReportVerifyEmailCodeInputSchema)
       .handler(({ context, input }) =>
-        verifyRiskReportEmailCode({
+        submitRiskReport({
           database: context.db,
-          ipAddress: context.ipAddress,
-          ...input,
+          input,
+          reporterUserId: context.session.user.id,
         })
       ),
   },

@@ -9,18 +9,15 @@ import {
   protectionRiskReport,
 } from "@avin/db/schema/protection";
 import type { ProviderOfficialChannels } from "@avin/db/schema/protection";
+import { sellerEnforcementAction } from "@avin/db/schema/seller-enforcement";
 import { ORPCError } from "@orpc/server";
-import { and, asc, desc, eq, inArray, lte } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, lte, ne } from "drizzle-orm";
 
 import {
   createNotificationEvent,
   listNotificationRecipientsByRole,
 } from "../notifications/notification";
 import type { Context } from "../runtime/context";
-import {
-  assertProtectionPilotApprovalAllowed,
-  markProtectionPilotInvitationUsed,
-} from "./pilot";
 import {
   assertProviderApplicationTransition,
   createProviderProfileSlug,
@@ -57,6 +54,78 @@ const toPublicProviderOfficialChannels = (
 
 const toIso = (value: Date | null): string | null =>
   value?.toISOString() ?? null;
+
+const assertProviderApplicationEligibility = async (
+  database: Database,
+  providerUserId: string,
+  hasExistingApplication: boolean
+): Promise<void> => {
+  if (hasExistingApplication) {
+    return;
+  }
+
+  const [latestFraudAction] = await database
+    .select({
+      newState: sellerEnforcementAction.newState,
+      reasonCode: sellerEnforcementAction.reasonCode,
+    })
+    .from(sellerEnforcementAction)
+    .where(eq(sellerEnforcementAction.sellerId, providerUserId))
+    .orderBy(
+      desc(sellerEnforcementAction.effectiveAt),
+      desc(sellerEnforcementAction.createdAt)
+    )
+    .limit(1);
+
+  if (
+    latestFraudAction?.newState === "BANNED" &&
+    latestFraudAction.reasonCode === "FRAUD_RISK"
+  ) {
+    throw new ORPCError("FORBIDDEN", {
+      message:
+        "A confirmed marketplace fraud enforcement blocks a new Provider application until Admin review.",
+    });
+  }
+};
+
+const assertNoDuplicateProviderIdentity = async (
+  database: Database,
+  application: ProviderApplication
+): Promise<void> => {
+  if (!application.identityEvidenceReference) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Approved Provider identity evidence is required",
+    });
+  }
+
+  const [duplicateIdentity] = await database
+    .select({ id: protectionProviderApplication.id })
+    .from(protectionProviderApplication)
+    .where(
+      and(
+        eq(
+          protectionProviderApplication.identityEvidenceReference,
+          application.identityEvidenceReference
+        ),
+        inArray(protectionProviderApplication.status, [
+          "APPROVED",
+          "PENDING_REVIEW",
+        ]),
+        ne(
+          protectionProviderApplication.providerUserId,
+          application.providerUserId
+        )
+      )
+    )
+    .limit(1);
+
+  if (duplicateIdentity && duplicateIdentity.id !== application.id) {
+    throw new ORPCError("CONFLICT", {
+      message:
+        "This verified identity is already linked to another Provider standing.",
+    });
+  }
+};
 
 export const toProviderApplicationView = (
   application: ProviderApplication
@@ -440,6 +509,11 @@ export const saveProviderApplicationDraft = async (
   input: Record<string, unknown>
 ) => {
   const existing = await findProviderApplication(database, providerUserId);
+  await assertProviderApplicationEligibility(
+    database,
+    providerUserId,
+    Boolean(existing)
+  );
   if (existing?.status === "PENDING_REVIEW") {
     throw new ORPCError("BAD_REQUEST", {
       message: "Provider application is already pending review",
@@ -527,6 +601,11 @@ export const submitProviderApplication = async (
   }
 
   const existing = await findProviderApplication(database, providerUserId);
+  await assertProviderApplicationEligibility(
+    database,
+    providerUserId,
+    Boolean(existing)
+  );
   if (existing?.status === "PENDING_REVIEW") {
     throw new ORPCError("BAD_REQUEST", {
       message: "Provider application is already pending review",
@@ -610,7 +689,7 @@ export const submitProviderApplication = async (
       },
       eventType: "protection_provider_application.submitted",
       recipients: [
-        { targetPath: "/provider", userId: providerUserId },
+        { targetPath: "/avin-check/workspace", userId: providerUserId },
         ...(await listNotificationRecipientsByRole(transaction, {
           role: "ADMIN",
           targetPath: "/avin-check/providers",
@@ -925,7 +1004,7 @@ export const submitProviderProfileRevision = async (
       },
       eventType: "protection_provider_profile_revision.submitted",
       recipients: [
-        { targetPath: "/provider", userId: providerUserId },
+        { targetPath: "/avin-check/workspace", userId: providerUserId },
         ...(await listNotificationRecipientsByRole(transaction, {
           role: "ADMIN",
           targetPath: "/avin-check/provider-revisions",
@@ -1269,7 +1348,12 @@ export const decideProviderProfileRevision = async ({
         textBody: `${copy.body} Lý do: ${decisionReason}`,
       },
       eventType: copy.eventType,
-      recipients: [{ targetPath: "/provider", userId: updated.providerUserId }],
+      recipients: [
+        {
+          targetPath: "/avin-check/workspace",
+          userId: updated.providerUserId,
+        },
+      ],
       sourceId: `${updated.id}:${decision}`,
       sourceType: "PROTECTION_PROVIDER_PROFILE_REVISION",
       title: copy.title,
@@ -1487,10 +1571,8 @@ export const decideProviderApplication = ({
           now,
           getPolicyVersionForValidation(currentPolicy)
         );
-        await assertProtectionPilotApprovalAllowed(
-          transaction,
-          application.providerUserId
-        );
+
+        await assertNoDuplicateProviderIdentity(transaction, application);
       } catch (error) {
         return throwApplicationMutationError(error);
       }
@@ -1556,12 +1638,6 @@ export const decideProviderApplication = ({
           message: "Provider profile could not be published",
         });
       }
-      await markProtectionPilotInvitationUsed(
-        transaction,
-        updated.providerUserId,
-        now
-      );
-
       const [createdVersion] = await transaction
         .insert(protectionProviderProfileVersion)
         .values({
@@ -1604,7 +1680,12 @@ export const decideProviderApplication = ({
         textBody: `${copy.body} Lý do: ${decisionReason}`,
       },
       eventType: copy.eventType,
-      recipients: [{ targetPath: "/provider", userId: updated.providerUserId }],
+      recipients: [
+        {
+          targetPath: "/avin-check/workspace",
+          userId: updated.providerUserId,
+        },
+      ],
       sourceId: `${updated.id}:${decision}`,
       sourceType: "PROTECTION_PROVIDER_APPLICATION",
       title: copy.title,

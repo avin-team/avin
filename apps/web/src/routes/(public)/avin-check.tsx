@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AvinCheckLandingPage } from "@/features/protection/pages/avin-check-landing-page";
+import { AvinCheckLayout } from "@/features/protection/components/avin-check-layout";
 
 export const Route = createFileRoute("/(public)/avin-check")({
-  component: AvinCheckLandingPage,
+  component: AvinCheckLayout,
   head: () => ({
     meta: [
       { title: "Avin Check | Avin" },

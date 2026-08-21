@@ -495,7 +495,7 @@ export const requestProviderBondWithdrawal = async ({
       eventType: "protection_provider_bond.withdrawal_requested",
       now,
       recipients: [
-        { targetPath: "/provider", userId: providerUserId },
+        { targetPath: "/avin-check/workspace", userId: providerUserId },
         ...(await listNotificationRecipientsByRole(transaction, {
           role: "ADMIN",
           targetPath: "/avin-check/bond-withdrawals",
@@ -662,7 +662,10 @@ export const recordProviderBondWithdrawal = async ({
       eventType: "protection_provider_bond.withdrawal_pending_approval",
       now,
       recipients: [
-        { targetPath: "/provider", userId: withdrawal.providerUserId },
+        {
+          targetPath: "/avin-check/workspace",
+          userId: withdrawal.providerUserId,
+        },
         ...(await listNotificationRecipientsByRole(transaction, {
           role: "ADMIN",
           targetPath: "/avin-check/bond-withdrawals",
@@ -846,7 +849,10 @@ const applyProviderBondWithdrawalDecision = async ({
     context: { withdrawalId: input.withdrawalId },
     now,
     recipients: [
-      { targetPath: "/provider", userId: withdrawal.providerUserId },
+      {
+        targetPath: "/avin-check/workspace",
+        userId: withdrawal.providerUserId,
+      },
       ...(await listNotificationRecipientsByRole(database, {
         role: "ADMIN",
         targetPath: "/avin-check/bond-withdrawals",

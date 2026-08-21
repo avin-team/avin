@@ -2,7 +2,6 @@ export const AUTH_SURFACE_HEADER = "x-avin-auth-surface";
 
 export const AUTH_SURFACE = {
   ADMIN: "admin",
-  PROVIDER: "provider",
   STOREFRONT: "storefront",
 } as const;
 
@@ -19,11 +18,6 @@ export const AUTH_SURFACES = {
     cookiePrefix: "avin-admin",
     errorPath: "/sign-in",
   },
-  [AUTH_SURFACE.PROVIDER]: {
-    basePath: "/api/provider-auth",
-    cookiePrefix: "avin-provider",
-    errorPath: "/provider/login",
-  },
 } as const satisfies Record<
   AuthSurface,
   { basePath: string; cookiePrefix: string; errorPath: string }
@@ -34,10 +28,6 @@ export const getAuthSurface = (headers: Headers): AuthSurface => {
 
   if (requestedSurface === AUTH_SURFACE.ADMIN) {
     return AUTH_SURFACE.ADMIN;
-  }
-
-  if (requestedSurface === AUTH_SURFACE.PROVIDER) {
-    return AUTH_SURFACE.PROVIDER;
   }
 
   return AUTH_SURFACE.STOREFRONT;

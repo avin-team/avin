@@ -400,8 +400,9 @@ export const ProviderWorkspacePage = () => {
           Không gian riêng của Đối tác Avin
         </h1>
         <p className="text-muted-foreground">
-          Khu vực này chỉ dành cho Provider. Không có số dư marketplace, thao
-          tác Seller, thao tác Buyer hoặc quy trình Admin trong workspace này.
+          Đây là không gian Provider riêng của account Buyer/Seller hiện tại.
+          Trạng thái Provider được quản lý độc lập với vai trò marketplace và
+          không thay thế quy trình Buyer, Seller hoặc Admin.
         </p>
       </header>
 
@@ -418,14 +419,14 @@ export const ProviderWorkspacePage = () => {
       {workspace.data ? (
         <div className="grid gap-6">
           <article className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
-            <h2 className="font-semibold text-xl">Hồ sơ Provider riêng</h2>
+            <h2 className="font-semibold text-xl">Hồ sơ Provider của bạn</h2>
             <p className="mt-2 text-muted-foreground text-sm">
               {workspace.data.identity.name} · mã tài khoản{" "}
               {workspace.data.identity.id}
             </p>
             <p className="mt-4 text-sm">
               Dữ liệu này có phạm vi <strong>riêng tư</strong> và chỉ xuất hiện
-              trong workspace của Provider.
+              trong workspace của account đang đăng nhập.
             </p>
           </article>
 

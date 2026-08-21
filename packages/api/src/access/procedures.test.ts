@@ -11,6 +11,7 @@ import {
   auditedAdminProcedure,
   buyerProcedure,
   providerProcedure,
+  providerSensitiveProcedure,
   protectedProcedure,
 } from "./procedures";
 
@@ -18,7 +19,8 @@ const createContext = (
   role: (typeof ACCOUNT_ROLE)[keyof typeof ACCOUNT_ROLE],
   twoFactorEnabled = true,
   userId = "user-1",
-  auditEvents: AuditEvent[] = []
+  auditEvents: AuditEvent[] = [],
+  banned = false
 ): Context => ({
   audit: {
     record: (event) => {
@@ -41,7 +43,7 @@ const createContext = (
     user: {
       banExpires: null,
       banReason: null,
-      banned: false,
+      banned,
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       email: "user@example.com",
       emailVerified: true,
@@ -89,17 +91,20 @@ describe("protected procedure authorization", () => {
 });
 
 describe("Provider procedure authorization", () => {
-  it("accepts a Provider session", async () => {
-    const procedure = providerProcedure.handler(() => "provider-private");
+  it.each([ACCOUNT_ROLE.BUYER, ACCOUNT_ROLE.SELLER])(
+    "accepts a %s session",
+    async (role) => {
+      const procedure = providerProcedure.handler(() => "provider-private");
 
-    await expect(
-      call(procedure, undefined, {
-        context: createContext(ACCOUNT_ROLE.PROVIDER),
-      })
-    ).resolves.toBe("provider-private");
-  });
+      await expect(
+        call(procedure, undefined, {
+          context: createContext(role),
+        })
+      ).resolves.toBe("provider-private");
+    }
+  );
 
-  it.each([ACCOUNT_ROLE.ADMIN, ACCOUNT_ROLE.BUYER, ACCOUNT_ROLE.SELLER])(
+  it.each([ACCOUNT_ROLE.ADMIN, ACCOUNT_ROLE.PROVIDER])(
     "rejects a %s session",
     async (role) => {
       const procedure = providerProcedure.handler(() => "provider-private");
@@ -113,6 +118,34 @@ describe("Provider procedure authorization", () => {
       });
     }
   );
+
+  it("requires two-factor authentication for sensitive Provider actions", async () => {
+    const procedure = providerSensitiveProcedure.handler(
+      () => "provider-sensitive"
+    );
+
+    await expect(
+      call(procedure, undefined, {
+        context: createContext(ACCOUNT_ROLE.BUYER, false),
+      })
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+
+    await expect(
+      call(procedure, undefined, {
+        context: createContext(ACCOUNT_ROLE.SELLER),
+      })
+    ).resolves.toBe("provider-sensitive");
+  });
+
+  it("rejects a locked Buyer or Seller from the Provider workspace", async () => {
+    const procedure = providerProcedure.handler(() => "provider-private");
+
+    await expect(
+      call(procedure, undefined, {
+        context: createContext(ACCOUNT_ROLE.BUYER, true, "user-1", [], true),
+      })
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
 });
 
 describe("admin procedure authorization", () => {

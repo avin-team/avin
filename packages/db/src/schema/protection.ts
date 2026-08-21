@@ -545,11 +545,13 @@ export const protectionRiskReport = pgTable(
     reporterEmail: text("reporter_email").notNull(),
     reporterName: text("reporter_name"),
     reporterPhone: text("reporter_phone"),
-    reporterSessionId: uuid("reporter_session_id")
+    reporterSessionId: uuid("reporter_session_id").references(
+      () => protectionRiskReporterSession.id,
+      { onDelete: "restrict" }
+    ),
+    reporterUserId: text("reporter_user_id")
       .notNull()
-      .references(() => protectionRiskReporterSession.id, {
-        onDelete: "restrict",
-      }),
+      .references(() => user.id, { onDelete: "restrict" }),
     reporterZalo: text("reporter_zalo"),
     reviewReason: text("review_reason"),
     reviewedAt: timestamp("reviewed_at"),
@@ -576,6 +578,7 @@ export const protectionRiskReport = pgTable(
     index("protection_risk_report_reporter_session_idx").on(
       table.reporterSessionId
     ),
+    index("protection_risk_report_reporter_user_idx").on(table.reporterUserId),
   ]
 );
 

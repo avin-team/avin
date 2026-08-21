@@ -109,7 +109,14 @@ export const AuthPage = () => {
         </header>
 
         <div className="flex flex-col gap-6 animate-in fade-in duration-300">
-          <GoogleSignInButton />
+          <GoogleSignInButton
+            newUserRedirectTo={
+              search.redirectTo
+                ? `/onboarding?redirectTo=${encodeURIComponent(search.redirectTo)}`
+                : "/onboarding"
+            }
+            redirectTo={search.redirectTo ?? "/"}
+          />
         </div>
 
         <p className="text-muted-foreground text-xs text-center">

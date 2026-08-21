@@ -60,8 +60,30 @@ export const protectedProcedure = authenticatedProcedure.use(
 
 export const providerProcedure = authenticatedProcedure.use(
   ({ context, next }) => {
-    if (context.session.user.role !== ACCOUNT_ROLE.PROVIDER) {
+    if (context.session.user.banned) {
+      throw new ORPCError("FORBIDDEN", {
+        message: "This account is locked and cannot access Avin Check.",
+      });
+    }
+
+    if (
+      context.session.user.role !== ACCOUNT_ROLE.BUYER &&
+      context.session.user.role !== ACCOUNT_ROLE.SELLER
+    ) {
       throw new ORPCError("FORBIDDEN");
+    }
+
+    return next();
+  }
+);
+
+export const providerSensitiveProcedure = providerProcedure.use(
+  ({ context, next }) => {
+    if (!context.session.user.twoFactorEnabled) {
+      throw new ORPCError("FORBIDDEN", {
+        message:
+          "Two-factor authentication is required for this Avin Check action.",
+      });
     }
 
     return next();

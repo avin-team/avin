@@ -1,7 +1,7 @@
 import type { AppRouterClient } from "@avin/api/router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { providerOrpc } from "./provider-orpc";
+import { orpc } from "@/utils/orpc";
 
 export type ProviderWorkspace = Awaited<
   ReturnType<AppRouterClient["protection"]["providerWorkspace"]>
@@ -17,14 +17,14 @@ export type ProviderBondWithdrawal = NonNullable<
 export type ProviderProtectionPolicy = NonNullable<ProviderWorkspace["policy"]>;
 
 export const useProviderWorkspace = () =>
-  useQuery(providerOrpc.protection.providerWorkspace.queryOptions());
+  useQuery(orpc.protection.providerWorkspace.queryOptions());
 
 export const useProviderProtectionPolicy = () =>
-  useQuery(providerOrpc.protection.providerPolicy.get.queryOptions());
+  useQuery(orpc.protection.providerPolicy.get.queryOptions());
 
 export const useProviderNotifications = () =>
   useQuery(
-    providerOrpc.protection.providerNotifications.list.queryOptions({
+    orpc.protection.providerNotifications.list.queryOptions({
       input: { limit: 10 },
     })
   );
@@ -33,17 +33,16 @@ export const useProviderApplicationActions = () => {
   const queryClient = useQueryClient();
   const invalidateWorkspace = async (): Promise<void> => {
     await queryClient.invalidateQueries({
-      queryKey:
-        providerOrpc.protection.providerWorkspace.queryOptions().queryKey,
+      queryKey: orpc.protection.providerWorkspace.queryOptions().queryKey,
     });
   };
 
   const saveDraft = useMutation({
-    ...providerOrpc.protection.providerApplication.saveDraft.mutationOptions(),
+    ...orpc.protection.providerApplication.saveDraft.mutationOptions(),
     onSuccess: invalidateWorkspace,
   });
   const submit = useMutation({
-    ...providerOrpc.protection.providerApplication.submit.mutationOptions(),
+    ...orpc.protection.providerApplication.submit.mutationOptions(),
     onSuccess: invalidateWorkspace,
   });
 
@@ -54,21 +53,20 @@ export const useProviderProfileRevisionActions = () => {
   const queryClient = useQueryClient();
   const invalidateWorkspace = async (): Promise<void> => {
     await queryClient.invalidateQueries({
-      queryKey:
-        providerOrpc.protection.providerWorkspace.queryOptions().queryKey,
+      queryKey: orpc.protection.providerWorkspace.queryOptions().queryKey,
     });
   };
 
   const start = useMutation({
-    ...providerOrpc.protection.providerProfileRevision.start.mutationOptions(),
+    ...orpc.protection.providerProfileRevision.start.mutationOptions(),
     onSuccess: invalidateWorkspace,
   });
   const saveDraft = useMutation({
-    ...providerOrpc.protection.providerProfileRevision.saveDraft.mutationOptions(),
+    ...orpc.protection.providerProfileRevision.saveDraft.mutationOptions(),
     onSuccess: invalidateWorkspace,
   });
   const submit = useMutation({
-    ...providerOrpc.protection.providerProfileRevision.submit.mutationOptions(),
+    ...orpc.protection.providerProfileRevision.submit.mutationOptions(),
     onSuccess: invalidateWorkspace,
   });
 
@@ -79,17 +77,16 @@ export const useProviderRiskIncidentActions = () => {
   const queryClient = useQueryClient();
   const invalidateWorkspace = async (): Promise<void> => {
     await queryClient.invalidateQueries({
-      queryKey:
-        providerOrpc.protection.providerWorkspace.queryOptions().queryKey,
+      queryKey: orpc.protection.providerWorkspace.queryOptions().queryKey,
     });
   };
 
   const registerEvidence = useMutation({
-    ...providerOrpc.protection.providerRiskIncidents.registerEvidence.mutationOptions(),
+    ...orpc.protection.providerRiskIncidents.registerEvidence.mutationOptions(),
     onSuccess: invalidateWorkspace,
   });
   const respond = useMutation({
-    ...providerOrpc.protection.providerRiskIncidents.respond.mutationOptions(),
+    ...orpc.protection.providerRiskIncidents.respond.mutationOptions(),
     onSuccess: invalidateWorkspace,
   });
 
@@ -101,17 +98,16 @@ export const useProviderBondWithdrawalActions = () => {
   const invalidateWorkspace = async (): Promise<void> => {
     await Promise.all([
       queryClient.invalidateQueries({
-        queryKey:
-          providerOrpc.protection.providerWorkspace.queryOptions().queryKey,
+        queryKey: orpc.protection.providerWorkspace.queryOptions().queryKey,
       }),
       queryClient.invalidateQueries({
-        queryKey: providerOrpc.protection.providerBondWithdrawals.get.key(),
+        queryKey: orpc.protection.providerBondWithdrawals.get.key(),
       }),
     ]);
   };
 
   const request = useMutation({
-    ...providerOrpc.protection.providerBondWithdrawals.request.mutationOptions(),
+    ...orpc.protection.providerBondWithdrawals.request.mutationOptions(),
     onSuccess: invalidateWorkspace,
   });
 
@@ -123,17 +119,16 @@ export const useProviderProtectionPolicyActions = () => {
   const invalidatePolicy = async (): Promise<void> => {
     await Promise.all([
       queryClient.invalidateQueries({
-        queryKey:
-          providerOrpc.protection.providerWorkspace.queryOptions().queryKey,
+        queryKey: orpc.protection.providerWorkspace.queryOptions().queryKey,
       }),
       queryClient.invalidateQueries({
-        queryKey: providerOrpc.protection.providerPolicy.get.key(),
+        queryKey: orpc.protection.providerPolicy.get.key(),
       }),
     ]);
   };
 
   const accept = useMutation({
-    ...providerOrpc.protection.providerPolicy.accept.mutationOptions(),
+    ...orpc.protection.providerPolicy.accept.mutationOptions(),
     onSuccess: invalidatePolicy,
   });
 

@@ -20,7 +20,7 @@ import { useUploadFiles } from "@better-upload/client";
 import { ShieldCheckIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useReducer, useRef, useState } from "react";
+import { useReducer, useState } from "react";
 import type { FormEvent } from "react";
 
 import { Shell } from "@/components/shell";
@@ -105,7 +105,7 @@ const websiteViolationOptions = [
 
 type WebsiteViolationType = (typeof websiteViolationOptions)[number]["value"];
 
-type Step = "code" | "details" | "email" | "submitted";
+type Step = "details" | "submitted";
 
 interface RiskReportFieldsState {
   claimedLoss: string;
@@ -342,12 +342,8 @@ const RiskReportTypeFields = ({
 );
 
 export const RiskReportPage = () => {
-  const [step, setStep] = useState<Step>("email");
-  const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
-  const reporterToken = useRef("");
+  const [step, setStep] = useState<Step>("details");
   const [reportId, setReportId] = useState<string>();
-  const [reporterName, setReporterName] = useState("");
   const [reporterPhone, setReporterPhone] = useState("");
   const [reporterZalo, setReporterZalo] = useState("");
   const [riskFields, dispatchRiskFields] = useReducer(
@@ -394,12 +390,6 @@ export const RiskReportPage = () => {
   const launchStatusQuery = useQuery(
     orpc.protection.launchStatus.queryOptions()
   );
-  const requestCode = useMutation(
-    orpc.protection.riskReport.requestEmailCode.mutationOptions()
-  );
-  const verifyCode = useMutation(
-    orpc.protection.riskReport.verifyEmailCode.mutationOptions()
-  );
   const saveDraft = useMutation(
     orpc.protection.riskReport.saveDraft.mutationOptions()
   );
@@ -417,45 +407,12 @@ export const RiskReportPage = () => {
     uploadBatchSize: RISK_REPORT_EVIDENCE_MAX_COUNT,
   });
 
-  const handleRequestCode = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setErrorMessage(undefined);
-    try {
-      await requestCode.mutateAsync({ email: email.trim() });
-      setStep("code");
-    } catch {
-      setErrorMessage(
-        "Không thể gửi mã lúc này. Vui lòng thử lại sau một phút."
-      );
-    }
-  };
-
-  const handleVerifyCode = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setErrorMessage(undefined);
-    try {
-      const result = await verifyCode.mutateAsync({
-        code: code.trim(),
-        email: email.trim(),
-      });
-      reporterToken.current = result.reporterToken;
-      setStep("details");
-    } catch {
-      setErrorMessage(
-        "Mã không đúng hoặc đã hết hạn. Vui lòng yêu cầu mã mới."
-      );
-    }
-  };
-
   const handleReportTypeChange = (nextType: ReportType): void => {
     setReportType(nextType);
   };
 
   const handleSaveDraft = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!reporterToken.current) {
-      return;
-    }
     setErrorMessage(undefined);
     try {
       const typeFields = getRiskDraftTypeFields({
@@ -472,9 +429,7 @@ export const RiskReportPage = () => {
           : [],
         narrative: narrative.trim() || undefined,
         ...(reportId ? { reportId } : {}),
-        reporterName: reporterName.trim() || undefined,
         reporterPhone: reporterPhone.trim() || undefined,
-        reporterToken: reporterToken.current,
         reporterZalo: reporterZalo.trim() || undefined,
         type: reportType,
         urgency,
@@ -489,7 +444,7 @@ export const RiskReportPage = () => {
   };
 
   const handleFilesSelected = async (files: File[]): Promise<void> => {
-    if (!reportId || !reporterToken.current) {
+    if (!reportId) {
       setErrorMessage("Hãy lưu bản nháp trước khi tải bằng chứng.");
       return;
     }
@@ -507,7 +462,6 @@ export const RiskReportPage = () => {
         metadata: {
           kind: evidenceKind,
           reportId,
-          reporterToken: reporterToken.current,
         },
       });
       let registeredCount = 0;
@@ -526,7 +480,6 @@ export const RiskReportPage = () => {
           kind: evidenceKind,
           originalStorageKey: uploadedFile.objectInfo.key,
           reportId,
-          reporterToken: reporterToken.current,
           sizeBytes: uploadedFile.raw.size,
         });
         registeredCount += 1;
@@ -541,14 +494,13 @@ export const RiskReportPage = () => {
   };
 
   const handleSubmit = async () => {
-    if (!reportId || !reporterToken.current) {
+    if (!reportId) {
       return;
     }
     setErrorMessage(undefined);
     try {
       await submitReport.mutateAsync({
         reportId,
-        reporterToken: reporterToken.current,
       });
       setStep("submitted");
     } catch {
@@ -574,12 +526,12 @@ export const RiskReportPage = () => {
           className="font-black text-4xl tracking-tight sm:text-5xl"
           id="risk-report-heading"
         >
-          Gửi cảnh báo rủi ro không cần tạo tài khoản.
+          Gửi cảnh báo rủi ro bằng account Avin.
         </h1>
         <p className="mt-4 max-w-3xl text-muted-foreground leading-7">
-          Xác minh email một lần, lưu bằng chứng riêng tư và gửi cho Risk
-          Moderator. Chỉ bản tóm tắt và derivative đã che dữ liệu mới có thể
-          xuất hiện công khai.
+          Bạn đang gửi với tư cách người dùng Avin đã đăng nhập. Lưu bằng chứng
+          riêng tư và gửi cho Risk Moderator; chỉ bản tóm tắt và derivative đã
+          che dữ liệu mới có thể xuất hiện công khai.
         </p>
       </section>
 
@@ -590,102 +542,17 @@ export const RiskReportPage = () => {
         </Alert>
       ) : null}
 
-      {step === "email" ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>1. Xác minh email</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form className="grid max-w-xl gap-4" onSubmit={handleRequestCode}>
-              <p className="text-muted-foreground text-sm">
-                Email chỉ dùng để liên hệ riêng tư về báo cáo; không hiển thị
-                trong warning công khai.
-              </p>
-              <label
-                className="grid gap-1.5 text-sm font-medium"
-                htmlFor="risk-report-email"
-              >
-                Email liên hệ
-                <Input
-                  autoComplete="email"
-                  id="risk-report-email"
-                  onChange={(event) => setEmail(event.target.value)}
-                  required
-                  type="email"
-                  value={email}
-                />
-              </label>
-              <Button disabled={requestCode.isPending} type="submit">
-                {requestCode.isPending ? "Đang gửi mã…" : "Gửi mã OTP"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {step === "code" ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>2. Nhập mã OTP</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form className="grid max-w-xl gap-4" onSubmit={handleVerifyCode}>
-              <p className="text-muted-foreground text-sm">
-                Mã sáu số đã được gửi tới{" "}
-                <span className="font-medium">{email}</span>.
-              </p>
-              <label
-                className="grid gap-1.5 text-sm font-medium"
-                htmlFor="risk-report-code"
-              >
-                Mã xác minh
-                <Input
-                  autoComplete="one-time-code"
-                  id="risk-report-code"
-                  inputMode="numeric"
-                  maxLength={6}
-                  onChange={(event) => setCode(event.target.value)}
-                  pattern="[0-9]{6}"
-                  required
-                  value={code}
-                />
-              </label>
-              <div className="flex flex-wrap gap-3">
-                <Button disabled={verifyCode.isPending} type="submit">
-                  {verifyCode.isPending ? "Đang kiểm tra…" : "Xác minh email"}
-                </Button>
-                <Button
-                  onClick={() => setStep("email")}
-                  type="button"
-                  variant="ghost"
-                >
-                  Đổi email
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      ) : null}
-
       {step === "details" ? (
         <form className="grid gap-6" onSubmit={handleSaveDraft}>
           <Card>
             <CardHeader>
-              <CardTitle>3. Thông tin riêng tư của người báo cáo</CardTitle>
+              <CardTitle>1. Thông tin liên hệ riêng tư</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
-              <label
-                className="grid gap-1.5 text-sm font-medium"
-                htmlFor="risk-reporter-name"
-              >
-                Tên liên hệ (tuỳ chọn)
-                <Input
-                  autoComplete="name"
-                  id="risk-reporter-name"
-                  onChange={(event) => setReporterName(event.target.value)}
-                  value={reporterName}
-                />
-              </label>
+              <p className="text-muted-foreground text-sm sm:col-span-2">
+                Tên và email được lấy từ account Avin đang đăng nhập và lưu
+                riêng cho việc xử lý báo cáo.
+              </p>
               <label
                 className="grid gap-1.5 text-sm font-medium"
                 htmlFor="risk-reporter-phone"
@@ -818,7 +685,7 @@ export const RiskReportPage = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle>4. Bằng chứng riêng tư</CardTitle>
+              <CardTitle>2. Bằng chứng riêng tư</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4">
               <p className="text-muted-foreground text-sm">
@@ -903,16 +770,24 @@ export const RiskReportPage = () => {
           </CardHeader>
           <CardContent className="grid gap-4 text-sm">
             <p>
-              Avin Check đã lưu bằng chứng ở vùng riêng tư. Bạn sẽ nhận email
-              khi trạng thái thay đổi; việc công khai chỉ xảy ra sau moderation,
-              redaction, watermark và launch gate.
+              Avin Check đã lưu bằng chứng ở vùng riêng tư. Bạn sẽ nhận email và
+              thông báo trong Avin khi trạng thái thay đổi; việc công khai chỉ
+              xảy ra sau moderation, redaction, watermark và launch gate.
             </p>
-            <Link
-              className="inline-flex h-10 w-fit items-center justify-center rounded-md border border-input px-4 font-medium text-sm transition hover:bg-accent hover:text-accent-foreground"
-              to="/avin-check"
-            >
-              Quay lại Avin Check
-            </Link>
+            <div className="flex flex-wrap gap-3">
+              <Link
+                className="inline-flex h-10 w-fit items-center justify-center rounded-md bg-primary px-4 font-medium text-primary-foreground text-sm transition hover:bg-primary/85"
+                to="/avin-check/reports"
+              >
+                Mở Báo cáo của tôi
+              </Link>
+              <Link
+                className="inline-flex h-10 w-fit items-center justify-center rounded-md border border-input px-4 font-medium text-sm transition hover:bg-accent hover:text-accent-foreground"
+                to="/avin-check"
+              >
+                Quay lại Avin Check
+              </Link>
+            </div>
           </CardContent>
         </Card>
       ) : null}

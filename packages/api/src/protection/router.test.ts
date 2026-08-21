@@ -111,7 +111,7 @@ describe("Avin Check public launch status", () => {
             id: "provider-1",
             image: null,
             name: "Provider One",
-            role: ACCOUNT_ROLE.PROVIDER,
+            role: ACCOUNT_ROLE.BUYER,
             twoFactorEnabled: true,
             updatedAt: new Date("2026-01-01T00:00:00.000Z"),
           },
@@ -126,11 +126,11 @@ describe("Avin Check public launch status", () => {
       identity: {
         id: "provider-1",
         name: "Provider One",
-        role: ACCOUNT_ROLE.PROVIDER,
+        role: ACCOUNT_ROLE.BUYER,
       },
       policy: null,
       privateProviderRecord: {
-        source: "PROVIDER_IDENTITY",
+        source: "MARKETPLACE_ACCOUNT",
         visibility: "PRIVATE",
       },
       profileRevision: null,

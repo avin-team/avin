@@ -14,17 +14,18 @@ import {
 
 const REPORT_ID = "11111111-1111-4111-8111-111111111111";
 const EVIDENCE_ID = "22222222-2222-4222-8222-222222222222";
-const REPORTER_TOKEN = "reporter-token-".padEnd(40, "x");
 
 const {
   assertProtectionAdminAccess,
   assertRiskReportEvidenceUploadAccess,
   getAdminSession,
+  getAuthSession,
   loadProtectionAdminCapabilities,
 } = vi.hoisted(() => ({
   assertProtectionAdminAccess: vi.fn(),
   assertRiskReportEvidenceUploadAccess: vi.fn(),
   getAdminSession: vi.fn(),
+  getAuthSession: vi.fn(),
   loadProtectionAdminCapabilities: vi.fn(),
 }));
 
@@ -42,7 +43,7 @@ vi.mock("@avin/api/protection/risk-report-service", () => ({
 
 vi.mock("@avin/auth", () => ({
   adminAuth: { api: { getSession: getAdminSession } },
-  auth: { api: { getSession: vi.fn() } },
+  auth: { api: { getSession: getAuthSession } },
 }));
 
 vi.mock("@avin/db", () => ({
@@ -59,6 +60,7 @@ const client = custom({
 
 describe("risk report upload routes", () => {
   it("keeps reporter evidence private and delegates ownership checks", async () => {
+    getAuthSession.mockResolvedValue({ user: { id: "reporter-1" } });
     assertRiskReportEvidenceUploadAccess.mockResolvedValue(null);
     const uploadRouter = createRiskReportEvidenceUploadRouter(client);
     const routeFactory = uploadRouter.routes[RISK_REPORT_EVIDENCE_UPLOAD_ROUTE];
@@ -76,7 +78,6 @@ describe("risk report upload routes", () => {
       clientMetadata: {
         kind: "PAYMENT_PROOF",
         reportId: REPORT_ID,
-        reporterToken: REPORTER_TOKEN,
       },
       files: [file],
       req: new Request("http://localhost/api/risk-report-evidence-upload"),
@@ -89,7 +90,7 @@ describe("risk report upload routes", () => {
       database: expect.anything(),
       files: [file],
       reportId: REPORT_ID,
-      reporterToken: REPORTER_TOKEN,
+      reporterUserId: "reporter-1",
     });
     const object = await result?.generateObjectInfo?.({ file });
     expect(object?.key).toMatch(

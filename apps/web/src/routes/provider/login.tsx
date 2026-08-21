@@ -1,9 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
-
-import { requireProviderGuest } from "@/features/protection/guards/require-provider-guest";
-import { ProviderLoginPage } from "@/features/protection/pages/provider-login-page";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/provider/login")({
-  beforeLoad: requireProviderGuest,
-  component: ProviderLoginPage,
+  beforeLoad: () => {
+    throw redirect({
+      search: { redirectTo: "/avin-check/workspace" },
+      to: "/login",
+    });
+  },
 });

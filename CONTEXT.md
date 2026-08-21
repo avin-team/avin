@@ -16,11 +16,11 @@ An Admin-only workspace that brings together role-protected views of marketplace
 
 ### User (Buyer)
 
-An authenticated account representing a buyer on the marketplace. Every `User` is implicitly a buyer and possesses a `UserWallet`. Under Avin's architecture, `User` and `Seller` are strictly separate entities requiring distinct accounts and logins.
+An authenticated account representing a buyer on the marketplace. Every `User` is implicitly a buyer and possesses a `UserWallet`; it may also own a Protection Provider Application without changing its Buyer role. Under Avin's architecture, `User` and `Seller` remain separate entities requiring distinct accounts and logins.
 
 ### Seller
 
-An authenticated entity representing an independent seller/merchant on the marketplace. A `Seller` manages their store profile, publishes `Listing`s, fulfills `Order`s, and maintains a `SellerWallet`. Its public profile exposes only storefront name, avatar, Store description, joined month/year, average rating and rating count, and completed-order count; bank and verification data remain private.
+An authenticated entity representing an independent seller/merchant on the marketplace. A `Seller` manages their store profile, Listings, Orders, and `SellerWallet`, and may also own a Protection Provider Application without changing its Seller role. Its marketplace profile and Provider standing remain distinct.
 
 ### Avin Check
 
@@ -28,19 +28,19 @@ The public Avin module for verified Provider discovery, external identifier look
 
 ### Protection Provider
 
-A person or business accepted into Avin Check, whether or not they are an Avin `Seller`, and presented publicly as a **Đối tác Avin**. A Protection Provider is not an authorization `Admin`, has an Admin-managed `Provider Bond`, and cannot delegate its verified standing to agents or subordinate merchants. _Avoid in code_: Admin, guaranteed Seller, protected Seller, GDV network owner.
+A person or business accepted into Avin Check, whether their owning account is a Buyer or Seller, and presented publicly as a **Đối tác Avin**. Its Provider profile neither reveals nor automatically links its marketplace role or Store; a Protection Provider is not an `Admin` and cannot delegate its verified standing. _Avoid in code_: Admin, guaranteed Seller, protected Seller, GDV network owner.
 
 ### Protection Provider Application
 
-An evidence-backed, year-round request to become a Protection Provider, reviewed as `PENDING_REVIEW`, `CHANGES_REQUESTED`, `APPROVED`, or `REJECTED` with an explicit reason. It verifies the applicant's adult identity, operating history, public identities, registered services, payment information, and acceptance of the current Protection Program Policy.
+An evidence-backed, year-round request owned by an active, non-locked Buyer or Seller account to become a Protection Provider, reviewed as `PENDING_REVIEW`, `CHANGES_REQUESTED`, `APPROVED`, or `REJECTED` with an explicit reason. Missing or correctable information uses `CHANGES_REQUESTED` and may be revised on the same application; `REJECTED` is terminal and reserved for fraud, impersonation, or a definitive policy prohibition. Seller approval is not a prerequisite, but confirmed marketplace fraud blocks a new application, and the same verified person or business cannot acquire a second Provider standing through another account. Submitting the application requires the owner to complete 2FA.
 
 ### Protection Provider Workspace
 
-The Provider's private area for reading the exact profile and status held by Avin and requesting a profile revision or Bond Withdrawal. It cannot directly publish verified information, alter the recognized Provider Bond, or move money. _Avoid_: Provider admin panel, wallet.
+The Provider's private area, entered through its owning Buyer or Seller account, for reading the exact profile and status held by Avin and requesting a profile revision or Bond Withdrawal. Reading and saving drafts use the normal authenticated session, while submitting a profile revision or Bond Withdrawal requires 2FA. It cannot directly publish verified information, alter the recognized Provider Bond, or move money. _Avoid_: Provider admin panel, wallet.
 
-### Provider Account
+### Provider Owner Account
 
-The authenticated identity used only to own a Protection Provider Application and enter the Protection Provider Workspace. It is separate from Buyer, Seller, and Admin accounts, and grants no moderation or Bond-operation authority. _Avoid_: User account, Seller account, Admin account.
+The existing Buyer or Seller account that owns a Protection Provider Application and enters the Protection Provider Workspace after approval. A security lock blocks workspace access without changing Provider standing, and the account cannot be hard-deleted while retained Provider records depend on it. Account recovery is preferred when access is lost; an Admin may relink ownership to another Buyer or Seller account only after proving it represents the same verified person or business, recording an immutable audit trail, and never transferring the Provider standing to a different identity. _Avoid_: Provider Account, `PROVIDER` role, separate Provider login.
 
 ### Protection Program Policy
 
@@ -112,11 +112,19 @@ An Admin-recorded amount of manually delivered support for verified loss from a 
 
 ### Protection Provider Status
 
-The Provider's public standing: `ACTIVE`, `SUSPENDED_PENDING_REVIEW`, `WITHDRAWAL_PENDING`, `WITHDRAWN`, or `REMOVED_FOR_FRAUD`. A withdrawn or removed Provider leaves a historical profile at the stable public address rather than disappearing from history.
+The Provider's public standing: `ACTIVE`, `SUSPENDED_PENDING_REVIEW`, `WITHDRAWAL_PENDING`, `WITHDRAWN`, or `REMOVED_FOR_FRAUD`. Confirmed marketplace fraud requires a Provider review, while ordinary Seller suspension is only a review signal and never changes Provider standing automatically; withdrawn or removed Providers leave historical profiles at stable public addresses.
 
 ### Public Risk Report
 
-A visitor-submitted allegation about any external account, website, social identity, or transaction, moving through `DRAFT`, `SUBMITTED`, `UNDER_REVIEW`, `CHANGES_REQUESTED`, `REJECTED`, `PUBLISHED`, `CORRECTED`, or `REMOVED`. No Avin account is required, but a verified private reporter contact and sufficient evidence are required before publication; the report neither creates compensation rights nor changes a Provider Bond automatically. _Avoid_: Dispute, Protection Claim, verdict.
+An allegation owned by a `Risk Reporter` about any external account, website, social identity, or transaction, moving through `DRAFT`, `SUBMITTED`, `UNDER_REVIEW`, `CHANGES_REQUESTED`, `REJECTED`, `PUBLISHED`, `CORRECTED`, or `REMOVED`. A Provider Owner may report itself or another Provider but must disclose the relationship for conflict-aware moderation. A draft may be deleted by its owner; after submission, the owner may request withdrawal but cannot erase the record, and an Admin may continue review when public safety requires it. Multiple account-owned reports about the same identifier or incident remain private and independently traceable but may be linked by an Admin to one public warning without creating shared ownership or revealing reporters to each other. It neither creates compensation rights nor changes a Provider Bond automatically. _Avoid_: anonymous report, Dispute, Protection Claim, verdict.
+
+### Risk Reporter
+
+The authenticated Buyer or Seller account privately attributable as the owner of a Public Risk Report. A valid session is sufficient to submit a report; reporting does not require 2FA. Seller Enforcement does not remove reporting access while the account can still authenticate, but security locks do; authorized moderation can see relevant enforcement context, declared Provider relationships, duplicate-report signals, and abuse controls applied by account and IP. Its account identity, contact details, marketplace role, and Provider relationship remain private from public warnings, which may describe the source only as an authenticated Avin user. Optional phone or Zalo details support authorized follow-up but never authentication; status notifications use the account's in-app channel and verified email. _Avoid_: anonymous visitor, accused person.
+
+### Risk Report Workspace
+
+The Risk Reporter's private area for managing drafts, reading review status and change requests, and viewing public-safe history for their own reports. Account deletion removes drafts, while submitted or published reports and a private reporter-identity snapshot remain under the applicable audit-retention policy; deleting the account ends workspace access but does not erase the moderation record. It never exposes Admin-only notes, private moderation evidence, or another reporter's activity. _Avoid_: Admin report queue, public warning page.
 
 ### Risk Identifier
 
@@ -136,7 +144,7 @@ An immutable Admin decision to request changes, reject, publish, correct, or rem
 
 ### Risk Report Correction Request
 
-A reporter- or subject-submitted request to correct or remove a published Public Risk Report. An approved correction remains visible in the report history, while removal normally preserves a stable public tombstone unless law requires deletion.
+A request by an authenticated Buyer or Seller account to correct or remove a published Public Risk Report; a person without an Avin account first uses the normal registration flow and becomes a Buyer. The original reporter uses the Risk Report Workspace; a reported subject or its authorized representative must sign in and provide evidence of identity ownership or authority to act, because account authentication alone does not prove that relationship. A valid session is sufficient to submit the request, without 2FA or an email-OTP-only path. An approved correction remains visible in the report history, while removal normally preserves a stable public tombstone unless law requires deletion.
 
 ### Verified Claimed Loss
 

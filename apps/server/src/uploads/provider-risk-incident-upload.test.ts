@@ -6,9 +6,9 @@ import {
 import { custom } from "@better-upload/server/clients";
 import { describe, expect, it, vi } from "vitest";
 
-const { assertUploadAccess, getProviderSession } = vi.hoisted(() => ({
+const { assertUploadAccess, getAuthSession } = vi.hoisted(() => ({
   assertUploadAccess: vi.fn(),
-  getProviderSession: vi.fn(),
+  getAuthSession: vi.fn(),
 }));
 
 vi.mock("@avin/api/protection/provider-risk-incident-service", () => ({
@@ -17,8 +17,7 @@ vi.mock("@avin/api/protection/provider-risk-incident-service", () => ({
 
 vi.mock("@avin/auth", () => ({
   adminAuth: { api: { getSession: vi.fn() } },
-  auth: { api: { getSession: vi.fn() } },
-  providerAuth: { api: { getSession: getProviderSession } },
+  auth: { api: { getSession: getAuthSession } },
 }));
 
 vi.mock("@avin/db", () => ({
@@ -37,8 +36,8 @@ const client = custom({
 });
 
 describe("Provider risk incident upload route", () => {
-  it("requires the Provider auth surface and keeps evidence private", async () => {
-    getProviderSession.mockResolvedValue({ user: { id: "provider-1" } });
+  it("requires the Avin auth session and keeps evidence private", async () => {
+    getAuthSession.mockResolvedValue({ user: { id: "provider-1" } });
     assertUploadAccess.mockResolvedValue(null);
     const uploadRouter = createProviderRiskIncidentEvidenceUploadRouter(client);
     const routeFactory =
@@ -65,7 +64,7 @@ describe("Provider risk incident upload route", () => {
       req,
     });
 
-    expect(getProviderSession).toHaveBeenCalledWith({ headers: req.headers });
+    expect(getAuthSession).toHaveBeenCalledWith({ headers: req.headers });
     expect(assertUploadAccess).toHaveBeenCalledWith({
       database: expect.anything(),
       files: [file],

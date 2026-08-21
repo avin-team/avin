@@ -108,6 +108,7 @@ const createReport = (): ReportRow => ({
   reporterName: "Reporter",
   reporterPhone: "0123456789",
   reporterSessionId: "reporter-session-1",
+  reporterUserId: "reporter-1",
   reporterZalo: null,
   reviewReason: null,
   reviewedAt: timestamp,

@@ -298,7 +298,12 @@ const notifyProviderIncident = async ({
     },
     eventType,
     now,
-    recipients: [{ targetPath: "/provider", userId: incident.providerUserId }],
+    recipients: [
+      {
+        targetPath: "/avin-check/workspace",
+        userId: incident.providerUserId,
+      },
+    ],
     sourceId: incident.id,
     sourceType: INCIDENT_SOURCE_TYPE,
     title,
@@ -326,7 +331,12 @@ const notifyProviderIncidentDeadline = async (
     },
     eventType: "protection_provider_risk_incident.response_deadline",
     now,
-    recipients: [{ targetPath: "/provider", userId: incident.providerUserId }],
+    recipients: [
+      {
+        targetPath: "/avin-check/workspace",
+        userId: incident.providerUserId,
+      },
+    ],
     sourceId: `${incident.id}:deadline`,
     sourceType: INCIDENT_SOURCE_TYPE,
     title: "Hạn phản hồi Provider đã được xác lập",

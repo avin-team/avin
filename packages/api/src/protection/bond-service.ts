@@ -323,7 +323,12 @@ const reconcileRecommendedTransactionLimit = async ({
       versionId: loweredVersion.id,
     },
     eventType: "protection_provider_bond.limit_lowered",
-    recipients: [{ targetPath: "/provider", userId: profile.providerUserId }],
+    recipients: [
+      {
+        targetPath: "/avin-check/workspace",
+        userId: profile.providerUserId,
+      },
+    ],
     sourceId: `${profile.id}:${loweredVersion.id}`,
     sourceType: "PROTECTION_PROVIDER_BOND",
     title: "Recommended Transaction Limit đã được cập nhật",
@@ -730,7 +735,12 @@ export const publishProviderRecommendedTransactionLimit = async ({
         versionId: publishedVersion.id,
       },
       eventType: "protection_provider_bond.limit_updated",
-      recipients: [{ targetPath: "/provider", userId: profile.providerUserId }],
+      recipients: [
+        {
+          targetPath: "/avin-check/workspace",
+          userId: profile.providerUserId,
+        },
+      ],
       sourceId: `${profile.id}:${publishedVersion.id}`,
       sourceType: "PROTECTION_PROVIDER_BOND",
       title: "Recommended Transaction Limit đã được cập nhật",

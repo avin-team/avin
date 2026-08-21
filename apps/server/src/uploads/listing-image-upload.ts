@@ -58,7 +58,7 @@ import {
   RISK_REPORT_DERIVATIVE_UPLOAD_ROUTE,
   PROVIDER_RISK_INCIDENT_EVIDENCE_UPLOAD_ROUTE,
 } from "@avin/api/storage";
-import { adminAuth, auth, providerAuth } from "@avin/auth";
+import { adminAuth, auth } from "@avin/auth";
 import { PROTECTION_ADMIN_CAPABILITY } from "@avin/auth/permissions";
 import { db } from "@avin/db";
 import { handleRequest, RejectUpload, route } from "@better-upload/server";
@@ -88,7 +88,6 @@ const deliveryAttachmentClientMetadataSchema = z.object({
 const riskReportEvidenceClientMetadataSchema = z.object({
   kind: z.enum(riskReportEvidenceKinds),
   reportId: z.uuid(),
-  reporterToken: z.string().trim().min(40).max(200),
 });
 const riskReportDerivativeClientMetadataSchema = z.object({
   evidenceId: z.uuid(),
@@ -478,13 +477,19 @@ export const createRiskReportEvidenceUploadRouter = (
       maxFileSize: RISK_REPORT_EVIDENCE_MAX_BYTES,
       maxFiles: RISK_REPORT_EVIDENCE_MAX_COUNT,
       multipleFiles: true,
-      onBeforeUpload: async ({ clientMetadata, files }) => {
+      onBeforeUpload: async ({ clientMetadata, files, req }) => {
+        const session = await auth.api.getSession({ headers: req.headers });
+        if (!session) {
+          throw new RejectUpload(
+            "Đăng nhập Avin trước khi tải bằng chứng báo cáo"
+          );
+        }
         try {
           await assertRiskReportEvidenceUploadAccess({
             database: db,
             files,
             reportId: clientMetadata.reportId,
-            reporterToken: clientMetadata.reporterToken,
+            reporterUserId: session.user.id,
           });
         } catch (error) {
           throw new RejectUpload(
@@ -587,12 +592,12 @@ export const createProviderRiskIncidentEvidenceUploadRouter = (
       maxFiles: RISK_REPORT_EVIDENCE_MAX_COUNT,
       multipleFiles: true,
       onBeforeUpload: async ({ clientMetadata, files, req }) => {
-        const session = await providerAuth.api.getSession({
+        const session = await auth.api.getSession({
           headers: req.headers,
         });
         if (!session) {
           throw new RejectUpload(
-            "Sign in as a Provider before uploading incident evidence"
+            "Đăng nhập Avin trước khi tải bằng chứng sự cố"
           );
         }
         try {

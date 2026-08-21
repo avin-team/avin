@@ -394,7 +394,9 @@ const notifyPolicyDeadline = async (
       textBody: body,
     },
     eventType: "protection_provider_policy.reacceptance_deadline",
-    recipients: [{ targetPath: "/provider", userId: providerUserId }],
+    recipients: [
+      { targetPath: "/avin-check/workspace", userId: providerUserId },
+    ],
     sourceId: `${policy.id}:${profileId}:deadline`,
     sourceType: POLICY_SOURCE_TYPE,
     title: "Cần chấp nhận chính sách Avin Check",
@@ -422,7 +424,9 @@ const notifyPolicySuspended = async (
       textBody: body,
     },
     eventType: "protection_provider_policy.suspended",
-    recipients: [{ targetPath: "/provider", userId: providerUserId }],
+    recipients: [
+      { targetPath: "/avin-check/workspace", userId: providerUserId },
+    ],
     sourceId: `${policy.id}:${profileId}:suspended`,
     sourceType: POLICY_SOURCE_TYPE,
     title: "Profile Provider tạm ngưng chờ xem xét",

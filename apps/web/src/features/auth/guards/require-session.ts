@@ -6,12 +6,14 @@ import { queryClient as defaultQueryClient } from "@/utils/orpc";
 import { resolveSessionData } from "../api/session-query";
 
 export const requireSession = async (
-  queryClient: QueryClient = defaultQueryClient
+  queryClient: QueryClient = defaultQueryClient,
+  redirectTo?: string
 ) => {
   const sessionData = await resolveSessionData(queryClient);
 
   if (!sessionData?.user) {
     throw redirect({
+      ...(redirectTo ? { search: { redirectTo } } : {}),
       to: "/login",
     });
   }

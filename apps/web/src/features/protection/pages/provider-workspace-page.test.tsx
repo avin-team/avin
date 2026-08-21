@@ -22,10 +22,10 @@ vi.mock("@/features/protection/api/provider-api", () => ({
       identity: {
         id: "provider-1",
         name: "Provider One",
-        role: "PROVIDER",
+        role: "BUYER",
       },
       privateProviderRecord: {
-        source: "PROVIDER_IDENTITY",
+        source: "MARKETPLACE_ACCOUNT",
         visibility: "PRIVATE",
       },
       publicProfile: {
@@ -50,12 +50,12 @@ describe("ProviderWorkspacePage", () => {
         name: "Không gian riêng của Đối tác Avin",
       })
     ).toBeInTheDocument();
-    expect(screen.getByText(/Hồ sơ Provider riêng/iu)).toBeInTheDocument();
+    expect(screen.getByText(/Hồ sơ Provider của bạn/iu)).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Đăng ký Provider" })
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Không có số dư marketplace/iu)
+      screen.getByText(/account Buyer\/Seller hiện tại/iu)
     ).toBeInTheDocument();
     expect(
       screen.getByText(/Provider không thể tự phát hành profile công khai/iu)

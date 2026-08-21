@@ -1,12 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-
-import { requireProviderSession } from "@/features/protection/guards/require-provider-session";
-import { ProviderWorkspacePage } from "@/features/protection/pages/provider-workspace-page";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/provider/")({
-  beforeLoad: async () => {
-    const session = await requireProviderSession();
-    return { session };
+  beforeLoad: () => {
+    throw redirect({ to: "/avin-check/workspace" });
   },
-  component: ProviderWorkspacePage,
 });

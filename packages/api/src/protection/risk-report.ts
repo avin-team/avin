@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomInt } from "node:crypto";
+import { createHash } from "node:crypto";
 
 import { z } from "zod";
 
@@ -101,10 +101,7 @@ const riskReportWebsiteViolationTypeSchema = z.enum(
   riskReportWebsiteViolationTypes
 );
 
-const emailSchema = z.email().trim().toLowerCase();
-const reporterTokenSchema = z.string().trim().min(40).max(200);
 const reportNarrativeSchema = z.string().trim().max(10_000);
-const reportNameSchema = z.string().trim().min(2).max(200);
 const reportPhoneSchema = z.string().trim().min(6).max(50);
 const reportIdentifierValueSchema = z.string().trim().min(1).max(300);
 
@@ -117,23 +114,6 @@ export type RiskReportIdentifierInput = z.infer<
   typeof riskReportIdentifierInputSchema
 >;
 
-export const riskReportRequestEmailCodeInputSchema = z.object({
-  email: emailSchema,
-});
-
-export type RiskReportRequestEmailCodeInput = z.infer<
-  typeof riskReportRequestEmailCodeInputSchema
->;
-
-export const riskReportVerifyEmailCodeInputSchema = z.object({
-  code: z.string().regex(/^\d{6}$/u),
-  email: emailSchema,
-});
-
-export type RiskReportVerifyEmailCodeInput = z.infer<
-  typeof riskReportVerifyEmailCodeInputSchema
->;
-
 export const riskReportDraftInputSchema = z.object({
   affectedVictimCount: z.number().int().min(1).max(1_000_000).optional(),
   claimedLoss: z.number().int().min(0).max(2_000_000_000).optional(),
@@ -141,9 +121,7 @@ export const riskReportDraftInputSchema = z.object({
   narrative: reportNarrativeSchema.optional(),
   platform: z.string().trim().max(200).optional(),
   reportId: z.uuid().optional(),
-  reporterName: reportNameSchema.optional(),
   reporterPhone: reportPhoneSchema.optional(),
-  reporterToken: reporterTokenSchema,
   reporterZalo: z.string().trim().max(100).optional(),
   type: riskReportTypeSchema,
   urgency: riskReportUrgencySchema.optional(),
@@ -154,15 +132,13 @@ export type RiskReportDraftInput = z.infer<typeof riskReportDraftInputSchema>;
 
 export const riskReportOwnedInputSchema = z.object({
   reportId: z.uuid(),
-  reporterToken: reporterTokenSchema,
 });
 
 export type RiskReportOwnedInput = z.infer<typeof riskReportOwnedInputSchema>;
 
-export const riskReportMineInputSchema = z.object({
-  reportId: z.uuid().optional(),
-  reporterToken: reporterTokenSchema,
-});
+export const riskReportMineInputSchema = z
+  .object({ reportId: z.uuid().optional() })
+  .optional();
 
 export const riskReportEvidenceInputSchema = z.object({
   contentType: z.string().trim().min(1).max(120),
@@ -177,7 +153,6 @@ export const riskReportEvidenceInputSchema = z.object({
   kind: riskReportEvidenceKindSchema,
   originalStorageKey: z.string().trim().min(1).max(500),
   reportId: z.uuid(),
-  reporterToken: reporterTokenSchema,
   sha256: z
     .string()
     .regex(/^[a-f0-9]{64}$/iu)
@@ -268,20 +243,8 @@ export const isRiskReportUnderVerificationEligible = ({
   urgency: RiskReportUrgency;
 }): boolean => urgency === "URGENT" || affectedVictimCount >= 2;
 
-export const normalizeRiskEmail = (email: string): string =>
-  email.trim().normalize("NFKC").toLowerCase();
-
 export const hashRiskValue = (value: string): string =>
   createHash("sha256").update(value).digest("hex");
-
-export const generateRiskEmailCode = (): string =>
-  randomInt(0, 1_000_000).toString().padStart(6, "0");
-
-export const generateRiskReporterToken = (): string =>
-  randomBytes(32).toString("base64url");
-
-export const getRiskReporterEmailIdentifier = (email: string): string =>
-  `protection-risk-email:${hashRiskValue(normalizeRiskEmail(email))}`;
 
 const normalizeWebsite = (value: string): string => {
   const url = new URL(value.trim());

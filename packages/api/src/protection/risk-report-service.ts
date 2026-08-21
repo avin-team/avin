@@ -1,4 +1,3 @@
-import { verification } from "@avin/db/schema/auth";
 import {
   protectionRiskEvidence,
   protectionRiskEvidenceDerivative,
@@ -6,12 +5,11 @@ import {
   protectionRiskReport,
   protectionRiskReportEmailDelivery,
   protectionRiskReportHistory,
-  protectionRiskReporterSession,
   protectionSupportReview,
 } from "@avin/db/schema/protection";
 import { env } from "@avin/env/server";
 import { ORPCError } from "@orpc/server";
-import { and, desc, eq, gt, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 
 import {
   createNotificationEvent,
@@ -38,16 +36,11 @@ import {
   createRiskReportEmailSubject,
   createRiskReportPublicPath as createPublicWarningPath,
   createRiskReportPublicSlug,
-  generateRiskEmailCode,
-  generateRiskReporterToken,
   getRiskIdentifierPublicValue,
   getRiskReportIdentifierTypes,
-  getRiskReporterEmailIdentifier,
-  hashRiskValue,
   isRiskReportUnderVerificationEligible,
   isPublicRiskReportStatus,
   maskRiskIdentifier,
-  normalizeRiskEmail,
   normalizeRiskIdentifier,
 } from "./risk-report";
 import type {
@@ -68,11 +61,7 @@ type RiskHistory = typeof protectionRiskReportHistory.$inferSelect;
 type SupportReviewPublicOutcome =
   typeof protectionSupportReview.$inferSelect.publicOutcome;
 
-const RISK_EMAIL_CODE_TTL_MS = 10 * 60 * 1000;
-const RISK_EMAIL_CODE_COOLDOWN_MS = 60 * 1000;
-const RISK_REPORTER_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const RISK_EMAIL_SOURCE_TYPE = "PROTECTION_RISK_REPORT";
-const RISK_EMAIL_CODE_SOURCE_TYPE = "PROTECTION_RISK_EMAIL_CODE";
 
 const riskReportNotificationEvents: Partial<
   Record<RiskReportStatus, NotificationEventType>
@@ -100,52 +89,18 @@ const throwBadRequest = (message: string): never => {
   throw new ORPCError("BAD_REQUEST", { message });
 };
 
-const findReporterSession = async (
-  database: Database,
-  reporterToken: string,
-  now: Date
-) => {
-  const [session] = await database
-    .select()
-    .from(protectionRiskReporterSession)
-    .where(
-      and(
-        eq(
-          protectionRiskReporterSession.tokenHash,
-          hashRiskValue(reporterToken)
-        ),
-        gt(protectionRiskReporterSession.expiresAt, now)
-      )
-    )
-    .limit(1);
-
-  if (!session) {
-    throw new ORPCError("UNAUTHORIZED", {
-      message: "Reporter verification has expired. Request a new code.",
-    });
-  }
-
-  await database
-    .update(protectionRiskReporterSession)
-    .set({ lastUsedAt: now })
-    .where(eq(protectionRiskReporterSession.id, session.id));
-  return session;
-};
-
 const findOwnedReport = async (
   database: Database,
-  reporterToken: string,
-  reportId: string,
-  now = new Date()
-): Promise<{ report: RiskReport; sessionId: string }> => {
-  const session = await findReporterSession(database, reporterToken, now);
+  reporterUserId: string,
+  reportId: string
+): Promise<{ report: RiskReport }> => {
   const [report] = await database
     .select()
     .from(protectionRiskReport)
     .where(
       and(
         eq(protectionRiskReport.id, reportId),
-        eq(protectionRiskReport.reporterSessionId, session.id)
+        eq(protectionRiskReport.reporterUserId, reporterUserId)
       )
     )
     .limit(1);
@@ -154,7 +109,7 @@ const findOwnedReport = async (
     throw new ORPCError("NOT_FOUND", { message: "Risk report not found" });
   }
 
-  return { report, sessionId: session.id };
+  return { report };
 };
 
 const toPrivateIdentifierView = (identifier: RiskIdentifier) => ({
@@ -337,7 +292,7 @@ const enqueueRiskReportStatusEmail = async (
   const textBody = [
     `Báo cáo Avin Check của bạn ${status.toLowerCase()}.`,
     safeReason ? `Ghi chú: ${safeReason}` : "",
-    "Bạn có thể dùng lại email đã xác minh để mở báo cáo và theo dõi trạng thái.",
+    "Bạn có thể mở mục Báo cáo của tôi trong Avin Check để theo dõi trạng thái.",
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -382,121 +337,29 @@ const notifyRiskModerators = async (
   });
 };
 
-export const requestRiskReportEmailCode = async ({
-  database,
-  email,
-  now = new Date(),
-  code = undefined,
-}: {
-  code?: string;
-  database: Database;
-  email: string;
-  now?: Date;
-}): Promise<{ expiresAt: string; retryAfterSeconds: number }> => {
-  const normalizedEmail = normalizeRiskEmail(email);
-  const identifier = getRiskReporterEmailIdentifier(normalizedEmail);
-  const [existing] = await database
-    .select({ createdAt: verification.createdAt })
-    .from(verification)
-    .where(eq(verification.identifier, identifier))
-    .orderBy(desc(verification.createdAt))
-    .limit(1);
-
-  if (
-    existing &&
-    now.getTime() - existing.createdAt.getTime() < RISK_EMAIL_CODE_COOLDOWN_MS
-  ) {
-    throw new ORPCError("TOO_MANY_REQUESTS", {
-      message: "Please wait before requesting another verification code.",
-    });
+const notifyRiskReporter = async (
+  database: Database,
+  report: RiskReport,
+  status: RiskReportStatus,
+  now: Date
+): Promise<void> => {
+  const eventType = riskReportNotificationEvents[status];
+  if (!eventType) {
+    return;
   }
 
-  await database
-    .delete(verification)
-    .where(eq(verification.identifier, identifier));
-
-  const verificationCode = code ?? "";
-  if (verificationCode && !/^\d{6}$/u.test(verificationCode)) {
-    throw new Error("Risk email code must be six digits");
-  }
-  const actualCode = verificationCode || generateRiskEmailCode();
-  const expiresAt = new Date(now.getTime() + RISK_EMAIL_CODE_TTL_MS);
-
-  await database.insert(verification).values({
-    createdAt: now,
-    expiresAt,
-    id: `protection-risk-${hashRiskValue(`${normalizedEmail}:${now.toISOString()}`)}`,
-    identifier,
-    updatedAt: now,
-    value: hashRiskValue(actualCode),
-  });
-
-  const textBody = `Mã xác minh email Avin Check của bạn là ${actualCode}. Mã có hiệu lực trong 10 phút.`;
-  await enqueueRiskEmail({
-    database,
-    eventType: "email_verification_requested",
-    htmlBody: `<p>${escapeHtml(textBody)}</p>`,
+  await createNotificationEvent(database, {
+    body: `Báo cáo Avin Check của bạn đang ở trạng thái ${status.toLowerCase()}.`,
+    context: { status, type: report.type },
+    eventType,
     now,
-    recipientEmail: normalizedEmail,
-    sourceId: `${hashRiskValue(normalizedEmail)}:${now.toISOString()}`,
-    sourceType: RISK_EMAIL_CODE_SOURCE_TYPE,
-    subject: "Avin Check: mã xác minh email",
-    textBody,
+    recipients: [
+      { targetPath: "/avin-check/reports", userId: report.reporterUserId },
+    ],
+    sourceId: report.id,
+    sourceType: "PROTECTION_RISK_REPORT",
+    title: "Avin Check: cập nhật báo cáo",
   });
-
-  return {
-    expiresAt: expiresAt.toISOString(),
-    retryAfterSeconds: RISK_EMAIL_CODE_COOLDOWN_MS / 1000,
-  };
-};
-
-export const verifyRiskReportEmailCode = async ({
-  code,
-  database,
-  email,
-  ipAddress,
-  now = new Date(),
-}: {
-  code: string;
-  database: Database;
-  email: string;
-  ipAddress?: string;
-  now?: Date;
-}): Promise<{ expiresAt: string; reporterToken: string }> => {
-  const normalizedEmail = normalizeRiskEmail(email);
-  const identifier = getRiskReporterEmailIdentifier(normalizedEmail);
-  const [record] = await database
-    .select()
-    .from(verification)
-    .where(
-      and(
-        eq(verification.identifier, identifier),
-        eq(verification.value, hashRiskValue(code))
-      )
-    )
-    .limit(1);
-
-  if (!record || record.expiresAt <= now) {
-    throw new ORPCError("BAD_REQUEST", {
-      message: "The email verification code is invalid or expired.",
-    });
-  }
-
-  await database.delete(verification).where(eq(verification.id, record.id));
-
-  const reporterToken = generateRiskReporterToken();
-  const expiresAt = new Date(now.getTime() + RISK_REPORTER_SESSION_TTL_MS);
-  await database.insert(protectionRiskReporterSession).values({
-    createdAt: now,
-    email: normalizedEmail,
-    emailHash: hashRiskValue(normalizedEmail),
-    expiresAt,
-    ipHash: ipAddress ? hashRiskValue(ipAddress) : null,
-    lastUsedAt: now,
-    tokenHash: hashRiskValue(reporterToken),
-  });
-
-  return { expiresAt: expiresAt.toISOString(), reporterToken };
 };
 
 const buildIdentifierRows = (
@@ -542,9 +405,6 @@ const buildRiskReportDraftUpdates = (
   if (input.platform !== undefined) {
     updates.platform = input.platform;
   }
-  if (input.reporterName !== undefined) {
-    updates.reporterName = input.reporterName;
-  }
   if (input.reporterPhone !== undefined) {
     updates.reporterPhone = input.reporterPhone;
   }
@@ -563,8 +423,9 @@ const buildRiskReportDraftUpdates = (
 const buildRiskReportDraftValues = (
   input: RiskReportDraftInput,
   now: Date,
+  reporterUserId: string,
   reporterEmail: string,
-  reporterSessionId: string
+  reporterName: string
 ): typeof protectionRiskReport.$inferInsert => ({
   affectedVictimCount: input.affectedVictimCount,
   claimedLoss: input.claimedLoss,
@@ -572,9 +433,9 @@ const buildRiskReportDraftValues = (
   narrative: input.narrative,
   platform: input.platform,
   reporterEmail,
-  reporterName: input.reporterName,
+  reporterName,
   reporterPhone: input.reporterPhone,
-  reporterSessionId,
+  reporterUserId,
   reporterZalo: input.reporterZalo,
   type: input.type,
   updatedAt: now,
@@ -582,12 +443,21 @@ const buildRiskReportDraftValues = (
   violationType: input.violationType,
 });
 
-export const saveRiskReportDraft = async (
-  database: Database,
-  input: RiskReportDraftInput,
-  now = new Date()
-) => {
-  const session = await findReporterSession(database, input.reporterToken, now);
+export const saveRiskReportDraft = async ({
+  database,
+  input,
+  now = new Date(),
+  reporterEmail,
+  reporterName,
+  reporterUserId,
+}: {
+  database: Database;
+  input: RiskReportDraftInput;
+  now?: Date;
+  reporterEmail: string;
+  reporterName: string;
+  reporterUserId: string;
+}) => {
   let report: RiskReport | undefined;
 
   if (input.reportId) {
@@ -597,7 +467,7 @@ export const saveRiskReportDraft = async (
       .where(
         and(
           eq(protectionRiskReport.id, input.reportId),
-          eq(protectionRiskReport.reporterSessionId, session.id)
+          eq(protectionRiskReport.reporterUserId, reporterUserId)
         )
       )
       .limit(1);
@@ -626,7 +496,15 @@ export const saveRiskReportDraft = async (
   } else {
     [report] = await database
       .insert(protectionRiskReport)
-      .values(buildRiskReportDraftValues(input, now, session.email, session.id))
+      .values(
+        buildRiskReportDraftValues(
+          input,
+          now,
+          reporterUserId,
+          reporterEmail,
+          reporterName
+        )
+      )
       .returning();
   }
 
@@ -659,15 +537,12 @@ export const saveRiskReportDraft = async (
 export const getRiskReportMine = async ({
   database,
   reportId,
-  reporterToken,
-  now = new Date(),
+  reporterUserId,
 }: {
   database: Database;
-  now?: Date;
   reportId?: string;
-  reporterToken: string;
+  reporterUserId: string;
 }) => {
-  const session = await findReporterSession(database, reporterToken, now);
   const reports = await database
     .select()
     .from(protectionRiskReport)
@@ -675,9 +550,9 @@ export const getRiskReportMine = async ({
       reportId
         ? and(
             eq(protectionRiskReport.id, reportId),
-            eq(protectionRiskReport.reporterSessionId, session.id)
+            eq(protectionRiskReport.reporterUserId, reporterUserId)
           )
-        : eq(protectionRiskReport.reporterSessionId, session.id)
+        : eq(protectionRiskReport.reporterUserId, reporterUserId)
     )
     .orderBy(desc(protectionRiskReport.updatedAt));
 
@@ -696,13 +571,13 @@ export const getRiskReportMine = async ({
 export const addRiskReportEvidence = async (
   database: Database,
   input: RiskReportEvidenceInput,
+  reporterUserId: string,
   now = new Date()
 ) => {
   const { report } = await findOwnedReport(
     database,
-    input.reporterToken,
-    input.reportId,
-    now
+    reporterUserId,
+    input.reportId
   );
   if (report.status !== "DRAFT" && report.status !== "CHANGES_REQUESTED") {
     throw new ORPCError("CONFLICT", {
@@ -759,22 +634,15 @@ export const addRiskReportEvidence = async (
 export const assertRiskReportEvidenceUploadAccess = async ({
   database,
   files,
-  now = new Date(),
   reportId,
-  reporterToken,
+  reporterUserId,
 }: {
   database: Database;
   files: readonly { size?: number; type: string }[];
-  now?: Date;
   reportId: string;
-  reporterToken: string;
+  reporterUserId: string;
 }): Promise<void> => {
-  const { report } = await findOwnedReport(
-    database,
-    reporterToken,
-    reportId,
-    now
-  );
+  const { report } = await findOwnedReport(database, reporterUserId, reportId);
   if (report.status !== "DRAFT" && report.status !== "CHANGES_REQUESTED") {
     throw new ORPCError("CONFLICT", {
       message: "Evidence can only be uploaded to an editable report.",
@@ -801,16 +669,21 @@ export const assertRiskReportEvidenceUploadAccess = async ({
   }
 };
 
-export const submitRiskReport = async (
-  database: Database,
-  input: { reportId: string; reporterToken: string },
-  now = new Date()
-) => {
+export const submitRiskReport = async ({
+  database,
+  input,
+  now = new Date(),
+  reporterUserId,
+}: {
+  database: Database;
+  input: { reportId: string };
+  now?: Date;
+  reporterUserId: string;
+}) => {
   const { report } = await findOwnedReport(
     database,
-    input.reporterToken,
-    input.reportId,
-    now
+    reporterUserId,
+    input.reportId
   );
   const materials = await loadReportMaterials(database, report.id);
   try {
@@ -848,6 +721,7 @@ export const submitRiskReport = async (
     status: "SUBMITTED",
   });
   await notifyRiskModerators(database, updated, "SUBMITTED", now);
+  await notifyRiskReporter(database, updated, "SUBMITTED", now);
   await enqueueRiskReportStatusEmail(database, updated, "SUBMITTED", null, now);
   return toDraftView(updated, materials.identifiers, materials.evidence);
 };
@@ -1161,6 +1035,7 @@ export const decideRiskReport = async ({
   });
   await enqueueRiskReportStatusEmail(database, updated, decision, reason, now);
   await notifyRiskModerators(database, updated, decision, now);
+  await notifyRiskReporter(database, updated, decision, now);
   return getRiskReportForAdmin(database, updated.id);
 };
 
