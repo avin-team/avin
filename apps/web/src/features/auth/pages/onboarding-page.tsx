@@ -67,7 +67,7 @@ export const OnboardingPage = () => {
               <h1 className="font-bold text-2xl tracking-wide">
                 Chào mừng bạn đến với Avin!
               </h1>
-              <p className="text-base text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 Vui lòng chọn vai trò để thiết lập trải nghiệm phù hợp nhất.
               </p>
             </div>

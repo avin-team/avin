@@ -102,8 +102,8 @@ export const AuthPage = () => {
             <h1 className="font-bold text-2xl tracking-wide">
               Chào mừng đến Avin
             </h1>
-            <p className="text-base text-muted-foreground">
-              Đăng nhập hoặc đăng ký tài khoản để tiếp tục.
+            <p className="text-sm text-muted-foreground">
+              Nền tảng thương mại dịch vụ số
             </p>
           </div>
         </header>
