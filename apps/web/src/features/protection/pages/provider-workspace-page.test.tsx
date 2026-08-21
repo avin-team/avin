@@ -14,6 +14,9 @@ vi.mock("@/features/protection/api/provider-api", () => ({
     start: { isPending: false, mutateAsync: vi.fn() },
     submit: { isPending: false, mutateAsync: vi.fn() },
   }),
+  useProviderProtectionPolicyActions: () => ({
+    accept: { isPending: false, mutateAsync: vi.fn() },
+  }),
   useProviderWorkspace: () => ({
     data: {
       identity: {

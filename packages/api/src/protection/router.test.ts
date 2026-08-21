@@ -57,7 +57,10 @@ const emptyProviderDatabase = {
       where: () => ({
         execute: () => Promise.resolve([]),
         limit: () => Promise.resolve([]),
-        orderBy: () => ({ execute: () => Promise.resolve([]) }),
+        orderBy: () => ({
+          execute: () => Promise.resolve([]),
+          limit: () => Promise.resolve([]),
+        }),
       }),
     }),
   }),
@@ -125,6 +128,7 @@ describe("Avin Check public launch status", () => {
         name: "Provider One",
         role: ACCOUNT_ROLE.PROVIDER,
       },
+      policy: null,
       privateProviderRecord: {
         source: "PROVIDER_IDENTITY",
         visibility: "PRIVATE",

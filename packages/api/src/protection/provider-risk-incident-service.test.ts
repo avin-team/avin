@@ -83,6 +83,7 @@ const createVersion = (
   verifiedAt: timestamp,
   versionNumber: 1,
   ...overrides,
+  policyVersionId: overrides.policyVersionId ?? null,
 });
 
 const createReport = (overrides: Partial<ReportRow> = {}): ReportRow => ({
@@ -111,6 +112,7 @@ const createReport = (overrides: Partial<ReportRow> = {}): ReportRow => ({
   urgency: "NORMAL",
   violationType: null,
   ...overrides,
+  policyVersionId: overrides.policyVersionId ?? null,
 });
 
 const createIncident = (overrides: Partial<IncidentRow> = {}): IncidentRow => ({
@@ -130,6 +132,7 @@ const createIncident = (overrides: Partial<IncidentRow> = {}): IncidentRow => ({
   status: "AWAITING_PROVIDER_RESPONSE",
   updatedAt: timestamp,
   ...overrides,
+  policyVersionId: overrides.policyVersionId ?? null,
 });
 
 interface State {

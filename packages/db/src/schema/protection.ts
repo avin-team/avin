@@ -125,6 +125,11 @@ export const protectionProviderBondAdjustmentStatus = pgEnum(
   ["APPLIED", "PENDING_APPROVAL", "REJECTED"]
 );
 
+export interface ProtectionPolicyMaterialChangeMetadata {
+  changedAreas: string[];
+  rationale: string;
+}
+
 export const protectionProviderBondWithdrawalStatus = pgEnum(
   "protection_provider_bond_withdrawal_status",
   ["COOLING", "PENDING_APPROVAL", "COMPLETED", "REJECTED"]
@@ -195,6 +200,38 @@ export type ProviderPaymentAccount = z.infer<
   typeof providerPaymentAccountSchema
 >;
 
+export const protectionPolicyVersion = pgTable(
+  "protection_policy_version",
+  {
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    effectiveAt: timestamp("effective_at").notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    materialChange: boolean("material_change").notNull(),
+    materialChangeMetadata: jsonb("material_change_metadata")
+      .$type<ProtectionPolicyMaterialChangeMetadata>()
+      .notNull(),
+    membershipFeeAmount: integer("membership_fee_amount").notNull(),
+    minimumBondAmount: integer("minimum_bond_amount").notNull(),
+    publishedAt: timestamp("published_at").defaultNow().notNull(),
+    publishedByUserId: text("published_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    reacceptDeadlineAt: timestamp("reaccept_deadline_at"),
+    retentionPolicyReference: text("retention_policy_reference").notNull(),
+    summary: text("summary").notNull(),
+    terms: text("terms").notNull(),
+    title: text("title").notNull(),
+    version: text("version").notNull().unique(),
+  },
+  (table) => [
+    index("protection_policy_version_effective_idx").on(table.effectiveAt),
+    index("protection_policy_version_deadline_idx").on(
+      table.materialChange,
+      table.reacceptDeadlineAt
+    ),
+  ]
+);
+
 export const protectionProviderApplication = pgTable(
   "protection_provider_application",
   {
@@ -217,6 +254,10 @@ export const protectionProviderApplication = pgTable(
     paymentEvidenceReference: text("payment_evidence_reference"),
     policyAcceptedAt: timestamp("policy_accepted_at"),
     policyVersion: text("policy_version"),
+    policyVersionId: uuid("policy_version_id").references(
+      () => protectionPolicyVersion.id,
+      { onDelete: "restrict" }
+    ),
     providerUserId: text("provider_user_id")
       .notNull()
       .unique()
@@ -295,6 +336,10 @@ export const protectionProviderProfileVersion = pgTable(
       .$type<ProviderOfficialChannels>()
       .notNull(),
     paymentAccount: jsonb("payment_account").$type<ProviderPaymentAccount>(),
+    policyVersionId: uuid("policy_version_id").references(
+      () => protectionPolicyVersion.id,
+      { onDelete: "restrict" }
+    ),
     profileId: uuid("profile_id")
       .notNull()
       .references(() => protectionProviderProfile.id, {
@@ -354,6 +399,10 @@ export const protectionProviderProfileRevision = pgTable(
     paymentEvidenceReference: text("payment_evidence_reference"),
     policyAcceptedAt: timestamp("policy_accepted_at"),
     policyVersion: text("policy_version"),
+    policyVersionId: uuid("policy_version_id").references(
+      () => protectionPolicyVersion.id,
+      { onDelete: "restrict" }
+    ),
     profileId: uuid("profile_id")
       .notNull()
       .references(() => protectionProviderProfile.id, {
@@ -390,6 +439,37 @@ export const protectionProviderProfileRevision = pgTable(
   ]
 );
 
+export const protectionProviderPolicyAcceptance = pgTable(
+  "protection_provider_policy_acceptance",
+  {
+    acceptedAt: timestamp("accepted_at").defaultNow().notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    policyVersionId: uuid("policy_version_id")
+      .notNull()
+      .references(() => protectionPolicyVersion.id, {
+        onDelete: "restrict",
+      }),
+    profileId: uuid("profile_id").references(
+      () => protectionProviderProfile.id,
+      { onDelete: "set null" }
+    ),
+    providerUserId: text("provider_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    source: text("source").notNull(),
+  },
+  (table) => [
+    uniqueIndex("protection_provider_policy_acceptance_unique_idx").on(
+      table.providerUserId,
+      table.policyVersionId
+    ),
+    index("protection_provider_policy_acceptance_profile_idx").on(
+      table.profileId,
+      table.acceptedAt
+    ),
+  ]
+);
+
 export const protectionRiskReporterSession = pgTable(
   "protection_risk_reporter_session",
   {
@@ -422,6 +502,10 @@ export const protectionRiskReport = pgTable(
     id: uuid("id").defaultRandom().primaryKey(),
     narrative: text("narrative"),
     platform: text("platform"),
+    policyVersionId: uuid("policy_version_id").references(
+      () => protectionPolicyVersion.id,
+      { onDelete: "restrict" }
+    ),
     publicSlug: text("public_slug"),
     publicSummary: text("public_summary"),
     publishedAt: timestamp("published_at"),
@@ -614,6 +698,10 @@ export const protectionProviderRiskIncident = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
     id: uuid("id").defaultRandom().primaryKey(),
     noticeVerifiedAt: timestamp("notice_verified_at").notNull(),
+    policyVersionId: uuid("policy_version_id").references(
+      () => protectionPolicyVersion.id,
+      { onDelete: "restrict" }
+    ),
     providerProfileId: uuid("provider_profile_id")
       .notNull()
       .references(() => protectionProviderProfile.id, { onDelete: "restrict" }),
@@ -920,6 +1008,10 @@ export const protectionSupportReview = pgTable(
     outcomeRecordedByUserId: text("outcome_recorded_by_user_id").references(
       () => user.id,
       { onDelete: "set null" }
+    ),
+    policyVersionId: uuid("policy_version_id").references(
+      () => protectionPolicyVersion.id,
+      { onDelete: "restrict" }
     ),
     preTransactionVideoPresent: boolean("pre_transaction_video_present"),
     privateEvidenceReference: text("private_evidence_reference"),

@@ -375,6 +375,9 @@ export const startSupportReview = async ({
       .values({
         createdAt: now,
         incidentId,
+        policyVersionId:
+          context.incident.policyVersionId ??
+          context.profileVersion.policyVersionId,
         profileId: context.profile.id,
         profileVersionId: context.profileVersion.id,
         providerUserId: context.profile.providerUserId,

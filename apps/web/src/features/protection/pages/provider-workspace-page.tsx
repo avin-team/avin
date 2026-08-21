@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import {
   useProviderBondWithdrawalActions,
   useProviderNotifications,
+  useProviderProtectionPolicyActions,
   useProviderProfileRevisionActions,
   useProviderWorkspace,
 } from "../api/provider-api";
@@ -40,10 +41,116 @@ const vndFormatter = new Intl.NumberFormat("vi-VN", {
   style: "currency",
 });
 
+const getCurrentPolicyVersion = (
+  workspace: ProviderWorkspace | undefined
+): string | undefined => workspace?.policy?.version;
+
+const ProviderPolicyPanel = ({
+  policy,
+}: {
+  policy: ProviderWorkspace["policy"];
+}) => {
+  const { accept } = useProviderProtectionPolicyActions();
+  if (!policy) {
+    return null;
+  }
+
+  const acceptPolicy = async () => {
+    try {
+      await accept.mutateAsync({ policyVersionId: policy.id });
+      toast.success("Đã ghi nhận việc chấp nhận chính sách hiện hành.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Không thể ghi nhận việc chấp nhận chính sách."
+      );
+    }
+  };
+
+  return (
+    <article
+      className={`rounded-2xl border p-6 shadow-sm ${
+        policy.requiresReacceptance
+          ? "border-amber-500/40 bg-amber-500/5"
+          : "border-border/60 bg-card"
+      }`}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="font-medium text-primary text-sm">Policy & consent</p>
+          <h2 className="mt-1 font-semibold text-xl">
+            {policy.title} · {policy.version}
+          </h2>
+          <p className="mt-2 text-muted-foreground text-sm">
+            Có hiệu lực từ{" "}
+            {new Date(policy.effectiveAt).toLocaleString("vi-VN")}
+          </p>
+        </div>
+        <p className="font-medium text-sm">
+          {policy.accepted ? "Đã chấp nhận" : "Chưa chấp nhận"}
+        </p>
+      </div>
+      <p className="mt-4 text-sm">{policy.summary}</p>
+      <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
+        <div className="rounded-xl border bg-muted/20 p-4">
+          <p className="font-medium">Minimum Recognized Bond</p>
+          <p className="mt-1 text-muted-foreground">
+            {vndFormatter.format(policy.minimumBondAmount)}
+          </p>
+        </div>
+        <div className="rounded-xl border bg-muted/20 p-4">
+          <p className="font-medium">Membership Fee</p>
+          <p className="mt-1 text-muted-foreground">
+            {vndFormatter.format(policy.membershipFeeAmount)} · không hoàn lại
+          </p>
+        </div>
+      </div>
+      <details className="mt-5 rounded-xl border bg-muted/20 p-4 text-sm">
+        <summary className="cursor-pointer font-medium">Xem điều khoản</summary>
+        <p className="mt-3 whitespace-pre-wrap text-muted-foreground">
+          {policy.terms}
+        </p>
+      </details>
+      {policy.reacceptDeadlineAt ? (
+        <p className="mt-4 text-sm">
+          Hạn chấp nhận:{" "}
+          {new Date(policy.reacceptDeadlineAt).toLocaleString("vi-VN")}
+        </p>
+      ) : null}
+      {policy.acceptanceOverdue ? (
+        <p className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-destructive text-sm">
+          Đã quá hạn chấp nhận. Profile bị tạm ngưng để Protection Admin xem
+          xét; dữ liệu không bị xóa hoặc chuyển giao.
+        </p>
+      ) : null}
+      {policy.requiresReacceptance && !policy.acceptanceOverdue ? (
+        <Button
+          className="mt-4"
+          disabled={accept.isPending}
+          onClick={() => void acceptPolicy()}
+          type="button"
+        >
+          {accept.isPending
+            ? "Đang ghi nhận..."
+            : "Chấp nhận chính sách hiện hành"}
+        </Button>
+      ) : null}
+      {policy.acceptedAt ? (
+        <p className="mt-4 text-muted-foreground text-xs">
+          Ghi nhận lúc {new Date(policy.acceptedAt).toLocaleString("vi-VN")}
+        </p>
+      ) : null}
+    </article>
+  );
+};
+
 const ProviderProfileRevisionPanel = ({
+  currentPolicyVersion,
   profileRevision,
   publicProfile,
 }: {
+  currentPolicyVersion?: string;
   profileRevision: ProviderWorkspace["profileRevision"];
   publicProfile: ProviderWorkspace["publicProfile"];
 }) => {
@@ -118,6 +225,7 @@ const ProviderProfileRevisionPanel = ({
           </div>
           <ProviderApplicationForm
             application={profileRevision}
+            currentPolicyVersion={currentPolicyVersion}
             key={profileRevision.id}
             mode="revision"
           />
@@ -271,6 +379,7 @@ const ProviderNotificationsPanel = ({
 export const ProviderWorkspacePage = () => {
   const workspace = useProviderWorkspace();
   const notifications = useProviderNotifications();
+  const currentPolicyVersion = getCurrentPolicyVersion(workspace.data);
   const applicationStatus = workspace.data?.application?.status;
   const canEditApplication =
     applicationStatus === undefined ||
@@ -355,9 +464,12 @@ export const ProviderWorkspacePage = () => {
           ) : null}
 
           <ProviderProfileRevisionPanel
+            currentPolicyVersion={currentPolicyVersion}
             profileRevision={workspace.data.profileRevision}
             publicProfile={workspace.data.publicProfile}
           />
+
+          <ProviderPolicyPanel policy={workspace.data.policy} />
 
           {workspace.data.bond ? (
             <ProviderBondSummary
@@ -385,6 +497,7 @@ export const ProviderWorkspacePage = () => {
               </div>
               <ProviderApplicationForm
                 application={workspace.data.application}
+                currentPolicyVersion={currentPolicyVersion}
                 key={
                   workspace.data.application?.id ?? "new-provider-application"
                 }

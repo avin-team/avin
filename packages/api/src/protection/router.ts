@@ -46,6 +46,18 @@ import {
   PROTECTION_MODULE_NAME,
   getProtectionLaunchStatus,
 } from "./launch-gates";
+import {
+  protectionPolicyVersionIdInputSchema,
+  protectionPolicyVersionListInputSchema,
+  protectionPolicyVersionPublishInputSchema,
+} from "./policy";
+import {
+  acceptCurrentProtectionPolicy,
+  getAdminProtectionPolicyVersion,
+  getProviderProtectionPolicy,
+  listAdminProtectionPolicyVersions,
+  publishProtectionPolicyVersion,
+} from "./policy-service";
 import { protectionAdminProcedure } from "./procedures";
 import {
   providerApplicationDecisionInputSchema,
@@ -174,6 +186,29 @@ const providerReviewerProcedure = protectionAdminProcedure({
   target: {
     id: "PROTECTION_PROVIDER_APPLICATION_QUEUE",
     type: "PROTECTION_PROVIDER_APPLICATION_QUEUE",
+  },
+});
+
+const providerPolicyReadProcedure = protectionAdminProcedure({
+  action: "protection.provider_policy.read",
+  capability: [
+    PROTECTION_ADMIN_CAPABILITY.PROVIDER_REVIEWER,
+    PROTECTION_ADMIN_CAPABILITY.PROTECTION_MANAGER,
+  ],
+  purpose: "Review immutable Avin Check Provider policy versions",
+  target: {
+    id: "PROTECTION_PROVIDER_POLICY_QUEUE",
+    type: "PROTECTION_PROVIDER_POLICY_QUEUE",
+  },
+});
+
+const providerPolicyPublishProcedure = protectionAdminProcedure({
+  action: "protection.provider_policy.publish",
+  capability: PROTECTION_ADMIN_CAPABILITY.PROTECTION_MANAGER,
+  purpose: "Publish immutable Avin Check Provider policy versions",
+  target: {
+    id: "PROTECTION_PROVIDER_POLICY_QUEUE",
+    type: "PROTECTION_PROVIDER_POLICY_QUEUE",
   },
 });
 
@@ -424,6 +459,30 @@ export const protectionRouter = {
           database: context.db,
           input,
           recordedByUserId: context.session.user.id,
+        })
+      ),
+  },
+
+  adminProviderPolicies: {
+    get: providerPolicyReadProcedure
+      .input(protectionPolicyVersionIdInputSchema)
+      .handler(({ context, input }) =>
+        getAdminProtectionPolicyVersion(context.db, input.policyVersionId)
+      ),
+
+    list: providerPolicyReadProcedure
+      .input(protectionPolicyVersionListInputSchema)
+      .handler(({ context, input }) =>
+        listAdminProtectionPolicyVersions(context.db, input)
+      ),
+
+    publish: providerPolicyPublishProcedure
+      .input(protectionPolicyVersionPublishInputSchema)
+      .handler(({ context, input }) =>
+        publishProtectionPolicyVersion({
+          database: context.db,
+          input,
+          publisherUserId: context.session.user.id,
         })
       ),
   },
@@ -727,6 +786,22 @@ export const protectionRouter = {
     ),
   },
 
+  providerPolicy: {
+    accept: providerProcedure
+      .input(protectionPolicyVersionIdInputSchema)
+      .handler(({ context, input }) =>
+        acceptCurrentProtectionPolicy({
+          database: context.db,
+          policyVersionId: input.policyVersionId,
+          providerUserId: context.session.user.id,
+        })
+      ),
+
+    get: providerProcedure.handler(({ context }) =>
+      getProviderProtectionPolicy(context.db, context.session.user.id)
+    ),
+  },
+
   providerProfileRevision: {
     getMine: providerProcedure.handler(({ context }) =>
       getProviderApplicationSnapshot(context.db, context.session.user.id)
@@ -787,21 +862,23 @@ export const protectionRouter = {
   },
 
   providerWorkspace: providerProcedure.handler(async ({ context }) => {
-    const [snapshot, riskIncidents, bond, bondWithdrawal] = await Promise.all([
-      getProviderApplicationSnapshot(context.db, context.session.user.id),
-      listProviderRiskIncidentsForProvider({
-        database: context.db,
-        providerUserId: context.session.user.id,
-      }),
-      getProviderBondForProvider({
-        database: context.db,
-        providerUserId: context.session.user.id,
-      }),
-      getProviderBondWithdrawal({
-        database: context.db,
-        providerUserId: context.session.user.id,
-      }),
-    ]);
+    const [snapshot, riskIncidents, bond, bondWithdrawal, policy] =
+      await Promise.all([
+        getProviderApplicationSnapshot(context.db, context.session.user.id),
+        listProviderRiskIncidentsForProvider({
+          database: context.db,
+          providerUserId: context.session.user.id,
+        }),
+        getProviderBondForProvider({
+          database: context.db,
+          providerUserId: context.session.user.id,
+        }),
+        getProviderBondWithdrawal({
+          database: context.db,
+          providerUserId: context.session.user.id,
+        }),
+        getProviderProtectionPolicy(context.db, context.session.user.id),
+      ]);
 
     return {
       bond,
@@ -811,6 +888,7 @@ export const protectionRouter = {
         name: context.session.user.name,
         role: ACCOUNT_ROLE.PROVIDER,
       },
+      policy,
       privateProviderRecord: {
         source: "PROVIDER_IDENTITY",
         visibility: "PRIVATE",

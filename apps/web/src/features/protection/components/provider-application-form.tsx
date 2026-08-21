@@ -73,7 +73,8 @@ const emptyFormState = (): ProviderApplicationFormState => ({
 const readText = (value: string | null | undefined): string => value ?? "";
 
 const getFormState = (
-  application: ProviderApplication | ProviderProfileRevision | null
+  application: ProviderApplication | ProviderProfileRevision | null,
+  currentPolicyVersion: string
 ): ProviderApplicationFormState => {
   if (!application) {
     return emptyFormState();
@@ -109,7 +110,9 @@ const getFormState = (
     },
     paymentDisclosureConsent: application.paymentDisclosureConsent ?? false,
     paymentEvidenceReference: readText(application.paymentEvidenceReference),
-    policyAccepted: Boolean(application.policyAcceptedAt),
+    policyAccepted:
+      Boolean(application.policyAcceptedAt) &&
+      application.policyVersion === currentPolicyVersion,
     services: readText(application.services),
   };
 };
@@ -120,7 +123,8 @@ const optionalText = (value: string): string | undefined => {
 };
 
 const toDraft = (
-  state: ProviderApplicationFormState
+  state: ProviderApplicationFormState,
+  policyVersion: string
 ): ProviderApplicationDraft => ({
   ageEvidenceReference: optionalText(state.ageEvidenceReference),
   fullName: optionalText(state.fullName),
@@ -147,12 +151,13 @@ const toDraft = (
   paymentDisclosureConsent: state.paymentDisclosureConsent,
   paymentEvidenceReference: optionalText(state.paymentEvidenceReference),
   policyAccepted: state.policyAccepted,
-  policyVersion: CURRENT_PROVIDER_POLICY_VERSION,
+  policyVersion,
   services: optionalText(state.services),
 });
 
 const toSubmission = (
-  state: ProviderApplicationFormState
+  state: ProviderApplicationFormState,
+  policyVersion: string
 ): ProviderApplicationSubmission => ({
   ageEvidenceReference: state.ageEvidenceReference.trim(),
   fullName: state.fullName.trim(),
@@ -177,7 +182,7 @@ const toSubmission = (
   paymentDisclosureConsent: state.paymentDisclosureConsent,
   paymentEvidenceReference: state.paymentEvidenceReference.trim(),
   policyAccepted: state.policyAccepted,
-  policyVersion: CURRENT_PROVIDER_POLICY_VERSION,
+  policyVersion,
   services: state.services.trim(),
 });
 
@@ -227,12 +232,16 @@ const getSubmitLabel = (mode: "application" | "revision"): string =>
 
 export const ProviderApplicationForm = ({
   application,
+  currentPolicyVersion = CURRENT_PROVIDER_POLICY_VERSION,
   mode = "application",
 }: {
   application: ProviderApplication | ProviderProfileRevision | null;
+  currentPolicyVersion?: string;
   mode?: "application" | "revision";
 }) => {
-  const [form, setForm] = useState(() => getFormState(application));
+  const [form, setForm] = useState(() =>
+    getFormState(application, currentPolicyVersion)
+  );
   const applicationActions = useProviderApplicationActions();
   const revisionActions = useProviderProfileRevisionActions();
   const { saveDraft, submit } =
@@ -267,7 +276,7 @@ export const ProviderApplicationForm = ({
 
   const handleSaveDraft = async () => {
     try {
-      await saveDraft.mutateAsync(toDraft(form));
+      await saveDraft.mutateAsync(toDraft(form, currentPolicyVersion));
       toast.success(
         mode === "revision"
           ? "Đã lưu bản nháp yêu cầu cập nhật profile."
@@ -290,7 +299,7 @@ export const ProviderApplicationForm = ({
     }
 
     try {
-      await submit.mutateAsync(toSubmission(form));
+      await submit.mutateAsync(toSubmission(form, currentPolicyVersion));
       toast.success(
         mode === "revision"
           ? "Đã gửi yêu cầu cập nhật profile để Reviewer xem xét."
@@ -573,7 +582,7 @@ export const ProviderApplicationForm = ({
 
       <section className="grid gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-5">
         <p className="font-medium">
-          Chính sách hiện hành: {CURRENT_PROVIDER_POLICY_VERSION}
+          Chính sách hiện hành: {currentPolicyVersion}
         </p>
         <label className="flex items-start gap-3 text-sm">
           <input

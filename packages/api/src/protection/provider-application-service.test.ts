@@ -89,6 +89,7 @@ const createApplication = (
   paymentEvidenceReference: validSubmission.paymentEvidenceReference,
   policyAcceptedAt: timestamp,
   policyVersion: validSubmission.policyVersion,
+  policyVersionId: null,
   providerUserId: "provider-1",
   reviewReason: null,
   reviewedAt: null,
@@ -136,6 +137,7 @@ const createProfileVersion = (
   verifiedAt: timestamp,
   versionNumber,
   ...overrides,
+  policyVersionId: overrides.policyVersionId ?? null,
 });
 
 const createProfileRevision = (
@@ -170,6 +172,7 @@ const createProfileRevision = (
   submittedAt: null,
   updatedAt: timestamp,
   ...overrides,
+  policyVersionId: overrides.policyVersionId ?? null,
 });
 
 const createDatabase = (state: ProviderApplicationState): Database => {

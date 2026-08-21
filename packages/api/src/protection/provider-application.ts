@@ -165,10 +165,11 @@ export const assertProviderApplicationTransition = (
 
 export const validateProviderApplicationSubmission = (
   input: unknown,
-  now = new Date()
+  now = new Date(),
+  expectedPolicyVersion = CURRENT_PROVIDER_POLICY_VERSION
 ): ProviderApplicationSubmission => {
   const submission = providerApplicationSubmissionInputSchema.parse(input);
-  if (submission.policyVersion !== CURRENT_PROVIDER_POLICY_VERSION) {
+  if (submission.policyVersion !== expectedPolicyVersion) {
     throw new Error("Provider application must accept the current policy");
   }
 

@@ -1,5 +1,6 @@
 import { user } from "@avin/db/schema/auth";
 import {
+  protectionPolicyVersion,
   protectionProviderApplication,
   protectionProviderProfile,
   protectionProviderProfileRevision,
@@ -9,7 +10,7 @@ import {
 } from "@avin/db/schema/protection";
 import type { ProviderOfficialChannels } from "@avin/db/schema/protection";
 import { ORPCError } from "@orpc/server";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, lte } from "drizzle-orm";
 
 import {
   createNotificationEvent,
@@ -19,6 +20,7 @@ import type { Context } from "../runtime/context";
 import {
   assertProviderApplicationTransition,
   createProviderProfileSlug,
+  CURRENT_PROVIDER_POLICY_VERSION,
   validateProviderApplicationSubmission,
 } from "./provider-application";
 import type {
@@ -71,6 +73,7 @@ export const toProviderApplicationView = (
   paymentEvidenceReference: application.paymentEvidenceReference,
   policyAcceptedAt: toIso(application.policyAcceptedAt),
   policyVersion: application.policyVersion,
+  policyVersionId: application.policyVersionId,
   providerUserId: application.providerUserId,
   reviewReason: application.reviewReason,
   reviewedAt: toIso(application.reviewedAt),
@@ -155,6 +158,7 @@ export const toProviderProfileRevisionView = (
   paymentEvidenceReference: revision.paymentEvidenceReference,
   policyAcceptedAt: toIso(revision.policyAcceptedAt),
   policyVersion: revision.policyVersion,
+  policyVersionId: revision.policyVersionId,
   profileId: revision.profileId,
   providerUserId: revision.providerUserId,
   reviewReason: revision.reviewReason,
@@ -217,6 +221,44 @@ const findLatestProviderProfileVersion = async (
     .limit(1);
   return version ?? null;
 };
+
+const findCurrentPolicyVersion = async (
+  database: Database,
+  now: Date
+): Promise<{ id: string; version: string } | null> => {
+  const [policy] = await database
+    .select({
+      id: protectionPolicyVersion.id,
+      version: protectionPolicyVersion.version,
+    })
+    .from(protectionPolicyVersion)
+    .where(lte(protectionPolicyVersion.effectiveAt, now))
+    .orderBy(
+      desc(protectionPolicyVersion.effectiveAt),
+      desc(protectionPolicyVersion.createdAt)
+    )
+    .limit(1);
+  return policy ?? null;
+};
+
+const findPolicyVersionId = async (
+  database: Database,
+  version: unknown
+): Promise<string | null> => {
+  if (typeof version !== "string" || version.trim().length === 0) {
+    return null;
+  }
+  const [policy] = await database
+    .select({ id: protectionPolicyVersion.id })
+    .from(protectionPolicyVersion)
+    .where(eq(protectionPolicyVersion.version, version))
+    .limit(1);
+  return policy?.id ?? null;
+};
+
+const getPolicyVersionForValidation = (
+  policy: { version: string } | null
+): string => policy?.version ?? CURRENT_PROVIDER_POLICY_VERSION;
 
 const findProviderProfileVersionHistory = async (
   database: Database,
@@ -317,12 +359,19 @@ const ensureProviderProfileVersion = async (
     return existing;
   }
 
+  const [application] = await database
+    .select({ policyVersionId: protectionProviderApplication.policyVersionId })
+    .from(protectionProviderApplication)
+    .where(eq(protectionProviderApplication.id, profile.applicationId))
+    .limit(1);
+
   const [created] = await database
     .insert(protectionProviderProfileVersion)
     .values({
       displayName: profile.displayName,
       officialChannels: profile.officialChannels,
       paymentAccount: null,
+      policyVersionId: application?.policyVersionId ?? null,
       profileId: profile.id,
       profileSlug: profile.profileSlug,
       publishedAt: profile.publishedAt,
@@ -411,6 +460,10 @@ export const saveProviderApplicationDraft = async (
   } else if (policyAccepted === false) {
     policyAcceptedAt = null;
   }
+  const policyVersionId =
+    "policyVersion" in draftFields
+      ? await findPolicyVersionId(database, draftFields.policyVersion)
+      : (existing?.policyVersionId ?? null);
 
   if (existing) {
     const [updated] = await database
@@ -418,6 +471,7 @@ export const saveProviderApplicationDraft = async (
       .set({
         ...draftFields,
         policyAcceptedAt,
+        policyVersionId,
         updatedAt: now,
       })
       .where(eq(protectionProviderApplication.id, existing.id))
@@ -434,6 +488,7 @@ export const saveProviderApplicationDraft = async (
       .values({
         ...draftFields,
         policyAcceptedAt,
+        policyVersionId,
         providerUserId,
         status: "DRAFT",
       })
@@ -454,9 +509,15 @@ export const submitProviderApplication = async (
   providerUserId: string,
   input: unknown
 ) => {
+  const now = new Date();
+  const currentPolicy = await findCurrentPolicyVersion(database, now);
   let submission;
   try {
-    submission = validateProviderApplicationSubmission(input);
+    submission = validateProviderApplicationSubmission(
+      input,
+      now,
+      currentPolicy?.version ?? CURRENT_PROVIDER_POLICY_VERSION
+    );
   } catch (error) {
     return throwApplicationMutationError(error);
   }
@@ -478,8 +539,8 @@ export const submitProviderApplication = async (
     });
   }
 
-  const now = new Date();
   const { policyAccepted: _policyAccepted, ...submissionFields } = submission;
+  const policyVersionId = currentPolicy?.id ?? null;
   const result = await database.transaction(async (transaction) => {
     let application: ProviderApplication | undefined;
     const nextRevisionCount =
@@ -494,6 +555,7 @@ export const submitProviderApplication = async (
         .set({
           ...submissionFields,
           policyAcceptedAt: now,
+          policyVersionId,
           reviewReason: null,
           revisionCount: nextRevisionCount,
           status: "PENDING_REVIEW",
@@ -514,6 +576,7 @@ export const submitProviderApplication = async (
         .values({
           ...submissionFields,
           policyAcceptedAt: now,
+          policyVersionId,
           providerUserId,
           revisionCount: 0,
           status: "PENDING_REVIEW",
@@ -664,6 +727,7 @@ export const startProviderProfileRevision = async (
   }
 
   const baseVersion = await ensureProviderProfileVersion(database, profile);
+  const currentPolicy = await findCurrentPolicyVersion(database, new Date());
   const [created] = await database
     .insert(protectionProviderProfileRevision)
     .values({
@@ -671,6 +735,8 @@ export const startProviderProfileRevision = async (
       fullName: baseVersion.displayName,
       officialChannels: baseVersion.officialChannels,
       operatingSince: null,
+      policyVersion: currentPolicy?.version ?? CURRENT_PROVIDER_POLICY_VERSION,
+      policyVersionId: currentPolicy?.id ?? baseVersion.policyVersionId ?? null,
       profileId: profile.id,
       providerUserId,
       revisionNumber: (latestRevision?.revisionNumber ?? 0) + 1,
@@ -724,12 +790,17 @@ export const saveProviderProfileRevisionDraft = async (
   } else if (policyAccepted === false) {
     policyAcceptedAt = null;
   }
+  const policyVersionId =
+    "policyVersion" in draftFields
+      ? await findPolicyVersionId(database, draftFields.policyVersion)
+      : (revision.policyVersionId ?? null);
 
   const [updated] = await database
     .update(protectionProviderProfileRevision)
     .set({
       ...draftFields,
       policyAcceptedAt,
+      policyVersionId,
       updatedAt: now,
     })
     .where(
@@ -754,9 +825,15 @@ export const submitProviderProfileRevision = async (
   providerUserId: string,
   input: unknown
 ) => {
+  const now = new Date();
+  const currentPolicy = await findCurrentPolicyVersion(database, now);
   let submission;
   try {
-    submission = validateProviderApplicationSubmission(input);
+    submission = validateProviderApplicationSubmission(
+      input,
+      now,
+      currentPolicy?.version ?? CURRENT_PROVIDER_POLICY_VERSION
+    );
   } catch (error) {
     return throwApplicationMutationError(error);
   }
@@ -787,8 +864,8 @@ export const submitProviderProfileRevision = async (
     });
   }
 
-  const now = new Date();
   const { policyAccepted: _policyAccepted, ...submissionFields } = submission;
+  const policyVersionId = currentPolicy?.id ?? null;
   const result = await database.transaction(async (transaction) => {
     const currentVersion = await findLatestProviderProfileVersion(
       transaction,
@@ -806,6 +883,7 @@ export const submitProviderProfileRevision = async (
       .set({
         ...submissionFields,
         policyAcceptedAt: now,
+        policyVersionId,
         reviewReason: null,
         status: "PENDING_REVIEW",
         submittedAt: now,
@@ -1057,6 +1135,7 @@ export const decideProviderProfileRevision = async ({
         message: "Provider profile has no published version",
       });
     }
+    const currentPolicy = await findCurrentPolicyVersion(transaction, now);
     if (decision === "APPROVED") {
       if (currentVersion.id !== revision.baseVersionId) {
         throw new ORPCError("CONFLICT", {
@@ -1082,7 +1161,8 @@ export const decideProviderProfileRevision = async ({
             policyVersion: revision.policyVersion,
             services: revision.services,
           },
-          now
+          now,
+          getPolicyVersionForValidation(currentPolicy)
         );
       } catch (error) {
         return throwApplicationMutationError(error);
@@ -1128,6 +1208,7 @@ export const decideProviderProfileRevision = async ({
           displayName: updated.fullName,
           officialChannels: updated.officialChannels ?? {},
           paymentAccount: updated.paymentAccount ?? null,
+          policyVersionId: updated.policyVersionId,
           profileId: profile.id,
           profileSlug: profile.profileSlug,
           publishedAt: now,
@@ -1254,6 +1335,7 @@ export const publishProviderProfileStatusInTransaction = async ({
       displayName: currentVersion.displayName,
       officialChannels: currentVersion.officialChannels,
       paymentAccount: currentVersion.paymentAccount,
+      policyVersionId: currentVersion.policyVersionId,
       profileId: profile.id,
       profileSlug: profile.profileSlug,
       publishedAt: now,
@@ -1379,6 +1461,7 @@ export const decideProviderApplication = ({
 
     if (decision === "APPROVED") {
       try {
+        const currentPolicy = await findCurrentPolicyVersion(transaction, now);
         validateProviderApplicationSubmission(
           {
             ageEvidenceReference: application.ageEvidenceReference,
@@ -1397,7 +1480,8 @@ export const decideProviderApplication = ({
             policyVersion: application.policyVersion,
             services: application.services,
           },
-          now
+          now,
+          getPolicyVersionForValidation(currentPolicy)
         );
       } catch (error) {
         return throwApplicationMutationError(error);
@@ -1471,6 +1555,7 @@ export const decideProviderApplication = ({
           displayName,
           officialChannels: updated.officialChannels ?? {},
           paymentAccount: updated.paymentAccount ?? null,
+          policyVersionId: updated.policyVersionId,
           profileId: profile.id,
           profileSlug: profile.profileSlug,
           publishedAt: now,

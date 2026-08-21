@@ -17,6 +17,7 @@ import { secureHeaders } from "hono/secure-headers";
 import { startEmailDeliverySchedule } from "./jobs/email-delivery";
 import { startFulfillmentMaintenanceSchedule } from "./jobs/fulfillment-maintenance";
 import { startOrderChatAttachmentMaintenanceSchedule } from "./jobs/order-chat-attachment-maintenance";
+import { startProviderPolicyMaintenanceSchedule } from "./jobs/provider-policy-maintenance";
 import { startProviderRiskIncidentMaintenanceSchedule } from "./jobs/provider-risk-incident-maintenance";
 import { startSePayReconciliationSchedule } from "./jobs/sepay-reconciliation";
 import {
@@ -286,4 +287,5 @@ startSePayReconciliationSchedule();
 startFulfillmentMaintenanceSchedule();
 startOrderChatAttachmentMaintenanceSchedule();
 startProviderRiskIncidentMaintenanceSchedule();
+startProviderPolicyMaintenanceSchedule();
 startEmailDeliverySchedule();

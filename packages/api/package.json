@@ -13,6 +13,8 @@
     "./notifications/email-delivery": "./src/notifications/email-delivery.ts",
     "./protection/launch-gates": "./src/protection/launch-gates.ts",
     "./protection/capabilities": "./src/protection/capabilities.ts",
+    "./protection/policy": "./src/protection/policy.ts",
+    "./protection/policy-service": "./src/protection/policy-service.ts",
     "./protection/bond": "./src/protection/bond.ts",
     "./protection/bond-service": "./src/protection/bond-service.ts",
     "./protection/bond-withdrawal": "./src/protection/bond-withdrawal.ts",

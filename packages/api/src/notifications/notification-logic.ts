@@ -24,6 +24,8 @@ export const notificationEventTypes = [
   "protection_provider_bond.withdrawal_pending_approval",
   "protection_provider_bond.withdrawal_rejected",
   "protection_provider_bond.withdrawal_requested",
+  "protection_provider_policy.reacceptance_deadline",
+  "protection_provider_policy.suspended",
   "seller_application.submitted",
   "seller_application.approved",
   "seller_application.rejected",

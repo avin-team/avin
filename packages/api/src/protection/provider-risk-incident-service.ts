@@ -581,6 +581,7 @@ export const linkRiskReportToProvider = async ({
       .values({
         createdAt: now,
         noticeVerifiedAt: now,
+        policyVersionId: profileVersion.policyVersionId,
         providerProfileId: profile.id,
         providerProfileVersionId: profileVersion.id,
         providerUserId: profile.providerUserId,
@@ -594,6 +595,13 @@ export const linkRiskReportToProvider = async ({
       throw new ORPCError("CONFLICT", {
         message: "Provider incident could not be created",
       });
+    }
+
+    if (!report.policyVersionId && profileVersion.policyVersionId) {
+      await transaction
+        .update(protectionRiskReport)
+        .set({ policyVersionId: profileVersion.policyVersionId })
+        .where(eq(protectionRiskReport.id, report.id));
     }
 
     await appendIncidentHistory(

@@ -14,9 +14,13 @@ export type ProviderRiskIncident = ProviderWorkspace["riskIncidents"][number];
 export type ProviderBondWithdrawal = NonNullable<
   ProviderWorkspace["bondWithdrawal"]
 >;
+export type ProviderProtectionPolicy = NonNullable<ProviderWorkspace["policy"]>;
 
 export const useProviderWorkspace = () =>
   useQuery(providerOrpc.protection.providerWorkspace.queryOptions());
+
+export const useProviderProtectionPolicy = () =>
+  useQuery(providerOrpc.protection.providerPolicy.get.queryOptions());
 
 export const useProviderNotifications = () =>
   useQuery(
@@ -112,4 +116,26 @@ export const useProviderBondWithdrawalActions = () => {
   });
 
   return { request };
+};
+
+export const useProviderProtectionPolicyActions = () => {
+  const queryClient = useQueryClient();
+  const invalidatePolicy = async (): Promise<void> => {
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey:
+          providerOrpc.protection.providerWorkspace.queryOptions().queryKey,
+      }),
+      queryClient.invalidateQueries({
+        queryKey: providerOrpc.protection.providerPolicy.get.key(),
+      }),
+    ]);
+  };
+
+  const accept = useMutation({
+    ...providerOrpc.protection.providerPolicy.accept.mutationOptions(),
+    onSuccess: invalidatePolicy,
+  });
+
+  return { accept };
 };

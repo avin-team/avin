@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-export const PROVIDER_BOND_MINIMUM_VND = 30_000_000;
 export const PROVIDER_BOND_MAXIMUM_VND = 1_000_000_000_000;
 
 export const bondAdjustmentKinds = [

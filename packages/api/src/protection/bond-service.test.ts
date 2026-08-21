@@ -56,6 +56,7 @@ const createVersion = (
   id: `profile-version-${versionNumber}`,
   officialChannels: { websiteUrl: "https://provider.example" },
   paymentAccount: null,
+  policyVersionId: null,
   profileId: "profile-1",
   profileSlug: "provider-one",
   publishedAt: timestamp,
