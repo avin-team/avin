@@ -75,6 +75,7 @@ const createVersion = (
   profileSlug: "provider-one",
   publishedAt: timestamp,
   publishedByUserId: "admin-1",
+  recommendedTransactionLimit: 0,
   services: "Game account support",
   sourceApplicationId: "application-1",
   status: "ACTIVE",

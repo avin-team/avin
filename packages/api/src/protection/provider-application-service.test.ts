@@ -128,6 +128,7 @@ const createProfileVersion = (
   profileSlug: "nguyen-provider-provider1",
   publishedAt: timestamp,
   publishedByUserId: "admin-1",
+  recommendedTransactionLimit: 0,
   services: validSubmission.services,
   sourceApplicationId: "application-1",
   status: "ACTIVE",

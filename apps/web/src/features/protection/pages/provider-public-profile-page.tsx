@@ -25,6 +25,12 @@ const RISK_STATUS_LABELS = {
   UNDER_VERIFICATION: "Đang xác minh",
 } as const;
 
+const vndFormatter = new Intl.NumberFormat("vi-VN", {
+  currency: "VND",
+  maximumFractionDigits: 0,
+  style: "currency",
+});
+
 export const ProviderPublicProfilePage = () => {
   const { slug } = useParams({ from: "/(public)/avin-check/provider/$slug" });
   const profileQuery = useQuery(
@@ -74,6 +80,21 @@ export const ProviderPublicProfilePage = () => {
           </p>
         ) : null}
       </header>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Recommended Transaction Limit</CardTitle>
+          <CardDescription>
+            Mức tham chiếu công khai không phải cam kết bồi thường tự động và
+            không vượt quá Provider Bond được hệ thống công nhận.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="font-semibold text-2xl">
+            {vndFormatter.format(profile.recommendedTransactionLimit)}
+          </p>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -131,8 +152,12 @@ export const ProviderPublicProfilePage = () => {
                 Version {version.versionNumber} ·{" "}
                 {PROFILE_STATUS_LABELS[version.status]}
               </span>
-              <span className="text-muted-foreground">
-                {version.publishedAt}
+              <span className="text-muted-foreground text-right">
+                <span className="block">{version.publishedAt}</span>
+                <span className="block">
+                  Limit{" "}
+                  {vndFormatter.format(version.recommendedTransactionLimit)}
+                </span>
               </span>
             </div>
           ))}

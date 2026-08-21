@@ -18,6 +18,8 @@ export const notificationEventTypes = [
   "protection_provider_risk_incident.response_deadline",
   "protection_provider_risk_incident.suspended",
   "protection_provider_risk_incident.removed",
+  "protection_provider_bond.limit_lowered",
+  "protection_provider_bond.limit_updated",
   "seller_application.submitted",
   "seller_application.approved",
   "seller_application.rejected",

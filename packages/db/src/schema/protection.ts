@@ -115,6 +115,16 @@ export const protectionProviderRiskIncidentStatus = pgEnum(
   ]
 );
 
+export const protectionProviderBondAdjustmentKind = pgEnum(
+  "protection_provider_bond_adjustment_kind",
+  ["DEPOSIT", "WITHDRAWAL", "SUPPORT_ALLOCATION", "CORRECTION"]
+);
+
+export const protectionProviderBondAdjustmentStatus = pgEnum(
+  "protection_provider_bond_adjustment_status",
+  ["APPLIED", "PENDING_APPROVAL", "REJECTED"]
+);
+
 export const providerOfficialChannelsSchema = z.object({
   facebookId: z.string().trim().max(200).optional(),
   facebookUrl: z.url().optional(),
@@ -247,6 +257,9 @@ export const protectionProviderProfileVersion = pgTable(
     publishedByUserId: text("published_by_user_id").references(() => user.id, {
       onDelete: "set null",
     }),
+    recommendedTransactionLimit: integer("recommended_transaction_limit")
+      .default(0)
+      .notNull(),
     services: text("services").notNull(),
     sourceApplicationId: uuid("source_application_id").references(
       () => protectionProviderApplication.id,
@@ -651,6 +664,93 @@ export const protectionProviderRiskIncidentEvidence = pgTable(
   (table) => [
     index("protection_provider_risk_incident_evidence_incident_idx").on(
       table.incidentId
+    ),
+  ]
+);
+
+export const protectionProviderBondAccount = pgTable(
+  "protection_provider_bond_account",
+  {
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    providerProfileId: uuid("provider_profile_id")
+      .notNull()
+      .unique()
+      .references(() => protectionProviderProfile.id, { onDelete: "restrict" }),
+    providerUserId: text("provider_user_id")
+      .notNull()
+      .unique()
+      .references(() => user.id, { onDelete: "restrict" }),
+    recognizedAmount: integer("recognized_amount").default(0).notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("protection_provider_bond_account_profile_idx").on(
+      table.providerProfileId
+    ),
+    index("protection_provider_bond_account_provider_idx").on(
+      table.providerUserId
+    ),
+  ]
+);
+
+export const protectionProviderBondAdjustment = pgTable(
+  "protection_provider_bond_adjustment",
+  {
+    approvalReason: text("approval_reason"),
+    approvedAt: timestamp("approved_at"),
+    approvedByUserId: text("approved_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    balanceAfter: integer("balance_after"),
+    balanceBefore: integer("balance_before"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    deltaAmount: integer("delta_amount").notNull(),
+    evidenceReference: text("evidence_reference"),
+    externalBankReference: text("external_bank_reference"),
+    id: uuid("id").defaultRandom().primaryKey(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    kind: protectionProviderBondAdjustmentKind("kind").notNull(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => protectionProviderProfile.id, { onDelete: "restrict" }),
+    providerUserId: text("provider_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    reason: text("reason").notNull(),
+    recordedAt: timestamp("recorded_at").defaultNow().notNull(),
+    recordedByUserId: text("recorded_by_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    sourceId: text("source_id"),
+    sourceType: text("source_type"),
+    status: protectionProviderBondAdjustmentStatus("status")
+      .default("PENDING_APPROVAL")
+      .notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("protection_provider_bond_adjustment_idempotency_idx").on(
+      table.profileId,
+      table.idempotencyKey
+    ),
+    index("protection_provider_bond_adjustment_profile_idx").on(
+      table.profileId,
+      table.createdAt
+    ),
+    index("protection_provider_bond_adjustment_provider_idx").on(
+      table.providerUserId,
+      table.createdAt
+    ),
+    index("protection_provider_bond_adjustment_status_idx").on(
+      table.status,
+      table.createdAt
     ),
   ]
 );

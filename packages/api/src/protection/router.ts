@@ -12,6 +12,20 @@ import {
   markNotificationRead,
   MAX_NOTIFICATION_PAGE_SIZE,
 } from "../notifications/inbox";
+import {
+  providerBondAdjustmentApprovalInputSchema,
+  providerBondAdjustmentRecordInputSchema,
+  providerBondLimitInputSchema,
+  providerBondProfileIdInputSchema,
+} from "./bond";
+import {
+  approveProviderBondAdjustment,
+  getProviderBondForAdmin,
+  getProviderBondForProvider,
+  listProviderBondsForAdmin,
+  publishProviderRecommendedTransactionLimit,
+  recordProviderBondAdjustment,
+} from "./bond-service";
 import { getProtectionLaunchConfiguration } from "./configuration";
 import {
   PROTECTION_MODULE_NAME,
@@ -172,6 +186,26 @@ const providerRiskIncidentManagerProcedure = protectionAdminProcedure({
   },
 });
 
+const providerBondOperatorProcedure = protectionAdminProcedure({
+  action: "protection.provider_bond.operate",
+  capability: PROTECTION_ADMIN_CAPABILITY.BOND_OPERATOR,
+  purpose: "Record reconciled Provider Bond adjustments",
+  target: {
+    id: "PROTECTION_PROVIDER_BOND_QUEUE",
+    type: "PROTECTION_PROVIDER_BOND_QUEUE",
+  },
+});
+
+const providerBondManagerProcedure = protectionAdminProcedure({
+  action: "protection.provider_bond.approve",
+  capability: PROTECTION_ADMIN_CAPABILITY.PROTECTION_MANAGER,
+  purpose: "Approve Provider Bond decreases and publish supported limits",
+  target: {
+    id: "PROTECTION_PROVIDER_BOND_QUEUE",
+    type: "PROTECTION_PROVIDER_BOND_QUEUE",
+  },
+});
+
 export const protectionRouter = {
   adminLaunchStatus: protectionAdminProcedure({
     action: "protection.launch_status.read",
@@ -205,6 +239,48 @@ export const protectionRouter = {
       .input(providerApplicationListInputSchema)
       .handler(({ context, input }) =>
         listProviderApplications(context.db, input)
+      ),
+  },
+
+  adminProviderBonds: {
+    approve: providerBondManagerProcedure
+      .input(providerBondAdjustmentApprovalInputSchema)
+      .handler(({ context, input }) =>
+        approveProviderBondAdjustment({
+          database: context.db,
+          input,
+          reviewerUserId: context.session.user.id,
+        })
+      ),
+
+    get: providerBondOperatorProcedure
+      .input(providerBondProfileIdInputSchema)
+      .handler(({ context, input }) =>
+        getProviderBondForAdmin(context.db, input.profileId)
+      ),
+
+    list: providerBondOperatorProcedure.handler(({ context }) =>
+      listProviderBondsForAdmin(context.db)
+    ),
+
+    publishLimit: providerBondManagerProcedure
+      .input(providerBondLimitInputSchema)
+      .handler(({ context, input }) =>
+        publishProviderRecommendedTransactionLimit({
+          database: context.db,
+          input,
+          publisherUserId: context.session.user.id,
+        })
+      ),
+
+    record: providerBondOperatorProcedure
+      .input(providerBondAdjustmentRecordInputSchema)
+      .handler(({ context, input }) =>
+        recordProviderBondAdjustment({
+          database: context.db,
+          input,
+          recordedByUserId: context.session.user.id,
+        })
       ),
   },
 
@@ -484,15 +560,20 @@ export const protectionRouter = {
   },
 
   providerWorkspace: providerProcedure.handler(async ({ context }) => {
-    const [snapshot, riskIncidents] = await Promise.all([
+    const [snapshot, riskIncidents, bond] = await Promise.all([
       getProviderApplicationSnapshot(context.db, context.session.user.id),
       listProviderRiskIncidentsForProvider({
+        database: context.db,
+        providerUserId: context.session.user.id,
+      }),
+      getProviderBondForProvider({
         database: context.db,
         providerUserId: context.session.user.id,
       }),
     ]);
 
     return {
+      bond,
       identity: {
         id: context.session.user.id,
         name: context.session.user.name,

@@ -26,6 +26,12 @@ const PROFILE_STATUS_LABELS = {
   WITHDRAWN: "Đã rút khỏi chương trình",
 } as const;
 
+const vndFormatter = new Intl.NumberFormat("vi-VN", {
+  currency: "VND",
+  maximumFractionDigits: 0,
+  style: "currency",
+});
+
 const ProviderProfileRevisionPanel = ({
   profileRevision,
   publicProfile,
@@ -112,6 +118,80 @@ const ProviderProfileRevisionPanel = ({
     </>
   );
 };
+
+const ProviderBondSummary = ({
+  bond,
+}: {
+  bond: NonNullable<ProviderWorkspace["bond"]>;
+}) => (
+  <article className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
+    <div className="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <h2 className="font-semibold text-xl">Provider Bond</h2>
+        <p className="mt-2 text-muted-foreground text-sm">
+          Số được Avin công nhận từ đối soát ngoài hệ thống; Avin không nhận,
+          giữ hoặc chuyển tiền trong workspace này.
+        </p>
+      </div>
+      <div className="text-right">
+        <p className="font-semibold text-2xl">
+          {vndFormatter.format(bond.recognizedAmount)}
+        </p>
+        <p className="text-muted-foreground text-xs">Recognized Bond</p>
+      </div>
+    </div>
+    <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
+      <div className="rounded-xl border bg-muted/20 p-4">
+        <p className="font-medium">Recommended Transaction Limit</p>
+        <p className="mt-1 text-muted-foreground">
+          {vndFormatter.format(bond.recommendedTransactionLimit)}
+        </p>
+      </div>
+      <div className="rounded-xl border bg-muted/20 p-4">
+        <p className="font-medium">Lịch sử điều chỉnh</p>
+        <p className="mt-1 text-muted-foreground">
+          {bond.adjustments.length} bản ghi bất biến
+        </p>
+      </div>
+    </div>
+  </article>
+);
+
+type ProviderNotificationsData = NonNullable<
+  ReturnType<typeof useProviderNotifications>["data"]
+>;
+
+const ProviderNotificationsPanel = ({
+  notifications,
+}: {
+  notifications: ProviderNotificationsData;
+}) => (
+  <article className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
+    <div className="flex items-baseline justify-between gap-3">
+      <h2 className="font-semibold text-xl">Thông báo xét duyệt</h2>
+      <span className="text-muted-foreground text-sm">
+        Chưa đọc: {notifications.unreadCount}
+      </span>
+    </div>
+    <div className="mt-4 grid gap-3">
+      {notifications.items.length > 0 ? (
+        notifications.items.map((notification) => (
+          <div
+            className="rounded-xl border bg-muted/20 p-4"
+            key={notification.id}
+          >
+            <p className="font-medium text-sm">{notification.title}</p>
+            <p className="mt-1 text-muted-foreground text-sm">
+              {notification.body}
+            </p>
+          </div>
+        ))
+      ) : (
+        <p className="text-muted-foreground text-sm">Chưa có thông báo mới.</p>
+      )}
+    </div>
+  </article>
+);
 
 export const ProviderWorkspacePage = () => {
   const workspace = useProviderWorkspace();
@@ -204,40 +284,16 @@ export const ProviderWorkspacePage = () => {
             publicProfile={workspace.data.publicProfile}
           />
 
+          {workspace.data.bond ? (
+            <ProviderBondSummary bond={workspace.data.bond} />
+          ) : null}
+
           <ProviderRiskIncidentPanel
             incidents={workspace.data.riskIncidents ?? []}
           />
 
           {notifications.data ? (
-            <article className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
-              <div className="flex items-baseline justify-between gap-3">
-                <h2 className="font-semibold text-xl">Thông báo xét duyệt</h2>
-                <span className="text-muted-foreground text-sm">
-                  Chưa đọc: {notifications.data.unreadCount}
-                </span>
-              </div>
-              <div className="mt-4 grid gap-3">
-                {notifications.data.items.length > 0 ? (
-                  notifications.data.items.map((notification) => (
-                    <div
-                      className="rounded-xl border bg-muted/20 p-4"
-                      key={notification.id}
-                    >
-                      <p className="font-medium text-sm">
-                        {notification.title}
-                      </p>
-                      <p className="mt-1 text-muted-foreground text-sm">
-                        {notification.body}
-                      </p>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-muted-foreground text-sm">
-                    Chưa có thông báo mới.
-                  </p>
-                )}
-              </div>
-            </article>
+            <ProviderNotificationsPanel notifications={notifications.data} />
           ) : null}
 
           {canEditApplication ? (

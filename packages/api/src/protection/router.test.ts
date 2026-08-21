@@ -55,7 +55,9 @@ const emptyProviderDatabase = {
   select: () => ({
     from: () => ({
       where: () => ({
+        execute: () => Promise.resolve([]),
         limit: () => Promise.resolve([]),
+        orderBy: () => ({ execute: () => Promise.resolve([]) }),
       }),
     }),
   }),
@@ -116,6 +118,7 @@ describe("Avin Check public launch status", () => {
 
     expect(result).toEqual({
       application: null,
+      bond: null,
       identity: {
         id: "provider-1",
         name: "Provider One",
@@ -127,6 +130,7 @@ describe("Avin Check public launch status", () => {
       },
       profileRevision: null,
       publicProfile: null,
+      riskIncidents: [],
     });
 
     await expect(

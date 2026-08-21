@@ -77,6 +77,11 @@ export const sidebarData: SidebarData = {
         },
         {
           icon: ShieldCheckIcon,
+          title: "Đối soát Provider Bond",
+          url: "/avin-check/bond",
+        },
+        {
+          icon: ShieldCheckIcon,
           title: "Duyệt Provider",
           url: "/avin-check/providers",
         },
