@@ -42,6 +42,7 @@ import {
   getRiskReportIdentifierTypes,
   getRiskReporterEmailIdentifier,
   hashRiskValue,
+  isRiskReportUnderVerificationEligible,
   isPublicRiskReportStatus,
   maskRiskIdentifier,
   normalizeRiskEmail,
@@ -78,6 +79,7 @@ const riskReportNotificationEvents: Partial<
   REJECTED: "protection_risk_report.rejected",
   REMOVED: "protection_risk_report.removed",
   SUBMITTED: "protection_risk_report.submitted",
+  UNDER_VERIFICATION: "protection_risk_report.under_verification",
 };
 
 const toIso = (value: Date | null): string | null =>
@@ -193,12 +195,14 @@ const toDraftView = (
   identifiers: RiskIdentifier[],
   evidence: RiskEvidence[]
 ) => ({
+  affectedVictimCount: report.affectedVictimCount,
   claimedLoss: report.claimedLoss,
   createdAt: report.createdAt.toISOString(),
   evidence: evidence.map((item) => toPrivateEvidenceView(item)),
   id: report.id,
   identifiers: identifiers.map(toPrivateIdentifierView),
   narrative: report.narrative,
+  platform: report.platform,
   reporterName: report.reporterName,
   reporterPhone: report.reporterPhone,
   reporterZalo: report.reporterZalo,
@@ -206,7 +210,10 @@ const toDraftView = (
   status: report.status,
   submittedAt: toIso(report.submittedAt),
   type: report.type,
+  underVerificationApproved: report.underVerificationApproved,
   updatedAt: report.updatedAt.toISOString(),
+  urgency: report.urgency,
+  violationType: report.violationType,
 });
 
 const loadReportMaterials = async (
@@ -510,6 +517,65 @@ const buildIdentifierRows = (
     };
   });
 
+const buildRiskReportDraftUpdates = (
+  input: RiskReportDraftInput,
+  now: Date
+): Partial<typeof protectionRiskReport.$inferInsert> => {
+  const updates: Partial<typeof protectionRiskReport.$inferInsert> = {
+    updatedAt: now,
+  };
+  if (input.affectedVictimCount !== undefined) {
+    updates.affectedVictimCount = input.affectedVictimCount;
+  }
+  if (input.claimedLoss !== undefined) {
+    updates.claimedLoss = input.claimedLoss;
+  }
+  if (input.narrative !== undefined) {
+    updates.narrative = input.narrative;
+  }
+  if (input.platform !== undefined) {
+    updates.platform = input.platform;
+  }
+  if (input.reporterName !== undefined) {
+    updates.reporterName = input.reporterName;
+  }
+  if (input.reporterPhone !== undefined) {
+    updates.reporterPhone = input.reporterPhone;
+  }
+  if (input.reporterZalo !== undefined) {
+    updates.reporterZalo = input.reporterZalo;
+  }
+  if (input.urgency !== undefined) {
+    updates.urgency = input.urgency;
+  }
+  if (input.violationType !== undefined) {
+    updates.violationType = input.violationType;
+  }
+  return updates;
+};
+
+const buildRiskReportDraftValues = (
+  input: RiskReportDraftInput,
+  now: Date,
+  reporterEmail: string,
+  reporterSessionId: string
+): typeof protectionRiskReport.$inferInsert => ({
+  affectedVictimCount: input.affectedVictimCount,
+  claimedLoss: input.claimedLoss,
+  createdAt: now,
+  narrative: input.narrative,
+  platform: input.platform,
+  reporterEmail,
+  reporterName: input.reporterName,
+  reporterPhone: input.reporterPhone,
+  reporterSessionId,
+  reporterZalo: input.reporterZalo,
+  type: input.type,
+  updatedAt: now,
+  urgency: input.urgency,
+  violationType: input.violationType,
+});
+
 export const saveRiskReportDraft = async (
   database: Database,
   input: RiskReportDraftInput,
@@ -545,24 +611,7 @@ export const saveRiskReportDraft = async (
   }
 
   if (report) {
-    const updates: Partial<typeof protectionRiskReport.$inferInsert> = {
-      updatedAt: now,
-    };
-    if (input.claimedLoss !== undefined) {
-      updates.claimedLoss = input.claimedLoss;
-    }
-    if (input.narrative !== undefined) {
-      updates.narrative = input.narrative;
-    }
-    if (input.reporterName !== undefined) {
-      updates.reporterName = input.reporterName;
-    }
-    if (input.reporterPhone !== undefined) {
-      updates.reporterPhone = input.reporterPhone;
-    }
-    if (input.reporterZalo !== undefined) {
-      updates.reporterZalo = input.reporterZalo;
-    }
+    const updates = buildRiskReportDraftUpdates(input, now);
     [report] = await database
       .update(protectionRiskReport)
       .set(updates)
@@ -571,18 +620,7 @@ export const saveRiskReportDraft = async (
   } else {
     [report] = await database
       .insert(protectionRiskReport)
-      .values({
-        claimedLoss: input.claimedLoss,
-        createdAt: now,
-        narrative: input.narrative,
-        reporterEmail: session.email,
-        reporterName: input.reporterName,
-        reporterPhone: input.reporterPhone,
-        reporterSessionId: session.id,
-        reporterZalo: input.reporterZalo,
-        type: input.type,
-        updatedAt: now,
-      })
+      .values(buildRiskReportDraftValues(input, now, session.email, session.id))
       .returning();
   }
 
@@ -775,7 +813,9 @@ export const submitRiskReport = async (
       evidence: materials.evidence as RiskReportSubmissionEvidence[],
       identifiers: materials.identifiers,
       narrative: report.narrative,
+      platform: report.platform,
       type: report.type,
+      violationType: report.violationType,
     });
     assertRiskReportTransition(report.status, "SUBMITTED");
   } catch (error) {
@@ -837,8 +877,10 @@ export const listRiskReportsForAdmin = async (
       continue;
     }
     result.push({
+      affectedVictimCount: report.affectedVictimCount,
       claimedLoss: report.claimedLoss,
       id: report.id,
+      platform: report.platform,
       primaryIdentifier:
         identifiers.find((item) => item.isPrimary)?.maskedValue ?? null,
       reporterEmail: report.reporterEmail,
@@ -847,6 +889,8 @@ export const listRiskReportsForAdmin = async (
       submittedAt: toIso(report.submittedAt),
       type: report.type,
       updatedAt: report.updatedAt.toISOString(),
+      urgency: report.urgency,
+      violationType: report.violationType,
     });
   }
   return result;
@@ -869,6 +913,7 @@ export const getRiskReportForAdmin = async (
     materials.derivatives.map((item) => [item.evidenceId, item])
   );
   return {
+    affectedVictimCount: report.affectedVictimCount,
     claimedLoss: report.claimedLoss,
     createdAt: report.createdAt.toISOString(),
     evidence: materials.evidence.map((item) =>
@@ -888,6 +933,7 @@ export const getRiskReportForAdmin = async (
       value: item.value,
     })),
     narrative: report.narrative,
+    platform: report.platform,
     publicSlug: report.publicSlug,
     publicSummary: report.publicSummary,
     reporterEmail: report.reporterEmail,
@@ -900,7 +946,10 @@ export const getRiskReportForAdmin = async (
     status: report.status,
     submittedAt: toIso(report.submittedAt),
     type: report.type,
+    underVerificationApproved: report.underVerificationApproved,
     updatedAt: report.updatedAt.toISOString(),
+    urgency: report.urgency,
+    violationType: report.violationType,
   };
 };
 
@@ -936,9 +985,31 @@ const assertRiskReportDecisionReason = (
   const requiresReason =
     decision === "CHANGES_REQUESTED" ||
     decision === "REJECTED" ||
-    decision === "REMOVED";
+    decision === "REMOVED" ||
+    decision === "UNDER_VERIFICATION";
   if (requiresReason && !reason?.trim()) {
     throwBadRequest("A reason is required for this moderation decision");
+  }
+};
+
+const assertRiskReportUnderVerificationEligible = (
+  report: RiskReport,
+  approved: boolean | undefined
+): void => {
+  if (approved !== true) {
+    throwBadRequest(
+      "Under-verification publication requires an explicit policy approval"
+    );
+  }
+  if (
+    !isRiskReportUnderVerificationEligible({
+      affectedVictimCount: report.affectedVictimCount,
+      urgency: report.urgency,
+    })
+  ) {
+    throwBadRequest(
+      "Under-verification publication is limited to urgent or multi-victim risk"
+    );
   }
 };
 
@@ -948,15 +1019,27 @@ const assertRiskReportPublicationReady = ({
   materials,
   publicSummary,
   report,
+  underVerificationApproved,
 }: {
   decision: RiskReportDecisionStatus;
   launchConfiguration: ProtectionLaunchConfiguration;
   materials: ReportMaterials;
   publicSummary: string | undefined;
   report: RiskReport;
+  underVerificationApproved?: boolean;
 }): void => {
-  if (decision !== "PUBLISHED" && decision !== "CORRECTED") {
+  if (
+    decision !== "PUBLISHED" &&
+    decision !== "CORRECTED" &&
+    decision !== "UNDER_VERIFICATION"
+  ) {
     return;
+  }
+  if (decision === "UNDER_VERIFICATION") {
+    assertRiskReportUnderVerificationEligible(
+      report,
+      underVerificationApproved
+    );
   }
   assertProtectionOperationAllowed(
     launchConfiguration,
@@ -967,7 +1050,9 @@ const assertRiskReportPublicationReady = ({
     evidence: materials.evidence as RiskReportSubmissionEvidence[],
     identifiers: materials.identifiers,
     narrative: report.narrative,
+    platform: report.platform,
     type: report.type,
+    violationType: report.violationType,
   });
   assertReadyDerivatives(report, materials.evidence, materials.derivatives);
   if (!(publicSummary?.trim() || report.publicSummary?.trim())) {
@@ -983,6 +1068,7 @@ export const decideRiskReport = async ({
   publicSummary,
   reason,
   reviewerUserId,
+  underVerificationApproved,
   launchConfiguration = getProtectionLaunchConfiguration(),
 }: {
   database: Database;
@@ -993,6 +1079,7 @@ export const decideRiskReport = async ({
   publicSummary?: string;
   reason?: string;
   reviewerUserId: string;
+  underVerificationApproved?: boolean;
 }) => {
   const [report] = await database
     .select()
@@ -1023,22 +1110,31 @@ export const decideRiskReport = async ({
     materials,
     publicSummary,
     report,
+    underVerificationApproved,
   });
 
   const nextPublicSlug =
-    decision === "PUBLISHED" && !report.publicSlug
+    isPublicRiskReportStatus(decision) && !report.publicSlug
       ? createRiskReportPublicSlug(report.id)
       : report.publicSlug;
+  const nextPublishedAt =
+    isPublicRiskReportStatus(decision) && !report.publishedAt
+      ? now
+      : report.publishedAt;
   const [updated] = await database
     .update(protectionRiskReport)
     .set({
       publicSlug: nextPublicSlug,
       publicSummary: publicSummary?.trim() || report.publicSummary,
-      publishedAt: decision === "PUBLISHED" ? now : report.publishedAt,
+      publishedAt: nextPublishedAt,
       reviewReason: reason?.trim() || null,
       reviewedAt: now,
       reviewedByUserId: reviewerUserId,
       status: decision,
+      underVerificationApproved:
+        decision === "UNDER_VERIFICATION"
+          ? true
+          : report.underVerificationApproved,
       updatedAt: now,
     })
     .where(eq(protectionRiskReport.id, report.id))
@@ -1052,10 +1148,7 @@ export const decideRiskReport = async ({
   await database.insert(protectionRiskReportHistory).values({
     actorUserId: reviewerUserId,
     createdAt: now,
-    isPublic:
-      decision === "CORRECTED" ||
-      decision === "PUBLISHED" ||
-      decision === "REMOVED",
+    isPublic: isPublicRiskReportStatus(decision),
     reason: reason?.trim() || null,
     reportId: report.id,
     status: decision,
@@ -1243,6 +1336,7 @@ const toPublicWarningView = (
   history: RiskHistory[],
   supabaseUrl: string
 ) => {
+  const isRemoved = report.status === "REMOVED";
   const derivativesByEvidenceId = new Map(
     derivatives.map((item) => [item.evidenceId, item])
   );
@@ -1259,42 +1353,57 @@ const toPublicWarningView = (
     }
   }
   return {
-    claimedLoss: report.claimedLoss,
-    evidence: evidence.flatMap((item) => {
-      const derivative = derivativesByEvidenceId.get(item.id);
-      if (
-        !derivative ||
-        !isRiskReportDerivativeKey(derivative.storageKey, report.id, item.id) ||
-        !derivative.metadataRemoved ||
-        !derivative.unrelatedPiiRedacted ||
-        !derivative.watermarkApplied
-      ) {
-        return [];
-      }
-      return [
-        {
-          contentType: derivative.contentType,
-          id: item.id,
-          kind: item.kind,
-          publicUrl: createPublicMediaUrl(supabaseUrl, derivative.storageKey),
-          sizeBytes: derivative.sizeBytes,
-        },
-      ];
-    }),
+    claimedLoss: isRemoved ? null : report.claimedLoss,
+    evidence: isRemoved
+      ? []
+      : evidence.flatMap((item) => {
+          const derivative = derivativesByEvidenceId.get(item.id);
+          if (
+            !derivative ||
+            !isRiskReportDerivativeKey(
+              derivative.storageKey,
+              report.id,
+              item.id
+            ) ||
+            !derivative.metadataRemoved ||
+            !derivative.unrelatedPiiRedacted ||
+            !derivative.watermarkApplied
+          ) {
+            return [];
+          }
+          return [
+            {
+              contentType: derivative.contentType,
+              id: item.id,
+              kind: item.kind,
+              publicUrl: createPublicMediaUrl(
+                supabaseUrl,
+                derivative.storageKey
+              ),
+              sizeBytes: derivative.sizeBytes,
+            },
+          ];
+        }),
     history: publicHistory,
-    identifiers: identifiers.map((item) => ({
-      maskedValue: item.maskedValue,
-      publicValue: item.publicValue,
-      type: item.type,
-    })),
+    identifiers: isRemoved
+      ? []
+      : identifiers.map((item) => ({
+          maskedValue: item.maskedValue,
+          publicValue: item.publicValue,
+          type: item.type,
+        })),
+    platform: isRemoved ? null : report.platform,
     publicPath: createPublicWarningPath(
       report.publicSlug ?? createRiskReportPublicSlug(report.id)
     ),
     publicSlug: report.publicSlug ?? createRiskReportPublicSlug(report.id),
-    publicSummary: report.publicSummary,
+    publicSummary: isRemoved
+      ? "Warning này đã được gỡ khỏi danh mục công khai."
+      : report.publicSummary,
     publishedAt: toIso(report.publishedAt),
     status: report.status,
     type: report.type,
+    violationType: isRemoved ? null : report.violationType,
   };
 };
 
@@ -1306,7 +1415,14 @@ export const listPublicRiskWarnings = async (
   const reports = await database
     .select()
     .from(protectionRiskReport)
-    .where(inArray(protectionRiskReport.status, ["PUBLISHED", "CORRECTED"]))
+    .where(
+      inArray(protectionRiskReport.status, [
+        "PUBLISHED",
+        "CORRECTED",
+        "UNDER_VERIFICATION",
+        "REMOVED",
+      ])
+    )
     .orderBy(desc(protectionRiskReport.publishedAt))
     .limit(input?.limit ?? 20);
 
@@ -1336,7 +1452,12 @@ export const getPublicRiskWarning = async (
     .where(
       and(
         eq(protectionRiskReport.publicSlug, publicSlug),
-        inArray(protectionRiskReport.status, ["PUBLISHED", "CORRECTED"])
+        inArray(protectionRiskReport.status, [
+          "PUBLISHED",
+          "CORRECTED",
+          "UNDER_VERIFICATION",
+          "REMOVED",
+        ])
       )
     )
     .limit(1);

@@ -34,6 +34,19 @@ const formatLoss = (value: number | null): string =>
     ? "Chưa công bố"
     : `${riskWarningLossFormatter.format(value)} VND`;
 
+const formatWarningStatus = (status: PublicRiskWarning["status"]): string => {
+  if (status === "CORRECTED") {
+    return "Đã cập nhật";
+  }
+  if (status === "REMOVED") {
+    return "Đã gỡ";
+  }
+  if (status === "UNDER_VERIFICATION") {
+    return "Đang xác minh";
+  }
+  return "Đã xem xét";
+};
+
 const PublicRiskWarningCard = ({ warning }: { warning: PublicRiskWarning }) => (
   <Card className="h-full">
     <CardHeader>
@@ -45,7 +58,7 @@ const PublicRiskWarningCard = ({ warning }: { warning: PublicRiskWarning }) => (
           </CardDescription>
         </div>
         <Badge className="shrink-0" variant="outline">
-          {warning.status === "CORRECTED" ? "Đã cập nhật" : "Đã xem xét"}
+          {formatWarningStatus(warning.status)}
         </Badge>
       </div>
     </CardHeader>

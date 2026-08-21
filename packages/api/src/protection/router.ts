@@ -211,6 +211,7 @@ export const protectionRouter = {
           publicSummary: input.publicSummary,
           reason: input.reason,
           reviewerUserId: context.session.user.id,
+          underVerificationApproved: input.underVerificationApproved,
         })
       ),
 

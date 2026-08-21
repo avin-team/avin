@@ -14,6 +14,7 @@ export const riskReportStatuses = [
   "DRAFT",
   "SUBMITTED",
   "UNDER_REVIEW",
+  "UNDER_VERIFICATION",
   "CHANGES_REQUESTED",
   "REJECTED",
   "PUBLISHED",
@@ -22,6 +23,22 @@ export const riskReportStatuses = [
 ] as const;
 
 export type RiskReportStatus = (typeof riskReportStatuses)[number];
+
+export const riskReportWebsiteViolationTypes = [
+  "PHISHING",
+  "MALWARE",
+  "IMPERSONATION",
+  "FAKE_STORE",
+  "PAYMENT_SCAM",
+  "OTHER",
+] as const;
+
+export type RiskReportWebsiteViolationType =
+  (typeof riskReportWebsiteViolationTypes)[number];
+
+export const riskReportUrgencies = ["NORMAL", "URGENT"] as const;
+
+export type RiskReportUrgency = (typeof riskReportUrgencies)[number];
 
 export const riskReportIdentifierTypes = [
   "BANK_ACCOUNT",
@@ -57,6 +74,7 @@ export type RiskReportEvidenceScanStatus =
 
 export const riskReportDecisionStatuses = [
   "UNDER_REVIEW",
+  "UNDER_VERIFICATION",
   "CHANGES_REQUESTED",
   "REJECTED",
   "PUBLISHED",
@@ -70,6 +88,10 @@ export type RiskReportDecisionStatus =
 const riskReportTypeSchema = z.enum(riskReportTypes);
 const riskReportIdentifierTypeSchema = z.enum(riskReportIdentifierTypes);
 const riskReportEvidenceKindSchema = z.enum(riskReportEvidenceKinds);
+const riskReportUrgencySchema = z.enum(riskReportUrgencies);
+const riskReportWebsiteViolationTypeSchema = z.enum(
+  riskReportWebsiteViolationTypes
+);
 
 const emailSchema = z.email().trim().toLowerCase();
 const reporterTokenSchema = z.string().trim().min(40).max(200);
@@ -105,15 +127,19 @@ export type RiskReportVerifyEmailCodeInput = z.infer<
 >;
 
 export const riskReportDraftInputSchema = z.object({
+  affectedVictimCount: z.number().int().min(1).max(1_000_000).optional(),
   claimedLoss: z.number().int().min(0).max(2_000_000_000).optional(),
   identifiers: z.array(riskReportIdentifierInputSchema).max(6).optional(),
   narrative: reportNarrativeSchema.optional(),
+  platform: z.string().trim().max(200).optional(),
   reportId: z.uuid().optional(),
   reporterName: reportNameSchema.optional(),
   reporterPhone: reportPhoneSchema.optional(),
   reporterToken: reporterTokenSchema,
   reporterZalo: z.string().trim().max(100).optional(),
   type: riskReportTypeSchema,
+  urgency: riskReportUrgencySchema.optional(),
+  violationType: riskReportWebsiteViolationTypeSchema.optional(),
 });
 
 export type RiskReportDraftInput = z.infer<typeof riskReportDraftInputSchema>;
@@ -169,6 +195,7 @@ export const riskReportAdminDecisionInputSchema = z.object({
   id: z.uuid(),
   publicSummary: z.string().trim().min(20).max(5000).optional(),
   reason: z.string().trim().max(2000).optional(),
+  underVerificationApproved: z.boolean().optional(),
 });
 
 export const riskReportDerivativeInputSchema = z.object({
@@ -205,7 +232,13 @@ const allowedTransitions: Record<
   REJECTED: [],
   REMOVED: [],
   SUBMITTED: ["UNDER_REVIEW"],
-  UNDER_REVIEW: ["CHANGES_REQUESTED", "REJECTED", "PUBLISHED"],
+  UNDER_REVIEW: [
+    "CHANGES_REQUESTED",
+    "REJECTED",
+    "PUBLISHED",
+    "UNDER_VERIFICATION",
+  ],
+  UNDER_VERIFICATION: ["PUBLISHED", "CORRECTED", "REMOVED"],
 };
 
 export const assertRiskReportTransition = (
@@ -218,6 +251,14 @@ export const assertRiskReportTransition = (
     );
   }
 };
+
+export const isRiskReportUnderVerificationEligible = ({
+  affectedVictimCount,
+  urgency,
+}: {
+  affectedVictimCount: number;
+  urgency: RiskReportUrgency;
+}): boolean => urgency === "URGENT" || affectedVictimCount >= 2;
 
 export const normalizeRiskEmail = (email: string): string =>
   email.trim().normalize("NFKC").toLowerCase();
@@ -316,24 +357,47 @@ export interface RiskReportSubmissionEvidence {
   scanStatus: RiskReportEvidenceScanStatus;
 }
 
+const assertEvidenceKinds = (
+  evidence: readonly RiskReportSubmissionEvidence[],
+  requiredKinds: readonly RiskReportEvidenceKind[],
+  message: string
+): void => {
+  if (
+    !requiredKinds.some((kind) => evidence.some((item) => item.kind === kind))
+  ) {
+    throw new Error(message);
+  }
+};
+
 export const assertRiskReportSubmission = ({
   claimedLoss,
   evidence,
   identifiers,
   narrative,
+  platform,
   type,
+  violationType,
 }: {
   claimedLoss: number | null | undefined;
   evidence: readonly RiskReportSubmissionEvidence[];
   identifiers: readonly Pick<RiskReportIdentifierInput, "type">[];
   narrative: string | null | undefined;
+  platform?: string | null;
   type: RiskReportType;
+  violationType?: RiskReportWebsiteViolationType | null;
 }): void => {
   if (!narrative?.trim()) {
     throw new Error("A report narrative is required before submission");
   }
-  if (!claimedLoss || claimedLoss <= 0) {
+  if (type === "BANK_WALLET_PHONE" && (!claimedLoss || claimedLoss <= 0)) {
     throw new Error("A claimed loss greater than zero is required");
+  }
+
+  if (type === "MALICIOUS_WEBSITE" && !violationType) {
+    throw new Error("A website violation type is required");
+  }
+  if (type === "SOCIAL_GAME_ACCOUNT" && !platform?.trim()) {
+    throw new Error("A platform is required for social or game reports");
   }
 
   const allowedIdentifierTypeSet = new Set(getRiskReportIdentifierTypes(type));
@@ -348,16 +412,42 @@ export const assertRiskReportSubmission = ({
   if (evidence.some((item) => item.scanStatus !== "CLEAN")) {
     throw new Error("All evidence must pass file validation before submission");
   }
-  if (!evidence.some((item) => item.kind === "PAYMENT_PROOF")) {
-    throw new Error("Payment proof is required before submission");
-  }
-  if (!evidence.some((item) => item.kind === "CONVERSATION")) {
-    throw new Error("Conversation evidence is required before submission");
+  if (type === "BANK_WALLET_PHONE") {
+    assertEvidenceKinds(
+      evidence,
+      ["PAYMENT_PROOF"],
+      "Payment proof is required before submission"
+    );
+    assertEvidenceKinds(
+      evidence,
+      ["CONVERSATION"],
+      "Conversation evidence is required before submission"
+    );
+  } else if (type === "MALICIOUS_WEBSITE") {
+    assertEvidenceKinds(
+      evidence,
+      ["SCREENSHOT", "VIDEO"],
+      "A screenshot or video is required before submission"
+    );
+  } else {
+    assertEvidenceKinds(
+      evidence,
+      ["OWNERSHIP_PROOF", "PAYMENT_PROOF"],
+      "Ownership or transaction proof is required before submission"
+    );
+    assertEvidenceKinds(
+      evidence,
+      ["CONVERSATION"],
+      "Conversation evidence is required before submission"
+    );
   }
 };
 
 export const isPublicRiskReportStatus = (status: RiskReportStatus): boolean =>
-  status === "PUBLISHED" || status === "CORRECTED";
+  status === "CORRECTED" ||
+  status === "PUBLISHED" ||
+  status === "REMOVED" ||
+  status === "UNDER_VERIFICATION";
 
 export const createRiskReportPublicSlug = (reportId: string): string =>
   `warning-${reportId}`;
@@ -375,6 +465,7 @@ export const createRiskReportEmailSubject = (
     REJECTED: "đã bị từ chối",
     REMOVED: "đã được gỡ khỏi danh mục công khai",
     UNDER_REVIEW: "đang được xem xét",
+    UNDER_VERIFICATION: "đang được công khai để xác minh",
   };
   return `Avin Check: Báo cáo của bạn ${labels[status] ?? "đã được cập nhật"}`;
 };

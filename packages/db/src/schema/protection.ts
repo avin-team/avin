@@ -37,6 +37,23 @@ export const protectionRiskReportType = pgEnum("protection_risk_report_type", [
   "SOCIAL_GAME_ACCOUNT",
 ]);
 
+export const protectionRiskReportWebsiteViolation = pgEnum(
+  "protection_risk_report_website_violation",
+  [
+    "PHISHING",
+    "MALWARE",
+    "IMPERSONATION",
+    "FAKE_STORE",
+    "PAYMENT_SCAM",
+    "OTHER",
+  ]
+);
+
+export const protectionRiskReportUrgency = pgEnum(
+  "protection_risk_report_urgency",
+  ["NORMAL", "URGENT"]
+);
+
 export const protectionRiskReportStatus = pgEnum(
   "protection_risk_report_status",
   [
@@ -48,6 +65,7 @@ export const protectionRiskReportStatus = pgEnum(
     "PUBLISHED",
     "CORRECTED",
     "REMOVED",
+    "UNDER_VERIFICATION",
   ]
 );
 
@@ -325,10 +343,12 @@ export const protectionRiskReporterSession = pgTable(
 export const protectionRiskReport = pgTable(
   "protection_risk_report",
   {
+    affectedVictimCount: integer("affected_victim_count").default(1).notNull(),
     claimedLoss: integer("claimed_loss"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     id: uuid("id").defaultRandom().primaryKey(),
     narrative: text("narrative"),
+    platform: text("platform"),
     publicSlug: text("public_slug"),
     publicSummary: text("public_summary"),
     publishedAt: timestamp("published_at"),
@@ -349,10 +369,15 @@ export const protectionRiskReport = pgTable(
     status: protectionRiskReportStatus("status").default("DRAFT").notNull(),
     submittedAt: timestamp("submitted_at"),
     type: protectionRiskReportType("type").notNull(),
+    underVerificationApproved: boolean("under_verification_approved")
+      .default(false)
+      .notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
+    urgency: protectionRiskReportUrgency("urgency").default("NORMAL").notNull(),
+    violationType: protectionRiskReportWebsiteViolation("violation_type"),
   },
   (table) => [
     uniqueIndex("protection_risk_report_public_slug_idx").on(table.publicSlug),

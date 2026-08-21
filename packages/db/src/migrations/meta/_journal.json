@@ -281,6 +281,13 @@
       "when": 1787309886459,
       "tag": "0039_stale_magdalene",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1787310667431,
+      "tag": "0040_small_mad_thinker",
+      "breakpoints": true
     }
   ]
 }

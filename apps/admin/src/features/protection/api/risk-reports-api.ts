@@ -15,7 +15,8 @@ export type RiskReportDecision =
   | "PUBLISHED"
   | "REJECTED"
   | "REMOVED"
-  | "UNDER_REVIEW";
+  | "UNDER_REVIEW"
+  | "UNDER_VERIFICATION";
 
 export const useAdminRiskReports = (params?: {
   search?: string;

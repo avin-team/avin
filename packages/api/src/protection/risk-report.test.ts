@@ -6,6 +6,8 @@ import {
   createRiskReportPublicPath,
   getRiskReportIdentifierTypes,
   hashRiskValue,
+  isRiskReportUnderVerificationEligible,
+  isPublicRiskReportStatus,
   maskRiskIdentifier,
   normalizeRiskIdentifier,
 } from "./risk-report";
@@ -44,6 +46,12 @@ describe("Risk report contracts", () => {
     ).not.toThrow();
     expect(() =>
       assertRiskReportTransition("CORRECTED", "REMOVED")
+    ).not.toThrow();
+    expect(() =>
+      assertRiskReportTransition("UNDER_REVIEW", "UNDER_VERIFICATION")
+    ).not.toThrow();
+    expect(() =>
+      assertRiskReportTransition("UNDER_VERIFICATION", "PUBLISHED")
     ).not.toThrow();
     expect(() => assertRiskReportTransition("REMOVED", "PUBLISHED")).toThrow();
   });
@@ -96,5 +104,86 @@ describe("Risk report contracts", () => {
     expect(createRiskReportPublicPath("warning-report-1")).toBe(
       "/avin-check/warning/warning-report-1"
     );
+  });
+
+  it("uses type-specific evidence requirements for website reports", () => {
+    expect(() =>
+      assertRiskReportSubmission({
+        claimedLoss: null,
+        evidence: [{ kind: "SCREENSHOT", scanStatus: "CLEAN" }],
+        identifiers: [{ type: "WEBSITE" }],
+        narrative:
+          "Website giả mạo yêu cầu người dùng nhập thông tin thanh toán.",
+        type: "MALICIOUS_WEBSITE",
+        violationType: "PHISHING",
+      })
+    ).not.toThrow();
+    expect(() =>
+      assertRiskReportSubmission({
+        claimedLoss: null,
+        evidence: [{ kind: "PAYMENT_PROOF", scanStatus: "CLEAN" }],
+        identifiers: [{ type: "WEBSITE" }],
+        narrative:
+          "Website giả mạo yêu cầu người dùng nhập thông tin thanh toán.",
+        type: "MALICIOUS_WEBSITE",
+        violationType: "PHISHING",
+      })
+    ).toThrow("screenshot or video");
+  });
+
+  it("requires ownership or transaction proof and conversation for account reports", () => {
+    const base = {
+      claimedLoss: null,
+      identifiers: [{ type: "SOCIAL_ACCOUNT" as const }],
+      narrative: "Tài khoản bị chiếm quyền và người dùng không thể khôi phục.",
+      platform: "Telegram",
+      type: "SOCIAL_GAME_ACCOUNT" as const,
+    };
+
+    expect(() =>
+      assertRiskReportSubmission({
+        ...base,
+        evidence: [
+          { kind: "OWNERSHIP_PROOF", scanStatus: "CLEAN" },
+          { kind: "CONVERSATION", scanStatus: "CLEAN" },
+        ],
+      })
+    ).not.toThrow();
+    expect(() =>
+      assertRiskReportSubmission({
+        ...base,
+        evidence: [{ kind: "CONVERSATION", scanStatus: "CLEAN" }],
+      })
+    ).toThrow("Ownership or transaction proof");
+    expect(() =>
+      assertRiskReportSubmission({
+        ...base,
+        evidence: [{ kind: "OWNERSHIP_PROOF", scanStatus: "CLEAN" }],
+      })
+    ).toThrow("Conversation evidence");
+  });
+
+  it("keeps under-verification and removal in the public lifecycle", () => {
+    expect(
+      isRiskReportUnderVerificationEligible({
+        affectedVictimCount: 1,
+        urgency: "URGENT",
+      })
+    ).toBe(true);
+    expect(
+      isRiskReportUnderVerificationEligible({
+        affectedVictimCount: 2,
+        urgency: "NORMAL",
+      })
+    ).toBe(true);
+    expect(
+      isRiskReportUnderVerificationEligible({
+        affectedVictimCount: 1,
+        urgency: "NORMAL",
+      })
+    ).toBe(false);
+    expect(isPublicRiskReportStatus("UNDER_VERIFICATION")).toBe(true);
+    expect(isPublicRiskReportStatus("REMOVED")).toBe(true);
+    expect(isPublicRiskReportStatus("UNDER_REVIEW")).toBe(false);
   });
 });

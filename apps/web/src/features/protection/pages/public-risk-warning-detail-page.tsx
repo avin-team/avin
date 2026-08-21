@@ -34,6 +34,22 @@ const formatLoss = (value: number | null): string =>
     ? "Chưa công bố"
     : `${riskWarningLossFormatter.format(value)} VND`;
 
+const formatWarningStatus = (status: string): string => {
+  if (status === "CORRECTED") {
+    return "Đã cập nhật";
+  }
+  if (status === "REMOVED") {
+    return "Đã gỡ";
+  }
+  if (status === "UNDER_VERIFICATION") {
+    return "Đang xác minh";
+  }
+  if (status === "PUBLISHED") {
+    return "Đã công khai";
+  }
+  return "Đã xem xét";
+};
+
 const formatHistoryStatus = (status: string): string => {
   if (status === "CORRECTED") {
     return "Đã cập nhật";
@@ -44,7 +60,36 @@ const formatHistoryStatus = (status: string): string => {
   if (status === "PUBLISHED") {
     return "Đã công khai";
   }
+  if (status === "UNDER_VERIFICATION") {
+    return "Đang xác minh";
+  }
   return status;
+};
+
+const PublicWarningStatusNotice = ({ status }: { status: string }) => {
+  if (status === "REMOVED") {
+    return (
+      <Alert className="border-destructive/30 bg-destructive/5">
+        <AlertTitle>Warning đã được gỡ khỏi danh mục công khai</AlertTitle>
+        <AlertDescription>
+          Nội dung cũ và bằng chứng public không còn được hiển thị. Lịch sử
+          moderation vẫn được giữ dưới dạng tombstone để tránh xoá dấu vết.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+  if (status === "UNDER_VERIFICATION") {
+    return (
+      <Alert>
+        <AlertTitle>Warning đang ở trạng thái under-verification</AlertTitle>
+        <AlertDescription>
+          Đây là cảnh báo khẩn cấp hoặc liên quan nhiều nạn nhân, đang được xác
+          minh bổ sung bởi Risk Moderator.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+  return null;
 };
 
 export const PublicRiskWarningDetailPage = () => {
@@ -92,8 +137,7 @@ export const PublicRiskWarningDetailPage = () => {
       <header className="rounded-[2rem] border border-primary/20 bg-linear-to-br from-primary/10 via-card to-card px-6 py-10 shadow-sm sm:px-10">
         <Badge className="mb-4 gap-1.5" variant="outline">
           <ShieldWarningIcon aria-hidden="true" />
-          Avin Check ·{" "}
-          {warning.status === "CORRECTED" ? "Đã cập nhật" : "Đã xem xét"}
+          Avin Check · {formatWarningStatus(warning.status)}
         </Badge>
         <h1 className="font-black text-4xl tracking-tight sm:text-5xl">
           {RISK_REPORT_TYPE_LABELS[warning.type]}
@@ -104,6 +148,8 @@ export const PublicRiskWarningDetailPage = () => {
           thuộc public projection.
         </p>
       </header>
+
+      <PublicWarningStatusNotice status={warning.status} />
 
       <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
         <Card>
@@ -117,6 +163,24 @@ export const PublicRiskWarningDetailPage = () => {
             <p className="whitespace-pre-wrap text-sm leading-7">
               {warning.publicSummary}
             </p>
+            {warning.platform || warning.violationType ? (
+              <div className="grid gap-2 text-sm sm:grid-cols-2">
+                {warning.platform ? (
+                  <div>
+                    <p className="font-medium">Nền tảng</p>
+                    <p className="text-muted-foreground">{warning.platform}</p>
+                  </div>
+                ) : null}
+                {warning.violationType ? (
+                  <div>
+                    <p className="font-medium">Loại vi phạm website</p>
+                    <p className="text-muted-foreground">
+                      {warning.violationType}
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             <div className="grid gap-2">
               <p className="font-medium text-sm">Định danh được che</p>
               {warning.identifiers.map((identifier) => (
@@ -136,6 +200,22 @@ export const PublicRiskWarningDetailPage = () => {
             <p className="text-muted-foreground text-sm">
               Tổn thất khai báo: {formatLoss(warning.claimedLoss)}
             </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="pt-6 text-sm">
+            <p className="font-medium">Có thêm bằng chứng?</p>
+            <p className="mt-1 text-muted-foreground">
+              Hãy gửi một risk report mới để Risk Moderator xem xét. Avin Check
+              không mở bình luận công khai chưa được kiểm duyệt.
+            </p>
+            <Link
+              className="mt-3 inline-flex font-medium text-primary underline underline-offset-4"
+              to="/avin-check/report"
+            >
+              Gửi report mới
+            </Link>
           </CardContent>
         </Card>
 

@@ -20,7 +20,7 @@ import { useUploadFiles } from "@better-upload/client";
 import { ShieldCheckIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useReducer, useRef, useState } from "react";
 import type { FormEvent } from "react";
 
 import { Shell } from "@/components/shell";
@@ -37,13 +37,141 @@ const ACCEPTED_CONTENT_TYPES = {
   "video/webm": [".webm"],
 };
 
-const identifierTypes = [
-  { label: "Số tài khoản ngân hàng", value: "BANK_ACCOUNT" },
-  { label: "Tài khoản ví điện tử", value: "WALLET_ACCOUNT" },
-  { label: "Số điện thoại", value: "PHONE" },
+const reportTypeOptions = [
+  {
+    label: "Tài khoản ngân hàng, ví hoặc số điện thoại",
+    value: "BANK_WALLET_PHONE",
+  },
+  {
+    label: "Website giả mạo hoặc độc hại",
+    value: "MALICIOUS_WEBSITE",
+  },
+  {
+    label: "Tài khoản social hoặc game",
+    value: "SOCIAL_GAME_ACCOUNT",
+  },
 ] as const;
 
+type ReportType = (typeof reportTypeOptions)[number]["value"];
+
+const identifierTypeOptions = {
+  BANK_WALLET_PHONE: [
+    { label: "Số tài khoản ngân hàng", value: "BANK_ACCOUNT" },
+    { label: "Tài khoản ví điện tử", value: "WALLET_ACCOUNT" },
+    { label: "Số điện thoại", value: "PHONE" },
+  ],
+  MALICIOUS_WEBSITE: [{ label: "URL website", value: "WEBSITE" }],
+  SOCIAL_GAME_ACCOUNT: [
+    { label: "Tài khoản social / game", value: "SOCIAL_ACCOUNT" },
+    { label: "ID tài khoản trên nền tảng", value: "PLATFORM_ACCOUNT" },
+  ],
+} as const satisfies Record<
+  ReportType,
+  readonly { label: string; value: string }[]
+>;
+
+type IdentifierType =
+  (typeof identifierTypeOptions)[ReportType][number]["value"];
+
+const evidenceTypeOptions = {
+  BANK_WALLET_PHONE: [
+    { label: "Chứng từ thanh toán", value: "PAYMENT_PROOF" },
+    { label: "Trao đổi / hội thoại", value: "CONVERSATION" },
+  ],
+  MALICIOUS_WEBSITE: [
+    { label: "Ảnh chụp màn hình", value: "SCREENSHOT" },
+    { label: "Video / quay màn hình", value: "VIDEO" },
+  ],
+  SOCIAL_GAME_ACCOUNT: [
+    { label: "Bằng chứng sở hữu tài khoản", value: "OWNERSHIP_PROOF" },
+    { label: "Chứng từ giao dịch", value: "PAYMENT_PROOF" },
+    { label: "Trao đổi / hội thoại", value: "CONVERSATION" },
+  ],
+} as const satisfies Record<
+  ReportType,
+  readonly { label: string; value: string }[]
+>;
+
+type EvidenceKind = (typeof evidenceTypeOptions)[ReportType][number]["value"];
+
+const websiteViolationOptions = [
+  { label: "Lừa đảo lấy thông tin (phishing)", value: "PHISHING" },
+  { label: "Phát tán mã độc", value: "MALWARE" },
+  { label: "Mạo danh", value: "IMPERSONATION" },
+  { label: "Cửa hàng giả", value: "FAKE_STORE" },
+  { label: "Lừa đảo thanh toán", value: "PAYMENT_SCAM" },
+  { label: "Khác", value: "OTHER" },
+] as const;
+
+type WebsiteViolationType = (typeof websiteViolationOptions)[number]["value"];
+
 type Step = "code" | "details" | "email" | "submitted";
+
+interface RiskReportFieldsState {
+  claimedLoss: string;
+  evidenceKind: EvidenceKind;
+  identifierType: IdentifierType;
+  identifierValue: string;
+  platform: string;
+  reportType: ReportType;
+  violationType: WebsiteViolationType;
+}
+
+type RiskReportFieldsAction =
+  | { reportType: ReportType; type: "reportTypeChanged" }
+  | { type: "setClaimedLoss"; value: string }
+  | { type: "setEvidenceKind"; value: EvidenceKind }
+  | { type: "setIdentifierType"; value: IdentifierType }
+  | { type: "setIdentifierValue"; value: string }
+  | { type: "setPlatform"; value: string }
+  | { type: "setViolationType"; value: WebsiteViolationType };
+
+const initialRiskReportFields: RiskReportFieldsState = {
+  claimedLoss: "",
+  evidenceKind: "PAYMENT_PROOF",
+  identifierType: "BANK_ACCOUNT",
+  identifierValue: "",
+  platform: "",
+  reportType: "BANK_WALLET_PHONE",
+  violationType: "PHISHING",
+};
+
+const riskReportFieldsReducer = (
+  state: RiskReportFieldsState,
+  action: RiskReportFieldsAction
+): RiskReportFieldsState => {
+  if (action.type === "reportTypeChanged") {
+    return {
+      ...state,
+      claimedLoss:
+        action.reportType === "BANK_WALLET_PHONE" ? state.claimedLoss : "",
+      evidenceKind: evidenceTypeOptions[action.reportType][0]
+        .value as EvidenceKind,
+      identifierType: identifierTypeOptions[action.reportType][0]
+        .value as IdentifierType,
+      identifierValue: "",
+      platform:
+        action.reportType === "SOCIAL_GAME_ACCOUNT" ? state.platform : "",
+      reportType: action.reportType,
+    };
+  }
+  if (action.type === "setClaimedLoss") {
+    return { ...state, claimedLoss: action.value };
+  }
+  if (action.type === "setEvidenceKind") {
+    return { ...state, evidenceKind: action.value };
+  }
+  if (action.type === "setIdentifierType") {
+    return { ...state, identifierType: action.value };
+  }
+  if (action.type === "setIdentifierValue") {
+    return { ...state, identifierValue: action.value };
+  }
+  if (action.type === "setPlatform") {
+    return { ...state, platform: action.value };
+  }
+  return { ...state, violationType: action.value };
+};
 
 const getRiskDraftSaveLabel = (
   isPending: boolean,
@@ -58,6 +186,161 @@ const getRiskDraftSaveLabel = (
   return "Lưu bản nháp riêng tư";
 };
 
+const getRiskSubmitErrorMessage = (reportType: ReportType): string => {
+  if (reportType === "BANK_WALLET_PHONE") {
+    return "Báo cáo chưa đủ điều kiện gửi. Cần số định danh, tổn thất, tường trình, bằng chứng thanh toán và hội thoại đã được kiểm tra.";
+  }
+  if (reportType === "MALICIOUS_WEBSITE") {
+    return "Báo cáo website chưa đủ điều kiện gửi. Cần URL, loại vi phạm, tường trình và ảnh chụp hoặc video đã được kiểm tra.";
+  }
+  return "Báo cáo tài khoản chưa đủ điều kiện gửi. Cần nền tảng, account ID, tường trình, bằng chứng sở hữu hoặc giao dịch và hội thoại đã được kiểm tra.";
+};
+
+const getRiskDraftTypeFields = ({
+  claimedLoss,
+  platform,
+  reportType,
+  violationType,
+}: {
+  claimedLoss: string;
+  platform: string;
+  reportType: ReportType;
+  violationType: WebsiteViolationType;
+}) => ({
+  claimedLoss:
+    reportType === "BANK_WALLET_PHONE" && claimedLoss
+      ? Number(claimedLoss)
+      : undefined,
+  platform:
+    reportType === "SOCIAL_GAME_ACCOUNT"
+      ? platform.trim() || undefined
+      : undefined,
+  violationType: reportType === "MALICIOUS_WEBSITE" ? violationType : undefined,
+});
+
+const RiskReportTypeFields = ({
+  claimedLoss,
+  identifierType,
+  identifierValue,
+  onClaimedLossChange,
+  onIdentifierTypeChange,
+  onIdentifierValueChange,
+  onPlatformChange,
+  onViolationTypeChange,
+  platform,
+  reportType,
+  violationType,
+}: {
+  claimedLoss: string;
+  identifierType: IdentifierType;
+  identifierValue: string;
+  onClaimedLossChange: (value: string) => void;
+  onIdentifierTypeChange: (value: IdentifierType) => void;
+  onIdentifierValueChange: (value: string) => void;
+  onPlatformChange: (value: string) => void;
+  onViolationTypeChange: (value: WebsiteViolationType) => void;
+  platform: string;
+  reportType: ReportType;
+  violationType: WebsiteViolationType;
+}) => (
+  <>
+    {reportType === "MALICIOUS_WEBSITE" ? (
+      <label
+        className="grid gap-1.5 text-sm font-medium"
+        htmlFor="risk-website-violation"
+      >
+        Loại vi phạm website
+        <select
+          className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+          id="risk-website-violation"
+          onChange={(event) =>
+            onViolationTypeChange(event.target.value as WebsiteViolationType)
+          }
+          required
+          value={violationType}
+        >
+          {websiteViolationOptions.map((item) => (
+            <option key={item.value} value={item.value}>
+              {item.label}
+            </option>
+          ))}
+        </select>
+      </label>
+    ) : null}
+
+    {reportType === "SOCIAL_GAME_ACCOUNT" ? (
+      <label
+        className="grid gap-1.5 text-sm font-medium"
+        htmlFor="risk-platform"
+      >
+        Nền tảng social / game
+        <Input
+          autoComplete="off"
+          id="risk-platform"
+          onChange={(event) => onPlatformChange(event.target.value)}
+          placeholder="Ví dụ: Facebook, Telegram, Roblox..."
+          required
+          value={platform}
+        />
+      </label>
+    ) : null}
+
+    <div className="grid gap-4 sm:grid-cols-2">
+      <label
+        className="grid gap-1.5 text-sm font-medium"
+        htmlFor="risk-identifier-type"
+      >
+        Loại định danh
+        <select
+          className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+          id="risk-identifier-type"
+          onChange={(event) =>
+            onIdentifierTypeChange(event.target.value as IdentifierType)
+          }
+          value={identifierType}
+        >
+          {identifierTypeOptions[reportType].map((item) => (
+            <option key={item.value} value={item.value}>
+              {item.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label
+        className="grid gap-1.5 text-sm font-medium"
+        htmlFor="risk-identifier-value"
+      >
+        Định danh liên quan
+        <Input
+          autoComplete="off"
+          id="risk-identifier-value"
+          onChange={(event) => onIdentifierValueChange(event.target.value)}
+          required
+          value={identifierValue}
+        />
+      </label>
+    </div>
+
+    {reportType === "BANK_WALLET_PHONE" ? (
+      <label
+        className="grid gap-1.5 text-sm font-medium"
+        htmlFor="risk-claimed-loss"
+      >
+        Số tiền tổn thất dự kiến (VND)
+        <Input
+          id="risk-claimed-loss"
+          inputMode="numeric"
+          min={1}
+          onChange={(event) => onClaimedLossChange(event.target.value)}
+          required
+          type="number"
+          value={claimedLoss}
+        />
+      </label>
+    ) : null}
+  </>
+);
+
 export const RiskReportPage = () => {
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
@@ -67,16 +350,46 @@ export const RiskReportPage = () => {
   const [reporterName, setReporterName] = useState("");
   const [reporterPhone, setReporterPhone] = useState("");
   const [reporterZalo, setReporterZalo] = useState("");
-  const [identifierType, setIdentifierType] =
-    useState<(typeof identifierTypes)[number]["value"]>("BANK_ACCOUNT");
-  const [identifierValue, setIdentifierValue] = useState("");
-  const [claimedLoss, setClaimedLoss] = useState("");
+  const [riskFields, dispatchRiskFields] = useReducer(
+    riskReportFieldsReducer,
+    initialRiskReportFields
+  );
+  const {
+    claimedLoss,
+    evidenceKind,
+    identifierType,
+    identifierValue,
+    platform,
+    reportType,
+    violationType,
+  } = riskFields;
+  const [urgency, setUrgency] = useState<"NORMAL" | "URGENT">("NORMAL");
+  const [affectedVictimCount, setAffectedVictimCount] = useState("1");
   const [narrative, setNarrative] = useState("");
-  const [evidenceKind, setEvidenceKind] = useState<
-    "PAYMENT_PROOF" | "CONVERSATION"
-  >("PAYMENT_PROOF");
   const [evidenceCount, setEvidenceCount] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string>();
+
+  const setReportType = (value: ReportType): void => {
+    dispatchRiskFields({ reportType: value, type: "reportTypeChanged" });
+  };
+  const setIdentifierType = (value: IdentifierType): void => {
+    dispatchRiskFields({ type: "setIdentifierType", value });
+  };
+  const setIdentifierValue = (value: string): void => {
+    dispatchRiskFields({ type: "setIdentifierValue", value });
+  };
+  const setPlatform = (value: string): void => {
+    dispatchRiskFields({ type: "setPlatform", value });
+  };
+  const setViolationType = (value: WebsiteViolationType): void => {
+    dispatchRiskFields({ type: "setViolationType", value });
+  };
+  const setClaimedLoss = (value: string): void => {
+    dispatchRiskFields({ type: "setClaimedLoss", value });
+  };
+  const setEvidenceKind = (value: EvidenceKind): void => {
+    dispatchRiskFields({ type: "setEvidenceKind", value });
+  };
 
   const launchStatusQuery = useQuery(
     orpc.protection.launchStatus.queryOptions()
@@ -134,6 +447,10 @@ export const RiskReportPage = () => {
     }
   };
 
+  const handleReportTypeChange = (nextType: ReportType): void => {
+    setReportType(nextType);
+  };
+
   const handleSaveDraft = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!reporterToken.current) {
@@ -141,8 +458,15 @@ export const RiskReportPage = () => {
     }
     setErrorMessage(undefined);
     try {
+      const typeFields = getRiskDraftTypeFields({
+        claimedLoss,
+        platform,
+        reportType,
+        violationType,
+      });
       const draft = await saveDraft.mutateAsync({
-        claimedLoss: claimedLoss ? Number(claimedLoss) : undefined,
+        affectedVictimCount: Number(affectedVictimCount) || 1,
+        ...typeFields,
         identifiers: identifierValue.trim()
           ? [{ type: identifierType, value: identifierValue.trim() }]
           : [],
@@ -152,7 +476,8 @@ export const RiskReportPage = () => {
         reporterPhone: reporterPhone.trim() || undefined,
         reporterToken: reporterToken.current,
         reporterZalo: reporterZalo.trim() || undefined,
-        type: "BANK_WALLET_PHONE" as const,
+        type: reportType,
+        urgency,
       });
       setReportId(draft.id);
       setEvidenceCount(draft.evidence.length);
@@ -227,9 +552,7 @@ export const RiskReportPage = () => {
       });
       setStep("submitted");
     } catch {
-      setErrorMessage(
-        "Báo cáo chưa đủ điều kiện gửi. Cần số định danh, tổn thất, tường trình, bằng chứng thanh toán và hội thoại đã được kiểm tra."
-      );
+      setErrorMessage(getRiskSubmitErrorMessage(reportType));
     }
   };
 
@@ -395,59 +718,83 @@ export const RiskReportPage = () => {
               <CardTitle>Thông tin sự việc</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4">
+              <label
+                className="grid gap-1.5 text-sm font-medium"
+                htmlFor="risk-report-type"
+              >
+                Loại cảnh báo
+                <select
+                  className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                  disabled={Boolean(reportId)}
+                  id="risk-report-type"
+                  onChange={(event) =>
+                    handleReportTypeChange(event.target.value as ReportType)
+                  }
+                  value={reportType}
+                >
+                  {reportTypeOptions.map((item) => (
+                    <option key={item.value} value={item.value}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+                {reportId ? (
+                  <span className="font-normal text-muted-foreground text-xs">
+                    Không thể đổi loại sau khi đã lưu bản nháp.
+                  </span>
+                ) : null}
+              </label>
+
+              <RiskReportTypeFields
+                claimedLoss={claimedLoss}
+                identifierType={identifierType}
+                identifierValue={identifierValue}
+                onClaimedLossChange={setClaimedLoss}
+                onIdentifierTypeChange={setIdentifierType}
+                onIdentifierValueChange={setIdentifierValue}
+                onPlatformChange={setPlatform}
+                onViolationTypeChange={setViolationType}
+                platform={platform}
+                reportType={reportType}
+                violationType={violationType}
+              />
+
               <div className="grid gap-4 sm:grid-cols-2">
                 <label
                   className="grid gap-1.5 text-sm font-medium"
-                  htmlFor="risk-identifier-type"
+                  htmlFor="risk-urgency"
                 >
-                  Loại định danh
+                  Mức độ khẩn cấp
                   <select
                     className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                    id="risk-identifier-type"
+                    id="risk-urgency"
                     onChange={(event) =>
-                      setIdentifierType(
-                        event.target
-                          .value as (typeof identifierTypes)[number]["value"]
-                      )
+                      setUrgency(event.target.value as "NORMAL" | "URGENT")
                     }
-                    value={identifierType}
+                    value={urgency}
                   >
-                    {identifierTypes.map((item) => (
-                      <option key={item.value} value={item.value}>
-                        {item.label}
-                      </option>
-                    ))}
+                    <option value="NORMAL">Thông thường</option>
+                    <option value="URGENT">Khẩn cấp</option>
                   </select>
                 </label>
                 <label
                   className="grid gap-1.5 text-sm font-medium"
-                  htmlFor="risk-identifier-value"
+                  htmlFor="risk-affected-victim-count"
                 >
-                  Định danh liên quan
+                  Số nạn nhân bị ảnh hưởng
                   <Input
-                    autoComplete="off"
-                    id="risk-identifier-value"
-                    onChange={(event) => setIdentifierValue(event.target.value)}
+                    id="risk-affected-victim-count"
+                    inputMode="numeric"
+                    min={1}
+                    onChange={(event) =>
+                      setAffectedVictimCount(event.target.value)
+                    }
                     required
-                    value={identifierValue}
+                    type="number"
+                    value={affectedVictimCount}
                   />
                 </label>
               </div>
-              <label
-                className="grid gap-1.5 text-sm font-medium"
-                htmlFor="risk-claimed-loss"
-              >
-                Số tiền tổn thất dự kiến (VND)
-                <Input
-                  id="risk-claimed-loss"
-                  inputMode="numeric"
-                  min={1}
-                  onChange={(event) => setClaimedLoss(event.target.value)}
-                  required
-                  type="number"
-                  value={claimedLoss}
-                />
-              </label>
               <label
                 className="grid gap-1.5 text-sm font-medium"
                 htmlFor="risk-narrative"
@@ -487,14 +834,15 @@ export const RiskReportPage = () => {
                   className="h-10 rounded-md border border-input bg-background px-3 text-sm"
                   id="risk-evidence-kind"
                   onChange={(event) =>
-                    setEvidenceKind(
-                      event.target.value as "PAYMENT_PROOF" | "CONVERSATION"
-                    )
+                    setEvidenceKind(event.target.value as EvidenceKind)
                   }
                   value={evidenceKind}
                 >
-                  <option value="PAYMENT_PROOF">Chứng từ thanh toán</option>
-                  <option value="CONVERSATION">Trao đổi / hội thoại</option>
+                  {evidenceTypeOptions[reportType].map((item) => (
+                    <option key={item.value} value={item.value}>
+                      {item.label}
+                    </option>
+                  ))}
                 </select>
               </label>
               <FileDropzone

@@ -60,12 +60,27 @@ const STATUS_LABELS: Record<string, string> = {
   REMOVED: "Đã gỡ",
   SUBMITTED: "Đã gửi",
   UNDER_REVIEW: "Đang xem xét",
+  UNDER_VERIFICATION: "Đang xác minh",
 };
 
 const TYPE_LABELS = {
   BANK_WALLET_PHONE: "Bank / ví / phone",
   MALICIOUS_WEBSITE: "Website",
   SOCIAL_GAME_ACCOUNT: "Social / game",
+} as const;
+
+const WEBSITE_VIOLATION_LABELS = {
+  FAKE_STORE: "Cửa hàng giả",
+  IMPERSONATION: "Mạo danh",
+  MALWARE: "Mã độc",
+  OTHER: "Khác",
+  PAYMENT_SCAM: "Lừa đảo thanh toán",
+  PHISHING: "Lừa đảo lấy thông tin",
+} as const;
+
+const URGENCY_LABELS = {
+  NORMAL: "Thông thường",
+  URGENT: "Khẩn cấp",
 } as const;
 
 const DetailField = ({ label, value }: { label: string; value: string }) => (
@@ -262,25 +277,191 @@ const EvidenceCard = ({
   );
 };
 
+const riskDecisionRequiresReason = (decision: RiskReportDecision): boolean =>
+  decision === "CHANGES_REQUESTED" ||
+  decision === "REJECTED" ||
+  decision === "REMOVED" ||
+  decision === "UNDER_VERIFICATION";
+
+const riskDecisionRequiresPublicSummary = (
+  decision: RiskReportDecision
+): boolean =>
+  decision === "PUBLISHED" ||
+  decision === "CORRECTED" ||
+  decision === "UNDER_VERIFICATION";
+
+const RiskReportDecisionActions = ({
+  onChoose,
+  onChooseUnderVerification,
+  report,
+}: {
+  onChoose: (decision: RiskReportDecision) => void;
+  onChooseUnderVerification: () => void;
+  report: RiskReportDetail;
+}) => {
+  const canReview = report.status === "UNDER_REVIEW";
+  const canTakeReview = report.status === "SUBMITTED";
+  const canPublish =
+    report.status === "UNDER_REVIEW" || report.status === "UNDER_VERIFICATION";
+  const canCorrect =
+    report.status === "PUBLISHED" || report.status === "UNDER_VERIFICATION";
+  const canRemove =
+    report.status === "PUBLISHED" ||
+    report.status === "CORRECTED" ||
+    report.status === "UNDER_VERIFICATION";
+  const canUnderVerify =
+    canReview &&
+    (report.urgency === "URGENT" || report.affectedVictimCount >= 2);
+
+  return (
+    <>
+      {canTakeReview ? (
+        <Button onClick={() => onChoose("UNDER_REVIEW")} variant="outline">
+          Nhận vào review
+        </Button>
+      ) : null}
+      {canReview ? (
+        <>
+          {canUnderVerify ? (
+            <Button onClick={onChooseUnderVerification} variant="outline">
+              Công khai under-verification
+            </Button>
+          ) : null}
+          <Button
+            onClick={() => onChoose("CHANGES_REQUESTED")}
+            variant="outline"
+          >
+            Yêu cầu bổ sung
+          </Button>
+          <Button onClick={() => onChoose("REJECTED")} variant="destructive">
+            Từ chối report
+          </Button>
+        </>
+      ) : null}
+      {canPublish ? (
+        <Button onClick={() => onChoose("PUBLISHED")}>
+          <ShieldCheckIcon />
+          Duyệt & công khai warning
+        </Button>
+      ) : null}
+      {canCorrect ? (
+        <Button onClick={() => onChoose("CORRECTED")}>
+          <ShieldCheckIcon />
+          Ghi nhận bản cập nhật công khai
+        </Button>
+      ) : null}
+      {canRemove ? (
+        <Button onClick={() => onChoose("REMOVED")} variant="destructive">
+          Gỡ warning công khai
+        </Button>
+      ) : null}
+    </>
+  );
+};
+
+const RiskReportDecisionConfirmation = ({
+  decision,
+  isPending,
+  onCancel,
+  onConfirm,
+  onPublicSummaryChange,
+  onReasonChange,
+  onUnderVerificationApprovedChange,
+  publicSummary,
+  reason,
+  underVerificationApproved,
+}: {
+  decision?: RiskReportDecision;
+  isPending: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+  onPublicSummaryChange: (value: string) => void;
+  onReasonChange: (value: string) => void;
+  onUnderVerificationApprovedChange: (value: boolean) => void;
+  publicSummary: string;
+  reason: string;
+  underVerificationApproved: boolean;
+}) => {
+  if (!decision) {
+    return null;
+  }
+
+  const requiresReason = riskDecisionRequiresReason(decision);
+  const requiresPublicSummary = riskDecisionRequiresPublicSummary(decision);
+  const isValid =
+    (!requiresReason || Boolean(reason.trim())) &&
+    (!requiresPublicSummary || publicSummary.trim().length >= 20) &&
+    (decision !== "UNDER_VERIFICATION" || underVerificationApproved);
+
+  return (
+    <div className="grid gap-3 rounded-xl border bg-muted/20 p-4">
+      <p className="font-medium text-sm">Xác nhận: {STATUS_LABELS[decision]}</p>
+      {requiresPublicSummary ? (
+        <div className="grid gap-2">
+          <Label htmlFor="risk-public-summary">
+            Tóm tắt public đã redaction
+          </Label>
+          <Textarea
+            id="risk-public-summary"
+            minLength={20}
+            onChange={(event) => onPublicSummaryChange(event.target.value)}
+            placeholder="Chỉ nêu nội dung đã kiểm chứng và an toàn để công khai..."
+            rows={5}
+            value={publicSummary}
+          />
+        </div>
+      ) : null}
+      {decision === "UNDER_VERIFICATION" ? (
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            checked={underVerificationApproved}
+            onChange={(event) =>
+              onUnderVerificationApprovedChange(event.target.checked)
+            }
+            type="checkbox"
+          />
+          <span>
+            Tôi xác nhận report đủ điều kiện policy: khẩn cấp hoặc có từ hai nạn
+            nhân trở lên, và chấp thuận công khai ở trạng thái
+            under-verification.
+          </span>
+        </label>
+      ) : null}
+      {requiresReason ? (
+        <div className="grid gap-2">
+          <Label htmlFor="risk-review-reason">Lý do (bắt buộc)</Label>
+          <Textarea
+            id="risk-review-reason"
+            onChange={(event) => onReasonChange(event.target.value)}
+            rows={4}
+            value={reason}
+          />
+        </div>
+      ) : null}
+      <div className="flex gap-2">
+        <Button onClick={onCancel} variant="outline">
+          Huỷ
+        </Button>
+        <Button disabled={isPending || !isValid} onClick={onConfirm}>
+          {isPending ? "Đang ghi…" : "Xác nhận"}
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 const DecisionPanel = ({ report }: { report: RiskReportDetail }) => {
   const [decision, setDecision] = useState<RiskReportDecision>();
   const [reason, setReason] = useState("");
+  const [underVerificationApproved, setUnderVerificationApproved] =
+    useState(false);
   const [publicSummary, setPublicSummary] = useState(
     report.publicSummary ?? ""
   );
   const decide = useDecideAdminRiskReport();
-  const canReview = report.status === "UNDER_REVIEW";
-  const canTakeReview = report.status === "SUBMITTED";
-  const canCorrect = report.status === "PUBLISHED";
-  const canRemove =
-    report.status === "PUBLISHED" || report.status === "CORRECTED";
-  const requiresReason =
-    decision === "CHANGES_REQUESTED" ||
-    decision === "REJECTED" ||
-    decision === "REMOVED";
 
   const confirm = async () => {
-    if (!decision || (requiresReason && !reason.trim())) {
+    if (!decision || (riskDecisionRequiresReason(decision) && !reason.trim())) {
       return;
     }
     try {
@@ -289,6 +470,10 @@ const DecisionPanel = ({ report }: { report: RiskReportDetail }) => {
         id: report.id,
         publicSummary: publicSummary.trim() || undefined,
         reason: reason.trim() || undefined,
+        underVerificationApproved:
+          decision === "UNDER_VERIFICATION"
+            ? underVerificationApproved
+            : undefined,
       });
       toast.success("Đã ghi quyết định Risk Moderator.");
       setDecision(undefined);
@@ -310,91 +495,26 @@ const DecisionPanel = ({ report }: { report: RiskReportDetail }) => {
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3">
-        {canTakeReview ? (
-          <Button onClick={() => setDecision("UNDER_REVIEW")} variant="outline">
-            Nhận vào review
-          </Button>
-        ) : null}
-        {canReview ? (
-          <>
-            <Button onClick={() => setDecision("PUBLISHED")}>
-              <ShieldCheckIcon />
-              Duyệt & công khai warning
-            </Button>
-            <Button
-              onClick={() => setDecision("CHANGES_REQUESTED")}
-              variant="outline"
-            >
-              Yêu cầu bổ sung
-            </Button>
-            <Button
-              onClick={() => setDecision("REJECTED")}
-              variant="destructive"
-            >
-              Từ chối report
-            </Button>
-          </>
-        ) : null}
-        {canCorrect ? (
-          <Button onClick={() => setDecision("CORRECTED")}>
-            <ShieldCheckIcon />
-            Ghi nhận bản cập nhật công khai
-          </Button>
-        ) : null}
-        {canRemove ? (
-          <Button onClick={() => setDecision("REMOVED")} variant="destructive">
-            Gỡ warning công khai
-          </Button>
-        ) : null}
-
-        {decision ? (
-          <div className="grid gap-3 rounded-xl border bg-muted/20 p-4">
-            <p className="font-medium text-sm">
-              Xác nhận: {STATUS_LABELS[decision]}
-            </p>
-            {decision === "PUBLISHED" || decision === "CORRECTED" ? (
-              <div className="grid gap-2">
-                <Label htmlFor="risk-public-summary">
-                  Tóm tắt public đã redaction
-                </Label>
-                <Textarea
-                  id="risk-public-summary"
-                  minLength={20}
-                  onChange={(event) => setPublicSummary(event.target.value)}
-                  placeholder="Chỉ nêu nội dung đã kiểm chứng và an toàn để công khai..."
-                  rows={5}
-                  value={publicSummary}
-                />
-              </div>
-            ) : null}
-            {requiresReason ? (
-              <div className="grid gap-2">
-                <Label htmlFor="risk-review-reason">Lý do (bắt buộc)</Label>
-                <Textarea
-                  id="risk-review-reason"
-                  onChange={(event) => setReason(event.target.value)}
-                  rows={4}
-                  value={reason}
-                />
-              </div>
-            ) : null}
-            <div className="flex gap-2">
-              <Button onClick={() => setDecision(undefined)} variant="outline">
-                Huỷ
-              </Button>
-              <Button
-                disabled={
-                  decide.isPending ||
-                  (requiresReason && !reason.trim()) ||
-                  (decision === "PUBLISHED" && publicSummary.trim().length < 20)
-                }
-                onClick={() => void confirm()}
-              >
-                {decide.isPending ? "Đang ghi…" : "Xác nhận"}
-              </Button>
-            </div>
-          </div>
-        ) : null}
+        <RiskReportDecisionActions
+          onChoose={setDecision}
+          onChooseUnderVerification={() => {
+            setUnderVerificationApproved(false);
+            setDecision("UNDER_VERIFICATION");
+          }}
+          report={report}
+        />
+        <RiskReportDecisionConfirmation
+          decision={decision}
+          isPending={decide.isPending}
+          onCancel={() => setDecision(undefined)}
+          onConfirm={() => void confirm()}
+          onPublicSummaryChange={setPublicSummary}
+          onReasonChange={setReason}
+          onUnderVerificationApprovedChange={setUnderVerificationApproved}
+          publicSummary={publicSummary}
+          reason={reason}
+          underVerificationApproved={underVerificationApproved}
+        />
       </CardContent>
     </Card>
   );
@@ -470,6 +590,26 @@ export const RiskReportDetailPage = () => {
                     <DetailField
                       label="Tổn thất khai báo"
                       value={`${report.claimedLoss ?? 0} VND`}
+                    />
+                    <DetailField
+                      label="Nền tảng"
+                      value={report.platform ?? "Không áp dụng"}
+                    />
+                    <DetailField
+                      label="Loại vi phạm website"
+                      value={
+                        report.violationType
+                          ? WEBSITE_VIOLATION_LABELS[report.violationType]
+                          : "Không áp dụng"
+                      }
+                    />
+                    <DetailField
+                      label="Mức độ khẩn cấp"
+                      value={URGENCY_LABELS[report.urgency]}
+                    />
+                    <DetailField
+                      label="Số nạn nhân bị ảnh hưởng"
+                      value={String(report.affectedVictimCount)}
                     />
                     <DetailField
                       label="Narrative"

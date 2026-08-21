@@ -5,6 +5,7 @@ export const notificationEventTypes = [
   "protection_risk_report.rejected",
   "protection_risk_report.removed",
   "protection_risk_report.submitted",
+  "protection_risk_report.under_verification",
   "protection_provider_application.approved",
   "protection_provider_application.changes_requested",
   "protection_provider_application.rejected",
