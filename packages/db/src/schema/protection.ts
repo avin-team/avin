@@ -103,6 +103,18 @@ export const protectionRiskEmailDeliveryStatus = pgEnum(
   ["pending", "retrying", "sent", "failed"]
 );
 
+export const protectionProviderRiskIncidentStatus = pgEnum(
+  "protection_provider_risk_incident_status",
+  [
+    "AWAITING_PROVIDER_RESPONSE",
+    "PROVIDER_RESPONDED",
+    "RESPONSE_EXPIRED",
+    "UNDER_REVIEW",
+    "DISMISSED",
+    "CONFIRMED_FRAUD",
+  ]
+);
+
 export const providerOfficialChannelsSchema = z.object({
   facebookId: z.string().trim().max(200).optional(),
   facebookUrl: z.url().optional(),
@@ -531,6 +543,114 @@ export const protectionRiskReportEmailDelivery = pgTable(
       table.status,
       table.nextAttemptAt,
       table.claimedAt
+    ),
+  ]
+);
+
+export const protectionProviderRiskIncident = pgTable(
+  "protection_provider_risk_incident",
+  {
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    noticeVerifiedAt: timestamp("notice_verified_at").notNull(),
+    providerProfileId: uuid("provider_profile_id")
+      .notNull()
+      .references(() => protectionProviderProfile.id, { onDelete: "restrict" }),
+    providerProfileVersionId: uuid("provider_profile_version_id")
+      .notNull()
+      .references(() => protectionProviderProfileVersion.id, {
+        onDelete: "restrict",
+      }),
+    providerRespondedAt: timestamp("provider_responded_at"),
+    providerResponse: text("provider_response"),
+    providerUserId: text("provider_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    responseDeadlineAt: timestamp("response_deadline_at").notNull(),
+    reviewReason: text("review_reason"),
+    reviewedAt: timestamp("reviewed_at"),
+    reviewedByUserId: text("reviewed_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    riskReportId: uuid("risk_report_id")
+      .notNull()
+      .references(() => protectionRiskReport.id, { onDelete: "restrict" }),
+    status: protectionProviderRiskIncidentStatus("status")
+      .default("AWAITING_PROVIDER_RESPONSE")
+      .notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("protection_provider_risk_incident_report_profile_idx").on(
+      table.riskReportId,
+      table.providerProfileId
+    ),
+    index("protection_provider_risk_incident_provider_status_idx").on(
+      table.providerUserId,
+      table.status
+    ),
+    index("protection_provider_risk_incident_deadline_idx").on(
+      table.status,
+      table.responseDeadlineAt
+    ),
+    index("protection_provider_risk_incident_report_idx").on(
+      table.riskReportId
+    ),
+  ]
+);
+
+export const protectionProviderRiskIncidentHistory = pgTable(
+  "protection_provider_risk_incident_history",
+  {
+    actorUserId: text("actor_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    incidentId: uuid("incident_id")
+      .notNull()
+      .references(() => protectionProviderRiskIncident.id, {
+        onDelete: "restrict",
+      }),
+    reason: text("reason"),
+    status: protectionProviderRiskIncidentStatus("status").notNull(),
+  },
+  (table) => [
+    index("protection_provider_risk_incident_history_incident_idx").on(
+      table.incidentId,
+      table.createdAt
+    ),
+  ]
+);
+
+export const protectionProviderRiskIncidentEvidence = pgTable(
+  "protection_provider_risk_incident_evidence",
+  {
+    contentType: text("content_type").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    fileName: text("file_name").notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    immutableAt: timestamp("immutable_at").defaultNow().notNull(),
+    incidentId: uuid("incident_id")
+      .notNull()
+      .references(() => protectionProviderRiskIncident.id, {
+        onDelete: "restrict",
+      }),
+    kind: protectionRiskEvidenceKind("kind").notNull(),
+    originalStorageKey: text("original_storage_key").notNull().unique(),
+    scanReason: text("scan_reason"),
+    scanStatus: protectionRiskEvidenceScanStatus("scan_status")
+      .default("PENDING")
+      .notNull(),
+    sha256: text("sha256"),
+    sizeBytes: integer("size_bytes").notNull(),
+  },
+  (table) => [
+    index("protection_provider_risk_incident_evidence_incident_idx").on(
+      table.incidentId
     ),
   ]
 );

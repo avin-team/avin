@@ -4,6 +4,7 @@ import {
 } from "@avin/api/listing/seller-workspace";
 import { loadProtectionAdminCapabilities } from "@avin/api/protection/capabilities";
 import { assertProtectionAdminAccess } from "@avin/api/protection/procedures";
+import { assertProviderRiskIncidentEvidenceUploadAccess } from "@avin/api/protection/provider-risk-incident-service";
 import { riskReportEvidenceKinds } from "@avin/api/protection/risk-report";
 import { assertRiskReportEvidenceUploadAccess } from "@avin/api/protection/risk-report-service";
 import { assertMarketplaceSellerNotEnforced } from "@avin/api/seller-enforcement/access";
@@ -48,14 +49,16 @@ import {
   SELLER_LOGO_UPLOAD_ROUTE,
   createRiskReportDerivativeKey,
   createRiskReportEvidenceKey,
+  createProviderRiskIncidentEvidenceKey,
   isRiskReportEvidenceFileNameAllowed,
   RISK_REPORT_EVIDENCE_CONTENT_TYPES,
   RISK_REPORT_EVIDENCE_MAX_COUNT,
   RISK_REPORT_EVIDENCE_MAX_BYTES,
   RISK_REPORT_EVIDENCE_UPLOAD_ROUTE,
   RISK_REPORT_DERIVATIVE_UPLOAD_ROUTE,
+  PROVIDER_RISK_INCIDENT_EVIDENCE_UPLOAD_ROUTE,
 } from "@avin/api/storage";
-import { adminAuth, auth } from "@avin/auth";
+import { adminAuth, auth, providerAuth } from "@avin/auth";
 import { PROTECTION_ADMIN_CAPABILITY } from "@avin/auth/permissions";
 import { db } from "@avin/db";
 import { handleRequest, RejectUpload, route } from "@better-upload/server";
@@ -90,6 +93,10 @@ const riskReportEvidenceClientMetadataSchema = z.object({
 const riskReportDerivativeClientMetadataSchema = z.object({
   evidenceId: z.uuid(),
   reportId: z.uuid(),
+});
+const providerRiskIncidentEvidenceClientMetadataSchema = z.object({
+  incidentId: z.uuid(),
+  kind: z.enum(riskReportEvidenceKinds),
 });
 
 interface DisputeEvidenceUploadItem {
@@ -561,6 +568,65 @@ export const createRiskReportDerivativeUploadRouter = (
               file.type
             ),
           },
+        };
+      },
+    }),
+  },
+});
+
+export const createProviderRiskIncidentEvidenceUploadRouter = (
+  client: Router["client"]
+): Router => ({
+  bucketName: ORDER_FILES_BUCKET,
+  client,
+  routes: {
+    [PROVIDER_RISK_INCIDENT_EVIDENCE_UPLOAD_ROUTE]: route({
+      clientMetadataSchema: providerRiskIncidentEvidenceClientMetadataSchema,
+      fileTypes: [...RISK_REPORT_EVIDENCE_CONTENT_TYPES],
+      maxFileSize: RISK_REPORT_EVIDENCE_MAX_BYTES,
+      maxFiles: RISK_REPORT_EVIDENCE_MAX_COUNT,
+      multipleFiles: true,
+      onBeforeUpload: async ({ clientMetadata, files, req }) => {
+        const session = await providerAuth.api.getSession({
+          headers: req.headers,
+        });
+        if (!session) {
+          throw new RejectUpload(
+            "Sign in as a Provider before uploading incident evidence"
+          );
+        }
+        try {
+          await assertProviderRiskIncidentEvidenceUploadAccess({
+            database: db,
+            files,
+            incidentId: clientMetadata.incidentId,
+            providerUserId: session.user.id,
+          });
+        } catch (error) {
+          throw new RejectUpload(
+            error instanceof Error
+              ? error.message
+              : "Provider incident evidence upload is not allowed"
+          );
+        }
+
+        for (const file of files) {
+          if (!isRiskReportEvidenceFileNameAllowed(file.name, file.type)) {
+            throw new RejectUpload(
+              "Evidence file extension must match its supported content type"
+            );
+          }
+        }
+
+        return {
+          generateObjectInfo: ({ file }) => ({
+            cacheControl: "private, max-age=0",
+            key: createProviderRiskIncidentEvidenceKey(
+              clientMetadata.incidentId,
+              session.user.id,
+              file.type
+            ),
+          }),
         };
       },
     }),

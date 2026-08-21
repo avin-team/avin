@@ -10,6 +10,7 @@ export type ProviderApplication = NonNullable<ProviderWorkspace["application"]>;
 export type ProviderProfileRevision = NonNullable<
   ProviderWorkspace["profileRevision"]
 >;
+export type ProviderRiskIncident = ProviderWorkspace["riskIncidents"][number];
 
 export const useProviderWorkspace = () =>
   useQuery(providerOrpc.protection.providerWorkspace.queryOptions());
@@ -65,4 +66,25 @@ export const useProviderProfileRevisionActions = () => {
   });
 
   return { saveDraft, start, submit };
+};
+
+export const useProviderRiskIncidentActions = () => {
+  const queryClient = useQueryClient();
+  const invalidateWorkspace = async (): Promise<void> => {
+    await queryClient.invalidateQueries({
+      queryKey:
+        providerOrpc.protection.providerWorkspace.queryOptions().queryKey,
+    });
+  };
+
+  const registerEvidence = useMutation({
+    ...providerOrpc.protection.providerRiskIncidents.registerEvidence.mutationOptions(),
+    onSuccess: invalidateWorkspace,
+  });
+  const respond = useMutation({
+    ...providerOrpc.protection.providerRiskIncidents.respond.mutationOptions(),
+    onSuccess: invalidateWorkspace,
+  });
+
+  return { registerEvidence, respond };
 };

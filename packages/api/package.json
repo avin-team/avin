@@ -15,6 +15,8 @@
     "./protection/capabilities": "./src/protection/capabilities.ts",
     "./protection/procedures": "./src/protection/procedures.ts",
     "./protection/provider-application": "./src/protection/provider-application.ts",
+    "./protection/provider-risk-incident": "./src/protection/provider-risk-incident.ts",
+    "./protection/provider-risk-incident-service": "./src/protection/provider-risk-incident-service.ts",
     "./protection/risk-lookup": "./src/protection/risk-lookup.ts",
     "./protection/risk-report": "./src/protection/risk-report.ts",
     "./protection/risk-report-email-delivery": "./src/protection/risk-report-email-delivery.ts",

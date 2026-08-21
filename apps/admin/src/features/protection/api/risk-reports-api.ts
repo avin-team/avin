@@ -18,6 +18,15 @@ export type RiskReportDecision =
   | "UNDER_REVIEW"
   | "UNDER_VERIFICATION";
 
+export type ProviderRiskIncident = Awaited<
+  ReturnType<AppRouterClient["protection"]["adminProviderRiskIncidents"]["get"]>
+>;
+export type ProviderRiskIncidentCandidate = Awaited<
+  ReturnType<
+    AppRouterClient["protection"]["adminProviderRiskIncidents"]["candidates"]
+  >
+>[number];
+
 export const useAdminRiskReports = (params?: {
   search?: string;
   status?: RiskReportStatus;
@@ -52,4 +61,50 @@ export const useRegisterRiskReportDerivative = () =>
   useMutation({
     ...orpc.protection.adminRiskReports.registerDerivative.mutationOptions(),
     onSuccess: invalidateRiskReports,
+  });
+
+const invalidateProviderRiskIncidents = async (): Promise<void> => {
+  await Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: orpc.protection.adminProviderRiskIncidents.list.key(),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: orpc.protection.adminProviderRiskIncidents.get.key(),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: orpc.protection.adminRiskReports.get.key(),
+    }),
+  ]);
+};
+
+export const useAdminProviderRiskIncidents = (reportId?: string) =>
+  useQuery(
+    orpc.protection.adminProviderRiskIncidents.list.queryOptions({
+      input: reportId ? { reportId } : undefined,
+    })
+  );
+
+export const useAdminProviderRiskIncidentCandidates = (search?: string) =>
+  useQuery(
+    orpc.protection.adminProviderRiskIncidents.candidates.queryOptions({
+      input: search ? { search } : undefined,
+    })
+  );
+
+export const useConfirmAdminProviderRiskIncidentFraud = () =>
+  useMutation({
+    ...orpc.protection.adminProviderRiskIncidents.confirmFraud.mutationOptions(),
+    onSuccess: invalidateProviderRiskIncidents,
+  });
+
+export const useLinkAdminProviderRiskIncident = () =>
+  useMutation({
+    ...orpc.protection.adminProviderRiskIncidents.link.mutationOptions(),
+    onSuccess: invalidateProviderRiskIncidents,
+  });
+
+export const useReviewAdminProviderRiskIncident = () =>
+  useMutation({
+    ...orpc.protection.adminProviderRiskIncidents.review.mutationOptions(),
+    onSuccess: invalidateProviderRiskIncidents,
   });

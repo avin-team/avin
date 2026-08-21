@@ -54,6 +54,28 @@ import {
   searchProviderDirectory,
 } from "./provider-directory";
 import {
+  providerRiskIncidentCandidateListInputSchema,
+  providerRiskIncidentConfirmFraudInputSchema,
+  providerRiskIncidentEvidenceInputSchema,
+  providerRiskIncidentIdInputSchema,
+  providerRiskIncidentLinkInputSchema,
+  providerRiskIncidentListInputSchema,
+  providerRiskIncidentResponseInputSchema,
+  providerRiskIncidentReviewInputSchema,
+} from "./provider-risk-incident";
+import {
+  confirmProviderRiskIncidentFraud,
+  expireProviderRiskIncidentResponses,
+  getProviderRiskIncidentForAdmin,
+  linkRiskReportToProvider,
+  listProviderRiskIncidentCandidates,
+  listProviderRiskIncidentsForAdmin,
+  listProviderRiskIncidentsForProvider,
+  registerProviderRiskIncidentEvidence,
+  reviewProviderRiskIncident,
+  submitProviderRiskIncidentResponse,
+} from "./provider-risk-incident-service";
+import {
   getPublicRiskStatistics,
   publicRiskIdentifierLookupInputSchema,
   searchPublicRiskIdentifiers,
@@ -129,6 +151,27 @@ const riskModeratorProcedure = protectionAdminProcedure({
   },
 });
 
+const providerRiskIncidentModeratorProcedure = protectionAdminProcedure({
+  action: "protection.provider_risk_incident.review",
+  capability: PROTECTION_ADMIN_CAPABILITY.RISK_MODERATOR,
+  purpose:
+    "Associate Provider-linked Risk Reports and review private Provider responses",
+  target: {
+    id: "PROTECTION_PROVIDER_RISK_INCIDENT_QUEUE",
+    type: "PROTECTION_PROVIDER_RISK_INCIDENT_QUEUE",
+  },
+});
+
+const providerRiskIncidentManagerProcedure = protectionAdminProcedure({
+  action: "protection.provider_risk_incident.enforce",
+  capability: PROTECTION_ADMIN_CAPABILITY.PROTECTION_MANAGER,
+  purpose: "Apply confirmed Provider fraud enforcement and SLA suspension",
+  target: {
+    id: "PROTECTION_PROVIDER_RISK_INCIDENT_QUEUE",
+    type: "PROTECTION_PROVIDER_RISK_INCIDENT_QUEUE",
+  },
+});
+
 export const protectionRouter = {
   adminLaunchStatus: protectionAdminProcedure({
     action: "protection.launch_status.read",
@@ -201,6 +244,61 @@ export const protectionRouter = {
           reviewerUserId: context.session.user.id,
           status: input.status,
           statusReason: input.statusReason,
+        })
+      ),
+  },
+
+  adminProviderRiskIncidents: {
+    candidates: providerRiskIncidentModeratorProcedure
+      .input(providerRiskIncidentCandidateListInputSchema)
+      .handler(({ context, input }) =>
+        listProviderRiskIncidentCandidates(context.db, input)
+      ),
+
+    confirmFraud: providerRiskIncidentManagerProcedure
+      .input(providerRiskIncidentConfirmFraudInputSchema)
+      .handler(({ context, input }) =>
+        confirmProviderRiskIncidentFraud({
+          database: context.db,
+          incidentId: input.incidentId,
+          reason: input.reason,
+          reviewerUserId: context.session.user.id,
+        })
+      ),
+
+    expire: providerRiskIncidentManagerProcedure.handler(({ context }) =>
+      expireProviderRiskIncidentResponses({ database: context.db })
+    ),
+
+    get: providerRiskIncidentModeratorProcedure
+      .input(providerRiskIncidentIdInputSchema)
+      .handler(({ context, input }) =>
+        getProviderRiskIncidentForAdmin(context.db, input.incidentId)
+      ),
+
+    link: providerRiskIncidentModeratorProcedure
+      .input(providerRiskIncidentLinkInputSchema)
+      .handler(({ context, input }) =>
+        linkRiskReportToProvider({
+          database: context.db,
+          ...input,
+          reviewerUserId: context.session.user.id,
+        })
+      ),
+
+    list: providerRiskIncidentModeratorProcedure
+      .input(providerRiskIncidentListInputSchema)
+      .handler(({ context, input }) =>
+        listProviderRiskIncidentsForAdmin(context.db, input)
+      ),
+
+    review: providerRiskIncidentModeratorProcedure
+      .input(providerRiskIncidentReviewInputSchema)
+      .handler(({ context, input }) =>
+        reviewProviderRiskIncident({
+          database: context.db,
+          ...input,
+          reviewerUserId: context.session.user.id,
         })
       ),
   },
@@ -356,11 +454,43 @@ export const protectionRouter = {
       ),
   },
 
+  providerRiskIncidents: {
+    listMine: providerProcedure.handler(({ context }) =>
+      listProviderRiskIncidentsForProvider({
+        database: context.db,
+        providerUserId: context.session.user.id,
+      })
+    ),
+
+    registerEvidence: providerProcedure
+      .input(providerRiskIncidentEvidenceInputSchema)
+      .handler(({ context, input }) =>
+        registerProviderRiskIncidentEvidence({
+          database: context.db,
+          ...input,
+          providerUserId: context.session.user.id,
+        })
+      ),
+
+    respond: providerProcedure
+      .input(providerRiskIncidentResponseInputSchema)
+      .handler(({ context, input }) =>
+        submitProviderRiskIncidentResponse({
+          database: context.db,
+          ...input,
+          providerUserId: context.session.user.id,
+        })
+      ),
+  },
+
   providerWorkspace: providerProcedure.handler(async ({ context }) => {
-    const snapshot = await getProviderApplicationSnapshot(
-      context.db,
-      context.session.user.id
-    );
+    const [snapshot, riskIncidents] = await Promise.all([
+      getProviderApplicationSnapshot(context.db, context.session.user.id),
+      listProviderRiskIncidentsForProvider({
+        database: context.db,
+        providerUserId: context.session.user.id,
+      }),
+    ]);
 
     return {
       identity: {
@@ -372,6 +502,7 @@ export const protectionRouter = {
         source: "PROVIDER_IDENTITY",
         visibility: "PRIVATE",
       },
+      riskIncidents,
       ...snapshot,
     };
   }),

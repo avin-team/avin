@@ -17,6 +17,7 @@ import { secureHeaders } from "hono/secure-headers";
 import { startEmailDeliverySchedule } from "./jobs/email-delivery";
 import { startFulfillmentMaintenanceSchedule } from "./jobs/fulfillment-maintenance";
 import { startOrderChatAttachmentMaintenanceSchedule } from "./jobs/order-chat-attachment-maintenance";
+import { startProviderRiskIncidentMaintenanceSchedule } from "./jobs/provider-risk-incident-maintenance";
 import { startSePayReconciliationSchedule } from "./jobs/sepay-reconciliation";
 import {
   createOrderChatAttachmentUploadRouter,
@@ -26,6 +27,7 @@ import {
   createDeliveryAttachmentUploadRouter,
   createRiskReportEvidenceUploadRouter,
   createRiskReportDerivativeUploadRouter,
+  createProviderRiskIncidentEvidenceUploadRouter,
   handleUploadRequest,
   createListingImageUploadRouter,
 } from "./uploads/listing-image-upload";
@@ -75,6 +77,9 @@ const riskReportEvidenceUploadRouter = listingImageStorage
   : null;
 const riskReportDerivativeUploadRouter = listingImageStorage
   ? createRiskReportDerivativeUploadRouter(listingImageStorage.client)
+  : null;
+const providerRiskIncidentEvidenceUploadRouter = listingImageStorage
+  ? createProviderRiskIncidentEvidenceUploadRouter(listingImageStorage.client)
   : null;
 
 const sePayWebhookConfiguration = {
@@ -201,6 +206,20 @@ app.post("/api/risk-report-derivative-upload", (c) => {
   return handleUploadRequest(c.req.raw, riskReportDerivativeUploadRouter);
 });
 
+app.post("/api/provider-risk-incident-evidence-upload", (c) => {
+  if (!providerRiskIncidentEvidenceUploadRouter) {
+    return c.json(
+      { error: "Provider incident evidence uploads are not configured" },
+      503
+    );
+  }
+
+  return handleUploadRequest(
+    c.req.raw,
+    providerRiskIncidentEvidenceUploadRouter
+  );
+});
+
 const sePayWebhook = (c: { req: { raw: Request } }) =>
   handleSePayWebhook({
     configuration: sePayWebhookConfiguration,
@@ -266,4 +285,5 @@ export default app;
 startSePayReconciliationSchedule();
 startFulfillmentMaintenanceSchedule();
 startOrderChatAttachmentMaintenanceSchedule();
+startProviderRiskIncidentMaintenanceSchedule();
 startEmailDeliverySchedule();

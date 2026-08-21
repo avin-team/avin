@@ -4,10 +4,12 @@ import {
   protectionProviderProfile,
   protectionProviderProfileRevision,
   protectionProviderProfileVersion,
+  protectionProviderRiskIncident,
+  protectionRiskReport,
 } from "@avin/db/schema/protection";
 import type { ProviderOfficialChannels } from "@avin/db/schema/protection";
 import { ORPCError } from "@orpc/server";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 
 import {
   createNotificationEvent,
@@ -23,6 +25,10 @@ import type {
   ProviderApplicationDecision,
   ProviderApplicationStatus,
 } from "./provider-application";
+import {
+  createRiskReportPublicPath,
+  publicRiskReportStatuses,
+} from "./risk-report";
 
 type Database = Context["db"];
 type ProviderApplication = typeof protectionProviderApplication.$inferSelect;
@@ -85,24 +91,48 @@ const toProviderProfileHistoryView = (version: ProviderProfileVersion) => ({
 export const toProviderProfileView = (
   profile: ProviderProfile,
   version?: ProviderProfileVersion | null,
-  history: ProviderProfileVersion[] = []
-) => ({
-  displayName: version?.displayName ?? profile.displayName,
-  history: history.map(toProviderProfileHistoryView),
-  id: profile.id,
-  officialChannels: toPublicProviderOfficialChannels(
-    version?.officialChannels ?? profile.officialChannels
-  ),
-  profileSlug: profile.profileSlug,
-  publicUrl: providerProfilePath(profile.profileSlug),
-  publishedAt: (version?.publishedAt ?? profile.publishedAt).toISOString(),
-  services: version?.services ?? profile.services,
-  status: version?.status ?? profile.status,
-  statusReason: version?.statusReason ?? null,
-  verifiedAt: (version?.verifiedAt ?? profile.verifiedAt).toISOString(),
-  versionId: version?.id ?? profile.id,
-  versionNumber: version?.versionNumber ?? 1,
-});
+  history: ProviderProfileVersion[] = [],
+  relatedWarnings: ProviderRelatedWarning[] = []
+) => {
+  const currentVersion = version ?? {
+    displayName: profile.displayName,
+    id: profile.id,
+    officialChannels: profile.officialChannels,
+    publishedAt: profile.publishedAt,
+    services: profile.services,
+    status: profile.status,
+    statusReason: null,
+    verifiedAt: profile.verifiedAt,
+    versionNumber: 1,
+  };
+
+  return {
+    displayName: currentVersion.displayName,
+    history: history.map(toProviderProfileHistoryView),
+    id: profile.id,
+    officialChannels: toPublicProviderOfficialChannels(
+      currentVersion.officialChannels
+    ),
+    profileSlug: profile.profileSlug,
+    publicUrl: providerProfilePath(profile.profileSlug),
+    publishedAt: currentVersion.publishedAt.toISOString(),
+    relatedWarnings,
+    services: currentVersion.services,
+    status: currentVersion.status,
+    statusReason: currentVersion.statusReason,
+    verifiedAt: currentVersion.verifiedAt.toISOString(),
+    versionId: currentVersion.id,
+    versionNumber: currentVersion.versionNumber,
+  };
+};
+
+export interface ProviderRelatedWarning {
+  publicPath: string;
+  publicSlug: string;
+  publishedAt: string | null;
+  status: (typeof publicRiskReportStatuses)[number];
+  type: string;
+}
 
 export const toProviderProfileRevisionView = (
   revision: ProviderProfileRevision
@@ -198,6 +228,58 @@ const findProviderProfileVersionHistory = async (
   return versions;
 };
 
+const findProviderRelatedWarnings = async (
+  database: Database,
+  profileId: string
+): Promise<ProviderRelatedWarning[]> => {
+  const incidents = await database
+    .select({ riskReportId: protectionProviderRiskIncident.riskReportId })
+    .from(protectionProviderRiskIncident)
+    .where(eq(protectionProviderRiskIncident.providerProfileId, profileId))
+    .execute();
+  const reportIds = incidents.map(({ riskReportId }) => riskReportId);
+  if (reportIds.length === 0) {
+    return [];
+  }
+
+  const reports = await database
+    .select({
+      publicSlug: protectionRiskReport.publicSlug,
+      publishedAt: protectionRiskReport.publishedAt,
+      status: protectionRiskReport.status,
+      type: protectionRiskReport.type,
+    })
+    .from(protectionRiskReport)
+    .where(
+      and(
+        inArray(protectionRiskReport.id, reportIds),
+        inArray(protectionRiskReport.status, publicRiskReportStatuses)
+      )
+    )
+    .orderBy(desc(protectionRiskReport.publishedAt))
+    .execute();
+
+  const seen = new Set<string>();
+  return reports.flatMap((report) => {
+    const status = publicRiskReportStatuses.find(
+      (publicStatus) => publicStatus === report.status
+    );
+    if (!report.publicSlug || !status || seen.has(report.publicSlug)) {
+      return [];
+    }
+    seen.add(report.publicSlug);
+    return [
+      {
+        publicPath: createRiskReportPublicPath(report.publicSlug),
+        publicSlug: report.publicSlug,
+        publishedAt: toIso(report.publishedAt),
+        status,
+        type: report.type,
+      },
+    ];
+  });
+};
+
 const findLatestProviderProfileRevision = async (
   database: Database,
   profileId: string
@@ -215,11 +297,12 @@ const getProviderProfilePublicView = async (
   database: Database,
   profile: ProviderProfile
 ) => {
-  const [version, history] = await Promise.all([
+  const [version, history, relatedWarnings] = await Promise.all([
     findLatestProviderProfileVersion(database, profile.id),
     findProviderProfileVersionHistory(database, profile.id),
+    findProviderRelatedWarnings(database, profile.id),
   ]);
-  return toProviderProfileView(profile, version, history);
+  return toProviderProfileView(profile, version, history, relatedWarnings);
 };
 
 const ensureProviderProfileVersion = async (
@@ -1120,6 +1203,82 @@ export const decideProviderProfileRevision = async ({
   };
 };
 
+export const publishProviderProfileStatusInTransaction = async ({
+  database,
+  now,
+  profileId,
+  reviewerUserId,
+  status,
+  statusReason,
+}: {
+  database: Database;
+  now: Date;
+  profileId: string;
+  reviewerUserId: string | null;
+  status: ProviderProfile["status"];
+  statusReason?: string;
+}) => {
+  const [profile] = await database
+    .select()
+    .from(protectionProviderProfile)
+    .where(eq(protectionProviderProfile.id, profileId))
+    .limit(1);
+  if (!profile) {
+    throw new ORPCError("NOT_FOUND", {
+      message: "Provider profile does not exist",
+    });
+  }
+  const currentVersion = await findLatestProviderProfileVersion(
+    database,
+    profile.id
+  );
+  if (!currentVersion) {
+    throw new ORPCError("CONFLICT", {
+      message: "Provider profile has no published version",
+    });
+  }
+
+  if (currentVersion.status === status && profile.status === status) {
+    return { profile, profileVersion: currentVersion };
+  }
+
+  const [createdVersion] = await database
+    .insert(protectionProviderProfileVersion)
+    .values({
+      displayName: currentVersion.displayName,
+      officialChannels: currentVersion.officialChannels,
+      paymentAccount: currentVersion.paymentAccount,
+      profileId: profile.id,
+      profileSlug: profile.profileSlug,
+      publishedAt: now,
+      publishedByUserId: reviewerUserId,
+      services: currentVersion.services,
+      sourceApplicationId: profile.applicationId,
+      status,
+      statusReason: statusReason?.trim() || null,
+      verifiedAt: currentVersion.verifiedAt,
+      versionNumber: currentVersion.versionNumber + 1,
+    })
+    .returning();
+  if (!createdVersion) {
+    throw new ORPCError("CONFLICT", {
+      message: "Provider profile status version could not be published",
+    });
+  }
+  const [updatedProfile] = await database
+    .update(protectionProviderProfile)
+    .set({ status, updatedAt: now })
+    .where(eq(protectionProviderProfile.id, profile.id))
+    .returning();
+  if (!updatedProfile) {
+    throw new ORPCError("CONFLICT", {
+      message: "Provider profile status could not be updated",
+    });
+  }
+
+  return { profile: updatedProfile, profileVersion: createdVersion };
+};
+
 export const publishProviderProfileStatus = ({
   database,
   profileId,
@@ -1135,60 +1294,15 @@ export const publishProviderProfileStatus = ({
 }) => {
   const now = new Date();
   return database.transaction(async (transaction) => {
-    const [profile] = await transaction
-      .select()
-      .from(protectionProviderProfile)
-      .where(eq(protectionProviderProfile.id, profileId))
-      .limit(1);
-    if (!profile) {
-      throw new ORPCError("NOT_FOUND", {
-        message: "Provider profile does not exist",
-      });
-    }
-    const currentVersion = await findLatestProviderProfileVersion(
-      transaction,
-      profile.id
-    );
-    if (!currentVersion) {
-      throw new ORPCError("CONFLICT", {
-        message: "Provider profile has no published version",
-      });
-    }
-    const [createdVersion] = await transaction
-      .insert(protectionProviderProfileVersion)
-      .values({
-        displayName: currentVersion.displayName,
-        officialChannels: currentVersion.officialChannels,
-        paymentAccount: currentVersion.paymentAccount,
-        profileId: profile.id,
-        profileSlug: profile.profileSlug,
-        publishedAt: now,
-        publishedByUserId: reviewerUserId,
-        services: currentVersion.services,
-        sourceApplicationId: profile.applicationId,
-        status,
-        statusReason: statusReason?.trim() || null,
-        verifiedAt: currentVersion.verifiedAt,
-        versionNumber: currentVersion.versionNumber + 1,
-      })
-      .returning();
-    if (!createdVersion) {
-      throw new ORPCError("CONFLICT", {
-        message: "Provider profile status version could not be published",
-      });
-    }
-    const [updatedProfile] = await transaction
-      .update(protectionProviderProfile)
-      .set({ status, updatedAt: now })
-      .where(eq(protectionProviderProfile.id, profile.id))
-      .returning();
-    if (!updatedProfile) {
-      throw new ORPCError("CONFLICT", {
-        message: "Provider profile status could not be updated",
-      });
-    }
-
-    return getProviderProfilePublicView(transaction, updatedProfile);
+    const result = await publishProviderProfileStatusInTransaction({
+      database: transaction,
+      now,
+      profileId,
+      reviewerUserId,
+      status,
+      statusReason,
+    });
+    return getProviderProfilePublicView(transaction, result.profile);
   });
 };
 

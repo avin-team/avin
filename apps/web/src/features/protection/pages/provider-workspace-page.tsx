@@ -8,6 +8,7 @@ import {
 } from "../api/provider-api";
 import type { ProviderWorkspace } from "../api/provider-api";
 import { ProviderApplicationForm } from "../components/provider-application-form";
+import { ProviderRiskIncidentPanel } from "../components/provider-risk-incident-panel";
 
 const APPLICATION_STATUS_LABELS = {
   APPROVED: "Đã được duyệt",
@@ -201,6 +202,10 @@ export const ProviderWorkspacePage = () => {
           <ProviderProfileRevisionPanel
             profileRevision={workspace.data.profileRevision}
             publicProfile={workspace.data.publicProfile}
+          />
+
+          <ProviderRiskIncidentPanel
+            incidents={workspace.data.riskIncidents ?? []}
           />
 
           {notifications.data ? (

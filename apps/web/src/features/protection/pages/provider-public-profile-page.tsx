@@ -19,6 +19,12 @@ const PROFILE_STATUS_LABELS = {
   WITHDRAWN: "Đã rút khỏi chương trình",
 } as const;
 
+const RISK_STATUS_LABELS = {
+  CORRECTED: "Đã cập nhật",
+  PUBLISHED: "Đã công khai",
+  UNDER_VERIFICATION: "Đang xác minh",
+} as const;
+
 export const ProviderPublicProfilePage = () => {
   const { slug } = useParams({ from: "/(public)/avin-check/provider/$slug" });
   const profileQuery = useQuery(
@@ -82,6 +88,31 @@ export const ProviderPublicProfilePage = () => {
           </p>
         </CardContent>
       </Card>
+
+      {profile.relatedWarnings.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Cảnh báo công khai liên quan</CardTitle>
+            <CardDescription>
+              Chỉ các Risk Report đã được công khai mới được liên kết ở đây.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-2 text-sm">
+            {profile.relatedWarnings.map((warning) => (
+              <a
+                className="flex flex-wrap justify-between gap-2 rounded-lg border p-3 text-primary underline underline-offset-4"
+                href={warning.publicPath}
+                key={warning.publicSlug}
+              >
+                <span>{warning.publicSlug}</span>
+                <span className="text-muted-foreground no-underline">
+                  {RISK_STATUS_LABELS[warning.status]}
+                </span>
+              </a>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>

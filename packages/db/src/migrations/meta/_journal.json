@@ -288,6 +288,13 @@
       "when": 1787310667431,
       "tag": "0040_small_mad_thinker",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1787313910657,
+      "tag": "0041_concerned_marauders",
+      "breakpoints": true
     }
   ]
 }

@@ -14,6 +14,8 @@ export const CHECKOUT_ATTACHMENT_UPLOAD_ROUTE = "checkout-attachment";
 export const DELIVERY_ATTACHMENT_UPLOAD_ROUTE = "delivery-attachment";
 export const RISK_REPORT_EVIDENCE_UPLOAD_ROUTE = "risk-report-evidence";
 export const RISK_REPORT_DERIVATIVE_UPLOAD_ROUTE = "risk-report-derivative";
+export const PROVIDER_RISK_INCIDENT_EVIDENCE_UPLOAD_ROUTE =
+  "provider-risk-incident-evidence";
 
 export interface ManagedObjectStore {
   deleteObject: (key: string, bucket?: string) => Promise<void>;
@@ -349,6 +351,34 @@ export const isRiskReportEvidenceKey = (
     return false;
   }
   const prefix = `risk-reports/private/${reportId}/`;
+  return new RegExp(
+    `^${prefix.replaceAll("/", "\\/")}[a-f0-9-]{36}\\.(?:pdf|jpg|png|webp|txt|mp4|webm)$`,
+    "iu"
+  ).test(key);
+};
+
+export const createProviderRiskIncidentEvidenceKey = (
+  incidentId: string,
+  providerUserId: string,
+  contentType: string,
+  objectId = crypto.randomUUID()
+): string => {
+  const extension = getRiskReportEvidenceExtension(contentType);
+  assertRiskReportStorageSegments([incidentId, providerUserId, objectId]);
+  return `risk-incidents/private/${incidentId}/${providerUserId}/${objectId}.${extension}`;
+};
+
+export const isProviderRiskIncidentEvidenceKey = (
+  key: string,
+  incidentId: string,
+  providerUserId: string
+): boolean => {
+  try {
+    assertRiskReportStorageSegments([incidentId, providerUserId]);
+  } catch {
+    return false;
+  }
+  const prefix = `risk-incidents/private/${incidentId}/${providerUserId}/`;
   return new RegExp(
     `^${prefix.replaceAll("/", "\\/")}[a-f0-9-]{36}\\.(?:pdf|jpg|png|webp|txt|mp4|webm)$`,
     "iu"

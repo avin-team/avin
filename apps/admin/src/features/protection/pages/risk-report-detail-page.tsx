@@ -40,6 +40,7 @@ import type {
   RiskReportDetail,
   RiskReportDecision,
 } from "../api/risk-reports-api";
+import { ProviderRiskIncidentPanel } from "../components/provider-risk-incident-panel";
 
 const ACCEPTED_CONTENT_TYPES = {
   "application/pdf": [".pdf"],
@@ -654,6 +655,7 @@ export const RiskReportDetailPage = () => {
                     </p>
                   ) : null}
                 </section>
+                <ProviderRiskIncidentPanel reportId={report.id} />
               </div>
               <div className="grid content-start gap-6">
                 <DecisionPanel report={report} />
