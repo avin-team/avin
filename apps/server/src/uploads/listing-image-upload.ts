@@ -2,6 +2,10 @@ import {
   assertEligibleSeller,
   canUploadListingImage,
 } from "@avin/api/listing/seller-workspace";
+import { loadProtectionAdminCapabilities } from "@avin/api/protection/capabilities";
+import { assertProtectionAdminAccess } from "@avin/api/protection/procedures";
+import { riskReportEvidenceKinds } from "@avin/api/protection/risk-report";
+import { assertRiskReportEvidenceUploadAccess } from "@avin/api/protection/risk-report-service";
 import { assertMarketplaceSellerNotEnforced } from "@avin/api/seller-enforcement/access";
 import { isSellerEnforcementActive } from "@avin/api/seller-enforcement/policy";
 import {
@@ -42,8 +46,17 @@ import {
   SELLER_LOGO_CONTENT_TYPES,
   SELLER_LOGO_MAX_BYTES,
   SELLER_LOGO_UPLOAD_ROUTE,
+  createRiskReportDerivativeKey,
+  createRiskReportEvidenceKey,
+  isRiskReportEvidenceFileNameAllowed,
+  RISK_REPORT_EVIDENCE_CONTENT_TYPES,
+  RISK_REPORT_EVIDENCE_MAX_COUNT,
+  RISK_REPORT_EVIDENCE_MAX_BYTES,
+  RISK_REPORT_EVIDENCE_UPLOAD_ROUTE,
+  RISK_REPORT_DERIVATIVE_UPLOAD_ROUTE,
 } from "@avin/api/storage";
-import { auth } from "@avin/auth";
+import { adminAuth, auth } from "@avin/auth";
+import { PROTECTION_ADMIN_CAPABILITY } from "@avin/auth/permissions";
 import { db } from "@avin/db";
 import { handleRequest, RejectUpload, route } from "@better-upload/server";
 import type { Router } from "@better-upload/server";
@@ -68,6 +81,15 @@ const checkoutAttachmentClientMetadataSchema = z.object({
 });
 const deliveryAttachmentClientMetadataSchema = z.object({
   itemId: z.uuid(),
+});
+const riskReportEvidenceClientMetadataSchema = z.object({
+  kind: z.enum(riskReportEvidenceKinds),
+  reportId: z.uuid(),
+  reporterToken: z.string().trim().min(40).max(200),
+});
+const riskReportDerivativeClientMetadataSchema = z.object({
+  evidenceId: z.uuid(),
+  reportId: z.uuid(),
 });
 
 interface DisputeEvidenceUploadItem {
@@ -431,6 +453,114 @@ export const createDisputeEvidenceUploadRouter = (
               file.type
             ),
           }),
+        };
+      },
+    }),
+  },
+});
+
+export const createRiskReportEvidenceUploadRouter = (
+  client: Router["client"]
+): Router => ({
+  bucketName: ORDER_FILES_BUCKET,
+  client,
+  routes: {
+    [RISK_REPORT_EVIDENCE_UPLOAD_ROUTE]: route({
+      clientMetadataSchema: riskReportEvidenceClientMetadataSchema,
+      fileTypes: [...RISK_REPORT_EVIDENCE_CONTENT_TYPES],
+      maxFileSize: RISK_REPORT_EVIDENCE_MAX_BYTES,
+      maxFiles: RISK_REPORT_EVIDENCE_MAX_COUNT,
+      multipleFiles: true,
+      onBeforeUpload: async ({ clientMetadata, files }) => {
+        try {
+          await assertRiskReportEvidenceUploadAccess({
+            database: db,
+            files,
+            reportId: clientMetadata.reportId,
+            reporterToken: clientMetadata.reporterToken,
+          });
+        } catch (error) {
+          throw new RejectUpload(
+            error instanceof Error
+              ? error.message
+              : "Risk report evidence upload is not allowed"
+          );
+        }
+
+        for (const file of files) {
+          if (!isRiskReportEvidenceFileNameAllowed(file.name, file.type)) {
+            throw new RejectUpload(
+              "Evidence file extension must match its supported content type"
+            );
+          }
+        }
+
+        return {
+          generateObjectInfo: ({ file }) => ({
+            cacheControl: "private, max-age=0",
+            key: createRiskReportEvidenceKey(
+              clientMetadata.reportId,
+              file.type
+            ),
+          }),
+        };
+      },
+    }),
+  },
+});
+
+export const createRiskReportDerivativeUploadRouter = (
+  client: Router["client"]
+): Router => ({
+  bucketName: PUBLIC_MEDIA_BUCKET,
+  client,
+  routes: {
+    [RISK_REPORT_DERIVATIVE_UPLOAD_ROUTE]: route({
+      clientMetadataSchema: riskReportDerivativeClientMetadataSchema,
+      fileTypes: [...RISK_REPORT_EVIDENCE_CONTENT_TYPES],
+      maxFileSize: RISK_REPORT_EVIDENCE_MAX_BYTES,
+      multipleFiles: false,
+      onBeforeUpload: async ({ clientMetadata, file, req }) => {
+        const session = await adminAuth.api.getSession({
+          headers: req.headers,
+        });
+        if (!session) {
+          throw new RejectUpload(
+            "Sign in as a Risk Moderator before uploading a derivative"
+          );
+        }
+        const capabilities = await loadProtectionAdminCapabilities(
+          db,
+          session.user.id
+        );
+        try {
+          assertProtectionAdminAccess(
+            session.user,
+            capabilities,
+            PROTECTION_ADMIN_CAPABILITY.RISK_MODERATOR
+          );
+        } catch (error) {
+          throw new RejectUpload(
+            error instanceof Error
+              ? error.message
+              : "Risk Moderator access is required"
+          );
+        }
+        if (!isRiskReportEvidenceFileNameAllowed(file.name, file.type)) {
+          throw new RejectUpload(
+            "Derivative file extension must match its supported content type"
+          );
+        }
+
+        return {
+          objectInfo: {
+            cacheControl: "public, max-age=31536000, immutable",
+            key: createRiskReportDerivativeKey(
+              clientMetadata.reportId,
+              clientMetadata.evidenceId,
+              file.type
+            ),
+          },
         };
       },
     }),

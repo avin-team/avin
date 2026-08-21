@@ -17,6 +17,7 @@
     "@avin/db": "workspace:*",
     "@avin/env": "workspace:*",
     "@avin/ui": "workspace:*",
+    "@better-upload/client": "3.0.19",
     "@hookform/resolvers": "^5.2.2",
     "@orpc/client": "catalog:",
     "@orpc/server": "catalog:",

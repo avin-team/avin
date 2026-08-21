@@ -31,6 +31,60 @@ export const protectionProviderProfileStatus = pgEnum(
   ]
 );
 
+export const protectionRiskReportType = pgEnum("protection_risk_report_type", [
+  "BANK_WALLET_PHONE",
+  "MALICIOUS_WEBSITE",
+  "SOCIAL_GAME_ACCOUNT",
+]);
+
+export const protectionRiskReportStatus = pgEnum(
+  "protection_risk_report_status",
+  [
+    "DRAFT",
+    "SUBMITTED",
+    "UNDER_REVIEW",
+    "CHANGES_REQUESTED",
+    "REJECTED",
+    "PUBLISHED",
+    "CORRECTED",
+    "REMOVED",
+  ]
+);
+
+export const protectionRiskIdentifierType = pgEnum(
+  "protection_risk_identifier_type",
+  [
+    "BANK_ACCOUNT",
+    "WALLET_ACCOUNT",
+    "PHONE",
+    "WEBSITE",
+    "SOCIAL_ACCOUNT",
+    "PLATFORM_ACCOUNT",
+  ]
+);
+
+export const protectionRiskEvidenceKind = pgEnum(
+  "protection_risk_evidence_kind",
+  [
+    "PAYMENT_PROOF",
+    "CONVERSATION",
+    "SCREENSHOT",
+    "VIDEO",
+    "OWNERSHIP_PROOF",
+    "OTHER",
+  ]
+);
+
+export const protectionRiskEvidenceScanStatus = pgEnum(
+  "protection_risk_evidence_scan_status",
+  ["PENDING", "CLEAN", "REJECTED"]
+);
+
+export const protectionRiskEmailDeliveryStatus = pgEnum(
+  "protection_risk_email_delivery_status",
+  ["pending", "retrying", "sent", "failed"]
+);
+
 export const providerOfficialChannelsSchema = z.object({
   facebookId: z.string().trim().max(200).optional(),
   facebookUrl: z.url().optional(),
@@ -241,6 +295,217 @@ export const protectionProviderProfileRevision = pgTable(
     index("protection_provider_profile_revision_status_idx").on(table.status),
     index("protection_provider_profile_revision_submitted_idx").on(
       table.submittedAt
+    ),
+  ]
+);
+
+export const protectionRiskReporterSession = pgTable(
+  "protection_risk_reporter_session",
+  {
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    email: text("email").notNull(),
+    emailHash: text("email_hash").notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    ipHash: text("ip_hash"),
+    lastUsedAt: timestamp("last_used_at"),
+    tokenHash: text("token_hash").notNull(),
+  },
+  (table) => [
+    index("protection_risk_reporter_session_email_hash_idx").on(
+      table.emailHash
+    ),
+    uniqueIndex("protection_risk_reporter_session_token_hash_idx").on(
+      table.tokenHash
+    ),
+    index("protection_risk_reporter_session_expires_idx").on(table.expiresAt),
+  ]
+);
+
+export const protectionRiskReport = pgTable(
+  "protection_risk_report",
+  {
+    claimedLoss: integer("claimed_loss"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    narrative: text("narrative"),
+    publicSlug: text("public_slug"),
+    publicSummary: text("public_summary"),
+    publishedAt: timestamp("published_at"),
+    reporterEmail: text("reporter_email").notNull(),
+    reporterName: text("reporter_name"),
+    reporterPhone: text("reporter_phone"),
+    reporterSessionId: uuid("reporter_session_id")
+      .notNull()
+      .references(() => protectionRiskReporterSession.id, {
+        onDelete: "restrict",
+      }),
+    reporterZalo: text("reporter_zalo"),
+    reviewReason: text("review_reason"),
+    reviewedAt: timestamp("reviewed_at"),
+    reviewedByUserId: text("reviewed_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    status: protectionRiskReportStatus("status").default("DRAFT").notNull(),
+    submittedAt: timestamp("submitted_at"),
+    type: protectionRiskReportType("type").notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("protection_risk_report_public_slug_idx").on(table.publicSlug),
+    index("protection_risk_report_status_idx").on(table.status),
+    index("protection_risk_report_submitted_idx").on(table.submittedAt),
+    index("protection_risk_report_reporter_session_idx").on(
+      table.reporterSessionId
+    ),
+  ]
+);
+
+export const protectionRiskIdentifier = pgTable(
+  "protection_risk_identifier",
+  {
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    isPrimary: boolean("is_primary").default(false).notNull(),
+    maskedValue: text("masked_value").notNull(),
+    normalizedValue: text("normalized_value").notNull(),
+    publicValue: text("public_value"),
+    reportId: uuid("report_id")
+      .notNull()
+      .references(() => protectionRiskReport.id, { onDelete: "cascade" }),
+    type: protectionRiskIdentifierType("type").notNull(),
+    value: text("value").notNull(),
+  },
+  (table) => [
+    index("protection_risk_identifier_report_idx").on(table.reportId),
+    index("protection_risk_identifier_lookup_idx").on(
+      table.type,
+      table.normalizedValue
+    ),
+  ]
+);
+
+export const protectionRiskEvidence = pgTable(
+  "protection_risk_evidence",
+  {
+    contentType: text("content_type").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    fileName: text("file_name").notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    immutableAt: timestamp("immutable_at").defaultNow().notNull(),
+    kind: protectionRiskEvidenceKind("kind").notNull(),
+    originalStorageKey: text("original_storage_key").notNull(),
+    reportId: uuid("report_id")
+      .notNull()
+      .references(() => protectionRiskReport.id, { onDelete: "cascade" }),
+    scanReason: text("scan_reason"),
+    scanStatus: protectionRiskEvidenceScanStatus("scan_status")
+      .default("PENDING")
+      .notNull(),
+    sha256: text("sha256"),
+    sizeBytes: integer("size_bytes").notNull(),
+  },
+  (table) => [
+    uniqueIndex("protection_risk_evidence_storage_key_idx").on(
+      table.originalStorageKey
+    ),
+    index("protection_risk_evidence_report_idx").on(table.reportId),
+  ]
+);
+
+export const protectionRiskEvidenceDerivative = pgTable(
+  "protection_risk_evidence_derivative",
+  {
+    contentType: text("content_type").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    evidenceId: uuid("evidence_id")
+      .notNull()
+      .unique()
+      .references(() => protectionRiskEvidence.id, { onDelete: "cascade" }),
+    id: uuid("id").defaultRandom().primaryKey(),
+    metadataRemoved: boolean("metadata_removed").default(false).notNull(),
+    sha256: text("sha256"),
+    sizeBytes: integer("size_bytes").notNull(),
+    storageKey: text("storage_key").notNull().unique(),
+    unrelatedPiiRedacted: boolean("unrelated_pii_redacted")
+      .default(false)
+      .notNull(),
+    watermarkApplied: boolean("watermark_applied").default(false).notNull(),
+  },
+  (table) => [
+    index("protection_risk_evidence_derivative_storage_idx").on(
+      table.storageKey
+    ),
+  ]
+);
+
+export const protectionRiskReportHistory = pgTable(
+  "protection_risk_report_history",
+  {
+    actorUserId: text("actor_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    isPublic: boolean("is_public").default(false).notNull(),
+    reason: text("reason"),
+    reportId: uuid("report_id")
+      .notNull()
+      .references(() => protectionRiskReport.id, { onDelete: "cascade" }),
+    status: protectionRiskReportStatus("status").notNull(),
+  },
+  (table) => [
+    index("protection_risk_report_history_report_idx").on(
+      table.reportId,
+      table.createdAt
+    ),
+  ]
+);
+
+export const protectionRiskReportEmailDelivery = pgTable(
+  "protection_risk_report_email_delivery",
+  {
+    attemptCount: integer("attempt_count").default(0).notNull(),
+    claimedAt: timestamp("claimed_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    eventType: text("event_type").notNull(),
+    firstAttemptAt: timestamp("first_attempt_at"),
+    htmlBody: text("html_body").notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    lastAttemptAt: timestamp("last_attempt_at"),
+    lastError: text("last_error"),
+    nextAttemptAt: timestamp("next_attempt_at").notNull(),
+    recipientEmail: text("recipient_email").notNull(),
+    reportId: uuid("report_id").references(() => protectionRiskReport.id, {
+      onDelete: "cascade",
+    }),
+    retryWindowStartedAt: timestamp("retry_window_started_at").notNull(),
+    sourceId: text("source_id").notNull(),
+    sourceType: text("source_type").notNull(),
+    status: protectionRiskEmailDeliveryStatus("status")
+      .default("pending")
+      .notNull(),
+    subject: text("subject").notNull(),
+    textBody: text("text_body").notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("protection_risk_email_delivery_event_unique_idx").on(
+      table.sourceType,
+      table.sourceId,
+      table.eventType,
+      table.recipientEmail
+    ),
+    index("protection_risk_email_delivery_claim_idx").on(
+      table.status,
+      table.nextAttemptAt,
+      table.claimedAt
     ),
   ]
 );

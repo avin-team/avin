@@ -53,6 +53,35 @@ import {
   providerDirectorySearchInputSchema,
   searchProviderDirectory,
 } from "./provider-directory";
+import {
+  publicRiskWarningIdInputSchema,
+  publicRiskWarningListInputSchema,
+  riskReportAdminDecisionInputSchema,
+  riskReportAdminIdInputSchema,
+  riskReportAdminListInputSchema,
+  riskReportDerivativeInputSchema,
+  riskReportDraftInputSchema,
+  riskReportEvidenceInputSchema,
+  riskReportMineInputSchema,
+  riskReportOwnedInputSchema,
+  riskReportRequestEmailCodeInputSchema,
+  riskReportVerifyEmailCodeInputSchema,
+} from "./risk-report";
+import {
+  addRiskReportEvidence,
+  createRiskReportOriginalEvidenceUrl,
+  decideRiskReport,
+  getPublicRiskWarning,
+  getRiskReportForAdmin,
+  getRiskReportMine,
+  listPublicRiskWarnings,
+  listRiskReportsForAdmin,
+  registerRiskReportDerivative,
+  requestRiskReportEmailCode,
+  saveRiskReportDraft,
+  submitRiskReport,
+  verifyRiskReportEmailCode,
+} from "./risk-report-service";
 
 const providerNotificationListInput = z
   .object({
@@ -81,6 +110,17 @@ const providerProfileRevisionReviewerProcedure = protectionAdminProcedure({
   target: {
     id: "PROTECTION_PROVIDER_PROFILE_REVISION_QUEUE",
     type: "PROTECTION_PROVIDER_PROFILE_REVISION_QUEUE",
+  },
+});
+
+const riskModeratorProcedure = protectionAdminProcedure({
+  action: "protection.risk_report.review",
+  capability: PROTECTION_ADMIN_CAPABILITY.RISK_MODERATOR,
+  purpose:
+    "Review private Avin Check risk reports and publish redacted warnings",
+  target: {
+    id: "PROTECTION_RISK_REPORT_QUEUE",
+    type: "PROTECTION_RISK_REPORT_QUEUE",
   },
 });
 
@@ -157,6 +197,54 @@ export const protectionRouter = {
           status: input.status,
           statusReason: input.statusReason,
         })
+      ),
+  },
+
+  adminRiskReports: {
+    decide: riskModeratorProcedure
+      .input(riskReportAdminDecisionInputSchema)
+      .handler(({ context, input }) =>
+        decideRiskReport({
+          database: context.db,
+          decision: input.decision,
+          id: input.id,
+          publicSummary: input.publicSummary,
+          reason: input.reason,
+          reviewerUserId: context.session.user.id,
+        })
+      ),
+
+    get: riskModeratorProcedure
+      .input(riskReportAdminIdInputSchema)
+      .handler(({ context, input }) =>
+        getRiskReportForAdmin(context.db, input.id)
+      ),
+
+    getOriginalEvidenceUrl: riskModeratorProcedure
+      .input(
+        riskReportAdminIdInputSchema.extend({
+          evidenceId: z.uuid(),
+        })
+      )
+      .handler(({ context, input }) =>
+        createRiskReportOriginalEvidenceUrl({
+          database: context.db,
+          evidenceId: input.evidenceId,
+          reportId: input.id,
+          storage: context.storage,
+        })
+      ),
+
+    list: riskModeratorProcedure
+      .input(riskReportAdminListInputSchema)
+      .handler(({ context, input }) =>
+        listRiskReportsForAdmin(context.db, input)
+      ),
+
+    registerDerivative: riskModeratorProcedure
+      .input(riskReportDerivativeInputSchema)
+      .handler(({ context, input }) =>
+        registerRiskReportDerivative({ database: context.db, ...input })
       ),
   },
 
@@ -287,4 +375,63 @@ export const protectionRouter = {
     .handler(({ context, input }) =>
       getPublicProviderProfile(context.db, input.slug)
     ),
+
+  publicRiskWarnings: {
+    get: publicProcedure
+      .input(publicRiskWarningIdInputSchema)
+      .handler(({ context, input }) =>
+        getPublicRiskWarning(
+          context.db,
+          input.slug,
+          context.storage?.supabaseUrl
+        )
+      ),
+
+    list: publicProcedure
+      .input(publicRiskWarningListInputSchema)
+      .handler(({ context, input }) =>
+        listPublicRiskWarnings(context.db, input, context.storage?.supabaseUrl)
+      ),
+  },
+
+  riskReport: {
+    addEvidence: publicProcedure
+      .input(riskReportEvidenceInputSchema)
+      .handler(({ context, input }) =>
+        addRiskReportEvidence(context.db, input)
+      ),
+
+    getMine: publicProcedure
+      .input(riskReportMineInputSchema)
+      .handler(({ context, input }) =>
+        getRiskReportMine({
+          database: context.db,
+          ...input,
+        })
+      ),
+
+    requestEmailCode: publicProcedure
+      .input(riskReportRequestEmailCodeInputSchema)
+      .handler(({ context, input }) =>
+        requestRiskReportEmailCode({ database: context.db, ...input })
+      ),
+
+    saveDraft: publicProcedure
+      .input(riskReportDraftInputSchema)
+      .handler(({ context, input }) => saveRiskReportDraft(context.db, input)),
+
+    submit: publicProcedure
+      .input(riskReportOwnedInputSchema)
+      .handler(({ context, input }) => submitRiskReport(context.db, input)),
+
+    verifyEmailCode: publicProcedure
+      .input(riskReportVerifyEmailCodeInputSchema)
+      .handler(({ context, input }) =>
+        verifyRiskReportEmailCode({
+          database: context.db,
+          ipAddress: context.ipAddress,
+          ...input,
+        })
+      ),
+  },
 };

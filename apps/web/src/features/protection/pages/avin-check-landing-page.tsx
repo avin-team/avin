@@ -90,6 +90,18 @@ export const AvinCheckLandingPage = () => (
           >
             Mở Provider Directory
           </Link>
+          <Link
+            className="inline-flex h-11 items-center rounded-4xl border border-border px-5 font-medium text-sm transition hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            to="/avin-check/warnings"
+          >
+            Đọc cảnh báo công khai
+          </Link>
+          <Link
+            className="inline-flex h-11 items-center rounded-4xl border border-border px-5 font-medium text-sm transition hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            to="/avin-check/report"
+          >
+            Gửi cảnh báo rủi ro
+          </Link>
           <span className="text-muted-foreground text-sm">
             Khu vực kiểm tra đang được mở dần theo chính sách.
           </span>

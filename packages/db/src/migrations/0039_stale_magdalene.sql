@@ -1,0 +1,2 @@
+DROP INDEX "protection_risk_reporter_session_email_hash_idx";--> statement-breakpoint
+CREATE INDEX "protection_risk_reporter_session_email_hash_idx" ON "protection_risk_reporter_session" USING btree ("email_hash");

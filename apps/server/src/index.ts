@@ -24,6 +24,8 @@ import {
   createSellerEnforcementAppealEvidenceUploadRouter,
   createCheckoutAttachmentUploadRouter,
   createDeliveryAttachmentUploadRouter,
+  createRiskReportEvidenceUploadRouter,
+  createRiskReportDerivativeUploadRouter,
   handleUploadRequest,
   createListingImageUploadRouter,
 } from "./uploads/listing-image-upload";
@@ -50,6 +52,12 @@ const checkoutAttachmentUploadRouter = listingImageStorage
   : null;
 const deliveryAttachmentUploadRouter = listingImageStorage
   ? createDeliveryAttachmentUploadRouter(listingImageStorage.client)
+  : null;
+const riskReportEvidenceUploadRouter = listingImageStorage
+  ? createRiskReportEvidenceUploadRouter(listingImageStorage.client)
+  : null;
+const riskReportDerivativeUploadRouter = listingImageStorage
+  ? createRiskReportDerivativeUploadRouter(listingImageStorage.client)
   : null;
 
 const sePayWebhookConfiguration = {
@@ -152,6 +160,28 @@ app.post("/api/delivery-attachment-upload", (c) => {
   }
 
   return handleUploadRequest(c.req.raw, deliveryAttachmentUploadRouter);
+});
+
+app.post("/api/risk-report-evidence-upload", (c) => {
+  if (!riskReportEvidenceUploadRouter) {
+    return c.json(
+      { error: "Risk report evidence uploads are not configured" },
+      503
+    );
+  }
+
+  return handleUploadRequest(c.req.raw, riskReportEvidenceUploadRouter);
+});
+
+app.post("/api/risk-report-derivative-upload", (c) => {
+  if (!riskReportDerivativeUploadRouter) {
+    return c.json(
+      { error: "Risk report derivative uploads are not configured" },
+      503
+    );
+  }
+
+  return handleUploadRequest(c.req.raw, riskReportDerivativeUploadRouter);
 });
 
 const sePayWebhook = (c: { req: { raw: Request } }) =>

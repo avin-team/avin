@@ -253,6 +253,34 @@
       "when": 1787306322913,
       "tag": "0035_late_veda",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1787307503931,
+      "tag": "0036_square_spacker_dave",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1787307596176,
+      "tag": "0037_sloppy_senator_kelly",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1787308091917,
+      "tag": "0038_shallow_silver_surfer",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1787309886459,
+      "tag": "0039_stale_magdalene",
+      "breakpoints": true
     }
   ]
 }
