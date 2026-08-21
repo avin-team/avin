@@ -1,4 +1,5 @@
 export const PROTECTION_MODULE_NAME = "Avin Check" as const;
+export const PROTECTION_MANAGEMENT_CONTACT = "admin@avin.vn" as const;
 export const PROTECTION_PARTICIPANT_LABEL = "Đối tác Avin" as const;
 export const PROTECTION_OPERATOR_LABEL = "Quản lý hệ thống" as const;
 
@@ -11,6 +12,18 @@ export const protectionLaunchGateNames = [
 
 export type ProtectionLaunchGateName =
   (typeof protectionLaunchGateNames)[number];
+
+export const protectionReadinessGateNames = [
+  "bondReconciliation",
+  "privacyProjection",
+  "slaMeasurement",
+  "correctionRemoval",
+  "auditDualApproval",
+  "pilotExitCriteria",
+] as const;
+
+export type ProtectionReadinessGateName =
+  (typeof protectionReadinessGateNames)[number];
 
 export type ProtectionLaunchMode = "NO_MONEY_PILOT" | "LIVE";
 
@@ -25,14 +38,29 @@ export type ProtectionLaunchBlocker =
   | "NO_MONEY_PILOT"
   | "PROGRAM_ENTITY_APPROVAL";
 
+export type ProtectionReadinessBlocker =
+  | "AUDIT_DUAL_APPROVAL_NOT_VALIDATED"
+  | "BOND_RECONCILIATION_INCOMPLETE"
+  | "CORRECTION_REMOVAL_NOT_VALIDATED"
+  | "PILOT_EXIT_CRITERIA_NOT_APPROVED"
+  | "PRIVACY_PROJECTION_REVIEW"
+  | "SLA_MEASUREMENT_NOT_VALIDATED";
+
 export interface ProtectionLaunchConfiguration {
   gates: Record<ProtectionLaunchGateName, boolean>;
   mode: ProtectionLaunchMode;
+  readiness?: Record<ProtectionReadinessGateName, boolean>;
 }
 
 export interface ProtectionOperationStatus {
   blockers: ProtectionLaunchBlocker[];
   enabled: boolean;
+}
+
+export interface ProtectionReadinessStatus {
+  blockers: ProtectionReadinessBlocker[];
+  enabled: boolean;
+  gates: Record<ProtectionReadinessGateName, boolean>;
 }
 
 export interface ProtectionLaunchStatus {
@@ -42,6 +70,7 @@ export interface ProtectionLaunchStatus {
     enabled: boolean;
     realMoneyDisabled: boolean;
   };
+  readiness: ProtectionReadinessStatus;
   providerBondRecognition: ProtectionOperationStatus;
   riskReportPublication: ProtectionOperationStatus;
 }
@@ -55,6 +84,14 @@ export const defaultProtectionLaunchConfiguration: ProtectionLaunchConfiguration
       programEntity: false,
     },
     mode: "NO_MONEY_PILOT",
+    readiness: {
+      auditDualApproval: false,
+      bondReconciliation: false,
+      correctionRemoval: false,
+      pilotExitCriteria: false,
+      privacyProjection: false,
+      slaMeasurement: false,
+    },
   };
 
 const blockerByGate: Record<ProtectionLaunchGateName, ProtectionLaunchBlocker> =
@@ -64,6 +101,18 @@ const blockerByGate: Record<ProtectionLaunchGateName, ProtectionLaunchBlocker> =
     legalReview: "LEGAL_REVIEW",
     programEntity: "PROGRAM_ENTITY_APPROVAL",
   };
+
+const blockerByReadinessGate: Record<
+  ProtectionReadinessGateName,
+  ProtectionReadinessBlocker
+> = {
+  auditDualApproval: "AUDIT_DUAL_APPROVAL_NOT_VALIDATED",
+  bondReconciliation: "BOND_RECONCILIATION_INCOMPLETE",
+  correctionRemoval: "CORRECTION_REMOVAL_NOT_VALIDATED",
+  pilotExitCriteria: "PILOT_EXIT_CRITERIA_NOT_APPROVED",
+  privacyProjection: "PRIVACY_PROJECTION_REVIEW",
+  slaMeasurement: "SLA_MEASUREMENT_NOT_VALIDATED",
+};
 
 const getGateBlockers = (
   configuration: ProtectionLaunchConfiguration
@@ -86,6 +135,27 @@ const createOperationStatus = (
   enabled: blockers.length === 0,
 });
 
+export const getProtectionReadinessStatus = (
+  configuration: ProtectionLaunchConfiguration
+): ProtectionReadinessStatus => {
+  const gates = {} as Record<ProtectionReadinessGateName, boolean>;
+  const blockers: ProtectionReadinessBlocker[] = [];
+
+  for (const gateName of protectionReadinessGateNames) {
+    const enabled = configuration.readiness?.[gateName] ?? false;
+    gates[gateName] = enabled;
+    if (!enabled) {
+      blockers.push(blockerByReadinessGate[gateName]);
+    }
+  }
+
+  return {
+    blockers,
+    enabled: blockers.length === 0,
+    gates,
+  };
+};
+
 export const getProtectionLaunchStatus = (
   configuration: ProtectionLaunchConfiguration
 ): ProtectionLaunchStatus => {
@@ -104,6 +174,7 @@ export const getProtectionLaunchStatus = (
       realMoneyDisabled: configuration.mode !== "LIVE",
     },
     providerBondRecognition: createOperationStatus(bondBlockers),
+    readiness: getProtectionReadinessStatus(configuration),
     riskReportPublication: createOperationStatus(gateBlockers),
   };
 };

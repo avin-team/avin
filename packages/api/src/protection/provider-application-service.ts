@@ -18,6 +18,10 @@ import {
 } from "../notifications/notification";
 import type { Context } from "../runtime/context";
 import {
+  assertProtectionPilotApprovalAllowed,
+  markProtectionPilotInvitationUsed,
+} from "./pilot";
+import {
   assertProviderApplicationTransition,
   createProviderProfileSlug,
   CURRENT_PROVIDER_POLICY_VERSION,
@@ -1483,6 +1487,10 @@ export const decideProviderApplication = ({
           now,
           getPolicyVersionForValidation(currentPolicy)
         );
+        await assertProtectionPilotApprovalAllowed(
+          transaction,
+          application.providerUserId
+        );
       } catch (error) {
         return throwApplicationMutationError(error);
       }
@@ -1548,6 +1556,11 @@ export const decideProviderApplication = ({
           message: "Provider profile could not be published",
         });
       }
+      await markProtectionPilotInvitationUsed(
+        transaction,
+        updated.providerUserId,
+        now
+      );
 
       const [createdVersion] = await transaction
         .insert(protectionProviderProfileVersion)

@@ -6,6 +6,18 @@ export const env = createEnv({
   emptyStringAsUndefined: true,
   runtimeEnv: process.env,
   server: {
+    AVIN_CHECK_AUDIT_DUAL_APPROVAL_VALIDATED: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
+    AVIN_CHECK_BOND_RECONCILIATION_APPROVED: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
+    AVIN_CHECK_CORRECTION_REMOVAL_VALIDATED: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
     AVIN_CHECK_CUSTODY_APPROVED: z
       .enum(["true", "false"])
       .default("false")
@@ -21,7 +33,19 @@ export const env = createEnv({
     AVIN_CHECK_MODE: z
       .enum(["NO_MONEY_PILOT", "LIVE"])
       .default("NO_MONEY_PILOT"),
+    AVIN_CHECK_PILOT_EXIT_CRITERIA_APPROVED: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
+    AVIN_CHECK_PRIVACY_PROJECTIONS_APPROVED: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
     AVIN_CHECK_PROGRAM_ENTITY_APPROVED: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
+    AVIN_CHECK_SLA_MEASURABLE: z
       .enum(["true", "false"])
       .default("false")
       .transform((value) => value === "true"),

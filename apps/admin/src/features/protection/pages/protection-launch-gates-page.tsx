@@ -155,6 +155,59 @@ export const ProtectionLaunchGatesPage = () => {
                     aria-hidden="true"
                     className="size-5 text-primary"
                   />
+                  Pilot readiness
+                </CardTitle>
+                <CardDescription>
+                  Chỉ đánh dấu sẵn sàng sau khi các kiểm tra vận hành và exit
+                  criteria có bằng chứng được xác nhận.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <GateStatus
+                  enabled={status.readiness.enabled}
+                  label="Readiness tổng thể"
+                />
+                {status.readiness.blockers.length > 0 ? (
+                  <p className="mt-3 text-muted-foreground text-xs">
+                    Blocker: {status.readiness.blockers.join(", ")}
+                  </p>
+                ) : null}
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <GateStatus
+                    enabled={status.readiness.gates.bondReconciliation}
+                    label="Bond reconciliation"
+                  />
+                  <GateStatus
+                    enabled={status.readiness.gates.privacyProjection}
+                    label="Privacy projection"
+                  />
+                  <GateStatus
+                    enabled={status.readiness.gates.slaMeasurement}
+                    label="SLA measurement"
+                  />
+                  <GateStatus
+                    enabled={status.readiness.gates.correctionRemoval}
+                    label="Correction/removal"
+                  />
+                  <GateStatus
+                    enabled={status.readiness.gates.auditDualApproval}
+                    label="Audit + dual approval"
+                  />
+                  <GateStatus
+                    enabled={status.readiness.gates.pilotExitCriteria}
+                    label="Pilot exit criteria"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CheckCircleIcon
+                    aria-hidden="true"
+                    className="size-5 text-primary"
+                  />
                   Bốn gate độc lập
                 </CardTitle>
                 <CardDescription>

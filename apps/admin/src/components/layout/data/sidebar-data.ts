@@ -92,6 +92,11 @@ export const sidebarData: SidebarData = {
         },
         {
           icon: ShieldCheckIcon,
+          title: "Invitation Pilot",
+          url: "/avin-check/pilot",
+        },
+        {
+          icon: ShieldCheckIcon,
           title: "Support Review",
           url: "/avin-check/support-reviews",
         },

@@ -26,6 +26,7 @@ export const protectionAdminCapability = pgEnum("protection_admin_capability", [
   "RISK_MODERATOR",
   "BOND_OPERATOR",
   "PROTECTION_MANAGER",
+  "PROTECTION_EXPORTER",
   "SUPER_ADMIN",
 ]);
 

@@ -232,6 +232,39 @@ export const protectionPolicyVersion = pgTable(
   ]
 );
 
+export const protectionPilotConfiguration = pgTable(
+  "protection_pilot_configuration",
+  {
+    approvalCap: integer("approval_cap").notNull(),
+    enabled: boolean("enabled").default(true).notNull(),
+    id: text("id").primaryKey(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    updatedByUserId: text("updated_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+  }
+);
+
+export const protectionPilotInvitation = pgTable(
+  "protection_pilot_invitation",
+  {
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    invitedByUserId: text("invited_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    providerUserId: text("provider_user_id")
+      .notNull()
+      .unique()
+      .references(() => user.id, { onDelete: "cascade" }),
+    usedAt: timestamp("used_at"),
+  },
+  (table) => [
+    index("protection_pilot_invitation_created_idx").on(table.createdAt),
+    index("protection_pilot_invitation_used_idx").on(table.usedAt),
+  ]
+);
+
 export const protectionProviderApplication = pgTable(
   "protection_provider_application",
   {

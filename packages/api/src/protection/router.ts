@@ -43,9 +43,22 @@ import {
 } from "./bond-withdrawal-service";
 import { getProtectionLaunchConfiguration } from "./configuration";
 import {
+  exportProtectionOperations,
+  protectionOperationsExportInputSchema,
+} from "./export";
+import {
   PROTECTION_MODULE_NAME,
   getProtectionLaunchStatus,
 } from "./launch-gates";
+import { listProtectionOperationsQueue } from "./operations";
+import {
+  getProtectionPilotConfiguration,
+  inviteProtectionPilotProvider,
+  listProtectionPilotInvitations,
+  protectionPilotConfigurationInputSchema,
+  protectionPilotInvitationInputSchema,
+  updateProtectionPilotConfiguration,
+} from "./pilot";
 import {
   protectionPolicyVersionIdInputSchema,
   protectionPolicyVersionListInputSchema,
@@ -212,6 +225,51 @@ const providerPolicyPublishProcedure = protectionAdminProcedure({
   },
 });
 
+const protectionOperationsReadProcedure = protectionAdminProcedure({
+  action: "protection.operations.queue.read",
+  capability: [
+    PROTECTION_ADMIN_CAPABILITY.BOND_OPERATOR,
+    PROTECTION_ADMIN_CAPABILITY.PROTECTION_MANAGER,
+    PROTECTION_ADMIN_CAPABILITY.PROVIDER_REVIEWER,
+    PROTECTION_ADMIN_CAPABILITY.RISK_MODERATOR,
+  ],
+  purpose: "Review Avin Check operational queues and SLA status",
+  target: {
+    id: "PROTECTION_OPERATIONS_QUEUE",
+    type: "PROTECTION_OPERATIONS_QUEUE",
+  },
+});
+
+const protectionOperationsExportProcedure = protectionAdminProcedure({
+  action: "protection.operations.export",
+  capability: PROTECTION_ADMIN_CAPABILITY.PROTECTION_EXPORTER,
+  purpose: "Create controlled Avin Check operational exports",
+  target: {
+    id: "PROTECTION_OPERATIONS_EXPORT",
+    type: "PROTECTION_OPERATIONS_EXPORT",
+  },
+});
+
+const protectionPilotReadProcedure = protectionAdminProcedure({
+  action: "protection.pilot.read",
+  capability: PROTECTION_ADMIN_CAPABILITY.PROTECTION_MANAGER,
+  purpose: "Review invitation-limited Avin Check pilot configuration",
+  target: {
+    id: "PROTECTION_PILOT",
+    type: "PROTECTION_PILOT",
+  },
+});
+
+const protectionPilotManageProcedure = protectionAdminProcedure({
+  action: "protection.pilot.manage",
+  capability: PROTECTION_ADMIN_CAPABILITY.PROTECTION_MANAGER,
+  purpose: "Manage invitation-limited Avin Check pilot approvals",
+  target: {
+    id: "PROTECTION_PILOT",
+    type: "PROTECTION_PILOT",
+  },
+});
+
 const providerProfileRevisionReviewerProcedure = protectionAdminProcedure({
   action: "protection.provider_profile_revision.review",
   capability: PROTECTION_ADMIN_CAPABILITY.PROVIDER_REVIEWER,
@@ -360,6 +418,79 @@ export const protectionRouter = {
   }).handler(() =>
     getProtectionLaunchStatus(getProtectionLaunchConfiguration())
   ),
+
+  adminOperationsExport: protectionOperationsExportProcedure
+    .input(protectionOperationsExportInputSchema)
+    .handler(async ({ context, input }) => {
+      const now = new Date();
+      const auditEvent = {
+        action: "protection.operations.export",
+        actorUserId: context.session.user.id,
+        createdAt: now,
+        ipAddress: context.session.session.ipAddress ?? undefined,
+        outcome: "FAILURE" as const,
+        purpose: input.purpose,
+        sessionId: context.session.session.id,
+        targetId: input.dataset,
+        targetType: "PROTECTION_OPERATIONS_EXPORT",
+      };
+
+      try {
+        const result = await exportProtectionOperations({
+          actorUserId: context.session.user.id,
+          database: context.db,
+          input,
+          now,
+        });
+        await context.audit.record({
+          ...auditEvent,
+          metadata: {
+            disclosureFields: result.fields,
+            rowCount: result.rowCount,
+            watermark: result.watermark,
+          },
+          outcome: "SUCCESS",
+        });
+        return result;
+      } catch (error) {
+        await context.audit.record(auditEvent);
+        throw error;
+      }
+    }),
+
+  adminOperationsQueue: protectionOperationsReadProcedure.handler(
+    ({ context }) => listProtectionOperationsQueue({ database: context.db })
+  ),
+
+  adminPilot: {
+    get: protectionPilotReadProcedure.handler(({ context }) =>
+      getProtectionPilotConfiguration(context.db)
+    ),
+
+    invitations: protectionPilotReadProcedure.handler(({ context }) =>
+      listProtectionPilotInvitations(context.db)
+    ),
+
+    invite: protectionPilotManageProcedure
+      .input(protectionPilotInvitationInputSchema)
+      .handler(({ context, input }) =>
+        inviteProtectionPilotProvider({
+          database: context.db,
+          input,
+          invitedByUserId: context.session.user.id,
+        })
+      ),
+
+    update: protectionPilotManageProcedure
+      .input(protectionPilotConfigurationInputSchema)
+      .handler(({ context, input }) =>
+        updateProtectionPilotConfiguration({
+          database: context.db,
+          input,
+          updatedByUserId: context.session.user.id,
+        })
+      ),
+  },
 
   adminProviderApplications: {
     decide: providerReviewerProcedure

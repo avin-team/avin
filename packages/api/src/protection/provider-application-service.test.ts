@@ -18,6 +18,11 @@ vi.mock("../notifications/notification", () => ({
     ]),
 }));
 
+vi.mock("./pilot", () => ({
+  assertProtectionPilotApprovalAllowed: vi.fn(() => Promise.resolve(null)),
+  markProtectionPilotInvitationUsed: vi.fn(() => Promise.resolve()),
+}));
+
 const { createNotificationEvent } =
   await import("../notifications/notification");
 const { decideProviderApplication, submitProviderApplication } =
