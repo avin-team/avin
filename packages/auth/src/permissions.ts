@@ -9,6 +9,39 @@ export const ACCOUNT_ROLE = {
 
 export type AccountRole = (typeof ACCOUNT_ROLE)[keyof typeof ACCOUNT_ROLE];
 
+export const PROTECTION_ADMIN_CAPABILITY = {
+  BOND_OPERATOR: "BOND_OPERATOR",
+  PROTECTION_MANAGER: "PROTECTION_MANAGER",
+  PROVIDER_REVIEWER: "PROVIDER_REVIEWER",
+  RISK_MODERATOR: "RISK_MODERATOR",
+  SUPER_ADMIN: "SUPER_ADMIN",
+} as const;
+
+export const protectionAdminCapabilities = [
+  PROTECTION_ADMIN_CAPABILITY.PROVIDER_REVIEWER,
+  PROTECTION_ADMIN_CAPABILITY.RISK_MODERATOR,
+  PROTECTION_ADMIN_CAPABILITY.BOND_OPERATOR,
+  PROTECTION_ADMIN_CAPABILITY.PROTECTION_MANAGER,
+  PROTECTION_ADMIN_CAPABILITY.SUPER_ADMIN,
+] as const;
+
+export type ProtectionAdminCapability =
+  (typeof protectionAdminCapabilities)[number];
+
+export const isProtectionAdminCapability = (
+  capability: string | null | undefined
+): capability is ProtectionAdminCapability =>
+  protectionAdminCapabilities.some(
+    (knownCapability) => knownCapability === capability
+  );
+
+export const hasProtectionAdminCapability = (
+  assignedCapabilities: readonly string[],
+  requiredCapability: ProtectionAdminCapability
+): boolean =>
+  assignedCapabilities.includes(requiredCapability) ||
+  assignedCapabilities.includes(PROTECTION_ADMIN_CAPABILITY.SUPER_ADMIN);
+
 export const isAccountRole = (
   role: string | null | undefined
 ): role is AccountRole =>

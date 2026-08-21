@@ -1,5 +1,6 @@
 import { adminAuth, auth } from "@avin/auth";
 import { AUTH_SURFACE, getAuthSurface } from "@avin/auth/auth-surfaces";
+import type { ProtectionAdminCapability } from "@avin/auth/permissions";
 import { db } from "@avin/db";
 import type { Context as HonoContext } from "hono";
 
@@ -18,8 +19,12 @@ export type MarketplaceSession = NonNullable<AuthSession>;
 export interface AuditEvent {
   action: string;
   actorUserId: string;
+  createdAt?: Date;
+  ipAddress?: string;
   metadata?: Record<string, unknown>;
   outcome: "FAILURE" | "SUCCESS";
+  purpose?: string;
+  sessionId?: string;
   targetId?: string;
   targetType?: string;
 }
@@ -50,6 +55,7 @@ export const createContext = async ({
 export interface Context {
   audit: AuditRecorder;
   db: typeof db;
+  protectionCapabilities?: readonly ProtectionAdminCapability[];
   session: MarketplaceSession | null;
   storage?: ManagedObjectStore;
 }

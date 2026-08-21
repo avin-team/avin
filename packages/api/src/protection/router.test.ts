@@ -1,8 +1,55 @@
+import {
+  ACCOUNT_ROLE,
+  PROTECTION_ADMIN_CAPABILITY,
+} from "@avin/auth/permissions";
 import { db } from "@avin/db";
 import { call } from "@orpc/server";
 import { describe, expect, it } from "vitest";
 
+import type { AuditEvent, Context } from "../runtime/context";
 import { protectionRouter } from "./router";
+
+const createAdminContext = (
+  capabilities: readonly (typeof PROTECTION_ADMIN_CAPABILITY)[keyof typeof PROTECTION_ADMIN_CAPABILITY][],
+  twoFactorEnabled = true,
+  auditEvents: AuditEvent[] = []
+): Context => ({
+  audit: {
+    record: (event) => {
+      auditEvents.push(event);
+      return Promise.resolve();
+    },
+  },
+  db,
+  protectionCapabilities: capabilities,
+  session: {
+    session: {
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      expiresAt: new Date("2026-01-08T00:00:00.000Z"),
+      id: "session-1",
+      ipAddress: "203.0.113.10",
+      token: "session-token",
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      userAgent: "test-agent",
+      userId: "admin-1",
+    },
+    user: {
+      banExpires: null,
+      banReason: null,
+      banned: false,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      email: "admin@example.com",
+      emailVerified: true,
+      hasSeenSellerOnboarding: false,
+      id: "admin-1",
+      image: null,
+      name: "Protection Admin",
+      role: ACCOUNT_ROLE.ADMIN,
+      twoFactorEnabled,
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    },
+  },
+});
 
 describe("Avin Check public launch status", () => {
   it("exposes the safe default no-money pilot status", async () => {
@@ -20,5 +67,50 @@ describe("Avin Check public launch status", () => {
     });
     expect(result.providerBondRecognition.enabled).toBe(false);
     expect(result.providerBondRecognition.blockers).toContain("NO_MONEY_PILOT");
+  });
+
+  it("protects the Admin launch status behind the manager capability", async () => {
+    const auditEvents: AuditEvent[] = [];
+
+    await expect(
+      call(protectionRouter.adminLaunchStatus, undefined, {
+        context: createAdminContext([], true, auditEvents),
+      })
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+
+    expect(auditEvents[0]).toMatchObject({
+      action: "protection.launch_status.read",
+      outcome: "FAILURE",
+      purpose: "Review Avin Check launch gates before protected operations",
+      sessionId: "session-1",
+    });
+
+    await expect(
+      call(protectionRouter.adminLaunchStatus, undefined, {
+        context: createAdminContext(
+          [PROTECTION_ADMIN_CAPABILITY.PROTECTION_MANAGER],
+          true,
+          auditEvents
+        ),
+      })
+    ).resolves.toMatchObject({ mode: "NO_MONEY_PILOT" });
+
+    expect(auditEvents[1]).toMatchObject({
+      action: "protection.launch_status.read",
+      outcome: "SUCCESS",
+      targetId: "Avin Check",
+      targetType: "PROTECTION_MODULE",
+    });
+  });
+
+  it("rejects the launch status API before checking capability when 2FA is incomplete", async () => {
+    await expect(
+      call(protectionRouter.adminLaunchStatus, undefined, {
+        context: createAdminContext(
+          [PROTECTION_ADMIN_CAPABILITY.PROTECTION_MANAGER],
+          false
+        ),
+      })
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });

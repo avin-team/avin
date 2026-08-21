@@ -64,7 +64,7 @@ export const ProtectionLaunchGatesPage = () => {
           </div>
         ) : null}
 
-        {status ? (
+        {!launchStatusQuery.isError && status ? (
           <>
             <div className="grid gap-4 md:grid-cols-3">
               <Card>
@@ -182,13 +182,15 @@ export const ProtectionLaunchGatesPage = () => {
               </CardContent>
             </Card>
           </>
-        ) : (
+        ) : null}
+
+        {!launchStatusQuery.isError && !status ? (
           <Card>
             <CardContent className="p-6 text-muted-foreground text-sm">
               Đang tải trạng thái launch gates…
             </CardContent>
           </Card>
-        )}
+        ) : null}
       </Main>
     </>
   );

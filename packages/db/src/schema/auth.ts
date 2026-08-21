@@ -8,12 +8,21 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
 export const accountRole = pgEnum("account_role", ["BUYER", "SELLER", "ADMIN"]);
 
 export const auditOutcome = pgEnum("audit_outcome", ["SUCCESS", "FAILURE"]);
+
+export const protectionAdminCapability = pgEnum("protection_admin_capability", [
+  "PROVIDER_REVIEWER",
+  "RISK_MODERATOR",
+  "BOND_OPERATOR",
+  "PROTECTION_MANAGER",
+  "SUPER_ADMIN",
+]);
 
 export const user = pgTable("user", {
   banExpires: timestamp("ban_expires"),
@@ -84,14 +93,36 @@ export const auditLog = pgTable(
     actorUserId: text("actor_user_id").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     id: uuid("id").defaultRandom().primaryKey(),
+    ipAddress: text("ip_address"),
     metadata: jsonb("metadata").$type<Record<string, unknown>>(),
     outcome: auditOutcome("outcome").notNull(),
+    purpose: text("purpose"),
+    sessionId: text("session_id"),
     targetId: text("target_id"),
     targetType: text("target_type"),
   },
   (table) => [
     index("audit_log_actor_idx").on(table.actorUserId),
     index("audit_log_created_at_idx").on(table.createdAt),
+  ]
+);
+
+export const protectionAdminAssignment = pgTable(
+  "protection_admin_assignment",
+  {
+    capability: protectionAdminCapability("capability").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+  },
+  (table) => [
+    index("protection_admin_assignment_user_idx").on(table.userId),
+    uniqueIndex("protection_admin_assignment_user_capability_idx").on(
+      table.userId,
+      table.capability
+    ),
   ]
 );
 
@@ -137,9 +168,20 @@ export const verification = pgTable(
 
 export const userRelations = relations(user, ({ many }) => ({
   accounts: many(account),
+  protectionAdminAssignments: many(protectionAdminAssignment),
   sessions: many(session),
   twoFactors: many(twoFactor),
 }));
+
+export const protectionAdminAssignmentRelations = relations(
+  protectionAdminAssignment,
+  ({ one }) => ({
+    user: one(user, {
+      fields: [protectionAdminAssignment.userId],
+      references: [user.id],
+    }),
+  })
+);
 
 export const sessionRelations = relations(session, ({ one }) => ({
   user: one(user, {

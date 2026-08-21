@@ -1,9 +1,13 @@
-import { auditLog, user } from "@avin/db/schema/auth";
+import {
+  auditLog,
+  protectionAdminAssignment,
+  user,
+} from "@avin/db/schema/auth";
 import { config } from "dotenv";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { ACCOUNT_ROLE } from "./permissions";
+import { ACCOUNT_ROLE, PROTECTION_ADMIN_CAPABILITY } from "./permissions";
 
 config({
   path: new URL("../../../apps/server/.env", import.meta.url),
@@ -47,12 +51,26 @@ await db
   })
   .where(eq(user.id, admin.user.id));
 
+await db.insert(protectionAdminAssignment).values({
+  capability: PROTECTION_ADMIN_CAPABILITY.SUPER_ADMIN,
+  userId: admin.user.id,
+});
+
 await db.insert(auditLog).values({
   action: "identity.provision-admin",
   actorUserId: "SYSTEM",
   outcome: "SUCCESS",
   targetId: admin.user.id,
   targetType: "USER",
+});
+
+await db.insert(auditLog).values({
+  action: "protection.admin-capability.granted",
+  actorUserId: "SYSTEM",
+  outcome: "SUCCESS",
+  purpose: "Bootstrap the provisioned Admin as Avin Check SUPER_ADMIN",
+  targetId: admin.user.id,
+  targetType: "PROTECTION_ADMIN_ASSIGNMENT",
 });
 
 process.stdout.write(
