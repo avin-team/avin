@@ -119,6 +119,7 @@ describe("Avin Check public launch status", () => {
     expect(result).toEqual({
       application: null,
       bond: null,
+      bondWithdrawal: null,
       identity: {
         id: "provider-1",
         name: "Provider One",

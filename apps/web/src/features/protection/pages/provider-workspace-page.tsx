@@ -2,6 +2,7 @@ import { Button } from "@avin/ui/components/button";
 import { toast } from "sonner";
 
 import {
+  useProviderBondWithdrawalActions,
   useProviderNotifications,
   useProviderProfileRevisionActions,
   useProviderWorkspace,
@@ -24,6 +25,13 @@ const PROFILE_STATUS_LABELS = {
   SUSPENDED_PENDING_REVIEW: "Tạm ngưng, chờ xem xét",
   WITHDRAWAL_PENDING: "Đang chờ rút khỏi chương trình",
   WITHDRAWN: "Đã rút khỏi chương trình",
+} as const;
+
+const BOND_WITHDRAWAL_STATUS_LABELS = {
+  COMPLETED: "Đã hoàn tất off-platform",
+  COOLING: "Đang cooling 30 ngày",
+  PENDING_APPROVAL: "Chờ Protection Manager duyệt",
+  REJECTED: "Đã bị từ chối",
 } as const;
 
 const vndFormatter = new Intl.NumberFormat("vi-VN", {
@@ -121,41 +129,108 @@ const ProviderProfileRevisionPanel = ({
 
 const ProviderBondSummary = ({
   bond,
+  withdrawal,
 }: {
   bond: NonNullable<ProviderWorkspace["bond"]>;
-}) => (
-  <article className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
-    <div className="flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <h2 className="font-semibold text-xl">Provider Bond</h2>
-        <p className="mt-2 text-muted-foreground text-sm">
-          Số được Avin công nhận từ đối soát ngoài hệ thống; Avin không nhận,
-          giữ hoặc chuyển tiền trong workspace này.
-        </p>
+  withdrawal: ProviderWorkspace["bondWithdrawal"];
+}) => {
+  const { request } = useProviderBondWithdrawalActions();
+
+  const requestWithdrawal = async () => {
+    try {
+      await request.mutateAsync({
+        reason: "Provider yêu cầu rút toàn bộ Recognized Bond sau cooling.",
+      });
+      toast.success("Đã gửi yêu cầu rút Bond; cooling bắt đầu từ hôm nay.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Không thể gửi yêu cầu rút Bond."
+      );
+    }
+  };
+
+  return (
+    <article className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 className="font-semibold text-xl">Provider Bond</h2>
+          <p className="mt-2 text-muted-foreground text-sm">
+            Số được Avin công nhận từ đối soát ngoài hệ thống; Avin không nhận,
+            giữ hoặc chuyển tiền trong workspace này.
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="font-semibold text-2xl">
+            {vndFormatter.format(bond.recognizedAmount)}
+          </p>
+          <p className="text-muted-foreground text-xs">Recognized Bond</p>
+        </div>
       </div>
-      <div className="text-right">
-        <p className="font-semibold text-2xl">
-          {vndFormatter.format(bond.recognizedAmount)}
-        </p>
-        <p className="text-muted-foreground text-xs">Recognized Bond</p>
+      <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
+        <div className="rounded-xl border bg-muted/20 p-4">
+          <p className="font-medium">Recommended Transaction Limit</p>
+          <p className="mt-1 text-muted-foreground">
+            {vndFormatter.format(bond.recommendedTransactionLimit)}
+          </p>
+        </div>
+        <div className="rounded-xl border bg-muted/20 p-4">
+          <p className="font-medium">Lịch sử điều chỉnh</p>
+          <p className="mt-1 text-muted-foreground">
+            {bond.adjustments.length} bản ghi bất biến
+          </p>
+        </div>
       </div>
-    </div>
-    <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
-      <div className="rounded-xl border bg-muted/20 p-4">
-        <p className="font-medium">Recommended Transaction Limit</p>
+      <div className="mt-5 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm">
+        <p className="font-medium">Rút Bond off-platform</p>
         <p className="mt-1 text-muted-foreground">
-          {vndFormatter.format(bond.recommendedTransactionLimit)}
+          Yêu cầu sẽ cooling 30 ngày. Mọi Risk Report, Support Review hoặc Bond
+          Adjustment chưa xử lý sẽ đóng băng hoàn tất. Membership Fee vẫn không
+          hoàn lại.
         </p>
+        {withdrawal ? (
+          <div className="mt-3 grid gap-1 text-muted-foreground">
+            <p>
+              Trạng thái: {BOND_WITHDRAWAL_STATUS_LABELS[withdrawal.status]}
+            </p>
+            <p>
+              Yêu cầu lúc:{" "}
+              {new Date(withdrawal.requestedAt).toLocaleString("vi-VN")}
+            </p>
+            <p>
+              Cooling đến:{" "}
+              {new Date(withdrawal.coolingEndsAt).toLocaleString("vi-VN")}
+            </p>
+            <p>
+              Recognized Bond tại thời điểm yêu cầu:{" "}
+              {vndFormatter.format(withdrawal.recognizedAmountAtRequest)}
+            </p>
+            {withdrawal.returnedAmount !== null && (
+              <p>
+                Ghi nhận hoàn trả:{" "}
+                {vndFormatter.format(withdrawal.returnedAmount)}
+              </p>
+            )}
+            {withdrawal.rejectionReason ? (
+              <p className="text-destructive">{withdrawal.rejectionReason}</p>
+            ) : null}
+          </div>
+        ) : (
+          <Button
+            className="mt-3"
+            disabled={request.isPending || bond.recognizedAmount <= 0}
+            onClick={() => void requestWithdrawal()}
+            type="button"
+            variant="outline"
+          >
+            {request.isPending ? "Đang gửi..." : "Yêu cầu rút Recognized Bond"}
+          </Button>
+        )}
       </div>
-      <div className="rounded-xl border bg-muted/20 p-4">
-        <p className="font-medium">Lịch sử điều chỉnh</p>
-        <p className="mt-1 text-muted-foreground">
-          {bond.adjustments.length} bản ghi bất biến
-        </p>
-      </div>
-    </div>
-  </article>
-);
+    </article>
+  );
+};
 
 type ProviderNotificationsData = NonNullable<
   ReturnType<typeof useProviderNotifications>["data"]
@@ -285,7 +360,10 @@ export const ProviderWorkspacePage = () => {
           />
 
           {workspace.data.bond ? (
-            <ProviderBondSummary bond={workspace.data.bond} />
+            <ProviderBondSummary
+              bond={workspace.data.bond}
+              withdrawal={workspace.data.bondWithdrawal}
+            />
           ) : null}
 
           <ProviderRiskIncidentPanel

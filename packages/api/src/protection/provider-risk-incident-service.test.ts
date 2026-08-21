@@ -325,6 +325,24 @@ describe("Provider risk incident service", () => {
     ).rejects.toThrow("Provider incident does not exist");
   });
 
+  it("does not attach new Risk Reports while a Provider withdrawal is pending", async () => {
+    const state = createState();
+    state.incidents = [];
+    state.profile.status = "WITHDRAWAL_PENDING";
+    const database = createDatabase(state);
+
+    await expect(
+      linkRiskReportToProvider({
+        database,
+        now: timestamp,
+        profileId: "profile-1",
+        profileVersionId: "profile-version-1",
+        reportId: "report-1",
+        reviewerUserId: "moderator-1",
+      })
+    ).rejects.toThrow("pending withdrawal");
+  });
+
   it("accepts a response before the deadline and keeps evidence private", async () => {
     const state = createState();
     const database = createDatabase(state);

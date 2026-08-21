@@ -526,9 +526,13 @@ export const linkRiskReportToProvider = async ({
         message: "Provider profile does not exist",
       });
     }
-    if (["REMOVED_FOR_FRAUD", "WITHDRAWN"].includes(profile.status)) {
+    if (
+      ["REMOVED_FOR_FRAUD", "WITHDRAWAL_PENDING", "WITHDRAWN"].includes(
+        profile.status
+      )
+    ) {
       throwBadRequest(
-        "A withdrawn or removed Provider profile cannot receive a new incident"
+        "A Provider profile pending withdrawal, withdrawn, or removed for fraud cannot receive a new incident"
       );
     }
 

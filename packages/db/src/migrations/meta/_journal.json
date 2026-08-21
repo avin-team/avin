@@ -309,6 +309,13 @@
       "when": 1787318295828,
       "tag": "0043_stiff_mole_man",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1787320007439,
+      "tag": "0044_square_timeslip",
+      "breakpoints": true
     }
   ]
 }

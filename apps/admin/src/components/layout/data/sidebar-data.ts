@@ -82,6 +82,11 @@ export const sidebarData: SidebarData = {
         },
         {
           icon: ShieldCheckIcon,
+          title: "Rút Provider Bond",
+          url: "/avin-check/bond-withdrawals",
+        },
+        {
+          icon: ShieldCheckIcon,
           title: "Support Review",
           url: "/avin-check/support-reviews",
         },

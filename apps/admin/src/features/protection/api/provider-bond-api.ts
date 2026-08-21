@@ -7,6 +7,11 @@ import { queryClient } from "@/lib/query-client";
 export type ProviderBond = Awaited<
   ReturnType<AppRouterClient["protection"]["adminProviderBonds"]["get"]>
 >;
+export type ProviderBondWithdrawal = Awaited<
+  ReturnType<
+    AppRouterClient["protection"]["adminProviderBondWithdrawals"]["get"]
+  >
+>;
 
 const invalidateProviderBonds = async (): Promise<void> => {
   await Promise.all([
@@ -15,6 +20,12 @@ const invalidateProviderBonds = async (): Promise<void> => {
     }),
     queryClient.invalidateQueries({
       queryKey: orpc.protection.adminProviderBonds.get.key(),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: orpc.protection.adminProviderBondWithdrawals.list.key(),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: orpc.protection.adminProviderBondWithdrawals.get.key(),
     }),
     queryClient.invalidateQueries({
       queryKey: orpc.protection.providerWorkspace.key(),
@@ -43,5 +54,20 @@ export const useApproveAdminProviderBondAdjustment = () =>
 export const usePublishAdminProviderBondLimit = () =>
   useMutation({
     ...orpc.protection.adminProviderBonds.publishLimit.mutationOptions(),
+    onSuccess: invalidateProviderBonds,
+  });
+
+export const useAdminProviderBondWithdrawals = () =>
+  useQuery(orpc.protection.adminProviderBondWithdrawals.list.queryOptions());
+
+export const useRecordAdminProviderBondWithdrawal = () =>
+  useMutation({
+    ...orpc.protection.adminProviderBondWithdrawals.record.mutationOptions(),
+    onSuccess: invalidateProviderBonds,
+  });
+
+export const useApproveAdminProviderBondWithdrawal = () =>
+  useMutation({
+    ...orpc.protection.adminProviderBondWithdrawals.approve.mutationOptions(),
     onSuccess: invalidateProviderBonds,
   });

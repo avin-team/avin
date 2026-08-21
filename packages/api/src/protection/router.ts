@@ -26,6 +26,21 @@ import {
   publishProviderRecommendedTransactionLimit,
   recordProviderBondAdjustment,
 } from "./bond-service";
+import {
+  providerBondWithdrawalApprovalInputSchema,
+  providerBondWithdrawalIdInputSchema,
+  providerBondWithdrawalListInputSchema,
+  providerBondWithdrawalRecordInputSchema,
+  providerBondWithdrawalRequestInputSchema,
+} from "./bond-withdrawal";
+import {
+  approveProviderBondWithdrawal,
+  getAdminProviderBondWithdrawal,
+  getProviderBondWithdrawal,
+  listAdminProviderBondWithdrawals,
+  recordProviderBondWithdrawal,
+  requestProviderBondWithdrawal,
+} from "./bond-withdrawal-service";
 import { getProtectionLaunchConfiguration } from "./configuration";
 import {
   PROTECTION_MODULE_NAME,
@@ -224,6 +239,39 @@ const providerBondManagerProcedure = protectionAdminProcedure({
   },
 });
 
+const providerBondWithdrawalReadProcedure = protectionAdminProcedure({
+  action: "protection.provider_bond_withdrawal.read",
+  capability: [
+    PROTECTION_ADMIN_CAPABILITY.BOND_OPERATOR,
+    PROTECTION_ADMIN_CAPABILITY.PROTECTION_MANAGER,
+  ],
+  purpose: "Review private Provider Bond Withdrawal requests",
+  target: {
+    id: "PROTECTION_PROVIDER_BOND_WITHDRAWAL_QUEUE",
+    type: "PROTECTION_PROVIDER_BOND_WITHDRAWAL_QUEUE",
+  },
+});
+
+const providerBondWithdrawalOperatorProcedure = protectionAdminProcedure({
+  action: "protection.provider_bond_withdrawal.record",
+  capability: PROTECTION_ADMIN_CAPABILITY.BOND_OPERATOR,
+  purpose: "Record off-platform Provider Bond Withdrawal actions",
+  target: {
+    id: "PROTECTION_PROVIDER_BOND_WITHDRAWAL_QUEUE",
+    type: "PROTECTION_PROVIDER_BOND_WITHDRAWAL_QUEUE",
+  },
+});
+
+const providerBondWithdrawalManagerProcedure = protectionAdminProcedure({
+  action: "protection.provider_bond_withdrawal.approve",
+  capability: PROTECTION_ADMIN_CAPABILITY.PROTECTION_MANAGER,
+  purpose: "Approve dual-controlled Provider Bond Withdrawals",
+  target: {
+    id: "PROTECTION_PROVIDER_BOND_WITHDRAWAL_QUEUE",
+    type: "PROTECTION_PROVIDER_BOND_WITHDRAWAL_QUEUE",
+  },
+});
+
 const supportReviewReadProcedure = protectionAdminProcedure({
   action: "protection.support_review.read",
   capability: [
@@ -301,6 +349,40 @@ export const protectionRouter = {
       .input(providerApplicationListInputSchema)
       .handler(({ context, input }) =>
         listProviderApplications(context.db, input)
+      ),
+  },
+
+  adminProviderBondWithdrawals: {
+    approve: providerBondWithdrawalManagerProcedure
+      .input(providerBondWithdrawalApprovalInputSchema)
+      .handler(({ context, input }) =>
+        approveProviderBondWithdrawal({
+          approverUserId: context.session.user.id,
+          database: context.db,
+          input,
+        })
+      ),
+
+    get: providerBondWithdrawalReadProcedure
+      .input(providerBondWithdrawalIdInputSchema)
+      .handler(({ context, input }) =>
+        getAdminProviderBondWithdrawal(context.db, input.withdrawalId)
+      ),
+
+    list: providerBondWithdrawalReadProcedure
+      .input(providerBondWithdrawalListInputSchema)
+      .handler(({ context, input }) =>
+        listAdminProviderBondWithdrawals(context.db, input)
+      ),
+
+    record: providerBondWithdrawalOperatorProcedure
+      .input(providerBondWithdrawalRecordInputSchema)
+      .handler(({ context, input }) =>
+        recordProviderBondWithdrawal({
+          database: context.db,
+          input,
+          recorderUserId: context.session.user.id,
+        })
       ),
   },
 
@@ -576,6 +658,25 @@ export const protectionRouter = {
       ),
   },
 
+  providerBondWithdrawals: {
+    get: providerProcedure.handler(({ context }) =>
+      getProviderBondWithdrawal({
+        database: context.db,
+        providerUserId: context.session.user.id,
+      })
+    ),
+
+    request: providerProcedure
+      .input(providerBondWithdrawalRequestInputSchema)
+      .handler(({ context, input }) =>
+        requestProviderBondWithdrawal({
+          database: context.db,
+          input,
+          providerUserId: context.session.user.id,
+        })
+      ),
+  },
+
   providerDirectory: {
     list: publicProcedure
       .input(providerDirectoryListInputSchema)
@@ -686,7 +787,7 @@ export const protectionRouter = {
   },
 
   providerWorkspace: providerProcedure.handler(async ({ context }) => {
-    const [snapshot, riskIncidents, bond] = await Promise.all([
+    const [snapshot, riskIncidents, bond, bondWithdrawal] = await Promise.all([
       getProviderApplicationSnapshot(context.db, context.session.user.id),
       listProviderRiskIncidentsForProvider({
         database: context.db,
@@ -696,10 +797,15 @@ export const protectionRouter = {
         database: context.db,
         providerUserId: context.session.user.id,
       }),
+      getProviderBondWithdrawal({
+        database: context.db,
+        providerUserId: context.session.user.id,
+      }),
     ]);
 
     return {
       bond,
+      bondWithdrawal,
       identity: {
         id: context.session.user.id,
         name: context.session.user.name,

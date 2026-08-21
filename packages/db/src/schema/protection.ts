@@ -125,6 +125,11 @@ export const protectionProviderBondAdjustmentStatus = pgEnum(
   ["APPLIED", "PENDING_APPROVAL", "REJECTED"]
 );
 
+export const protectionProviderBondWithdrawalStatus = pgEnum(
+  "protection_provider_bond_withdrawal_status",
+  ["COOLING", "PENDING_APPROVAL", "COMPLETED", "REJECTED"]
+);
+
 export const protectionSupportReviewStatus = pgEnum(
   "protection_support_review_status",
   [
@@ -793,6 +798,90 @@ export const protectionProviderBondAdjustment = pgTable(
     ),
     index("protection_provider_bond_adjustment_status_idx").on(
       table.status,
+      table.createdAt
+    ),
+  ]
+);
+
+export const protectionProviderBondWithdrawal = pgTable(
+  "protection_provider_bond_withdrawal",
+  {
+    approvalReason: text("approval_reason"),
+    approvedAt: timestamp("approved_at"),
+    approvedByUserId: text("approved_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    bondAdjustmentId: uuid("bond_adjustment_id").references(
+      () => protectionProviderBondAdjustment.id,
+      { onDelete: "set null" }
+    ),
+    completedAt: timestamp("completed_at"),
+    coolingEndsAt: timestamp("cooling_ends_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    externalActionReference: text("external_action_reference"),
+    id: uuid("id").defaultRandom().primaryKey(),
+    privateEvidenceReference: text("private_evidence_reference"),
+    profileId: uuid("profile_id")
+      .notNull()
+      .unique()
+      .references(() => protectionProviderProfile.id, {
+        onDelete: "restrict",
+      }),
+    providerUserId: text("provider_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    recognizedAmountAtRequest: integer(
+      "recognized_amount_at_request"
+    ).notNull(),
+    recordedAt: timestamp("recorded_at"),
+    recordedByUserId: text("recorded_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    rejectionReason: text("rejection_reason"),
+    requestedAt: timestamp("requested_at").defaultNow().notNull(),
+    requestedReason: text("requested_reason"),
+    returnedAmount: integer("returned_amount"),
+    status: protectionProviderBondWithdrawalStatus("status")
+      .default("COOLING")
+      .notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("protection_provider_bond_withdrawal_profile_status_idx").on(
+      table.profileId,
+      table.status,
+      table.createdAt
+    ),
+    index("protection_provider_bond_withdrawal_provider_status_idx").on(
+      table.providerUserId,
+      table.status,
+      table.createdAt
+    ),
+  ]
+);
+
+export const protectionProviderBondWithdrawalHistory = pgTable(
+  "protection_provider_bond_withdrawal_history",
+  {
+    actorUserId: text("actor_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    reason: text("reason"),
+    status: protectionProviderBondWithdrawalStatus("status").notNull(),
+    withdrawalId: uuid("withdrawal_id")
+      .notNull()
+      .references(() => protectionProviderBondWithdrawal.id, {
+        onDelete: "restrict",
+      }),
+  },
+  (table) => [
+    index("protection_provider_bond_withdrawal_history_idx").on(
+      table.withdrawalId,
       table.createdAt
     ),
   ]
