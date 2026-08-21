@@ -8,7 +8,7 @@ This document serves as the canonical glossary and domain model for the **Avin**
 
 ### Admin
 
-An authorized Avin platform operator responsible for marketplace governance, including reviewing `SellerApplication`s, mediating `Dispute`s, enforcing Seller policy, and approving SellerWallet withdrawals. An `Admin` is distinct from both a `User` (buyer) and a `Seller` (merchant).
+An authorized Avin platform operator, presented as **Quản lý hệ thống** on Avin Check surfaces, responsible for marketplace and protection governance. An `Admin` is distinct from a `User`, `Seller`, and `Protection Provider`; the public label **Đối tác Avin** never grants this authorization role.
 
 ### Operations console
 
@@ -21,6 +21,134 @@ An authenticated account representing a buyer on the marketplace. Every `User` i
 ### Seller
 
 An authenticated entity representing an independent seller/merchant on the marketplace. A `Seller` manages their store profile, publishes `Listing`s, fulfills `Order`s, and maintains a `SellerWallet`. Its public profile exposes only storefront name, avatar, Store description, joined month/year, average rating and rating count, and completed-order count; bank and verification data remain private.
+
+### Avin Check
+
+The public Avin module for verified Provider discovery, external identifier lookup, moderated transaction warnings, and manually administered protection records. It shares Avin applications and infrastructure while remaining distinct from marketplace commerce.
+
+### Protection Provider
+
+A person or business accepted into Avin Check, whether or not they are an Avin `Seller`, and presented publicly as a **Đối tác Avin**. A Protection Provider is not an authorization `Admin`, has an Admin-managed `Provider Bond`, and cannot delegate its verified standing to agents or subordinate merchants. _Avoid in code_: Admin, guaranteed Seller, protected Seller, GDV network owner.
+
+### Protection Provider Application
+
+An evidence-backed, year-round request to become a Protection Provider, reviewed as `PENDING_REVIEW`, `CHANGES_REQUESTED`, `APPROVED`, or `REJECTED` with an explicit reason. It verifies the applicant's adult identity, operating history, public identities, registered services, payment information, and acceptance of the current Protection Program Policy.
+
+### Protection Provider Workspace
+
+The Provider's private area for reading the exact profile and status held by Avin and requesting a profile revision or Bond Withdrawal. It cannot directly publish verified information, alter the recognized Provider Bond, or move money. _Avoid_: Provider admin panel, wallet.
+
+### Provider Account
+
+The authenticated identity used only to own a Protection Provider Application and enter the Protection Provider Workspace. It is separate from Buyer, Seller, and Admin accounts, and grants no moderation or Bond-operation authority. _Avoid_: User account, Seller account, Admin account.
+
+### Protection Program Policy
+
+The versioned terms governing Provider eligibility, Membership Fee, minimum Provider Bond, Recommended Transaction Limit, support rules, and withdrawal conditions. Material changes require existing Providers to re-accept by a stated deadline or become suspended; editorial changes do not.
+
+### Provider Bond
+
+Provider-owned money transferred to and managed directly by an `Admin` outside Avin's automated payment flows, with its recognized amount recorded by Avin for the Protection Provider. It is neither an Avin wallet balance nor an `EscrowHold` tied to an `OrderItem`. _Avoid_: wallet balance, escrow, insurance fund.
+
+### Bond Adjustment
+
+An immutable Admin record that changes Avin's recognized `Provider Bond` amount after an externally completed deposit, withdrawal, support payment, or correction. It records the reason and private evidence but never moves money itself. _Avoid_: wallet transaction, payout transaction.
+
+### Bond Adjustment Approval
+
+A second authorized Admin's confirmation of a Bond decrease, withdrawal, or Support Allocation recorded by another Admin. A Bond increase may be recorded by one authorized operator with private transfer evidence. _Avoid_: self-approval.
+
+### Bond Withdrawal
+
+An off-platform Provider request, recorded by an Admin, to leave the program and recover the remaining Provider Bond after a 30-day cooling period, open Support Reviews, and valid Bond Adjustments are resolved. The remaining Bond is fully returnable; the separate Membership Fee is not. _Avoid_: wallet withdrawal, early-exit forfeiture.
+
+### Membership Fee
+
+A non-refundable charge for participation or verification in the protection program, separate from the refundable `Provider Bond`. _Avoid_: bond fee, protection balance.
+
+### Recommended Transaction Limit
+
+The public per-Provider amount used as the upper bound when an Admin considers support for eligible external losses; it must not exceed the Provider's recognized `Provider Bond`. It is neither the Provider's private Bond balance nor a promise that every transaction will be compensated. _Avoid_: trust score, guaranteed payout, Bond balance.
+
+### Provider Profile Version
+
+An immutable historical snapshot of the Protection Provider's public identity, registered services, payment information, Recommended Transaction Limit, status, and publication consent. Eligibility is evaluated against the version effective when the reported transaction occurred, not later profile edits.
+
+### Provider Profile Revision
+
+A Provider-requested change that requires Admin verification before becoming a new Provider Profile Version; the previous version remains authoritative until publication. Changes to Facebook, Zalo, payment information, or registered services never publish automatically.
+
+### Registered Service
+
+A free-text description of a service that an Admin has approved for publication on a Protection Provider profile. Only a transaction within the approved wording can be a Support-Eligible Transaction. _Avoid_: category, unverified service.
+
+### Verified Provider Information
+
+The Provider-consented public identity and transaction data verified by an Admin, including official Facebook/Zalo contacts and full registered bank or wallet account details. It is presented for Real/Fake comparison without a payment QR and does not expose KYC or the private Provider Bond amount.
+
+### Provider Verification Badge
+
+A single public indicator that the displayed Provider information was verified and the profile is active. It has no Silver/Gold tiers, trust score, or unconditional guarantee meaning. _Avoid_: insurance badge, trust tier, red tick.
+
+### Support-Eligible Transaction
+
+A lawful direct Facebook or Zalo transaction with a Protection Provider that uses the registered identity, service, and payment information on the Provider profile and follows the published verification procedure. Excluded transaction types and transactions involving an impersonator are not eligible for Bond-backed support. _Avoid_: protected Order, insured transaction.
+
+### Pre-Transaction Verification Evidence
+
+The required screen recording showing the verified Provider identity, transaction box, registered payment information, and Provider confirmation before money or access is transferred. Its absence does not block a Public Risk Report but makes a transaction that requires it ineligible for Support Review.
+
+### Support Review
+
+An Admin's manual, off-platform evaluation of a reported `Support-Eligible Transaction` under the published support policy, opened only after a Risk Moderator confirms a Public Risk Report meets Provider, service, payment, scope, and evidence requirements. The affected person is entitled to consistent consideration, not an automatic payment, and the Admin records the decision without creating an in-app claim or moving money. _Avoid_: Protection Claim, Dispute, automatic compensation.
+
+### Support Reconsideration
+
+A single manual re-examination of a completed `Support Review` when new evidence or a procedural error is presented. It corrects review mistakes without creating an open-ended appeal process. _Avoid_: court appeal, repeated appeal.
+
+### Support Allocation
+
+An Admin-recorded amount of manually delivered support for verified loss from a Support-Eligible Transaction, capped in P0 at the smaller of the actual loss and the applicable Recommended Transaction Limit. P0 excludes indirect, website-operated, agent-deposit, lending, and other lower-priority loss groups. _Avoid_: payout, refund, insurance settlement.
+
+### Protection Provider Status
+
+The Provider's public standing: `ACTIVE`, `SUSPENDED_PENDING_REVIEW`, `WITHDRAWAL_PENDING`, `WITHDRAWN`, or `REMOVED_FOR_FRAUD`. A withdrawn or removed Provider leaves a historical profile at the stable public address rather than disappearing from history.
+
+### Public Risk Report
+
+A visitor-submitted allegation about any external account, website, social identity, or transaction, moving through `DRAFT`, `SUBMITTED`, `UNDER_REVIEW`, `CHANGES_REQUESTED`, `REJECTED`, `PUBLISHED`, `CORRECTED`, or `REMOVED`. No Avin account is required, but a verified private reporter contact and sufficient evidence are required before publication; the report neither creates compensation rights nor changes a Provider Bond automatically. _Avoid_: Dispute, Protection Claim, verdict.
+
+### Risk Identifier
+
+A normalized bank, wallet, phone, website, social, or platform-account value attached to one or more Public Risk Reports for exact lookup and history grouping. Sensitive identifiers are masked in public projections even when an exact private search value matched. _Avoid_: accused person, fuzzy identity match.
+
+### Risk Report Evidence
+
+An immutable private original submitted to support a Public Risk Report and visible only to authorized Admins. Publication requires a separate `Public Evidence Copy`; an original is never exposed by default. _Avoid_: public attachment.
+
+### Public Evidence Copy
+
+An Admin-approved derivative of Risk Report Evidence with unrelated personal data redacted, metadata removed, and an Avin watermark applied. It is the only evidence asset permitted on a public report page.
+
+### Risk Report Moderation Action
+
+An immutable Admin decision to request changes, reject, publish, correct, or remove a Public Risk Report, recording the reason, actor, time, and prior/new state. Corrections and removals append history rather than silently editing the original decision.
+
+### Risk Report Correction Request
+
+A reporter- or subject-submitted request to correct or remove a published Public Risk Report. An approved correction remains visible in the report history, while removal normally preserves a stable public tombstone unless law requires deletion.
+
+### Verified Claimed Loss
+
+The loss amount supported by evidence and accepted by an Admin for report statistics or Support Review; it remains a platform moderation finding rather than a court judgment. _Avoid_: legally adjudicated loss, guaranteed compensation.
+
+### Public Support Outcome
+
+A privacy-safe label stating that a Provider-related report is under verification, ineligible for support, handled by the Provider or program, or confirmed as a violation. It does not disclose the support amount, bank receipt, private discussion, or Admin-only reasoning.
+
+### Protection Admin Permission
+
+A least-privilege capability assigned to an Admin for Provider review, risk moderation, Bond operations, protection management, or program administration. Sensitive financial and publication actions depend on capabilities rather than the undifferentiated Admin role alone.
 
 ### Store profile
 

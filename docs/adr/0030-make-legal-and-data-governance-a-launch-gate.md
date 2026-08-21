@@ -1,0 +1,3 @@
+# Make legal and data governance a protection-program launch gate
+
+Avin will not accept a Provider Bond or publish a Public Risk Report until legal review covers custody of Provider-owned money, Membership Fees, KYC and bank-account publication, accusation moderation, support wording, correction/removal, and retention. Before launch, every field must be classified as public, masked, Admin-only, encrypted, retained, deletable, or legally preserved; public bulk export and APIs remain disabled, Admin exports require purpose and audit, and public lookup is rate-limited. This deliberately blocks a fast launch because financial custody and irreversible publication create obligations that later UI disclaimers cannot repair.

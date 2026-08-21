@@ -1,0 +1,3 @@
+# Embed protection as a public module within Avin
+
+The Avin Check directory, lookup, reporting, statistics, Provider workspace, and Admin operations will live directly within the Avin web and Admin applications rather than a separately deployed product. They retain the external-protection bounded context and cannot reuse marketplace Order, Dispute, EscrowHold, Seller, or authorization Admin semantics; the public label `Đối tác Avin` maps only to the internal `ProtectionProvider`, while actual operators appear as `Quản lý hệ thống`. This keeps one customer experience and shared infrastructure while preventing public vocabulary from collapsing security boundaries.

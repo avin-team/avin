@@ -1,0 +1,3 @@
+# Keep Provider Bond custody outside the application
+
+Real Provider Bond money will move only through a dedicated account owned by the legally reviewed program entity, never a Founder or operator's personal account and never an Avin wallet. The website records an increase only after an external transfer reference and evidence reconcile, while decreases follow dual-control Bond Adjustment approval; without a suitable legal entity and custody account the program may run only as a no-money pilot. This preserves the manual operating model without allowing public collateral records to drift from money actually held.

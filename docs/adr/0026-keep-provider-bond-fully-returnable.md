@@ -1,0 +1,3 @@
+# Keep the Provider Bond fully returnable
+
+The Membership Fee is the program's non-refundable charge, while the Provider Bond remains Provider-owned and is fully returnable after a 30-day cooling period once open Support Reviews, externally completed support, and Bond Adjustments are resolved. Avin will not confiscate 50% for withdrawal within the first year, charge a downgrade penalty, or require a public social-media post as a condition of return; the historical profile instead records withdrawal status at its stable URL. Separating fee from Bond avoids presenting Provider-owned collateral as refundable while later converting it into platform revenue.

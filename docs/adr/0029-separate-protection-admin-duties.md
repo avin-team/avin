@@ -1,0 +1,3 @@
+# Separate protection Admin duties and require dual control for Bond decreases
+
+Protection operations will use distinct permissions for Provider review, risk moderation, Bond operations, protection management, and program administration on top of mandatory Admin 2FA. A Bond decrease, withdrawal, or Support Allocation requires one authorized Admin to record it and a different authorized Admin to approve it; sensitive reads, writes, downloads, exports, failures, and outcomes are audited with actor, purpose, target, session, and time. This adds operational friction but prevents one compromised or dishonest Admin from changing public collateral records and concealing the supporting evidence.

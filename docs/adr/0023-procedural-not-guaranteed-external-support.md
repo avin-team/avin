@@ -1,0 +1,3 @@
+# Make external transaction support procedural, not guaranteed
+
+For a reported external transaction, Avin promises consistent Admin review under a published eligibility and allocation policy, but does not promise automatic compensation merely because a report was submitted or a Provider profile displayed a Recommended Transaction Limit. Support decisions and any money transfer occur manually outside the application, the published limit cannot exceed the recognized Provider Bond, and one reconsideration is available only for new evidence or procedural error. This balances meaningful accountability against the legal and financial exposure of representing the program as unconditional insurance or an automated payout product.

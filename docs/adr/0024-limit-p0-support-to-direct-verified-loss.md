@@ -1,0 +1,5 @@
+# Limit P0 support to direct verified loss
+
+P0 will consider Bond-backed support only for lawful direct Facebook or Zalo transactions involving a Protection Provider's registered identity, service, and payment information and the required pre-transaction verification evidence. Manual support is capped at 100% of verified actual loss and the historical Recommended Transaction Limit, excludes indirect and lower-priority loss groups, and uses the profile version effective at transaction time. This deliberately rejects the reference policy's 200% support and mixed priority groups because they invite collusion, blur eligibility, and create exposure beyond making the affected person whole.
+
+A Provider that fails to respond within 48 hours of verified Admin notice is suspended pending review; confirmed intentional fraud removes the Provider from the active directory but preserves a warning profile at the stable URL. Any manual support payment is recorded through a Bond Adjustment, and a Bond reduction that leaves the public limit unsupported suspends the profile until an Admin records a compliant new limit.
