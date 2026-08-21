@@ -5,16 +5,16 @@ import { ShoppingCartIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 
-import { authClient } from "@/features/auth/api/auth-client";
+import { useSession } from "@/features/auth/api/session-query";
 import { orpc } from "@/utils/orpc";
 
 const formatCartCount = (count: number): string =>
   count > 99 ? "99+" : String(count);
 
 export const CartButton = () => {
-  const { data: session, isPending: isSessionPending } =
-    authClient.useSession();
+  const { data: session, isPending: isSessionPending } = useSession();
   const isBuyer = session?.user.role === ACCOUNT_ROLE.BUYER;
+
   const cartQuery = useQuery({
     ...orpc.commerce.cart.get.queryOptions(),
     enabled: isBuyer,

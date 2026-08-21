@@ -7,6 +7,7 @@ import {
   SunIcon,
   XIcon,
 } from "@phosphor-icons/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { AnimatePresence } from "motion/react";
 import * as m from "motion/react-m";
@@ -15,6 +16,10 @@ import { toast } from "sonner";
 import { useTheme } from "@/components/theme-provider";
 import type { MainNavItem } from "@/config/site";
 import { authClient } from "@/features/auth/api/auth-client";
+import {
+  clearAuthSession,
+  useSession,
+} from "@/features/auth/api/session-query";
 
 interface MobileNavProps {
   isOpen: boolean;
@@ -65,7 +70,8 @@ export const MobileNavTrigger = ({
 
 export const MobileNav = ({ isOpen, items, onToggle }: MobileNavProps) => {
   const navigate = useNavigate();
-  const { data: session } = authClient.useSession();
+  const queryClient = useQueryClient();
+  const { data: session } = useSession();
   const { theme, setTheme } = useTheme();
 
   return (
@@ -200,11 +206,13 @@ export const MobileNav = ({ isOpen, items, onToggle }: MobileNavProps) => {
                         onToggle();
                         try {
                           await authClient.signOut();
+                          clearAuthSession(queryClient);
                           await navigate({ to: "/" });
                         } catch {
                           toast.error("Không thể đăng xuất.");
                         }
                       }}
+
                       type="button"
                     >
                       Đăng xuất

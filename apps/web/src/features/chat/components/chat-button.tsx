@@ -15,7 +15,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
-import { authClient } from "@/features/auth/api/auth-client";
+import { useSession } from "@/features/auth/api/session-query";
 import { orpc } from "@/utils/orpc";
 import { supabasePublic } from "@/utils/supabase";
 
@@ -23,8 +23,7 @@ const REALTIME_TOKEN_REFRESH_BUFFER_MS = 30_000;
 const RECENT_CONVERSATION_LIMIT = 3;
 
 export const ChatButton = () => {
-  const { data: session, isPending: isSessionPending } =
-    authClient.useSession();
+  const { data: session, isPending: isSessionPending } = useSession();
   const isAuthenticated = Boolean(session);
 
   const queryClient = useQueryClient();
@@ -35,6 +34,7 @@ export const ChatButton = () => {
   const notificationTokenQuery = useQuery({
     ...orpc.commerce.chat.getNotificationRealtimeToken.queryOptions(),
     enabled: isAuthenticated,
+    staleTime: 5 * 60 * 1000,
   });
   const { refetch: refetchNotificationToken } = notificationTokenQuery;
   const conversations = notificationSummaryQuery.data?.conversations ?? [];
@@ -49,13 +49,17 @@ export const ChatButton = () => {
   const notificationToken = notificationTokenQuery.data;
 
   React.useEffect(() => {
-    if (!notificationToken) {
+    const accessToken = notificationToken?.accessToken;
+    const channelName = notificationToken?.channel;
+    if (!accessToken || !channelName) {
       return;
     }
 
-    supabasePublic.realtime.setAuth(notificationToken.accessToken);
+    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    supabasePublic.realtime.setAuth(accessToken);
     const channel = supabasePublic
-      .channel(notificationToken.channel, { config: { private: true } })
+      .channel(channelName, { config: { private: true } })
       .on("broadcast", { event: "new_message" }, () => {
         void queryClient.invalidateQueries({
           queryKey: orpc.commerce.chat.getNotificationSummary.queryKey(),
@@ -68,20 +72,33 @@ export const ChatButton = () => {
           });
           return;
         }
-        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-          void refetchNotificationToken();
+        if (
+          (status === "CHANNEL_ERROR" || status === "TIMED_OUT") &&
+          !retryTimeout
+        ) {
+          retryTimeout = setTimeout(() => {
+            void refetchNotificationToken();
+          }, 10_000);
         }
       });
 
     return () => {
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+      }
       void channel.unsubscribe();
       void supabasePublic.removeChannel(channel);
     };
-  }, [notificationToken, queryClient, refetchNotificationToken]);
+  }, [
+    notificationToken?.accessToken,
+    notificationToken?.channel,
+    queryClient,
+    refetchNotificationToken,
+  ]);
 
   React.useEffect(() => {
     const expiresInSeconds = notificationToken?.expiresInSeconds;
-    if (!expiresInSeconds) {
+    if (!expiresInSeconds || !notificationToken?.accessToken) {
       return;
     }
 
@@ -93,7 +110,11 @@ export const ChatButton = () => {
     );
 
     return () => clearTimeout(refreshTimer);
-  }, [notificationToken?.expiresInSeconds, refetchNotificationToken]);
+  }, [
+    notificationToken?.accessToken,
+    notificationToken?.expiresInSeconds,
+    refetchNotificationToken,
+  ]);
 
   if (isSessionPending || !isAuthenticated) {
     return null;

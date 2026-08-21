@@ -28,19 +28,24 @@ import {
   StorefrontIcon,
   SunIcon,
 } from "@phosphor-icons/react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 
 import { canAccessSellerFeatures } from "@/components/layout/header-action-visibility";
 import { useTheme } from "@/components/theme-provider";
 import { authClient } from "@/features/auth/api/auth-client";
+import {
+  clearAuthSession,
+  useSession,
+} from "@/features/auth/api/session-query";
 import { orpc } from "@/utils/orpc";
 
 export const UserMenu = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { setTheme, theme } = useTheme();
-  const { data: session, isPending } = authClient.useSession();
+  const { data: session, isPending } = useSession();
   const isSeller = session?.user.role === ACCOUNT_ROLE.SELLER;
 
   const profileQuery = useQuery({
@@ -79,7 +84,7 @@ export const UserMenu = () => {
     .trim()
     .split(" ")
     .filter(Boolean)
-    .map((n) => n[0])
+    .map((n: string) => n[0])
     .join("")
     .slice(0, 2)
     .toUpperCase();
@@ -194,6 +199,8 @@ export const UserMenu = () => {
                   return;
                 }
 
+                clearAuthSession(queryClient);
+
                 await navigate({
                   to: "/",
                 });
@@ -201,6 +208,7 @@ export const UserMenu = () => {
                 toast.error("Không thể kết nối đến máy chủ. Vui lòng thử lại.");
               }
             }}
+
             variant="destructive"
           >
             <SignOutIcon className="me-2 size-4" />

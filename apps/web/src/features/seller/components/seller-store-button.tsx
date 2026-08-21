@@ -3,11 +3,10 @@ import { Button } from "@avin/ui/components/button";
 import { StorefrontIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 
-import { authClient } from "@/features/auth/api/auth-client";
+import { useSession } from "@/features/auth/api/session-query";
 
 export const SellerStoreButton = () => {
-  const { data: session, isPending: isSessionPending } =
-    authClient.useSession();
+  const { data: session, isPending: isSessionPending } = useSession();
   const isSeller = session?.user.role === ACCOUNT_ROLE.SELLER;
 
   if (isSessionPending || !isSeller) {

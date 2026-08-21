@@ -1,7 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
-import { authClient } from "@/features/auth/api/auth-client";
+import { useSession } from "@/features/auth/api/session-query";
 
 interface AuthActionGuardRenderProps {
   isSessionPending: boolean;
@@ -14,8 +14,7 @@ interface AuthActionGuardProps {
 
 export const AuthActionGuard = ({ children }: AuthActionGuardProps) => {
   const navigate = useNavigate();
-  const { data: session, isPending: isSessionPending } =
-    authClient.useSession();
+  const { data: session, isPending: isSessionPending } = useSession();
 
   const runAuthenticatedAction = (action: () => void): void => {
     if (isSessionPending) {

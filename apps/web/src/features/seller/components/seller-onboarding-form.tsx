@@ -32,7 +32,7 @@ import {
   SpinnerIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { AnimatePresence, useReducedMotion } from "motion/react";
 import type { Variants } from "motion/react";
@@ -41,7 +41,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 
-import { authClient } from "@/features/auth/api/auth-client";
+import { invalidateAuthSession } from "@/features/auth/api/session-query";
 import { orpc } from "@/utils/orpc";
 
 import { SellerLogoUploader } from "./seller-logo-uploader";
@@ -355,13 +355,14 @@ const SellerOnboardingFormContent = ({
   refetchProfile,
 }: SellerOnboardingFormContentProps) => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const shouldReduceMotion = Boolean(useReducedMotion());
   const isApproved = isApprovedApplication(application);
 
   const markSeenMutation = useMutation(
     orpc.sellerApplication.markOnboardingSeen.mutationOptions({
       onSuccess: async () => {
-        await authClient.getSession();
+        await invalidateAuthSession(queryClient);
         toast.info(
           "Bạn có thể quay lại hoàn tất thông tin người bán bất cứ lúc nào."
         );

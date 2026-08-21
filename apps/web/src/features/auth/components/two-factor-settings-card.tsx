@@ -12,14 +12,13 @@ import { CheckIcon, CopyIcon, KeyIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { authClient } from "@/features/auth/api/auth-client";
+import { useSession } from "@/features/auth/api/session-query";
 import { EnableTwoFactorForm } from "@/features/auth/components/enable-two-factor-form";
 import type { TwoFactorSetup } from "@/features/auth/components/enable-two-factor-form";
 import { VerifyTwoFactorForm } from "@/features/auth/components/verify-two-factor-form";
 
 export const TwoFactorSettingsCard = () => {
-  const { data: currentSession, refetch: refetchCurrentSession } =
-    authClient.useSession();
+  const { data: currentSession, refetch: refetchCurrentSession } = useSession();
   const [setup, setSetup] = useState<TwoFactorSetup | null>(null);
   const [copiedBackup, setCopiedBackup] = useState(false);
 

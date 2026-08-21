@@ -9,10 +9,15 @@ import {
 import { Input } from "@avin/ui/components/input";
 import { Spinner } from "@avin/ui/components/spinner";
 import { useForm } from "@tanstack/react-form";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 
 import { authClient } from "@/features/auth/api/auth-client";
+import {
+  clearAuthSession,
+  invalidateAuthSession,
+} from "@/features/auth/api/session-query";
 import { signInSchema } from "@/features/auth/schemas/auth-schemas";
 
 export type PostSignInRoute = "/" | "/seller/onboarding";
@@ -24,6 +29,7 @@ interface SignInFormProps {
 
 export const SignInForm = ({ expectedRole, redirectTo }: SignInFormProps) => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const form = useForm({
     defaultValues: {
       email: "",
@@ -43,10 +49,12 @@ export const SignInForm = ({ expectedRole, redirectTo }: SignInFormProps) => {
 
         if (expectedRole && result.data.user.role !== expectedRole) {
           await authClient.signOut();
+          clearAuthSession(queryClient);
           toast.error("Tài khoản không thuộc cổng đăng nhập này.");
           return;
         }
 
+        await invalidateAuthSession(queryClient);
         toast.success("Đăng nhập thành công.");
         await navigate({
           to: redirectTo ?? "/",
@@ -55,6 +63,7 @@ export const SignInForm = ({ expectedRole, redirectTo }: SignInFormProps) => {
         toast.error("Không thể kết nối đến máy chủ. Vui lòng thử lại.");
       }
     },
+
     validators: {
       onSubmit: signInSchema,
     },

@@ -10,7 +10,7 @@ import {
 import { Separator } from "@avin/ui/components/separator";
 import { Spinner } from "@avin/ui/components/spinner";
 
-import { authClient } from "@/features/auth/api/auth-client";
+import { useSession } from "@/features/auth/api/session-query";
 import { useActiveSessions } from "@/features/auth/hooks/use-active-sessions";
 
 const dateFormatter = new Intl.DateTimeFormat("vi-VN", {
@@ -19,7 +19,7 @@ const dateFormatter = new Intl.DateTimeFormat("vi-VN", {
 });
 
 export const ActiveSessionsCard = () => {
-  const { data: currentSession } = authClient.useSession();
+  const { data: currentSession } = useSession();
   const { revokeSession, revokingToken, sessionsQuery } = useActiveSessions(
     currentSession?.session.token
   );

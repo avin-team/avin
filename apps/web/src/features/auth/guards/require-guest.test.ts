@@ -1,3 +1,4 @@
+import { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { requireGuest } from "@/features/auth/guards/require-guest";
@@ -13,14 +14,21 @@ vi.mock("@/features/auth/api/auth-client", () => ({
 }));
 
 describe("requireGuest", () => {
+  let queryClient: QueryClient;
+
   beforeEach(() => {
     getSession.mockReset();
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+      },
+    });
   });
 
   it("does not throw when user is not authenticated", async () => {
     getSession.mockResolvedValue({ data: null });
 
-    await expect(requireGuest()).resolves.toBeUndefined();
+    await expect(requireGuest(queryClient)).resolves.toBeUndefined();
   });
 
   it("redirects to home when user is already authenticated", async () => {
@@ -30,7 +38,7 @@ describe("requireGuest", () => {
       },
     });
 
-    await expect(requireGuest()).rejects.toMatchObject({
+    await expect(requireGuest(queryClient)).rejects.toMatchObject({
       options: {
         to: "/",
       },

@@ -1,18 +1,19 @@
 import { ACCOUNT_ROLE } from "@avin/auth/permissions";
 import type { AccountRole } from "@avin/auth/permissions";
 import { cn } from "@avin/ui/lib/utils";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 
 import { Shell } from "@/components/shell";
-import { authClient } from "@/features/auth/api/auth-client";
+import { invalidateAuthSession } from "@/features/auth/api/session-query";
 import { DecorIcon } from "@/features/auth/components/decor-icon";
 import { RoleSelectionStep } from "@/features/auth/components/role-selection";
 import { orpc } from "@/utils/orpc";
 
 export const OnboardingPage = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const selectRoleMutation = useMutation({
     ...orpc.sellerApplication.selectRole.mutationOptions(),
@@ -24,8 +25,8 @@ export const OnboardingPage = () => {
         role: role === ACCOUNT_ROLE.SELLER ? "SELLER" : "BUYER",
       });
 
-      // Refresh session in authClient cache
-      await authClient.getSession();
+      // Invalidate session in query cache to trigger fresh fetch
+      await invalidateAuthSession(queryClient);
 
       if (role === ACCOUNT_ROLE.SELLER) {
         toast.success("Đã thiết lập vai trò Người bán.");
