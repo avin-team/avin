@@ -19,6 +19,7 @@ import { Route as errors404RouteImport } from './routes/(errors)/404'
 import { Route as errors500RouteImport } from './routes/(errors)/500'
 import { Route as errors503RouteImport } from './routes/(errors)/503'
 import { Route as publicIndexRouteImport } from './routes/(public)/index'
+import { Route as publicAvinCheckRouteImport } from './routes/(public)/avin-check'
 import { Route as AuthenticatedCartRouteImport } from './routes/_authenticated/cart'
 import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/chat'
 import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
@@ -85,6 +86,11 @@ const errors503Route = errors503RouteImport.update({
 const publicIndexRoute = publicIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => publicRouteRoute,
+} as any)
+const publicAvinCheckRoute = publicAvinCheckRouteImport.update({
+  id: '/avin-check',
+  path: '/avin-check',
   getParentRoute: () => publicRouteRoute,
 } as any)
 const AuthenticatedCartRoute = AuthenticatedCartRouteImport.update({
@@ -206,6 +212,7 @@ export interface FileRoutesByFullPath {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
+  '/avin-check': typeof publicAvinCheckRoute
   '/cart': typeof AuthenticatedCartRoute
   '/chat': typeof AuthenticatedChatRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
@@ -235,6 +242,7 @@ export interface FileRoutesByTo {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
+  '/avin-check': typeof publicAvinCheckRoute
   '/cart': typeof AuthenticatedCartRoute
   '/chat': typeof AuthenticatedChatRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
@@ -267,6 +275,7 @@ export interface FileRoutesById {
   '/(errors)/404': typeof errors404Route
   '/(errors)/500': typeof errors500Route
   '/(errors)/503': typeof errors503Route
+  '/(public)/avin-check': typeof publicAvinCheckRoute
   '/_authenticated/cart': typeof AuthenticatedCartRoute
   '/_authenticated/chat': typeof AuthenticatedChatRoute
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
@@ -299,6 +308,7 @@ export interface FileRouteTypes {
     | '/404'
     | '/500'
     | '/503'
+    | '/avin-check'
     | '/cart'
     | '/chat'
     | '/notifications'
@@ -328,6 +338,7 @@ export interface FileRouteTypes {
     | '/404'
     | '/500'
     | '/503'
+    | '/avin-check'
     | '/cart'
     | '/chat'
     | '/notifications'
@@ -359,6 +370,7 @@ export interface FileRouteTypes {
     | '/(errors)/404'
     | '/(errors)/500'
     | '/(errors)/503'
+    | '/(public)/avin-check'
     | '/_authenticated/cart'
     | '/_authenticated/chat'
     | '/_authenticated/notifications'
@@ -463,6 +475,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof publicIndexRouteImport
+      parentRoute: typeof publicRouteRoute
+    }
+    '/(public)/avin-check': {
+      id: '/(public)/avin-check'
+      path: '/avin-check'
+      fullPath: '/avin-check'
+      preLoaderRoute: typeof publicAvinCheckRouteImport
       parentRoute: typeof publicRouteRoute
     }
     '/_authenticated/cart': {
@@ -623,6 +642,7 @@ const authRouteRouteWithChildren = authRouteRoute._addFileChildren(
 )
 
 interface publicRouteRouteChildren {
+  publicAvinCheckRoute: typeof publicAvinCheckRoute
   publicIndexRoute: typeof publicIndexRoute
   publicCategoryParentSlugRoute: typeof publicCategoryParentSlugRoute
   publicListingIdRoute: typeof publicListingIdRoute
@@ -631,6 +651,7 @@ interface publicRouteRouteChildren {
 }
 
 const publicRouteRouteChildren: publicRouteRouteChildren = {
+  publicAvinCheckRoute: publicAvinCheckRoute,
   publicIndexRoute: publicIndexRoute,
   publicCategoryParentSlugRoute: publicCategoryParentSlugRoute,
   publicListingIdRoute: publicListingIdRoute,

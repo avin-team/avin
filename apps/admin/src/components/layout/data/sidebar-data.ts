@@ -6,6 +6,7 @@ import {
   BankIcon,
   ChartLineUpIcon,
   BellIcon,
+  ShieldCheckIcon,
   SquaresFourIcon,
   GearIcon,
   StorefrontIcon,
@@ -66,6 +67,16 @@ export const sidebarData: SidebarData = {
         },
       ],
       title: "Tài chính & Payout",
+    },
+    {
+      items: [
+        {
+          icon: ShieldCheckIcon,
+          title: "Avin Check & Launch Gates",
+          url: "/avin-check",
+        },
+      ],
+      title: "Bảo vệ giao dịch bên ngoài",
     },
     {
       items: [

@@ -6,6 +6,25 @@ export const env = createEnv({
   emptyStringAsUndefined: true,
   runtimeEnv: process.env,
   server: {
+    AVIN_CHECK_CUSTODY_APPROVED: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
+    AVIN_CHECK_DATA_GOVERNANCE_APPROVED: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
+    AVIN_CHECK_LEGAL_REVIEW_APPROVED: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
+    AVIN_CHECK_MODE: z
+      .enum(["NO_MONEY_PILOT", "LIVE"])
+      .default("NO_MONEY_PILOT"),
+    AVIN_CHECK_PROGRAM_ENTITY_APPROVED: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
     BETTER_AUTH_SECRET: z.string().min(32),
     BETTER_AUTH_URL: z.url(),
     CORS_ORIGIN: z

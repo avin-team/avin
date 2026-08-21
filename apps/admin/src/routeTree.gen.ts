@@ -18,6 +18,7 @@ import { Route as errors404RouteImport } from './routes/(errors)/404'
 import { Route as errors500RouteImport } from './routes/(errors)/500'
 import { Route as errors503RouteImport } from './routes/(errors)/503'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedAvinCheckRouteImport } from './routes/_authenticated/avin-check'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedCategoriesIndexRouteImport } from './routes/_authenticated/categories/index'
 import { Route as AuthenticatedDisputesIndexRouteImport } from './routes/_authenticated/disputes/index'
@@ -73,6 +74,11 @@ const errors503Route = errors503RouteImport.update({
 const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedAvinCheckRoute = AuthenticatedAvinCheckRouteImport.update({
+  id: '/avin-check',
+  path: '/avin-check',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
@@ -156,6 +162,7 @@ export interface FileRoutesByFullPath {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
+  '/avin-check': typeof AuthenticatedAvinCheckRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/disputes/$disputeId': typeof AuthenticatedDisputesDisputeIdRoute
   '/seller-applications/$applicationId': typeof AuthenticatedSellerApplicationsApplicationIdRoute
@@ -177,6 +184,7 @@ export interface FileRoutesByTo {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
+  '/avin-check': typeof AuthenticatedAvinCheckRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/': typeof AuthenticatedIndexRoute
   '/disputes/$disputeId': typeof AuthenticatedDisputesDisputeIdRoute
@@ -201,6 +209,7 @@ export interface FileRoutesById {
   '/(errors)/404': typeof errors404Route
   '/(errors)/500': typeof errors500Route
   '/(errors)/503': typeof errors503Route
+  '/_authenticated/avin-check': typeof AuthenticatedAvinCheckRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/disputes/$disputeId': typeof AuthenticatedDisputesDisputeIdRoute
@@ -226,6 +235,7 @@ export interface FileRouteTypes {
     | '/404'
     | '/500'
     | '/503'
+    | '/avin-check'
     | '/settings'
     | '/disputes/$disputeId'
     | '/seller-applications/$applicationId'
@@ -247,6 +257,7 @@ export interface FileRouteTypes {
     | '/404'
     | '/500'
     | '/503'
+    | '/avin-check'
     | '/settings'
     | '/'
     | '/disputes/$disputeId'
@@ -270,6 +281,7 @@ export interface FileRouteTypes {
     | '/(errors)/404'
     | '/(errors)/500'
     | '/(errors)/503'
+    | '/_authenticated/avin-check'
     | '/_authenticated/settings'
     | '/_authenticated/'
     | '/_authenticated/disputes/$disputeId'
@@ -361,6 +373,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/avin-check': {
+      id: '/_authenticated/avin-check'
+      path: '/avin-check'
+      fullPath: '/avin-check'
+      preLoaderRoute: typeof AuthenticatedAvinCheckRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/settings': {
       id: '/_authenticated/settings'
       path: '/settings'
@@ -449,6 +468,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteChildren {
+  AuthenticatedAvinCheckRoute: typeof AuthenticatedAvinCheckRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedDisputesDisputeIdRoute: typeof AuthenticatedDisputesDisputeIdRoute
@@ -465,6 +485,7 @@ interface AuthenticatedRouteChildren {
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedAvinCheckRoute: AuthenticatedAvinCheckRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedDisputesDisputeIdRoute: AuthenticatedDisputesDisputeIdRoute,
