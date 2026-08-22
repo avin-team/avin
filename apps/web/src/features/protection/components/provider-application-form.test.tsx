@@ -38,9 +38,6 @@ describe("ProviderApplicationForm with Split Live-Preview", () => {
   it("renders the 2-step tabs and dual-pane WYSIWYG preview card", () => {
     render(<ProviderApplicationForm application={null} />);
 
-    expect(
-      screen.getByRole("heading", { name: "Đăng ký Đối tác Avin Check" })
-    ).toBeInTheDocument();
     expect(screen.getByText("1. Thông tin & Kênh liên hệ")).toBeInTheDocument();
     expect(
       screen.getByText("2. Đối soát & Cam kết điều khoản")
@@ -60,17 +57,12 @@ describe("ProviderApplicationForm with Split Live-Preview", () => {
     ).toBeInTheDocument();
   });
 
-  it("auto-fills demo data when clicking 'Tự động điền dữ liệu mẫu'", () => {
+  it("pre-populates the default services draft template into the textarea", () => {
     render(<ProviderApplicationForm application={null} />);
 
-    const fillDemoButton = screen.getByRole("button", {
-      name: /Tự động điền dữ liệu mẫu/iu,
-    });
-    fireEvent.click(fillDemoButton);
-
-    expect(
-      screen.getByRole("heading", { name: "NGUYỄN HOÀNG DƯƠNG" })
-    ).toBeInTheDocument();
-    expect(screen.getByText(/100%/iu)).toBeInTheDocument();
+    const servicesInput = screen.getByLabelText(
+      /Dịch vụ cung cấp & Danh sách tài khoản ngân hàng/iu
+    ) as HTMLTextAreaElement;
+    expect(servicesInput.value).toContain("Dịch Vụ Mạng Xã Hội");
   });
 });

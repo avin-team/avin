@@ -16,7 +16,6 @@ import {
   PaperPlaneTilt,
   SealCheck,
   ShieldCheck,
-  Sparkle,
 } from "@phosphor-icons/react";
 import { useState } from "react";
 import type { FormEvent } from "react";
@@ -46,6 +45,15 @@ const VIETNAMESE_BANKS = [
   "ZaloPay Wallet",
   "Viettel Money",
 ] as const;
+
+const DEFAULT_SERVICES_DRAFT = `• Dịch Vụ Mạng Xã Hội : 
+• (GDTG) Giao dịch trung gian : 
+• Hotline/Zalo phụ (nếu có) : 
+
+Chủ TK ""
+• Vcb: 
+• Acb: 
+• Momo: `;
 
 const formatDateVi = (dateStr: string): string => {
   if (!dateStr) {
@@ -103,7 +111,7 @@ const emptyFormState = (): ProviderApplicationFormState => ({
   },
   paymentDisclosureConsent: true,
   policyAccepted: false,
-  services: "",
+  services: DEFAULT_SERVICES_DRAFT,
 });
 
 const readText = (value: string | null | undefined): string => value ?? "";
@@ -144,7 +152,7 @@ const getFormState = (
     policyAccepted:
       Boolean(application.policyAcceptedAt) &&
       application.policyVersion === currentPolicyVersion,
-    services: readText(application.services),
+    services: readText(application.services) || DEFAULT_SERVICES_DRAFT,
   };
 };
 
@@ -886,34 +894,6 @@ export const ProviderApplicationForm = ({
     }));
   };
 
-  const handleFillDemo = () => {
-    setForm({
-      fullName: "NGUYỄN HOÀNG DƯƠNG",
-      officialChannels: {
-        avatarUrl:
-          "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80",
-        bioShop: "12553",
-        facebookId: "",
-        facebookUrl: "https://facebook.com/duongnguyen.official",
-        note: "",
-        telegramCommunityUrl: "https://t.me/duongnguyen_check",
-        websiteUrl: "https://likesub.vip",
-        zalo: "0934567643",
-      },
-      operatingSince: "2024-01-01",
-      paymentAccount: {
-        accountName: "NGUYEN HOANG DUONG",
-        accountNumber: "1031000002351",
-        accountType: "BANK",
-        institution: "Vietcombank (VCB)",
-      },
-      paymentDisclosureConsent: true,
-      policyAccepted: true,
-      services: `• Dịch Vụ Mạng Xã Hội : mở khoá các tài khoản mạng xã hội bị khóa\n  https://LikeSub.Vip\n• (GDTG) Giao dịch trung gian mua bán tài khoản fb, tiktok, ytb, liên quân\n• Zalo phụ: 0832635555 Dương GDTG\n\nChủ TK "NGUYỄN HOÀNG DƯƠNG"\n• Vcb: 1031000002351\n• Acb: 162198888\n• Momo: 0934567643`,
-    });
-    toast.success("Đã điền thông tin mẫu chuẩn CheckScam!");
-  };
-
   const handleSaveDraft = async () => {
     try {
       const payload = toDraft(form, currentPolicyVersion);
@@ -989,32 +969,6 @@ export const ProviderApplicationForm = ({
 
   return (
     <form className="space-y-6" onSubmit={handleSubmit}>
-      {/* Top Helper Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/80 bg-muted/40 p-4">
-        <div>
-          <h2 className="font-bold text-sm">
-            {mode === "revision"
-              ? "Cập nhật Hồ sơ Đối tác"
-              : "Đăng ký Đối tác Avin Check"}
-          </h2>
-          <p className="text-muted-foreground text-xs">
-            Giao diện 2 bước tinh gọn, hiển thị trực quan theo thời gian thực.
-          </p>
-        </div>
-
-        <Button
-          className="gap-1.5 text-xs font-semibold"
-          disabled={disabled}
-          onClick={handleFillDemo}
-          size="sm"
-          type="button"
-          variant="outline"
-        >
-          <Sparkle className="size-3.5 text-amber-500" />
-          Tự động điền dữ liệu mẫu
-        </Button>
-      </div>
-
       {/* Main Dual-Pane Grid */}
       <div className="grid gap-8 lg:grid-cols-12">
         {/* LEFT COLUMN: 2-STEP CONTROLS (7 COLS) */}
