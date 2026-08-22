@@ -38,7 +38,9 @@ describe("ProviderApplicationForm with Split Live-Preview", () => {
   it("renders the 2-step tabs and dual-pane WYSIWYG preview card", () => {
     render(<ProviderApplicationForm application={null} />);
 
-    expect(screen.getByText("Split Live-Preview")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Đăng ký Đối tác Avin Check" })
+    ).toBeInTheDocument();
     expect(screen.getByText("1. Thông tin & Kênh liên hệ")).toBeInTheDocument();
     expect(
       screen.getByText("2. Đối soát & Cam kết điều khoản")
@@ -69,6 +71,6 @@ describe("ProviderApplicationForm with Split Live-Preview", () => {
     expect(
       screen.getByRole("heading", { name: "NGUYỄN HOÀNG DƯƠNG" })
     ).toBeInTheDocument();
-    expect(screen.getByText("100%")).toBeInTheDocument();
+    expect(screen.getByText(/100%/iu)).toBeInTheDocument();
   });
 });

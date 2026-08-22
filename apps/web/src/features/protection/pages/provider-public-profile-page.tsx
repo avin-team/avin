@@ -125,12 +125,6 @@ const ProviderHeaderSection = ({
           </h1>
           <SealCheck className="size-6 text-primary" weight="fill" />
         </div>
-
-        {channels.note && (
-          <p className="mt-1 text-sm font-medium text-muted-foreground">
-            {channels.note}
-          </p>
-        )}
       </div>
 
       <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
@@ -169,17 +163,15 @@ const ProviderVerificationBox = ({
         <span className="font-semibold text-foreground shrink-0">Fb (C):</span>
         {channels.facebookUrl ? (
           <a
-            className="font-mono text-primary font-medium hover:underline truncate"
+            className="text-primary font-medium hover:underline truncate"
             href={channels.facebookUrl}
             rel="noopener noreferrer"
             target="_blank"
           >
-            {channels.facebookId || "Xem Facebook chính chủ"}
+            {channels.facebookUrl}
           </a>
         ) : (
-          <span className="font-mono text-primary font-medium">
-            {channels.facebookId || "Chưa cập nhật"}
-          </span>
+          <span className="text-muted-foreground">Chưa cập nhật</span>
         )}
       </div>
       <div className="flex items-start gap-2">

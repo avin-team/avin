@@ -152,48 +152,57 @@ export const ProviderAvatarUploader = ({
         )}
       </div>
 
-      <div className="flex-1 space-y-1.5 min-w-0">
+      <div className="flex-1 space-y-2 min-w-0 w-full sm:w-auto">
         <div className="flex items-center justify-between gap-2">
           <p className="font-semibold text-sm">Ảnh đại diện đối tác (Avatar)</p>
           {avatarUrl && !isDisabled ? (
-            <div className="flex items-center gap-1">
-              <Button
-                aria-label="Xóa ảnh đại diện"
-                className="h-7 px-2 text-xs text-destructive hover:bg-destructive/10"
-                disabled={isDisabled}
-                onClick={handleRemove}
-                size="sm"
-                type="button"
-                variant="ghost"
-              >
-                <Trash className="mr-1 size-3.5" />
-                Gỡ ảnh
-              </Button>
-            </div>
+            <Button
+              aria-label="Xóa ảnh đại diện"
+              className="h-7 px-2 text-xs text-destructive hover:bg-destructive/10"
+              disabled={isDisabled}
+              onClick={handleRemove}
+              size="sm"
+              type="button"
+              variant="ghost"
+            >
+              <Trash className="mr-1 size-3.5" />
+              Gỡ ảnh
+            </Button>
           ) : null}
         </div>
         <p className="text-muted-foreground text-xs">
           Hỗ trợ JPG, PNG, WebP (tối đa 5 MB). Ảnh sẽ hiển thị tròn trên thẻ hồ
           sơ đối tác.
         </p>
-        <FileDropzone
-          {...dropzoneProps}
-          className="mt-2 min-h-0 border-dashed py-2 px-3 text-xs"
-          label={avatarUrl ? "Thay đổi ảnh đại diện" : "Tải ảnh đại diện lên"}
-          renderTrigger={({ open }) => (
-            <Button
-              className="gap-1.5 text-xs h-8"
-              disabled={isDisabled}
-              onClick={open}
-              size="sm"
-              type="button"
-              variant="outline"
-            >
-              <ArrowClockwise className="size-3.5" />
-              {avatarUrl ? "Thay đổi ảnh" : "Tải ảnh lên"}
-            </Button>
-          )}
-        />
+
+        {avatarUrl ? (
+          <div>
+            <FileDropzone
+              {...dropzoneProps}
+              className="hidden"
+              renderTrigger={({ open }) => (
+                <Button
+                  className="gap-1.5 text-xs h-8"
+                  disabled={isDisabled}
+                  onClick={open}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  <ArrowClockwise className="size-3.5" />
+                  Thay đổi ảnh
+                </Button>
+              )}
+            />
+          </div>
+        ) : (
+          <FileDropzone
+            {...dropzoneProps}
+            className="min-h-0 border-dashed py-2.5 px-3 text-xs"
+            label="Tải ảnh đại diện lên"
+          />
+        )}
+
         {errorMessage ? (
           <p className="text-destructive text-xs">{errorMessage}</p>
         ) : null}

@@ -47,18 +47,6 @@ const VIETNAMESE_BANKS = [
   "Viettel Money",
 ] as const;
 
-const SERVICE_TAG_OPTIONS = [
-  "Tài khoản Game",
-  "Nạp Game & Thẻ cào",
-  "Thiết kế & Đồ họa",
-  "Phần mềm & Tool",
-  "Tài khoản MXH",
-  "Dịch Vụ Mạng Xã Hội",
-  "Trung gian giao dịch (GDTG)",
-  "Dịch vụ Tiếp thị & SEO",
-  "Tư vấn & Hỗ trợ kỹ thuật",
-] as const;
-
 const formatDateVi = (dateStr: string): string => {
   if (!dateStr) {
     return "Đang cập nhật";
@@ -91,7 +79,6 @@ export interface ProviderApplicationFormState {
   };
   paymentDisclosureConsent: boolean;
   policyAccepted: boolean;
-  selectedServiceTags: string[];
   services: string;
 }
 
@@ -116,7 +103,6 @@ const emptyFormState = (): ProviderApplicationFormState => ({
   },
   paymentDisclosureConsent: true,
   policyAccepted: false,
-  selectedServiceTags: [],
   services: "",
 });
 
@@ -158,7 +144,6 @@ const getFormState = (
     policyAccepted:
       Boolean(application.policyAcceptedAt) &&
       application.policyVersion === currentPolicyVersion,
-    selectedServiceTags: [],
     services: readText(application.services),
   };
 };
@@ -239,7 +224,6 @@ const hasSubmissionMinimum = (state: ProviderApplicationFormState): boolean => {
 
   const hasOfficialChannel =
     Boolean(state.officialChannels.facebookUrl?.trim()) ||
-    Boolean(state.officialChannels.facebookId?.trim()) ||
     Boolean(state.officialChannels.zalo?.trim()) ||
     Boolean(state.officialChannels.telegramCommunityUrl?.trim());
 
@@ -248,31 +232,35 @@ const hasSubmissionMinimum = (state: ProviderApplicationFormState): boolean => {
 
 const calculateTrustScore = (state: ProviderApplicationFormState): number => {
   let score = 0;
+  if (state.fullName.trim()) {
+    score += 15;
+  }
   if (state.officialChannels.avatarUrl.trim()) {
     score += 15;
   }
-  if (state.fullName.trim()) {
+  if (state.officialChannels.zalo.trim()) {
     score += 20;
   }
-  if (state.officialChannels.facebookId || state.officialChannels.facebookUrl) {
-    score += 15;
+  if (state.officialChannels.facebookUrl.trim()) {
+    score += 10;
   }
-  if (state.officialChannels.zalo.trim()) {
-    score += 15;
+  if (state.officialChannels.telegramCommunityUrl.trim()) {
+    score += 10;
   }
   if (state.services.trim()) {
     score += 15;
   }
   if (
+    state.paymentAccount.accountName.trim() &&
     state.paymentAccount.accountNumber.trim() &&
     state.paymentAccount.institution.trim()
   ) {
     score += 10;
   }
   if (state.policyAccepted) {
-    score += 10;
+    score += 5;
   }
-  return Math.min(score, 100);
+  return Math.min(100, score);
 };
 
 const getInitials = (name: string): string => {
@@ -286,24 +274,11 @@ const getInitials = (name: string): string => {
   return `${first}${last}`.toUpperCase();
 };
 
-const getSubmitErrorMessage = (
-  error: unknown,
-  mode: "application" | "revision"
-) => {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return mode === "revision"
-    ? "Không thể gửi yêu cầu cập nhật profile."
-    : "Không thể gửi hồ sơ Provider.";
-};
-
 /* --- TAB 1: THÔNG TIN & KÊNH LIÊN HỆ --- */
 interface IdentityAndChannelsTabProps {
   disabled: boolean;
   form: ProviderApplicationFormState;
   onNextTab: () => void;
-  toggleServiceTag: (tag: string) => void;
   updateChannel: (
     field: keyof ProviderApplicationFormState["officialChannels"],
     value: string
@@ -318,11 +293,10 @@ const IdentityAndChannelsTabPanel = ({
   disabled,
   form,
   onNextTab,
-  toggleServiceTag,
   updateChannel,
   updateField,
 }: IdentityAndChannelsTabProps) => (
-  <div className="space-y-5 rounded-3xl border border-border/70 bg-card p-6 shadow-xs">
+  <div className="space-y-6 rounded-3xl border border-border/70 bg-card p-6 shadow-xs">
     <div className="border-border/50 border-b pb-4">
       <h3 className="font-bold text-lg">
         1. Thông tin Đại diện & Kênh liên hệ
@@ -332,14 +306,14 @@ const IdentityAndChannelsTabPanel = ({
       </p>
     </div>
 
-    {/* Avatar Upload */}
+    {/* Avatar Uploader Section */}
     <ProviderAvatarUploader
       avatarUrl={form.officialChannels.avatarUrl}
       disabled={disabled}
       onAvatarChange={(val) => updateChannel("avatarUrl", val.url)}
     />
 
-    {/* Basic Info */}
+    {/* Name & Operating Since */}
     <div className="grid gap-4 sm:grid-cols-2">
       <div className="space-y-2">
         <Label htmlFor="app-full-name">
@@ -353,6 +327,7 @@ const IdentityAndChannelsTabPanel = ({
           value={form.fullName}
         />
       </div>
+
       <div className="space-y-2">
         <Label htmlFor="app-operating-since">
           Bắt đầu hoạt động từ <span className="text-destructive">*</span>
@@ -365,21 +340,6 @@ const IdentityAndChannelsTabPanel = ({
           value={form.operatingSince}
         />
       </div>
-    </div>
-
-    {/* Subtitle / Note */}
-    <div className="space-y-2">
-      <Label htmlFor="app-note">
-        Lời nhắn / Ghi chú giao dịch (Hiển thị dưới tên)
-      </Label>
-      <Input
-        disabled={disabled}
-        id="app-note"
-        maxLength={300}
-        onChange={(e) => updateChannel("note", e.target.value)}
-        placeholder="VD: (Giao dịch qua Zalo nhé mọi người)"
-        value={form.officialChannels.note}
-      />
     </div>
 
     {/* Official Channels Grid */}
@@ -428,16 +388,6 @@ const IdentityAndChannelsTabPanel = ({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="app-fb-id">Facebook Numeric ID (UID)</Label>
-          <Input
-            disabled={disabled}
-            id="app-fb-id"
-            onChange={(e) => updateChannel("facebookId", e.target.value)}
-            placeholder="VD: 100005959991439"
-            value={form.officialChannels.facebookId}
-          />
-        </div>
-        <div className="space-y-2">
           <Label htmlFor="app-bio">Mã Bio Shop / Bio Link</Label>
           <Input
             disabled={disabled}
@@ -447,8 +397,8 @@ const IdentityAndChannelsTabPanel = ({
             value={form.officialChannels.bioShop}
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="app-website">Website riêng</Label>
+        <div className="space-y-2 sm:col-span-2">
+          <Label htmlFor="app-website">Website riêng (nếu có)</Label>
           <Input
             disabled={disabled}
             id="app-website"
@@ -458,32 +408,6 @@ const IdentityAndChannelsTabPanel = ({
             value={form.officialChannels.websiteUrl}
           />
         </div>
-      </div>
-    </div>
-
-    {/* Service Tag Buttons */}
-    <div className="space-y-2">
-      <Label>Lĩnh vực chuyên môn (Nhấp để thêm nhanh)</Label>
-      <div className="flex flex-wrap gap-2">
-        {SERVICE_TAG_OPTIONS.map((tag) => {
-          const isSelected = form.selectedServiceTags.includes(tag);
-          return (
-            <button
-              aria-pressed={isSelected}
-              className={`rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors ${
-                isSelected
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border/70 bg-muted/40 text-foreground hover:bg-muted"
-              }`}
-              key={tag}
-              onClick={() => toggleServiceTag(tag)}
-              type="button"
-            >
-              {isSelected ? "✓ " : "+ "}
-              {tag}
-            </button>
-          );
-        })}
       </div>
     </div>
 
@@ -505,7 +429,7 @@ const IdentityAndChannelsTabPanel = ({
         maxLength={4000}
         onChange={(e) => updateField("services", e.target.value)}
         placeholder={`VD:\n• Dịch Vụ Mạng Xã Hội : mở khoá các tài khoản mạng xã hội bị khóa\n  https://LikeSub.Vip\n• (GDTG) Giao dịch trung gian mua bán tài khoản fb, tiktok, ytb, liên quân\n• Zalo phụ: 0832635555 Dương GDTG\n\nChủ TK "NGUYỄN HOÀNG DƯƠNG"\n• Vcb: 1031000002351\n• Acb: 162198888\n• Momo: 0934567643`}
-        rows={7}
+        rows={8}
         value={form.services}
       />
     </div>
@@ -554,8 +478,8 @@ const PayoutAndPolicyTabPanel = ({
     </div>
 
     {/* Payout Bank Info */}
-    <div className="rounded-2xl border border-border/70 bg-muted/20 p-5 space-y-4">
-      <div className="flex items-center gap-2 font-semibold text-xs text-foreground uppercase tracking-wide">
+    <div className="space-y-4 rounded-2xl border border-border/70 bg-muted/20 p-5">
+      <div className="flex items-center gap-2 font-semibold text-foreground text-xs uppercase tracking-wide">
         <Bank className="size-4 text-primary" />
         Tài khoản nhận hoàn tiền ký quỹ (Đối soát nội bộ)
       </div>
@@ -633,12 +557,12 @@ const PayoutAndPolicyTabPanel = ({
     </div>
 
     {/* Policy & Legal Commitments */}
-    <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 space-y-3">
+    <div className="space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-5">
       <div className="flex items-center gap-2 font-bold text-foreground text-sm">
         <ShieldCheck className="size-5 text-primary" weight="fill" />
         Quy chế Hoạt động & Cam kết Pháp lý ({currentPolicyVersion})
       </div>
-      <ul className="space-y-2 text-muted-foreground text-xs leading-relaxed list-disc list-inside">
+      <ul className="list-inside list-disc space-y-2 text-muted-foreground text-xs leading-relaxed">
         <li>
           <strong className="text-foreground">Độ tuổi & Chính chủ:</strong> Đối
           tác cam kết đã đủ 18 tuổi, thông tin định danh CCCD và tài khoản ngân
@@ -670,7 +594,7 @@ const PayoutAndPolicyTabPanel = ({
         onChange={(e) => updateField("policyAccepted", e.target.checked)}
         type="checkbox"
       />
-      <span className="font-medium leading-relaxed text-foreground">
+      <span className="font-medium text-foreground leading-relaxed">
         Tôi cam kết đã đủ 18 tuổi, toàn bộ thông tin đăng ký là chính chủ, chịu
         hoàn toàn trách nhiệm trước pháp luật và đồng ý tuân thủ toàn bộ{" "}
         <a
@@ -714,43 +638,40 @@ const LivePreviewCard = ({
       {/* Live Trust Readiness Meter */}
       <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-xs">
         <div className="flex items-center justify-between">
-          <span className="font-bold text-xs">Mức độ hoàn thiện hồ sơ:</span>
-          <span className="font-extrabold text-primary text-sm">
-            {trustScore}%
-          </span>
+          <div className="flex items-center gap-2">
+            <Eye className="size-4 text-primary" />
+            <span className="font-bold text-xs">Xem trước công khai</span>
+          </div>
+          <Badge
+            className={
+              trustScore >= 80
+                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                : "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+            }
+            variant="outline"
+          >
+            Độ hoàn thiện: {trustScore}%
+          </Badge>
         </div>
-        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
           <div
-            className="h-full rounded-full bg-primary transition-all duration-500"
+            className="h-full bg-primary transition-all duration-300"
             style={{ width: `${trustScore}%` }}
           />
         </div>
-        <p className="mt-2 text-[11px] text-muted-foreground">
-          {trustScore >= 80
-            ? "✓ Hồ sơ đầy đủ, sẵn sàng duyệt nhanh trong 24h!"
-            : "Điền đầy đủ thông tin đại diện và kênh liên hệ để đạt 100%."}
-        </p>
       </div>
 
-      {/* LIVE PARTNER CARD (3-BLOCK CHECKSAM STYLE) */}
+      {/* Main Checkscam-Style Verified Card */}
       <div className="overflow-hidden rounded-3xl border border-border/80 bg-card shadow-lg">
-        {/* Top Header Section */}
-        <div className="border-border/50 border-b bg-card p-6 text-center space-y-4">
-          <div className="flex items-center justify-between">
-            <Badge
-              className="border-primary/40 bg-primary/10 text-primary text-[10px]"
-              variant="outline"
-            >
-              <Eye className="mr-1 size-3" /> Xem trước công khai
-            </Badge>
-            <span className="font-bold text-[11px] text-primary">
-              Avin Check Certified
-            </span>
+        {/* Top Header */}
+        <div className="border-border/50 border-b bg-muted/10 p-5 text-center space-y-3">
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+            <span>Mã hồ sơ: #PREVIEW</span>
+            <span className="font-bold text-primary">Avin Check Certified</span>
           </div>
 
-          {/* Avatar & Display Name */}
           <div className="flex flex-col items-center">
-            <div className="relative size-20 overflow-hidden rounded-full border-2 border-primary/30 bg-primary/10 shadow-md">
+            <div className="relative size-20 overflow-hidden rounded-full border-2 border-primary/40 bg-primary/10 shadow-sm">
               {form.officialChannels.avatarUrl ? (
                 <img
                   alt="Ảnh đối tác"
@@ -759,23 +680,17 @@ const LivePreviewCard = ({
                 />
               ) : (
                 <div className="flex size-full items-center justify-center font-black text-primary text-xl">
-                  {getInitials(form.fullName)}
+                  {getInitials(form.fullName || "AV")}
                 </div>
               )}
             </div>
 
             <div className="mt-3 flex items-center justify-center gap-1.5">
               <h4 className="font-extrabold text-foreground text-xl tracking-tight">
-                {form.fullName.trim() || "Nguyễn Hoàng Dương"}
+                {form.fullName.trim() || "Tên Đối Tác"}
               </h4>
               <SealCheck className="size-5 text-primary" weight="fill" />
             </div>
-
-            {form.officialChannels.note && (
-              <p className="mt-1 text-xs font-medium text-muted-foreground">
-                {form.officialChannels.note}
-              </p>
-            )}
           </div>
 
           {/* 2 Quick CTA Buttons */}
@@ -814,10 +729,7 @@ const LivePreviewCard = ({
                   Fb (C):
                 </span>
                 <span className="font-mono text-primary font-medium truncate">
-                  {form.officialChannels.facebookId ||
-                    (form.officialChannels.facebookUrl
-                      ? "Đã liên kết"
-                      : "Chưa cập nhật")}
+                  {form.officialChannels.facebookUrl || "Chưa cập nhật"}
                 </span>
               </div>
               <div className="flex items-start gap-1.5">
@@ -939,23 +851,27 @@ export const ProviderApplicationForm = ({
   const { saveDraft, submit } =
     mode === "revision" ? revisionActions : applicationActions;
 
-  const trustScore = calculateTrustScore(form);
-  const disabled = saveDraft.isPending || submit.isPending;
+  const isSubmitting = submit.isPending;
+  const isSavingDraft = saveDraft.isPending;
+  const disabled = isSubmitting || isSavingDraft;
 
   const updateField = <K extends keyof ProviderApplicationFormState>(
     field: K,
     value: ProviderApplicationFormState[K]
   ) => {
-    setForm((current) => ({ ...current, [field]: value }));
+    setForm((prev) => ({ ...prev, [field]: value }));
   };
 
   const updateChannel = (
     field: keyof ProviderApplicationFormState["officialChannels"],
     value: string
   ) => {
-    setForm((current) => ({
-      ...current,
-      officialChannels: { ...current.officialChannels, [field]: value },
+    setForm((prev) => ({
+      ...prev,
+      officialChannels: {
+        ...prev.officialChannels,
+        [field]: value,
+      },
     }));
   };
 
@@ -963,31 +879,13 @@ export const ProviderApplicationForm = ({
     field: keyof ProviderApplicationFormState["paymentAccount"],
     value: string
   ) => {
-    setForm((current) => ({
-      ...current,
-      paymentAccount: { ...current.paymentAccount, [field]: value },
+    setForm((prev) => ({
+      ...prev,
+      paymentAccount: {
+        ...prev.paymentAccount,
+        [field]: value,
+      },
     }));
-  };
-
-  const toggleServiceTag = (tag: string) => {
-    setForm((prev) => {
-      const exists = prev.selectedServiceTags.includes(tag);
-      const nextTags = exists
-        ? prev.selectedServiceTags.filter((t) => t !== tag)
-        : [...prev.selectedServiceTags, tag];
-      const bulletItems = nextTags.map((t) => `• ${t}`).join("\n");
-      let nextServices = bulletItems;
-      if (prev.services) {
-        nextServices = prev.services.includes(tag)
-          ? prev.services
-          : `${bulletItems}\n\n${prev.services}`;
-      }
-      return {
-        ...prev,
-        selectedServiceTags: nextTags,
-        services: nextServices,
-      };
-    });
   };
 
   const handleFillDemo = () => {
@@ -997,14 +895,14 @@ export const ProviderApplicationForm = ({
         avatarUrl:
           "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80",
         bioShop: "12553",
-        facebookId: "100005959991439",
+        facebookId: "",
         facebookUrl: "https://facebook.com/duongnguyen.official",
-        note: "(Giao dịch qua Zalo nhé mọi người)",
-        telegramCommunityUrl: "https://t.me/congdongcheck_vn",
+        note: "",
+        telegramCommunityUrl: "https://t.me/duongnguyen_check",
         websiteUrl: "https://likesub.vip",
         zalo: "0934567643",
       },
-      operatingSince: "2021-04-09",
+      operatingSince: "2024-01-01",
       paymentAccount: {
         accountName: "NGUYEN HOANG DUONG",
         accountNumber: "1031000002351",
@@ -1013,23 +911,16 @@ export const ProviderApplicationForm = ({
       },
       paymentDisclosureConsent: true,
       policyAccepted: true,
-      selectedServiceTags: [
-        "Trung gian giao dịch (GDTG)",
-        "Dịch Vụ Mạng Xã Hội",
-      ],
-      services: `• Dịch Vụ Mạng Xã Hội : mở khoá các tài khoản mạng xã hội bị khóa\n  https://LikeSub.Vip\n• (GDTG) Giao dịch trung gian mua bán tài khoản fb, tiktok, ytb, liên quân, free fire, roblox, đổi tiền\n• Zalo phụ: 0832635555 Dương GDTG\n\nChủ TK "Nguyễn Hoàng Dương"\n• Vcb: 1031000002351\n• Acb: 162198888\n• Vtb: 104871818172\n• Tec: 19030740859029\n• Bidv: 45010004914945\n• Momo: 0934567643`,
+      services: `• Dịch Vụ Mạng Xã Hội : mở khoá các tài khoản mạng xã hội bị khóa\n  https://LikeSub.Vip\n• (GDTG) Giao dịch trung gian mua bán tài khoản fb, tiktok, ytb, liên quân\n• Zalo phụ: 0832635555 Dương GDTG\n\nChủ TK "NGUYỄN HOÀNG DƯƠNG"\n• Vcb: 1031000002351\n• Acb: 162198888\n• Momo: 0934567643`,
     });
-    toast.success("Đã nạp toàn bộ dữ liệu mẫu chuẩn đối tác!");
+    toast.success("Đã điền thông tin mẫu chuẩn CheckScam!");
   };
 
   const handleSaveDraft = async () => {
     try {
-      await saveDraft.mutateAsync(toDraft(form, currentPolicyVersion));
-      toast.success(
-        mode === "revision"
-          ? "Đã lưu bản nháp yêu cầu cập nhật profile."
-          : "Đã lưu bản nháp hồ sơ Provider."
-      );
+      const payload = toDraft(form, currentPolicyVersion);
+      await saveDraft.mutateAsync(payload as never);
+      toast.success("Đã lưu bản nháp thành công!");
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Không thể lưu bản nháp."
@@ -1037,44 +928,84 @@ export const ProviderApplicationForm = ({
     }
   };
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!hasSubmissionMinimum(form)) {
-      toast.error(
-        "Vui lòng điền đầy đủ họ tên, kênh liên hệ chính thức, thông tin đối soát và đồng ý quy chế cam kết."
-      );
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+
+    if (!form.fullName.trim()) {
+      setActiveTab("identity_and_channels");
+      toast.error("Vui lòng nhập Họ và tên.");
+      return;
+    }
+
+    if (!form.operatingSince.trim()) {
+      setActiveTab("identity_and_channels");
+      toast.error("Vui lòng chọn ngày bắt đầu hoạt động.");
+      return;
+    }
+
+    if (!form.officialChannels.zalo.trim()) {
+      setActiveTab("identity_and_channels");
+      toast.error("Vui lòng nhập Số điện thoại Hotline / Zalo chính thức.");
+      return;
+    }
+
+    if (!form.services.trim()) {
+      setActiveTab("identity_and_channels");
+      toast.error("Vui lòng mô tả dịch vụ cung cấp & STK công khai.");
+      return;
+    }
+
+    if (
+      !form.paymentAccount.institution.trim() ||
+      !form.paymentAccount.accountName.trim() ||
+      !form.paymentAccount.accountNumber.trim()
+    ) {
+      setActiveTab("payout_and_policy");
+      toast.error("Vui lòng nhập đầy đủ tài khoản ngân hàng nhận hoàn tiền.");
+      return;
+    }
+
+    if (!form.policyAccepted) {
+      setActiveTab("payout_and_policy");
+      toast.error("Vui lòng đọc và đồng ý với Quy chế Hoạt động Đối tác.");
       return;
     }
 
     try {
-      await submit.mutateAsync(toSubmission(form, currentPolicyVersion));
+      const payload = toSubmission(form, currentPolicyVersion);
+      await submit.mutateAsync(payload as never);
       toast.success(
         mode === "revision"
-          ? "Đã gửi yêu cầu cập nhật profile để Reviewer xem xét."
-          : "Đã gửi hồ sơ Provider để Reviewer xem xét."
+          ? "Đã gửi yêu cầu cập nhật hồ sơ Đối tác thành công!"
+          : "Đã gửi đơn đăng ký Đối tác Avin Check thành công!"
       );
     } catch (error) {
-      toast.error(getSubmitErrorMessage(error, mode));
+      toast.error(
+        error instanceof Error ? error.message : "Gửi đơn không thành công."
+      );
     }
   };
 
+  const canSubmit = hasSubmissionMinimum(form);
+  const trustScore = calculateTrustScore(form);
+
   return (
     <form className="space-y-6" onSubmit={handleSubmit}>
-      {/* Top Action Helper Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-muted/20 p-4">
-        <div className="flex items-center gap-2">
-          <Badge
-            className="border-primary/30 bg-primary/10 text-primary"
-            variant="outline"
-          >
-            Split Live-Preview
-          </Badge>
-          <span className="text-muted-foreground text-xs">
-            Bản xem trước cập nhật theo chuẩn thẻ hồ sơ đối tác
-          </span>
+      {/* Top Helper Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/80 bg-muted/40 p-4">
+        <div>
+          <h2 className="font-bold text-sm">
+            {mode === "revision"
+              ? "Cập nhật Hồ sơ Đối tác"
+              : "Đăng ký Đối tác Avin Check"}
+          </h2>
+          <p className="text-muted-foreground text-xs">
+            Giao diện 2 bước tinh gọn, hiển thị trực quan theo thời gian thực.
+          </p>
         </div>
+
         <Button
-          className="gap-1.5 text-xs"
+          className="gap-1.5 text-xs font-semibold"
           disabled={disabled}
           onClick={handleFillDemo}
           size="sm"
@@ -1130,7 +1061,6 @@ export const ProviderApplicationForm = ({
               disabled={disabled}
               form={form}
               onNextTab={() => setActiveTab("payout_and_policy")}
-              toggleServiceTag={toggleServiceTag}
               updateChannel={updateChannel}
               updateField={updateField}
             />
@@ -1147,32 +1077,28 @@ export const ProviderApplicationForm = ({
             />
           )}
 
-          {/* Bottom Action Footer */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card p-4">
+          {/* Action Submission Buttons */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-4">
             <Button
               disabled={disabled}
               onClick={handleSaveDraft}
-              size="sm"
               type="button"
               variant="outline"
             >
               Lưu bản nháp
             </Button>
+
             <Button
-              className="gap-2 font-bold"
-              disabled={disabled || !hasSubmissionMinimum(form)}
-              size="sm"
+              className="gap-2"
+              disabled={!canSubmit || disabled}
               type="submit"
             >
-              <SealCheck className="size-4" weight="bold" />
-              {mode === "revision"
-                ? "Gửi yêu cầu cập nhật profile"
-                : "Gửi hồ sơ xét duyệt Đối tác"}
+              {isSubmitting ? "Đang gửi..." : "Gửi hồ sơ duyệt"}
             </Button>
           </div>
         </div>
 
-        {/* RIGHT COLUMN: LIVE PREVIEW CARD (5 COLS) */}
+        {/* RIGHT COLUMN: LIVE CARD PREVIEW (5 COLS) */}
         <div className="lg:col-span-5">
           <LivePreviewCard form={form} trustScore={trustScore} />
         </div>
