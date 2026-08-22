@@ -47,6 +47,10 @@ import {
   SELLER_LOGO_CONTENT_TYPES,
   SELLER_LOGO_MAX_BYTES,
   SELLER_LOGO_UPLOAD_ROUTE,
+  PROVIDER_AVATAR_CONTENT_TYPES,
+  PROVIDER_AVATAR_MAX_BYTES,
+  PROVIDER_AVATAR_UPLOAD_ROUTE,
+  createProviderAvatarKey,
   createRiskReportDerivativeKey,
   createRiskReportEvidenceKey,
   createProviderRiskIncidentEvidenceKey,
@@ -304,6 +308,35 @@ export const createListingImageUploadRouter = (
           objectInfo: {
             cacheControl: "public, max-age=31536000, immutable",
             key: createSellerBannerKey(session.user.id, file.type),
+          },
+        };
+      },
+    }),
+    [PROVIDER_AVATAR_UPLOAD_ROUTE]: route({
+      clientMetadataSchema: z.object({}).optional(),
+      fileTypes: [...PROVIDER_AVATAR_CONTENT_TYPES],
+      maxFileSize: PROVIDER_AVATAR_MAX_BYTES,
+      multipleFiles: false,
+      onBeforeUpload: async ({ file, req }) => {
+        const session = await auth.api.getSession({ headers: req.headers });
+        if (!session) {
+          throw new RejectUpload("Sign in before uploading a provider avatar");
+        }
+
+        if (
+          !PROVIDER_AVATAR_CONTENT_TYPES.includes(
+            file.type as (typeof PROVIDER_AVATAR_CONTENT_TYPES)[number]
+          )
+        ) {
+          throw new RejectUpload(
+            "Provider avatars must be JPEG, PNG, or WebP files"
+          );
+        }
+
+        return {
+          objectInfo: {
+            cacheControl: "public, max-age=31536000, immutable",
+            key: createProviderAvatarKey(session.user.id, file.type),
           },
         };
       },

@@ -36,19 +36,19 @@ const evidenceReference = z.string().trim().min(1).max(500);
 const operatingSince = z.string().regex(/^\d{4}-\d{2}-\d{2}$/u);
 
 const providerApplicationFieldsSchema = z.object({
-  ageEvidenceReference: evidenceReference,
+  ageEvidenceReference: evidenceReference.optional(),
   fullName: z.string().trim().min(2).max(200),
-  identityEvidenceReference: evidenceReference,
-  officialChannelEvidenceReference: evidenceReference,
+  identityEvidenceReference: evidenceReference.optional(),
+  officialChannelEvidenceReference: evidenceReference.optional(),
   officialChannels: providerOfficialChannelsSchema,
-  operatingHistoryEvidenceReference: evidenceReference,
+  operatingHistoryEvidenceReference: evidenceReference.optional(),
   operatingSince,
   paymentAccount: providerPaymentAccountSchema,
-  paymentDisclosureConsent: z.boolean(),
-  paymentEvidenceReference: evidenceReference,
+  paymentDisclosureConsent: z.boolean().optional(),
+  paymentEvidenceReference: evidenceReference.optional(),
   policyAccepted: z.boolean(),
   policyVersion: z.string().trim().min(1).max(50),
-  services: z.string().trim().min(10).max(2000),
+  services: z.string().trim().min(5).max(4000),
 });
 
 export const providerApplicationDraftInputSchema = z.object({

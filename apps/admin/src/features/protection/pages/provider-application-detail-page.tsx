@@ -127,8 +127,24 @@ const ProviderApplicationFacts = ({
           <CardTitle>Kênh và dịch vụ dự kiến công khai</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-5">
+          {officialChannels.avatarUrl ? (
+            <div className="flex items-center gap-3">
+              <span className="font-medium text-muted-foreground text-sm">
+                Ảnh đại diện:
+              </span>
+              <img
+                alt="Avatar"
+                className="size-14 rounded-full border object-cover shadow-xs"
+                src={officialChannels.avatarUrl}
+              />
+            </div>
+          ) : null}
           <DetailField
-            label="Dịch vụ"
+            label="Lời nhắn / Ghi chú"
+            value={displayValue(officialChannels.note)}
+          />
+          <DetailField
+            label="Dịch vụ & STK công khai"
             value={displayValue(application.services)}
           />
           <DetailField
@@ -136,12 +152,24 @@ const ProviderApplicationFacts = ({
             value={displayValue(officialChannels.facebookUrl)}
           />
           <DetailField
-            label="Website"
-            value={displayValue(officialChannels.websiteUrl)}
+            label="Facebook UID"
+            value={displayValue(officialChannels.facebookId)}
           />
           <DetailField
             label="Zalo"
             value={displayValue(officialChannels.zalo)}
+          />
+          <DetailField
+            label="Telegram cộng đồng"
+            value={displayValue(officialChannels.telegramCommunityUrl)}
+          />
+          <DetailField
+            label="Bio Shop"
+            value={displayValue(officialChannels.bioShop)}
+          />
+          <DetailField
+            label="Website"
+            value={displayValue(officialChannels.websiteUrl)}
           />
         </CardContent>
       </Card>

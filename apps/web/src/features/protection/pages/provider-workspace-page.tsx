@@ -1,6 +1,8 @@
 import { Button } from "@avin/ui/components/button";
 import { toast } from "sonner";
 
+import { Shell } from "@/components/shell";
+
 import {
   useProviderBondWithdrawalActions,
   useProviderNotifications,
@@ -387,8 +389,9 @@ export const ProviderWorkspacePage = () => {
     applicationStatus === "CHANGES_REQUESTED";
 
   return (
-    <section
+    <Shell
       aria-labelledby="provider-workspace-title"
+      as="section"
       className="flex flex-col gap-8"
     >
       <header className="flex max-w-3xl flex-col gap-2">
@@ -507,6 +510,6 @@ export const ProviderWorkspacePage = () => {
           ) : null}
         </div>
       ) : null}
-    </section>
+    </Shell>
   );
 };

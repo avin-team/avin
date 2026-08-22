@@ -65,6 +65,39 @@ describe("Provider application submission validation", () => {
     ).toMatchObject(validSubmission);
   });
 
+  it("accepts streamlined submission without evidence references", () => {
+    const streamlinedSubmission = {
+      fullName: "Nguyen Hoang Duong",
+      officialChannels: {
+        avatarUrl: "https://example.com/avatar.png",
+        bioShop: "12553",
+        facebookId: "100005959991439",
+        facebookUrl: "https://facebook.com/provider-one",
+        note: "(Giao dịch qua Zalo nhé mọi người)",
+        telegramCommunityUrl: "https://t.me/congdongcheck",
+        zalo: "0934567643",
+      },
+      operatingSince: "2024-01-01",
+      paymentAccount: {
+        accountName: "NGUYEN HOANG DUONG",
+        accountNumber: "1031000002351",
+        accountType: "BANK" as const,
+        institution: "Vietcombank (VCB)",
+      },
+      paymentDisclosureConsent: true,
+      policyAccepted: true,
+      policyVersion: CURRENT_PROVIDER_POLICY_VERSION,
+      services: "• Dịch Vụ Mạng Xã Hội\n• GDTG",
+    };
+
+    expect(
+      validateProviderApplicationSubmission(
+        streamlinedSubmission,
+        new Date("2026-08-21T00:00:00.000Z")
+      )
+    ).toMatchObject(streamlinedSubmission);
+  });
+
   it("requires an official channel and current policy", () => {
     expect(() =>
       validateProviderApplicationSubmission(

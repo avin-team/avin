@@ -78,20 +78,20 @@ const timestamp = new Date("2026-08-21T00:00:00.000Z");
 const createApplication = (
   status: ApplicationRow["status"] = "DRAFT"
 ): ApplicationRow => ({
-  ageEvidenceReference: validSubmission.ageEvidenceReference,
+  ageEvidenceReference: validSubmission.ageEvidenceReference ?? null,
   createdAt: timestamp,
   fullName: validSubmission.fullName,
   id: "application-1",
-  identityEvidenceReference: validSubmission.identityEvidenceReference,
+  identityEvidenceReference: validSubmission.identityEvidenceReference ?? null,
   officialChannelEvidenceReference:
-    validSubmission.officialChannelEvidenceReference,
+    validSubmission.officialChannelEvidenceReference ?? null,
   officialChannels: validSubmission.officialChannels,
   operatingHistoryEvidenceReference:
-    validSubmission.operatingHistoryEvidenceReference,
+    validSubmission.operatingHistoryEvidenceReference ?? null,
   operatingSince: validSubmission.operatingSince,
   paymentAccount: validSubmission.paymentAccount,
-  paymentDisclosureConsent: validSubmission.paymentDisclosureConsent,
-  paymentEvidenceReference: validSubmission.paymentEvidenceReference,
+  paymentDisclosureConsent: validSubmission.paymentDisclosureConsent ?? null,
+  paymentEvidenceReference: validSubmission.paymentEvidenceReference ?? null,
   policyAcceptedAt: timestamp,
   policyVersion: validSubmission.policyVersion,
   policyVersionId: null,
@@ -150,21 +150,21 @@ const createProfileRevision = (
   status: ProfileRevisionRow["status"] = "DRAFT",
   overrides: Partial<ProfileRevisionRow> = {}
 ): ProfileRevisionRow => ({
-  ageEvidenceReference: validSubmission.ageEvidenceReference,
+  ageEvidenceReference: validSubmission.ageEvidenceReference ?? null,
   baseVersionId: "profile-version-1",
   createdAt: timestamp,
   fullName: validSubmission.fullName,
   id: "profile-revision-1",
-  identityEvidenceReference: validSubmission.identityEvidenceReference,
+  identityEvidenceReference: validSubmission.identityEvidenceReference ?? null,
   officialChannelEvidenceReference:
-    validSubmission.officialChannelEvidenceReference,
+    validSubmission.officialChannelEvidenceReference ?? null,
   officialChannels: validSubmission.officialChannels,
   operatingHistoryEvidenceReference:
-    validSubmission.operatingHistoryEvidenceReference,
+    validSubmission.operatingHistoryEvidenceReference ?? null,
   operatingSince: validSubmission.operatingSince,
   paymentAccount: validSubmission.paymentAccount,
-  paymentDisclosureConsent: validSubmission.paymentDisclosureConsent,
-  paymentEvidenceReference: validSubmission.paymentEvidenceReference,
+  paymentDisclosureConsent: validSubmission.paymentDisclosureConsent ?? null,
+  paymentEvidenceReference: validSubmission.paymentEvidenceReference ?? null,
   policyAcceptedAt: timestamp,
   policyVersion: validSubmission.policyVersion,
   profileId: "profile-1",
@@ -374,8 +374,9 @@ describe("Provider application review workflow", () => {
       status: "ACTIVE",
     });
     expect(approved.publicProfile).not.toHaveProperty("paymentAccount");
-    expect(approved.publicProfile?.officialChannels).not.toHaveProperty(
-      "facebookId"
+    expect(approved.publicProfile?.officialChannels).toHaveProperty(
+      "facebookId",
+      "facebook-123"
     );
     expect(state.application?.status).toBe("APPROVED");
     expect(state.versions).toHaveLength(1);

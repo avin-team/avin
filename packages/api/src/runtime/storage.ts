@@ -16,6 +16,7 @@ export const RISK_REPORT_EVIDENCE_UPLOAD_ROUTE = "risk-report-evidence";
 export const RISK_REPORT_DERIVATIVE_UPLOAD_ROUTE = "risk-report-derivative";
 export const PROVIDER_RISK_INCIDENT_EVIDENCE_UPLOAD_ROUTE =
   "provider-risk-incident-evidence";
+export const PROVIDER_AVATAR_UPLOAD_ROUTE = "provider-avatar";
 
 export interface ManagedObjectStore {
   deleteObject: (key: string, bucket?: string) => Promise<void>;
@@ -39,6 +40,8 @@ export const SELLER_LOGO_MAX_BYTES = SELLER_BRANDING_MAX_BYTES;
 export const SELLER_LOGO_CONTENT_TYPES = LISTING_IMAGE_CONTENT_TYPES;
 export const SELLER_BANNER_MAX_BYTES = SELLER_BRANDING_MAX_BYTES;
 export const SELLER_BANNER_CONTENT_TYPES = LISTING_IMAGE_CONTENT_TYPES;
+export const PROVIDER_AVATAR_MAX_BYTES = SELLER_BRANDING_MAX_BYTES;
+export const PROVIDER_AVATAR_CONTENT_TYPES = LISTING_IMAGE_CONTENT_TYPES;
 
 export const ORDER_CHAT_ATTACHMENT_MAX_BYTES = 20 * 1024 * 1024;
 export const ORDER_CHAT_ATTACHMENT_MAX_COUNT = 5;
@@ -167,6 +170,28 @@ export const createSellerBannerKey = (
   }
 
   return `sellers/${sellerId}/banner/${objectId}.${extension}`;
+};
+
+export const createProviderAvatarKey = (
+  providerUserId: string,
+  contentType: string,
+  objectId = crypto.randomUUID()
+): string => {
+  const extension =
+    LISTING_IMAGE_EXTENSIONS[contentType as ListingImageContentType];
+
+  if (!extension) {
+    throw new Error(`Unsupported provider avatar type: ${contentType}`);
+  }
+
+  if (
+    !SAFE_PATH_SEGMENT.test(providerUserId) ||
+    !SAFE_PATH_SEGMENT.test(objectId)
+  ) {
+    throw new Error("Invalid provider avatar path segment");
+  }
+
+  return `providers/${providerUserId}/avatar/${objectId}.${extension}`;
 };
 
 export const createOrderChatAttachmentKey = (

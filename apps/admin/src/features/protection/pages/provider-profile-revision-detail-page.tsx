@@ -125,8 +125,24 @@ const RevisionFacts = ({ detail }: { detail: RevisionDetail }) => {
           <CardTitle>Dữ liệu dự kiến phát hành</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-5 sm:grid-cols-2">
+          {channels.avatarUrl ? (
+            <div className="flex items-center gap-3 sm:col-span-2">
+              <span className="font-medium text-muted-foreground text-sm">
+                Ảnh đại diện:
+              </span>
+              <img
+                alt="Avatar"
+                className="size-14 rounded-full border object-cover shadow-xs"
+                src={channels.avatarUrl}
+              />
+            </div>
+          ) : null}
           <DetailField
-            label="Dịch vụ"
+            label="Lời nhắn / Ghi chú"
+            value={displayValue(channels.note)}
+          />
+          <DetailField
+            label="Dịch vụ & STK công khai"
             value={displayValue(revision.services)}
           />
           <DetailField
@@ -134,10 +150,22 @@ const RevisionFacts = ({ detail }: { detail: RevisionDetail }) => {
             value={displayValue(channels.facebookUrl)}
           />
           <DetailField
+            label="Facebook UID"
+            value={displayValue(channels.facebookId)}
+          />
+          <DetailField label="Zalo" value={displayValue(channels.zalo)} />
+          <DetailField
+            label="Telegram cộng đồng"
+            value={displayValue(channels.telegramCommunityUrl)}
+          />
+          <DetailField
+            label="Bio Shop"
+            value={displayValue(channels.bioShop)}
+          />
+          <DetailField
             label="Website"
             value={displayValue(channels.websiteUrl)}
           />
-          <DetailField label="Zalo" value={displayValue(channels.zalo)} />
         </CardContent>
       </Card>
 

@@ -10,7 +10,7 @@ export const Route = createFileRoute("/(public)/avin-check/correction")({
   beforeLoad: ({ context, location }) =>
     requireSession(
       context.queryClient,
-      `${location.pathname}${location.search}`
+      `${location.pathname}${location.searchStr}`
     ),
   component: RiskReportCorrectionPage,
 });

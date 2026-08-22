@@ -194,9 +194,13 @@ export const protectionSupportTransactionScope = pgEnum(
 );
 
 export const providerOfficialChannelsSchema = z.object({
+  avatarUrl: z.string().trim().max(2000).optional(),
+  bioShop: z.string().trim().max(200).optional(),
   facebookId: z.string().trim().max(200).optional(),
-  facebookUrl: z.url().optional(),
-  websiteUrl: z.url().optional(),
+  facebookUrl: z.string().trim().max(2000).optional(),
+  note: z.string().trim().max(500).optional(),
+  telegramCommunityUrl: z.string().trim().max(2000).optional(),
+  websiteUrl: z.string().trim().max(2000).optional(),
   zalo: z.string().trim().max(100).optional(),
 });
 

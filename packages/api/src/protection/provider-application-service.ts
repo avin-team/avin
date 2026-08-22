@@ -52,7 +52,12 @@ const providerProfilePath = (profileSlug: string): string =>
 const toPublicProviderOfficialChannels = (
   channels: ProviderOfficialChannels | null | undefined
 ) => ({
+  avatarUrl: channels?.avatarUrl,
+  bioShop: channels?.bioShop,
+  facebookId: channels?.facebookId,
   facebookUrl: channels?.facebookUrl,
+  note: channels?.note,
+  telegramCommunityUrl: channels?.telegramCommunityUrl,
   websiteUrl: channels?.websiteUrl,
   zalo: channels?.zalo,
 });
@@ -122,9 +127,7 @@ const assertNoDuplicateProviderIdentity = async (
   >
 ): Promise<void> => {
   if (!application.identityEvidenceReference) {
-    throw new ORPCError("BAD_REQUEST", {
-      message: "Approved Provider identity evidence is required",
-    });
+    return;
   }
 
   const [duplicateIdentity] = await database
