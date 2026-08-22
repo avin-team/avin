@@ -563,12 +563,30 @@ const PayoutAndPolicyTabPanel = ({
     </div>
 
     {/* Policy & Legal Commitments */}
-    <div className="space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-5">
+    <div className="space-y-4 rounded-2xl border border-primary/20 bg-primary/5 p-5">
       <div className="flex items-center gap-2 font-bold text-foreground text-sm">
         <ShieldCheck className="size-5 text-primary" weight="fill" />
         Quy chế Hoạt động & Cam kết Pháp lý ({currentPolicyVersion})
       </div>
-      <ul className="list-inside list-disc space-y-2 text-muted-foreground text-xs leading-relaxed">
+
+      <div className="grid gap-3 text-xs sm:grid-cols-2">
+        <div className="rounded-xl border border-border/60 bg-background/60 p-3">
+          <p className="font-semibold text-foreground">
+            Hạn mức ký quỹ tối thiểu (Bond)
+          </p>
+          <p className="mt-0.5 font-bold text-primary">30.000.000 ₫</p>
+        </div>
+        <div className="rounded-xl border border-border/60 bg-background/60 p-3">
+          <p className="font-semibold text-foreground">
+            Phí duy trì (Membership Fee)
+          </p>
+          <p className="mt-0.5 text-muted-foreground">
+            3.000.000 ₫ · không hoàn lại
+          </p>
+        </div>
+      </div>
+
+      <ul className="list-inside list-disc space-y-1.5 text-muted-foreground text-xs leading-relaxed">
         <li>
           <strong className="text-foreground">Độ tuổi & Chính chủ:</strong> Đối
           tác cam kết đã đủ 18 tuổi, thông tin định danh CCCD và tài khoản ngân
@@ -590,6 +608,17 @@ const PayoutAndPolicyTabPanel = ({
           trả theo quy định khi ngừng làm đối tác.
         </li>
       </ul>
+
+      <details className="rounded-xl border border-border/60 bg-background/40 p-3 text-xs">
+        <summary className="cursor-pointer font-semibold text-primary select-none">
+          Xem toàn bộ điều khoản chi tiết
+        </summary>
+        <p className="mt-2 whitespace-pre-wrap text-muted-foreground leading-relaxed">
+          Provider phải đáp ứng điều kiện xét duyệt, duy trì thông tin xác minh
+          chính xác, chấp nhận các policy version hiện hành và tuân thủ quy
+          trình Risk Report, Support Review và Bond off-platform.
+        </p>
+      </details>
     </div>
 
     <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-border/70 bg-card p-4 text-xs transition-colors hover:border-primary/50">

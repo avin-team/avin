@@ -5,22 +5,13 @@ import { Shell } from "@/components/shell";
 
 import {
   useProviderBondWithdrawalActions,
-  useProviderNotifications,
-  useProviderProtectionPolicyActions,
   useProviderProfileRevisionActions,
+  useProviderProtectionPolicyActions,
   useProviderWorkspace,
 } from "../api/provider-api";
 import type { ProviderWorkspace } from "../api/provider-api";
 import { ProviderApplicationForm } from "../components/provider-application-form";
 import { ProviderRiskIncidentPanel } from "../components/provider-risk-incident-panel";
-
-const APPLICATION_STATUS_LABELS = {
-  APPROVED: "Đã được duyệt",
-  CHANGES_REQUESTED: "Cần bổ sung/chỉnh sửa",
-  DRAFT: "Bản nháp",
-  PENDING_REVIEW: "Đang chờ Reviewer",
-  REJECTED: "Đã bị từ chối",
-} as const;
 
 const PROFILE_STATUS_LABELS = {
   ACTIVE: "Đang hoạt động",
@@ -53,7 +44,7 @@ const ProviderPolicyPanel = ({
   policy: ProviderWorkspace["policy"];
 }) => {
   const { accept } = useProviderProtectionPolicyActions();
-  if (!policy) {
+  if (!policy || !policy.requiresReacceptance) {
     return null;
   }
 
@@ -71,13 +62,7 @@ const ProviderPolicyPanel = ({
   };
 
   return (
-    <article
-      className={`rounded-2xl border p-6 shadow-sm ${
-        policy.requiresReacceptance
-          ? "border-amber-500/40 bg-amber-500/5"
-          : "border-border/60 bg-card"
-      }`}
-    >
+    <article className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-6 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="font-medium text-primary text-sm">Policy & consent</p>
@@ -89,44 +74,14 @@ const ProviderPolicyPanel = ({
             {new Date(policy.effectiveAt).toLocaleString("vi-VN")}
           </p>
         </div>
-        <p className="font-medium text-sm">
-          {policy.accepted ? "Đã chấp nhận" : "Chưa chấp nhận"}
-        </p>
       </div>
       <p className="mt-4 text-sm">{policy.summary}</p>
-      <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
-        <div className="rounded-xl border bg-muted/20 p-4">
-          <p className="font-medium">Minimum Recognized Bond</p>
-          <p className="mt-1 text-muted-foreground">
-            {vndFormatter.format(policy.minimumBondAmount)}
-          </p>
-        </div>
-        <div className="rounded-xl border bg-muted/20 p-4">
-          <p className="font-medium">Membership Fee</p>
-          <p className="mt-1 text-muted-foreground">
-            {vndFormatter.format(policy.membershipFeeAmount)} · không hoàn lại
-          </p>
-        </div>
-      </div>
-      <details className="mt-5 rounded-xl border bg-muted/20 p-4 text-sm">
-        <summary className="cursor-pointer font-medium">Xem điều khoản</summary>
-        <p className="mt-3 whitespace-pre-wrap text-muted-foreground">
-          {policy.terms}
-        </p>
-      </details>
-      {policy.reacceptDeadlineAt ? (
-        <p className="mt-4 text-sm">
-          Hạn chấp nhận:{" "}
-          {new Date(policy.reacceptDeadlineAt).toLocaleString("vi-VN")}
-        </p>
-      ) : null}
       {policy.acceptanceOverdue ? (
         <p className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-destructive text-sm">
           Đã quá hạn chấp nhận. Profile bị tạm ngưng để Protection Admin xem
-          xét; dữ liệu không bị xóa hoặc chuyển giao.
+          xét.
         </p>
-      ) : null}
-      {policy.requiresReacceptance && !policy.acceptanceOverdue ? (
+      ) : (
         <Button
           className="mt-4"
           disabled={accept.isPending}
@@ -137,12 +92,7 @@ const ProviderPolicyPanel = ({
             ? "Đang ghi nhận..."
             : "Chấp nhận chính sách hiện hành"}
         </Button>
-      ) : null}
-      {policy.acceptedAt ? (
-        <p className="mt-4 text-muted-foreground text-xs">
-          Ghi nhận lúc {new Date(policy.acceptedAt).toLocaleString("vi-VN")}
-        </p>
-      ) : null}
+      )}
     </article>
   );
 };
@@ -215,14 +165,14 @@ const ProviderProfileRevisionPanel = ({
       ) : null}
 
       {canEditRevision && profileRevision ? (
-        <article className="rounded-2xl border border-primary/30 bg-primary/5 p-6 shadow-sm">
-          <div className="mb-6">
-            <h2 className="font-semibold text-xl">
-              Yêu cầu cập nhật profile · bản {profileRevision.revisionNumber}
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-primary/30 bg-primary/5 p-5 shadow-xs">
+            <h2 className="font-semibold text-lg">
+              Cập nhật hồ sơ đối tác · Bản {profileRevision.revisionNumber}
             </h2>
-            <p className="mt-2 text-muted-foreground text-sm">
-              Bản public hiện tại không thay đổi trong lúc yêu cầu này chờ
-              duyệt.
+            <p className="mt-1 text-muted-foreground text-xs">
+              Hồ sơ công khai hiện tại giữ nguyên cho tới khi bản cập nhật này
+              được Reviewer duyệt.
             </p>
           </div>
           <ProviderApplicationForm
@@ -231,7 +181,7 @@ const ProviderProfileRevisionPanel = ({
             key={profileRevision.id}
             mode="revision"
           />
-        </article>
+        </div>
       ) : null}
     </>
   );
@@ -342,45 +292,76 @@ const ProviderBondSummary = ({
   );
 };
 
-type ProviderNotificationsData = NonNullable<
-  ReturnType<typeof useProviderNotifications>["data"]
->;
-
-const ProviderNotificationsPanel = ({
-  notifications,
+const InactiveOrApprovedWorkspaceContent = ({
+  applicationStatus,
+  currentPolicyVersion,
+  workspaceData,
 }: {
-  notifications: ProviderNotificationsData;
+  applicationStatus: string | undefined;
+  currentPolicyVersion: string | undefined;
+  workspaceData: NonNullable<ProviderWorkspace>;
 }) => (
-  <article className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
-    <div className="flex items-baseline justify-between gap-3">
-      <h2 className="font-semibold text-xl">Thông báo xét duyệt</h2>
-      <span className="text-muted-foreground text-sm">
-        Chưa đọc: {notifications.unreadCount}
-      </span>
-    </div>
-    <div className="mt-4 grid gap-3">
-      {notifications.items.length > 0 ? (
-        notifications.items.map((notification) => (
-          <div
-            className="rounded-xl border bg-muted/20 p-4"
-            key={notification.id}
-          >
-            <p className="font-medium text-sm">{notification.title}</p>
-            <p className="mt-1 text-muted-foreground text-sm">
-              {notification.body}
-            </p>
-          </div>
-        ))
-      ) : (
-        <p className="text-muted-foreground text-sm">Chưa có thông báo mới.</p>
-      )}
-    </div>
-  </article>
+  <>
+    {applicationStatus === "PENDING_REVIEW" ? (
+      <article className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-6 shadow-sm">
+        <h2 className="font-semibold text-xl">Hồ sơ đang chờ xét duyệt</h2>
+        <p className="mt-2 text-muted-foreground text-sm">
+          Đơn đăng ký của bạn đã được gửi và đang trong hàng đợi kiểm duyệt bởi
+          Reviewer.
+        </p>
+      </article>
+    ) : null}
+
+    {applicationStatus === "REJECTED" ? (
+      <article className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6 shadow-sm">
+        <h2 className="font-semibold text-destructive text-xl">
+          Hồ sơ đã bị từ chối
+        </h2>
+        {workspaceData.application?.reviewReason ? (
+          <p className="mt-2 text-muted-foreground text-sm">
+            <strong>Lý do:</strong> {workspaceData.application.reviewReason}
+          </p>
+        ) : null}
+      </article>
+    ) : null}
+
+    {applicationStatus === "APPROVED" && workspaceData.publicProfile ? (
+      <article className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-6 shadow-sm">
+        <h2 className="font-semibold text-xl">Hồ sơ công khai đã phát hành</h2>
+        <p className="mt-2 text-muted-foreground text-sm">
+          Version hiện tại: {workspaceData.publicProfile.versionNumber} ·{" "}
+          {PROFILE_STATUS_LABELS[workspaceData.publicProfile.status]}
+        </p>
+        <a
+          className="mt-4 inline-flex font-medium text-primary text-sm underline underline-offset-4"
+          href={workspaceData.publicProfile.publicUrl}
+        >
+          Mở profile công khai
+        </a>
+      </article>
+    ) : null}
+
+    <ProviderProfileRevisionPanel
+      currentPolicyVersion={currentPolicyVersion}
+      profileRevision={workspaceData.profileRevision}
+      publicProfile={workspaceData.publicProfile}
+    />
+
+    <ProviderPolicyPanel policy={workspaceData.policy} />
+
+    {workspaceData.bond ? (
+      <ProviderBondSummary
+        bond={workspaceData.bond}
+        withdrawal={workspaceData.bondWithdrawal}
+      />
+    ) : null}
+
+    <ProviderRiskIncidentPanel incidents={workspaceData.riskIncidents ?? []} />
+  </>
 );
 
 export const ProviderWorkspacePage = () => {
   const workspace = useProviderWorkspace();
-  const notifications = useProviderNotifications();
   const currentPolicyVersion = getCurrentPolicyVersion(workspace.data);
   const applicationStatus = workspace.data?.application?.status;
   const canEditApplication =
@@ -403,9 +384,8 @@ export const ProviderWorkspacePage = () => {
           Không gian riêng của Đối tác Avin
         </h1>
         <p className="text-muted-foreground">
-          Đây là không gian Provider riêng của account Buyer/Seller hiện tại.
-          Trạng thái Provider được quản lý độc lập với vai trò marketplace và
-          không thay thế quy trình Buyer, Seller hoặc Admin.
+          Đăng ký và quản lý hồ sơ xác minh uy tín đối tác giao dịch an toàn
+          trên Avin Check.
         </p>
       </header>
 
@@ -421,84 +401,19 @@ export const ProviderWorkspacePage = () => {
 
       {workspace.data ? (
         <div className="grid gap-6">
-          <article className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
-            <h2 className="font-semibold text-xl">Hồ sơ Provider của bạn</h2>
-            <p className="mt-2 text-muted-foreground text-sm">
-              {workspace.data.identity.name} · mã tài khoản{" "}
-              {workspace.data.identity.id}
-            </p>
-            <p className="mt-4 text-sm">
-              Dữ liệu này có phạm vi <strong>riêng tư</strong> và chỉ xuất hiện
-              trong workspace của account đang đăng nhập.
-            </p>
-          </article>
-
-          {workspace.data.application?.status ? (
-            <article className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
-              <h2 className="font-semibold text-xl">Trạng thái hồ sơ</h2>
-              <p className="mt-2 text-muted-foreground text-sm">
-                {APPLICATION_STATUS_LABELS[workspace.data.application.status]}
-              </p>
-              {workspace.data.application.reviewReason ? (
-                <p className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm">
-                  <strong>Lý do của Reviewer:</strong>{" "}
-                  {workspace.data.application.reviewReason}
-                </p>
-              ) : null}
-            </article>
-          ) : null}
-
-          {workspace.data.application?.status === "APPROVED" &&
-          workspace.data.publicProfile ? (
-            <article className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-6 shadow-sm">
-              <h2 className="font-semibold text-xl">
-                Hồ sơ công khai đã phát hành
-              </h2>
-              <p className="mt-2 text-muted-foreground text-sm">
-                Version hiện tại: {workspace.data.publicProfile.versionNumber} ·{" "}
-                {PROFILE_STATUS_LABELS[workspace.data.publicProfile.status]}
-              </p>
-              <a
-                className="mt-4 inline-flex font-medium text-primary text-sm underline underline-offset-4"
-                href={workspace.data.publicProfile.publicUrl}
-              >
-                Mở profile công khai
-              </a>
-            </article>
-          ) : null}
-
-          <ProviderProfileRevisionPanel
-            currentPolicyVersion={currentPolicyVersion}
-            profileRevision={workspace.data.profileRevision}
-            publicProfile={workspace.data.publicProfile}
-          />
-
-          <ProviderPolicyPanel policy={workspace.data.policy} />
-
-          {workspace.data.bond ? (
-            <ProviderBondSummary
-              bond={workspace.data.bond}
-              withdrawal={workspace.data.bondWithdrawal}
-            />
-          ) : null}
-
-          <ProviderRiskIncidentPanel
-            incidents={workspace.data.riskIncidents ?? []}
-          />
-
-          {notifications.data ? (
-            <ProviderNotificationsPanel notifications={notifications.data} />
-          ) : null}
-
           {canEditApplication ? (
-            <article className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
-              <div className="mb-6">
-                <h2 className="font-semibold text-xl">Đăng ký Provider</h2>
-                <p className="mt-2 text-muted-foreground text-sm">
-                  Hoàn thiện hồ sơ, lưu nháp khi cần và gửi để Reviewer xem xét.
-                  Provider không thể tự phát hành profile công khai.
-                </p>
-              </div>
+            <>
+              {workspace.data.application?.reviewReason ? (
+                <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-5 text-sm">
+                  <p className="font-bold text-foreground">
+                    Yêu cầu bổ sung từ Reviewer:
+                  </p>
+                  <p className="mt-1 text-muted-foreground">
+                    {workspace.data.application.reviewReason}
+                  </p>
+                </div>
+              ) : null}
+
               <ProviderApplicationForm
                 application={workspace.data.application}
                 currentPolicyVersion={currentPolicyVersion}
@@ -506,8 +421,14 @@ export const ProviderWorkspacePage = () => {
                   workspace.data.application?.id ?? "new-provider-application"
                 }
               />
-            </article>
-          ) : null}
+            </>
+          ) : (
+            <InactiveOrApprovedWorkspaceContent
+              applicationStatus={applicationStatus}
+              currentPolicyVersion={currentPolicyVersion}
+              workspaceData={workspace.data}
+            />
+          )}
         </div>
       ) : null}
     </Shell>

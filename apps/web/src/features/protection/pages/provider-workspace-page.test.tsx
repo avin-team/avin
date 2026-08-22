@@ -8,7 +8,6 @@ vi.mock("@/features/protection/api/provider-api", () => ({
     saveDraft: { isPending: false, mutateAsync: vi.fn() },
     submit: { isPending: false, mutateAsync: vi.fn() },
   }),
-  useProviderNotifications: () => ({ data: null }),
   useProviderProfileRevisionActions: () => ({
     saveDraft: { isPending: false, mutateAsync: vi.fn() },
     start: { isPending: false, mutateAsync: vi.fn() },
@@ -42,7 +41,7 @@ vi.mock("@/features/protection/api/provider-api", () => ({
 describe("ProviderWorkspacePage", () => {
   afterEach(cleanup);
 
-  it("separates private Provider records from the future public profile", () => {
+  it("renders the clean application form for eligible applicants", () => {
     render(<ProviderWorkspacePage />);
 
     expect(
@@ -50,15 +49,10 @@ describe("ProviderWorkspacePage", () => {
         name: "Không gian riêng của Đối tác Avin",
       })
     ).toBeInTheDocument();
-    expect(screen.getByText(/Hồ sơ Provider của bạn/iu)).toBeInTheDocument();
+    expect(screen.getByText("1. Thông tin & Kênh liên hệ")).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Đăng ký Provider" })
+      screen.getByText("2. Đối soát & Cam kết điều khoản")
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(/account Buyer\/Seller hiện tại/iu)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Provider không thể tự phát hành profile công khai/iu)
-    ).toBeInTheDocument();
+    expect(screen.getByText("Avin Check Certified")).toBeInTheDocument();
   });
 });
