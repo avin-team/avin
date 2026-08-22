@@ -160,7 +160,7 @@ const ProviderApplicationFacts = ({
             value={displayValue(officialChannels.zalo)}
           />
           <DetailField
-            label="Telegram cộng đồng"
+            label="Nhóm Telegram"
             value={displayValue(officialChannels.telegramCommunityUrl)}
           />
           <DetailField

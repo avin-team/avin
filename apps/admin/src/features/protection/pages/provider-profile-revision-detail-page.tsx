@@ -155,7 +155,7 @@ const RevisionFacts = ({ detail }: { detail: RevisionDetail }) => {
           />
           <DetailField label="Zalo" value={displayValue(channels.zalo)} />
           <DetailField
-            label="Telegram cộng đồng"
+            label="Nhóm Telegram"
             value={displayValue(channels.telegramCommunityUrl)}
           />
           <DetailField

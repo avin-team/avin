@@ -362,16 +362,14 @@ const IdentityAndChannelsTabPanel = ({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="app-telegram">
-            Kênh / Nhóm Telegram (Cộng đồng check)
-          </Label>
+          <Label htmlFor="app-telegram">Nhóm Telegram</Label>
           <Input
             disabled={disabled}
             id="app-telegram"
             onChange={(e) =>
               updateChannel("telegramCommunityUrl", e.target.value)
             }
-            placeholder="VD: https://t.me/congdongcheck"
+            placeholder="VD: https://t.me/nhomtelegram"
             type="url"
             value={form.officialChannels.telegramCommunityUrl}
           />
@@ -711,7 +709,7 @@ const LivePreviewCard = ({
               target="_blank"
             >
               <PaperPlaneTilt className="size-4" weight="fill" />
-              Cộng đồng check
+              Nhóm Telegram
             </a>
           </div>
         </div>

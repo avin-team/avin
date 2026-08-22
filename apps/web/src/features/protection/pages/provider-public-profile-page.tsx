@@ -144,7 +144,7 @@ const ProviderHeaderSection = ({
           target="_blank"
         >
           <PaperPlaneTilt className="size-4.5" weight="fill" />
-          Cộng đồng check
+          Nhóm Telegram
         </a>
       </div>
     </div>
