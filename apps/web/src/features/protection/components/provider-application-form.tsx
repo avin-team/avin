@@ -469,6 +469,7 @@ const IdentityAndChannelsTabPanel = ({
           const isSelected = form.selectedServiceTags.includes(tag);
           return (
             <button
+              aria-pressed={isSelected}
               className={`rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors ${
                 isSelected
                   ? "border-primary bg-primary text-primary-foreground"
@@ -672,9 +673,14 @@ const PayoutAndPolicyTabPanel = ({
       <span className="font-medium leading-relaxed text-foreground">
         Tôi cam kết đã đủ 18 tuổi, toàn bộ thông tin đăng ký là chính chủ, chịu
         hoàn toàn trách nhiệm trước pháp luật và đồng ý tuân thủ toàn bộ{" "}
-        <strong className="text-primary underline underline-offset-2">
+        <a
+          className="text-primary underline underline-offset-2 hover:opacity-80"
+          href="/avin-check"
+          rel="noopener noreferrer"
+          target="_blank"
+        >
           Quy chế Hoạt động Đối tác Avin Check ({currentPolicyVersion})
-        </strong>
+        </a>
         .
       </span>
     </label>
@@ -777,7 +783,7 @@ const LivePreviewCard = ({
             <a
               className="inline-flex items-center gap-1.5 rounded-xl bg-[#0068FF] px-4 py-2 text-xs font-bold text-white shadow-xs transition-opacity hover:opacity-90"
               href={zaloUrl}
-              rel="noreferrer"
+              rel="noopener noreferrer"
               target="_blank"
             >
               <CheckCircle className="size-4" weight="bold" />
@@ -786,7 +792,7 @@ const LivePreviewCard = ({
             <a
               className="inline-flex items-center gap-1.5 rounded-xl bg-[#229ED9] px-4 py-2 text-xs font-bold text-white shadow-xs transition-opacity hover:opacity-90"
               href={telegramUrl}
-              rel="noreferrer"
+              rel="noopener noreferrer"
               target="_blank"
             >
               <PaperPlaneTilt className="size-4" weight="fill" />
@@ -811,7 +817,7 @@ const LivePreviewCard = ({
                   {form.officialChannels.facebookId ||
                     (form.officialChannels.facebookUrl
                       ? "Đã liên kết"
-                      : "100005959991439")}
+                      : "Chưa cập nhật")}
                 </span>
               </div>
               <div className="flex items-start gap-1.5">
@@ -819,10 +825,10 @@ const LivePreviewCard = ({
                   Inbox Zalo:
                 </span>
                 <span className="font-mono text-primary font-bold">
-                  {form.officialChannels.zalo || "0934567643"}
+                  {form.officialChannels.zalo || "Chưa cấu hình"}
                 </span>
               </div>
-              {form.officialChannels.bioShop && (
+              {form.officialChannels.bioShop ? (
                 <div className="flex items-start gap-1.5">
                   <span className="font-semibold text-foreground shrink-0">
                     Bio Shop:
@@ -831,14 +837,24 @@ const LivePreviewCard = ({
                     {form.officialChannels.bioShop}
                   </span>
                 </div>
-              )}
+              ) : null}
+              {form.officialChannels.websiteUrl ? (
+                <div className="flex items-start gap-1.5">
+                  <span className="font-semibold text-foreground shrink-0">
+                    Website:
+                  </span>
+                  <span className="text-primary truncate">
+                    {form.officialChannels.websiteUrl}
+                  </span>
+                </div>
+              ) : null}
             </div>
           </div>
 
           {/* Right Box: Hồ Sơ Hạng Bạc / Royal */}
           <div className="relative rounded-2xl border border-amber-500/40 bg-amber-500/5 p-4 space-y-1.5">
             <h5 className="font-bold text-xs text-foreground">
-              Hồ Sơ Hạng Royal:
+              Hồ Sơ Hạng Bạc:
             </h5>
             <div className="space-y-1 text-xs">
               <div>
@@ -864,7 +880,7 @@ const LivePreviewCard = ({
                   Khuyến nghị giao dịch:{" "}
                 </span>
                 <span className="font-bold text-blue-600 dark:text-blue-400">
-                  dưới 50 triệu
+                  theo hạn mức ký quỹ
                 </span>
               </div>
             </div>
@@ -885,7 +901,7 @@ const LivePreviewCard = ({
             </h5>
             <div className="whitespace-pre-wrap font-sans text-xs text-foreground leading-relaxed">
               {form.services.trim() ||
-                `• Trung gian mua bán (chuyên youtube)\n• Dịch Vụ Mạng Xã Hội : mở khoá các tài khoản\n\nChủ TK "Nguyễn Hoàng Dương"\n• Vcb: 1031000002351\n• Momo: 0934567643`}
+                "Chưa nhập mô tả dịch vụ & STK ngân hàng"}
             </div>
 
             {/* Verification Watermark Stamp */}
@@ -1075,25 +1091,33 @@ export const ProviderApplicationForm = ({
         {/* LEFT COLUMN: 2-STEP CONTROLS (7 COLS) */}
         <div className="space-y-6 lg:col-span-7">
           {/* Tab Navigation Pill Bar */}
-          <div className="grid grid-cols-2 gap-2 rounded-2xl border border-border/80 bg-muted/30 p-1.5">
+          <div
+            aria-label="Các bước đăng ký"
+            className="grid grid-cols-2 gap-2 rounded-2xl border border-border/80 bg-muted/30 p-1.5"
+            role="tablist"
+          >
             <button
+              aria-selected={activeTab === "identity_and_channels"}
               className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition-all ${
                 activeTab === "identity_and_channels"
                   ? "bg-card text-primary shadow-xs"
                   : "text-muted-foreground hover:text-foreground"
               }`}
               onClick={() => setActiveTab("identity_and_channels")}
+              role="tab"
               type="button"
             >
               1. Thông tin & Kênh liên hệ
             </button>
             <button
+              aria-selected={activeTab === "payout_and_policy"}
               className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition-all ${
                 activeTab === "payout_and_policy"
                   ? "bg-card text-primary shadow-xs"
                   : "text-muted-foreground hover:text-foreground"
               }`}
               onClick={() => setActiveTab("payout_and_policy")}
+              role="tab"
               type="button"
             >
               2. Đối soát & Cam kết điều khoản
