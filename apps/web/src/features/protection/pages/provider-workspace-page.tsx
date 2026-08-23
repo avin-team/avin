@@ -378,12 +378,12 @@ export const ProviderWorkspacePage = () => {
     <Shell
       aria-labelledby="provider-workspace-title"
       as="section"
-      className="flex flex-col gap-8"
+      className="flex w-full flex-col items-start gap-8"
     >
-      <header className="flex max-w-3xl flex-col gap-2">
+      <header className="flex w-full max-w-3xl flex-col items-start gap-2 text-left">
         <p className="font-medium text-primary text-sm">Avin Check</p>
         <h1
-          className="font-bold text-3xl tracking-tight"
+          className="font-bold text-3xl tracking-tight text-foreground"
           id="provider-workspace-title"
         >
           Không gian riêng của Đối tác Avin
@@ -405,7 +405,7 @@ export const ProviderWorkspacePage = () => {
       ) : null}
 
       {workspace.data ? (
-        <div className="grid gap-6">
+        <div className="grid w-full gap-6">
           {canEditApplication ? (
             <>
               {workspace.data.application?.reviewReason ? (
