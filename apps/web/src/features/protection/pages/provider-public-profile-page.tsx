@@ -1,3 +1,8 @@
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@avin/ui/components/avatar";
 import { Badge } from "@avin/ui/components/badge";
 import {
   Card,
@@ -103,19 +108,14 @@ const ProviderHeaderSection = ({
       </div>
 
       <div className="flex flex-col items-center">
-        <div className="relative size-24 overflow-hidden rounded-full border-3 border-primary/30 bg-primary/10 shadow-md">
+        <Avatar className="size-24 border-3 border-primary/30 bg-primary/10 shadow-md">
           {channels.avatarUrl ? (
-            <img
-              alt={displayName}
-              className="size-full object-cover"
-              src={channels.avatarUrl}
-            />
-          ) : (
-            <div className="flex size-full items-center justify-center font-black text-primary text-2xl">
-              {getInitials(displayName)}
-            </div>
-          )}
-        </div>
+            <AvatarImage alt={displayName} src={channels.avatarUrl} />
+          ) : null}
+          <AvatarFallback className="font-black text-primary text-2xl">
+            {getInitials(displayName)}
+          </AvatarFallback>
+        </Avatar>
 
         <div className="mt-3.5 flex items-center justify-center gap-1.5">
           <h1

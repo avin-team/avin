@@ -4,6 +4,11 @@ import {
   PROVIDER_AVATAR_UPLOAD_ROUTE,
 } from "@avin/api/storage";
 import { env } from "@avin/env/web";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@avin/ui/components/avatar";
 import { Button } from "@avin/ui/components/button";
 import { FileDropzone } from "@avin/ui/components/file-dropzone";
 import type { FileDropzoneProps } from "@avin/ui/components/file-dropzone";
@@ -130,20 +135,17 @@ export const ProviderAvatarUploader = ({
 
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-2xl border border-border/70 bg-card/60 p-4 transition-colors hover:border-border">
-      <div className="relative size-20 shrink-0 overflow-hidden rounded-full border-2 border-primary/20 bg-muted/40 shadow-xs">
-        {avatarUrl ? (
-          <img
-            alt="Ảnh đại diện đối tác"
-            className="size-full object-cover"
-            src={avatarUrl}
-          />
-        ) : (
-          <div className="flex size-full items-center justify-center text-muted-foreground">
+      <div className="relative size-20 shrink-0">
+        <Avatar className="size-20 border-2 border-primary/20 bg-muted/40 shadow-xs">
+          {avatarUrl ? (
+            <AvatarImage alt="Ảnh đại diện đối tác" src={avatarUrl} />
+          ) : null}
+          <AvatarFallback className="text-muted-foreground">
             <UserCircle className="size-12 opacity-40" weight="duotone" />
-          </div>
-        )}
+          </AvatarFallback>
+        </Avatar>
         {upload.isPending && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/70 backdrop-blur-xs">
+          <div className="absolute inset-0 flex items-center justify-center rounded-full bg-background/70 backdrop-blur-xs">
             <Spinner
               aria-label="Đang tải ảnh đại diện lên"
               className="size-6 animate-spin text-primary"

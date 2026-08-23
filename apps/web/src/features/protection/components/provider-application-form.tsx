@@ -3,10 +3,21 @@ import type {
   ProviderApplicationSubmission,
 } from "@avin/api/protection/provider-application";
 import { CURRENT_PROVIDER_POLICY_VERSION } from "@avin/api/protection/provider-application";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@avin/ui/components/avatar";
 import { Badge } from "@avin/ui/components/badge";
 import { Button } from "@avin/ui/components/button";
+import { Checkbox } from "@avin/ui/components/checkbox";
 import { Input } from "@avin/ui/components/input";
 import { Label } from "@avin/ui/components/label";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@avin/ui/components/native-select";
+import { Progress } from "@avin/ui/components/progress";
 import { Textarea } from "@avin/ui/components/textarea";
 import {
   Bank,
@@ -360,7 +371,7 @@ const IdentityAndChannelsTabPanel = ({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="app-zalo">
-            Zalo chính chủ <span className="text-destructive">*</span>
+            Hotline / Zalo chính chủ <span className="text-destructive">*</span>
           </Label>
           <Input
             disabled={disabled}
@@ -498,8 +509,8 @@ const PayoutAndPolicyTabPanel = ({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="app-payment-type">Loại tài khoản</Label>
-          <select
-            className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm focus:outline-hidden focus:ring-2 focus:ring-primary"
+          <NativeSelect
+            className="w-full"
             disabled={disabled}
             id="app-payment-type"
             onChange={(e) =>
@@ -507,9 +518,11 @@ const PayoutAndPolicyTabPanel = ({
             }
             value={form.paymentAccount.accountType}
           >
-            <option value="BANK">Tài khoản Ngân hàng</option>
-            <option value="WALLET">Ví điện tử</option>
-          </select>
+            <NativeSelectOption value="BANK">
+              Tài khoản Ngân hàng
+            </NativeSelectOption>
+            <NativeSelectOption value="WALLET">Ví điện tử</NativeSelectOption>
+          </NativeSelect>
         </div>
 
         <div className="space-y-2">
@@ -517,20 +530,22 @@ const PayoutAndPolicyTabPanel = ({
             Ngân hàng
             <span className="text-destructive">*</span>
           </Label>
-          <select
-            className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm focus:outline-hidden focus:ring-2 focus:ring-primary"
+          <NativeSelect
+            className="w-full"
             disabled={disabled}
             id="app-institution"
             onChange={(e) => updatePayment("institution", e.target.value)}
             value={form.paymentAccount.institution}
           >
-            <option value="">-- Chọn ngân hàng hoặc ví điện tử --</option>
+            <NativeSelectOption value="">
+              -- Chọn ngân hàng hoặc ví điện tử --
+            </NativeSelectOption>
             {VIETNAMESE_BANKS.map((b) => (
-              <option key={b} value={b}>
+              <NativeSelectOption key={b} value={b}>
                 {b}
-              </option>
+              </NativeSelectOption>
             ))}
-          </select>
+          </NativeSelect>
         </div>
 
         <div className="space-y-2">
@@ -631,15 +646,19 @@ const PayoutAndPolicyTabPanel = ({
       </details>
     </div>
 
-    <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-border/70 bg-card p-4 text-xs transition-colors hover:border-primary/50">
-      <input
+    <div className="flex items-start gap-3 rounded-2xl border border-border/70 bg-card p-4 transition-colors hover:border-primary/50">
+      <Checkbox
         checked={form.policyAccepted}
-        className="mt-0.5 size-4.5 rounded text-primary accent-primary"
         disabled={disabled}
-        onChange={(e) => updateField("policyAccepted", e.target.checked)}
-        type="checkbox"
+        id="app-policy-accepted"
+        onCheckedChange={(checked) =>
+          updateField("policyAccepted", Boolean(checked))
+        }
       />
-      <span className="font-medium text-foreground leading-relaxed">
+      <Label
+        className="cursor-pointer font-medium text-foreground text-xs leading-relaxed"
+        htmlFor="app-policy-accepted"
+      >
         Tôi cam kết từ đủ 18 tuổi trở lên, toàn bộ thông tin đăng ký là chính
         chủ, chịu hoàn toàn trách nhiệm trước pháp luật và đồng ý tuân thủ toàn
         bộ{" "}
@@ -652,8 +671,8 @@ const PayoutAndPolicyTabPanel = ({
           Quy chế Hoạt động Đối tác Avin Check ({currentPolicyVersion})
         </a>
         .
-      </span>
-    </label>
+      </Label>
+    </div>
 
     <div className="flex justify-between pt-2">
       <Button onClick={onPrevTab} size="sm" type="button" variant="outline">
@@ -701,12 +720,7 @@ const LivePreviewCard = ({
             Độ hoàn thiện: {trustScore}%
           </Badge>
         </div>
-        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full bg-primary transition-all duration-300"
-            style={{ width: `${trustScore}%` }}
-          />
-        </div>
+        <Progress className="mt-3" value={trustScore} />
       </div>
 
       {/* Main Checkscam-Style Verified Card */}
@@ -719,19 +733,17 @@ const LivePreviewCard = ({
           </div>
 
           <div className="flex flex-col items-center">
-            <div className="relative size-20 overflow-hidden rounded-full border-2 border-primary/40 bg-primary/10 shadow-sm">
+            <Avatar className="size-20 border-2 border-primary/40 bg-primary/10 shadow-sm">
               {form.officialChannels.avatarUrl ? (
-                <img
+                <AvatarImage
                   alt="Ảnh đối tác"
-                  className="size-full object-cover"
                   src={form.officialChannels.avatarUrl}
                 />
-              ) : (
-                <div className="flex size-full items-center justify-center font-black text-primary text-xl">
-                  {getInitials(form.fullName || "AV")}
-                </div>
-              )}
-            </div>
+              ) : null}
+              <AvatarFallback className="font-black text-primary text-xl">
+                {getInitials(form.fullName || "AV")}
+              </AvatarFallback>
+            </Avatar>
 
             <div className="mt-3 flex items-center justify-center gap-1.5">
               <h4 className="font-extrabold text-foreground text-xl tracking-tight">
