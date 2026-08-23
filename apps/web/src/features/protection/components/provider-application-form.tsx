@@ -10,17 +10,28 @@ import {
 } from "@avin/ui/components/avatar";
 import { Badge } from "@avin/ui/components/badge";
 import { Button } from "@avin/ui/components/button";
+import { Calendar } from "@avin/ui/components/calendar";
 import { Checkbox } from "@avin/ui/components/checkbox";
 import { Input } from "@avin/ui/components/input";
 import { Label } from "@avin/ui/components/label";
 import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@avin/ui/components/native-select";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@avin/ui/components/popover";
 import { Progress } from "@avin/ui/components/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@avin/ui/components/select";
 import { Textarea } from "@avin/ui/components/textarea";
+import { cn } from "@avin/ui/lib/utils";
 import {
   Bank,
+  CalendarBlankIcon,
   CheckCircle,
   Eye,
   LockKey,
@@ -57,6 +68,16 @@ const VIETNAMESE_BANKS = [
   "Viettel Money",
 ] as const;
 
+const BANK_SELECT_ITEMS = VIETNAMESE_BANKS.map((b) => ({
+  label: b,
+  value: b,
+}));
+
+const ACCOUNT_TYPE_ITEMS = [
+  { label: "Tài khoản Ngân hàng", value: "BANK" },
+  { label: "Ví điện tử", value: "WALLET" },
+];
+
 const DEFAULT_SERVICES_DRAFT = `• Dịch Vụ Mạng Xã Hội : 
 • Giao dịch trung gian (GDTG) : 
 • Hotline / Zalo phụ (nếu có) : 
@@ -76,6 +97,17 @@ const formatDateVi = (dateStr: string): string => {
     return dateStr;
   }
   return `${day}/${month}/${year}`;
+};
+
+const parseDateString = (str: string): Date | undefined => {
+  if (!str) {
+    return undefined;
+  }
+  const [y, m, d] = str.split("-").map(Number);
+  if (!y || !m || !d) {
+    return undefined;
+  }
+  return new Date(y, m - 1, d);
 };
 
 export interface ProviderApplicationFormState {
@@ -315,150 +347,187 @@ const IdentityAndChannelsTabPanel = ({
   onNextTab,
   updateChannel,
   updateField,
-}: IdentityAndChannelsTabProps) => (
-  <div className="space-y-6 rounded-3xl border border-border/70 bg-card p-6 shadow-xs">
-    <div className="border-border/50 border-b pb-4">
-      <h3 className="font-bold text-lg">
-        1. Thông tin đại diện & Kênh liên hệ chính thức
-      </h3>
-      <p className="text-muted-foreground text-xs">
-        Thông tin này sẽ được hiển thị công khai trên thẻ xác minh uy tín Avin
-        Check.
-      </p>
-    </div>
+}: IdentityAndChannelsTabProps) => {
+  const handleDateSelect = (date: Date | undefined) => {
+    if (!date) {
+      updateField("operatingSince", "");
+      return;
+    }
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    updateField("operatingSince", `${year}-${month}-${day}`);
+  };
 
-    {/* Avatar Uploader Section */}
-    <ProviderAvatarUploader
-      avatarUrl={form.officialChannels.avatarUrl}
-      disabled={disabled}
-      onAvatarChange={(val) => updateChannel("avatarUrl", val.url)}
-    />
-
-    {/* Name & Operating Since */}
-    <div className="grid gap-4 sm:grid-cols-2">
-      <div className="space-y-2">
-        <Label htmlFor="app-full-name">
-          Họ và tên (chính chủ) <span className="text-destructive">*</span>
-        </Label>
-        <Input
-          disabled={disabled}
-          id="app-full-name"
-          onChange={(e) => updateField("fullName", e.target.value)}
-          placeholder="VD: NGUYỄN HOÀNG DƯƠNG"
-          value={form.fullName}
-        />
+  return (
+    <div className="space-y-6 rounded-3xl border border-border/70 bg-card p-6 shadow-xs">
+      <div className="border-border/50 border-b pb-4">
+        <h3 className="font-bold text-lg">
+          1. Thông tin đại diện & Kênh liên hệ chính thức
+        </h3>
+        <p className="text-muted-foreground text-xs">
+          Thông tin này sẽ được hiển thị công khai trên thẻ xác minh uy tín Avin
+          Check.
+        </p>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="app-operating-since">
-          Ngày bắt đầu hoạt động <span className="text-destructive">*</span>
-        </Label>
-        <Input
-          disabled={disabled}
-          id="app-operating-since"
-          onChange={(e) => updateField("operatingSince", e.target.value)}
-          type="date"
-          value={form.operatingSince}
-        />
-      </div>
-    </div>
+      {/* Avatar Uploader Section */}
+      <ProviderAvatarUploader
+        avatarUrl={form.officialChannels.avatarUrl}
+        disabled={disabled}
+        onAvatarChange={(val) => updateChannel("avatarUrl", val.url)}
+      />
 
-    {/* Official Channels Grid */}
-    <div className="rounded-2xl border border-border/70 bg-muted/20 p-4 space-y-4">
-      <h4 className="font-semibold text-xs text-foreground uppercase tracking-wide">
-        Kênh liên hệ & Mạng xã hội chính thức
-      </h4>
+      {/* Name & Operating Since */}
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="app-zalo">
-            Hotline / Zalo chính chủ <span className="text-destructive">*</span>
+          <Label htmlFor="app-full-name">
+            Họ và tên (chính chủ) <span className="text-destructive">*</span>
           </Label>
           <Input
             disabled={disabled}
-            id="app-zalo"
-            onChange={(e) => updateChannel("zalo", e.target.value)}
-            placeholder="VD: 0934567643"
-            value={form.officialChannels.zalo}
+            id="app-full-name"
+            onChange={(e) => updateField("fullName", e.target.value)}
+            placeholder="VD: NGUYỄN HOÀNG DƯƠNG"
+            value={form.fullName}
           />
         </div>
+
         <div className="space-y-2">
-          <Label htmlFor="app-telegram">Nhóm Telegram</Label>
-          <Input
-            disabled={disabled}
-            id="app-telegram"
-            onChange={(e) =>
-              updateChannel("telegramCommunityUrl", e.target.value)
-            }
-            placeholder="VD: https://t.me/nhomtelegram"
-            type="url"
-            value={form.officialChannels.telegramCommunityUrl}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="app-fb-url">Link Facebook chính chủ (URL)</Label>
-          <Input
-            disabled={disabled}
-            id="app-fb-url"
-            onChange={(e) => updateChannel("facebookUrl", e.target.value)}
-            placeholder="https://facebook.com/duongnguyen"
-            type="url"
-            value={form.officialChannels.facebookUrl}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="app-bio">Mã Bio Shop / Link Bio (nếu có)</Label>
-          <Input
-            disabled={disabled}
-            id="app-bio"
-            onChange={(e) => updateChannel("bioShop", e.target.value)}
-            placeholder="VD: 12553 hoặc https://bio.link/duong"
-            value={form.officialChannels.bioShop}
-          />
-        </div>
-        <div className="space-y-2 sm:col-span-2">
-          <Label htmlFor="app-website">Website cá nhân / Shop (nếu có)</Label>
-          <Input
-            disabled={disabled}
-            id="app-website"
-            onChange={(e) => updateChannel("websiteUrl", e.target.value)}
-            placeholder="https://likesub.vip"
-            type="url"
-            value={form.officialChannels.websiteUrl}
-          />
+          <Label htmlFor="app-operating-since">
+            Ngày bắt đầu hoạt động <span className="text-destructive">*</span>
+          </Label>
+          <Popover>
+            <PopoverTrigger
+              render={
+                <Button
+                  className={cn(
+                    "w-full justify-start text-left font-normal bg-input/50 border-transparent hover:bg-input/70 h-9 rounded-3xl px-3",
+                    !form.operatingSince && "text-muted-foreground"
+                  )}
+                  disabled={disabled}
+                  id="app-operating-since"
+                  type="button"
+                  variant="outline"
+                >
+                  <CalendarBlankIcon className="mr-2 size-4 text-muted-foreground" />
+                  {form.operatingSince
+                    ? formatDateVi(form.operatingSince)
+                    : "Chọn ngày bắt đầu"}
+                </Button>
+              }
+            />
+            <PopoverContent align="start" className="w-auto p-0">
+              <Calendar
+                captionLayout="dropdown"
+                disabled={(date) => date > new Date()}
+                mode="single"
+                onSelect={handleDateSelect}
+                selected={parseDateString(form.operatingSince)}
+              />
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
-    </div>
 
-    {/* Services & Bank Details Textarea */}
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <Label htmlFor="app-services">
-          Dịch vụ cung cấp & Danh sách tài khoản ngân hàng{" "}
-          <span className="text-destructive">*</span>
-        </Label>
-        <span className="text-[11px] text-muted-foreground">
-          Hỗ trợ xuống dòng, danh sách dịch vụ và STK ngân hàng công khai
-        </span>
+      {/* Official Channels Grid */}
+      <div className="rounded-2xl border border-border/70 bg-muted/20 p-4 space-y-4">
+        <h4 className="font-semibold text-xs text-foreground uppercase tracking-wide">
+          Kênh liên hệ & Mạng xã hội chính thức
+        </h4>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="app-zalo">
+              Hotline / Zalo chính chủ{" "}
+              <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              disabled={disabled}
+              id="app-zalo"
+              onChange={(e) => updateChannel("zalo", e.target.value)}
+              placeholder="VD: 0934567643"
+              value={form.officialChannels.zalo}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="app-telegram">Nhóm Telegram</Label>
+            <Input
+              disabled={disabled}
+              id="app-telegram"
+              onChange={(e) =>
+                updateChannel("telegramCommunityUrl", e.target.value)
+              }
+              placeholder="VD: https://t.me/nhomtelegram"
+              type="url"
+              value={form.officialChannels.telegramCommunityUrl}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="app-fb-url">Link Facebook chính chủ (URL)</Label>
+            <Input
+              disabled={disabled}
+              id="app-fb-url"
+              onChange={(e) => updateChannel("facebookUrl", e.target.value)}
+              placeholder="https://facebook.com/duongnguyen"
+              type="url"
+              value={form.officialChannels.facebookUrl}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="app-bio">Link Bio (nếu có)</Label>
+            <Input
+              disabled={disabled}
+              id="app-bio"
+              onChange={(e) => updateChannel("bioShop", e.target.value)}
+              placeholder="VD: 12553 hoặc https://bio.link/duong"
+              value={form.officialChannels.bioShop}
+            />
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="app-website">Website cá nhân / Shop (nếu có)</Label>
+            <Input
+              disabled={disabled}
+              id="app-website"
+              onChange={(e) => updateChannel("websiteUrl", e.target.value)}
+              placeholder="https://likesub.vip"
+              type="url"
+              value={form.officialChannels.websiteUrl}
+            />
+          </div>
+        </div>
       </div>
-      <Textarea
-        className="font-mono text-xs leading-relaxed"
-        disabled={disabled}
-        id="app-services"
-        maxLength={4000}
-        onChange={(e) => updateField("services", e.target.value)}
-        placeholder={`VD:\n• Dịch Vụ Mạng Xã Hội : mở khoá tài khoản MXH\n• Giao dịch trung gian (GDTG) : fb, tiktok, game\n• Hotline / Zalo phụ : 0832635555\n\nChủ TK "NGUYỄN HOÀNG DƯƠNG"\n• Vietcombank: 1031000002351\n• ACB: 162198888\n• MoMo: 0934567643`}
-        rows={8}
-        value={form.services}
-      />
-    </div>
 
-    <div className="flex justify-end pt-2">
-      <Button onClick={onNextTab} size="sm" type="button">
-        Tiếp tục
-      </Button>
+      {/* Services & Bank Details Textarea */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="app-services">
+            Dịch vụ cung cấp & Danh sách tài khoản ngân hàng{" "}
+            <span className="text-destructive">*</span>
+          </Label>
+          <span className="text-[11px] text-muted-foreground">
+            Hỗ trợ xuống dòng, danh sách dịch vụ và STK ngân hàng công khai
+          </span>
+        </div>
+        <Textarea
+          className="font-mono text-xs leading-relaxed"
+          disabled={disabled}
+          id="app-services"
+          maxLength={4000}
+          onChange={(e) => updateField("services", e.target.value)}
+          placeholder={`VD:\n• Dịch Vụ Mạng Xã Hội : mở khoá tài khoản MXH\n• Giao dịch trung gian (GDTG) : fb, tiktok, game\n• Hotline / Zalo phụ : 0832635555\n\nChủ TK "NGUYỄN HOÀNG DƯƠNG"\n• Vietcombank: 1031000002351\n• ACB: 162198888\n• MoMo: 0934567643`}
+          rows={8}
+          value={form.services}
+        />
+      </div>
+
+      <div className="flex justify-end pt-2">
+        <Button onClick={onNextTab} size="sm" type="button">
+          Tiếp tục
+        </Button>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 /* --- TAB 2: ĐỐI SOÁT & ĐIỀU KHOẢN CAM KẾT --- */
 interface PayoutAndPolicyTabProps {
@@ -509,20 +578,24 @@ const PayoutAndPolicyTabPanel = ({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="app-payment-type">Loại tài khoản</Label>
-          <NativeSelect
-            className="w-full"
+          <Select
             disabled={disabled}
-            id="app-payment-type"
-            onChange={(e) =>
-              updatePayment("accountType", e.target.value as "BANK" | "WALLET")
-            }
+            items={ACCOUNT_TYPE_ITEMS}
+            onValueChange={(val) => {
+              if (val) {
+                updatePayment("accountType", val as "BANK" | "WALLET");
+              }
+            }}
             value={form.paymentAccount.accountType}
           >
-            <NativeSelectOption value="BANK">
-              Tài khoản Ngân hàng
-            </NativeSelectOption>
-            <NativeSelectOption value="WALLET">Ví điện tử</NativeSelectOption>
-          </NativeSelect>
+            <SelectTrigger className="w-full" id="app-payment-type">
+              <SelectValue placeholder="Chọn loại tài khoản" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="BANK">Tài khoản Ngân hàng</SelectItem>
+              <SelectItem value="WALLET">Ví điện tử</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="space-y-2">
@@ -530,22 +603,27 @@ const PayoutAndPolicyTabPanel = ({
             Ngân hàng
             <span className="text-destructive">*</span>
           </Label>
-          <NativeSelect
-            className="w-full"
+          <Select
             disabled={disabled}
-            id="app-institution"
-            onChange={(e) => updatePayment("institution", e.target.value)}
+            items={BANK_SELECT_ITEMS}
+            onValueChange={(val) => {
+              if (val) {
+                updatePayment("institution", val);
+              }
+            }}
             value={form.paymentAccount.institution}
           >
-            <NativeSelectOption value="">
-              -- Chọn ngân hàng hoặc ví điện tử --
-            </NativeSelectOption>
-            {VIETNAMESE_BANKS.map((b) => (
-              <NativeSelectOption key={b} value={b}>
-                {b}
-              </NativeSelectOption>
-            ))}
-          </NativeSelect>
+            <SelectTrigger className="w-full" id="app-institution">
+              <SelectValue placeholder="Chọn ngân hàng hoặc ví điện tử" />
+            </SelectTrigger>
+            <SelectContent>
+              {VIETNAMESE_BANKS.map((b) => (
+                <SelectItem key={b} value={b}>
+                  {b}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="space-y-2">
