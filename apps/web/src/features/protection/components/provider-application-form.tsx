@@ -712,14 +712,14 @@ const LivePreviewCard = ({
       {/* Main Checkscam-Style Verified Card */}
       <div className="overflow-hidden rounded-3xl border border-border/80 bg-card shadow-lg">
         {/* Top Header */}
-        <div className="border-border/50 border-b bg-muted/10 p-5 text-center space-y-3">
+        <div className="border-border/50 border-b bg-muted/10 p-5 space-y-3.5">
           <div className="flex items-center justify-between text-[11px] text-muted-foreground">
             <span>Mã hồ sơ: #XAC-MINH</span>
             <span className="font-bold text-primary">Avin Check Certified</span>
           </div>
 
-          <div className="flex flex-col items-center">
-            <div className="relative size-20 overflow-hidden rounded-full border-2 border-primary/40 bg-primary/10 shadow-sm">
+          <div className="flex items-center gap-3.5">
+            <div className="relative size-16 shrink-0 overflow-hidden rounded-full border-2 border-primary/40 bg-primary/10 shadow-sm">
               {form.officialChannels.avatarUrl ? (
                 <img
                   alt="Ảnh đối tác"
@@ -733,16 +733,25 @@ const LivePreviewCard = ({
               )}
             </div>
 
-            <div className="mt-3 flex items-center justify-center gap-1.5">
-              <h4 className="font-extrabold text-foreground text-xl tracking-tight">
-                {form.fullName.trim() || "Tên Đối Tác"}
-              </h4>
-              <SealCheck className="size-5 text-primary" weight="fill" />
+            <div className="min-w-0 flex-1 space-y-0.5">
+              <div className="flex items-center gap-1.5">
+                <h4 className="truncate font-extrabold text-foreground text-lg sm:text-xl tracking-tight">
+                  {form.fullName.trim() || "Tên Đối Tác"}
+                </h4>
+                <SealCheck
+                  className="size-5 shrink-0 text-primary"
+                  weight="fill"
+                />
+              </div>
+              <p className="line-clamp-1 text-muted-foreground text-xs">
+                {form.officialChannels.note ||
+                  "Hồ sơ đối tác bảo hiểm giao dịch an toàn"}
+              </p>
             </div>
           </div>
 
           {/* 2 Quick CTA Buttons */}
-          <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1">
+          <div className="flex flex-wrap items-center justify-start gap-2.5 pt-1">
             <a
               className="inline-flex items-center gap-1.5 rounded-xl bg-[#0068FF] px-4 py-2 text-xs font-bold text-white shadow-xs transition-opacity hover:opacity-90"
               href={zaloUrl}

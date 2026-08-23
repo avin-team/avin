@@ -91,7 +91,7 @@ const ProviderHeaderSection = ({
     "https://t.me/avin_check_community";
 
   return (
-    <div className="border-border/50 border-b bg-card p-6 text-center space-y-4">
+    <div className="border-border/50 border-b bg-card p-6 space-y-4">
       <div className="flex items-center justify-between">
         <span className="font-semibold text-xs text-muted-foreground">
           Mã hồ sơ: #{profileId.slice(0, 8)}
@@ -101,8 +101,8 @@ const ProviderHeaderSection = ({
         </span>
       </div>
 
-      <div className="flex flex-col items-center">
-        <div className="relative size-24 overflow-hidden rounded-full border-3 border-primary/30 bg-primary/10 shadow-md">
+      <div className="flex items-center gap-4">
+        <div className="relative size-20 shrink-0 overflow-hidden rounded-full border-3 border-primary/30 bg-primary/10 shadow-md">
           {channels.avatarUrl ? (
             <img
               alt={displayName}
@@ -116,18 +116,23 @@ const ProviderHeaderSection = ({
           )}
         </div>
 
-        <div className="mt-3.5 flex items-center justify-center gap-1.5">
-          <h1
-            className="font-extrabold text-foreground text-2xl sm:text-3xl tracking-tight"
-            id="provider-public-profile-title"
-          >
-            {displayName}
-          </h1>
-          <SealCheck className="size-6 text-primary" weight="fill" />
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex items-center gap-1.5">
+            <h1
+              className="truncate font-extrabold text-foreground text-2xl sm:text-3xl tracking-tight"
+              id="provider-public-profile-title"
+            >
+              {displayName}
+            </h1>
+            <SealCheck className="size-6 shrink-0 text-primary" weight="fill" />
+          </div>
+          <p className="line-clamp-1 text-muted-foreground text-sm">
+            {channels.note || "Hồ sơ đối tác bảo hiểm giao dịch an toàn"}
+          </p>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+      <div className="flex flex-wrap items-center justify-start gap-3 pt-2">
         <a
           className="inline-flex items-center gap-2 rounded-xl bg-[#0068FF] px-5 py-2.5 text-xs font-bold text-white shadow-sm transition-all hover:bg-[#0055d4] hover:shadow-md"
           href={zaloUrl}
