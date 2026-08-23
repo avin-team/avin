@@ -15,16 +15,16 @@ import { ProviderRiskIncidentPanel } from "../components/provider-risk-incident-
 
 const PROFILE_STATUS_LABELS = {
   ACTIVE: "Đang hoạt động",
-  REMOVED_FOR_FRAUD: "Đã gỡ vì gian lận",
-  SUSPENDED_PENDING_REVIEW: "Tạm ngưng, chờ xem xét",
-  WITHDRAWAL_PENDING: "Đang chờ rút khỏi chương trình",
-  WITHDRAWN: "Đã rút khỏi chương trình",
+  REMOVED_FOR_FRAUD: "Đã gỡ do vi phạm",
+  SUSPENDED_PENDING_REVIEW: "Tạm ngưng, chờ xét duyệt",
+  WITHDRAWAL_PENDING: "Đang chờ rút quỹ bảo hiểm",
+  WITHDRAWN: "Đã ngừng hợp tác",
 } as const;
 
 const BOND_WITHDRAWAL_STATUS_LABELS = {
-  COMPLETED: "Đã hoàn tất off-platform",
-  COOLING: "Đang cooling 30 ngày",
-  PENDING_APPROVAL: "Chờ Protection Manager duyệt",
+  COMPLETED: "Đã hoàn tất thanh toán",
+  COOLING: "Đang chờ đối soát (30 ngày)",
+  PENDING_APPROVAL: "Chờ quản trị viên duyệt",
   REJECTED: "Đã bị từ chối",
 } as const;
 
@@ -65,7 +65,9 @@ const ProviderPolicyPanel = ({
     <article className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-6 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="font-medium text-primary text-sm">Policy & consent</p>
+          <p className="font-medium text-primary text-sm">
+            Chính sách & Quy chế
+          </p>
           <h2 className="mt-1 font-semibold text-xl">
             {policy.title} · {policy.version}
           </h2>
@@ -78,8 +80,7 @@ const ProviderPolicyPanel = ({
       <p className="mt-4 text-sm">{policy.summary}</p>
       {policy.acceptanceOverdue ? (
         <p className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-destructive text-sm">
-          Đã quá hạn chấp nhận. Profile bị tạm ngưng để Protection Admin xem
-          xét.
+          Đã quá hạn chấp nhận. Hồ sơ bị tạm ngưng để Quản trị viên xem xét.
         </p>
       ) : (
         <Button
@@ -120,12 +121,12 @@ const ProviderProfileRevisionPanel = ({
   const handleStartRevision = async () => {
     try {
       await startRevision.mutateAsync({});
-      toast.success("Đã tạo bản nháp yêu cầu cập nhật profile.");
+      toast.success("Đã tạo bản nháp yêu cầu cập nhật hồ sơ.");
     } catch (error) {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Không thể tạo yêu cầu cập nhật profile."
+          : "Không thể tạo yêu cầu cập nhật hồ sơ."
       );
     }
   };
@@ -135,21 +136,22 @@ const ProviderProfileRevisionPanel = ({
       {profileRevision?.status === "PENDING_REVIEW" ? (
         <article className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-6 shadow-sm">
           <h2 className="font-semibold text-xl">
-            Yêu cầu cập nhật profile đang chờ duyệt
+            Yêu cầu cập nhật hồ sơ đang chờ xét duyệt
           </h2>
           <p className="mt-2 text-muted-foreground text-sm">
-            Version public hiện tại vẫn là nguồn chính thức cho tới khi Reviewer
-            phát hành version mới.
+            Hồ sơ công khai hiện tại vẫn giữ nguyên cho tới khi Quản trị viên
+            phê duyệt bản cập nhật mới.
           </p>
         </article>
       ) : null}
 
       {canStartRevision ? (
         <article className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
-          <h2 className="font-semibold text-xl">Cập nhật profile công khai</h2>
+          <h2 className="font-semibold text-xl">Cập nhật hồ sơ công khai</h2>
           <p className="mt-2 text-muted-foreground text-sm">
-            Provider chỉ có thể gửi yêu cầu. Mọi thay đổi định danh, dịch vụ
-            hoặc thanh toán đều phải được Reviewer xác minh lại.
+            Đối tác có thể gửi yêu cầu chỉnh sửa thông tin. Mọi thay đổi về định
+            danh, kênh liên hệ hoặc dịch vụ sẽ được duyệt lại để đảm bảo tính
+            chính xác.
           </p>
           <Button
             className="mt-4"
@@ -159,7 +161,7 @@ const ProviderProfileRevisionPanel = ({
           >
             {startRevision.isPending
               ? "Đang tạo bản nháp..."
-              : "Yêu cầu chỉnh sửa profile"}
+              : "Yêu cầu chỉnh sửa hồ sơ"}
           </Button>
         </article>
       ) : null}
@@ -172,7 +174,7 @@ const ProviderProfileRevisionPanel = ({
             </h2>
             <p className="mt-1 text-muted-foreground text-xs">
               Hồ sơ công khai hiện tại giữ nguyên cho tới khi bản cập nhật này
-              được Reviewer duyệt.
+              được duyệt.
             </p>
           </div>
           <ProviderApplicationForm
@@ -199,14 +201,16 @@ const ProviderBondSummary = ({
   const requestWithdrawal = async () => {
     try {
       await request.mutateAsync({
-        reason: "Provider yêu cầu rút toàn bộ Recognized Bond sau cooling.",
+        reason: "Đối tác yêu cầu rút toàn bộ tiền bảo hiểm ký quỹ.",
       });
-      toast.success("Đã gửi yêu cầu rút Bond; cooling bắt đầu từ hôm nay.");
+      toast.success(
+        "Đã gửi yêu cầu rút tiền ký quỹ; thời gian đối soát bắt đầu từ hôm nay."
+      );
     } catch (error) {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Không thể gửi yêu cầu rút Bond."
+          : "Không thể gửi yêu cầu rút tiền ký quỹ."
       );
     }
   };
@@ -215,39 +219,39 @@ const ProviderBondSummary = ({
     <article className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="font-semibold text-xl">Provider Bond</h2>
+          <h2 className="font-semibold text-xl">Quỹ Bảo Hiểm Ký Quỹ (Bond)</h2>
           <p className="mt-2 text-muted-foreground text-sm">
-            Số được Avin công nhận từ đối soát ngoài hệ thống; Avin không nhận,
-            giữ hoặc chuyển tiền trong workspace này.
+            Số tiền bảo hiểm được Avin xác nhận lưu ký để bảo vệ quyền lợi người
+            mua khi giao dịch.
           </p>
         </div>
         <div className="text-right">
           <p className="font-semibold text-2xl">
             {vndFormatter.format(bond.recognizedAmount)}
           </p>
-          <p className="text-muted-foreground text-xs">Recognized Bond</p>
+          <p className="text-muted-foreground text-xs">Tiền bảo hiểm ký quỹ</p>
         </div>
       </div>
       <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
         <div className="rounded-xl border bg-muted/20 p-4">
-          <p className="font-medium">Recommended Transaction Limit</p>
+          <p className="font-medium">Hạn mức khuyến nghị / giao dịch</p>
           <p className="mt-1 text-muted-foreground">
             {vndFormatter.format(bond.recommendedTransactionLimit)}
           </p>
         </div>
         <div className="rounded-xl border bg-muted/20 p-4">
-          <p className="font-medium">Lịch sử điều chỉnh</p>
+          <p className="font-medium">Lịch sử biến động</p>
           <p className="mt-1 text-muted-foreground">
-            {bond.adjustments.length} bản ghi bất biến
+            {bond.adjustments.length} bản ghi xác nhận
           </p>
         </div>
       </div>
       <div className="mt-5 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm">
-        <p className="font-medium">Rút Bond off-platform</p>
+        <p className="font-medium">Rút quỹ bảo hiểm</p>
         <p className="mt-1 text-muted-foreground">
-          Yêu cầu sẽ cooling 30 ngày. Mọi Risk Report, Support Review hoặc Bond
-          Adjustment chưa xử lý sẽ đóng băng hoàn tất. Membership Fee vẫn không
-          hoàn lại.
+          Yêu cầu rút quỹ sẽ có thời gian đối soát 30 ngày để đảm bảo không phát
+          sinh khiếu nại giao dịch tồn đọng. Phí thẩm định duy trì không hoàn
+          lại.
         </p>
         {withdrawal ? (
           <div className="mt-3 grid gap-1 text-muted-foreground">
@@ -255,20 +259,20 @@ const ProviderBondSummary = ({
               Trạng thái: {BOND_WITHDRAWAL_STATUS_LABELS[withdrawal.status]}
             </p>
             <p>
-              Yêu cầu lúc:{" "}
+              Thời gian yêu cầu:{" "}
               {new Date(withdrawal.requestedAt).toLocaleString("vi-VN")}
             </p>
             <p>
-              Cooling đến:{" "}
+              Đối soát đến ngày:{" "}
               {new Date(withdrawal.coolingEndsAt).toLocaleString("vi-VN")}
             </p>
             <p>
-              Recognized Bond tại thời điểm yêu cầu:{" "}
+              Số tiền bảo hiểm tại thời điểm yêu cầu:{" "}
               {vndFormatter.format(withdrawal.recognizedAmountAtRequest)}
             </p>
             {withdrawal.returnedAmount !== null && (
               <p>
-                Ghi nhận hoàn trả:{" "}
+                Số tiền đã hoàn trả:{" "}
                 {vndFormatter.format(withdrawal.returnedAmount)}
               </p>
             )}
@@ -284,7 +288,7 @@ const ProviderBondSummary = ({
             type="button"
             variant="outline"
           >
-            {request.isPending ? "Đang gửi..." : "Yêu cầu rút Recognized Bond"}
+            {request.isPending ? "Đang gửi..." : "Yêu cầu rút quỹ bảo hiểm"}
           </Button>
         )}
       </div>
@@ -306,8 +310,8 @@ const InactiveOrApprovedWorkspaceContent = ({
       <article className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-6 shadow-sm">
         <h2 className="font-semibold text-xl">Hồ sơ đang chờ xét duyệt</h2>
         <p className="mt-2 text-muted-foreground text-sm">
-          Đơn đăng ký của bạn đã được gửi và đang trong hàng đợi kiểm duyệt bởi
-          Reviewer.
+          Đơn đăng ký đối tác của bạn đã được gửi và đang trong hàng đợi kiểm
+          duyệt bởi Reviewer.
         </p>
       </article>
     ) : null}
@@ -319,7 +323,8 @@ const InactiveOrApprovedWorkspaceContent = ({
         </h2>
         {workspaceData.application?.reviewReason ? (
           <p className="mt-2 text-muted-foreground text-sm">
-            <strong>Lý do:</strong> {workspaceData.application.reviewReason}
+            <strong>Lý do từ chối:</strong>{" "}
+            {workspaceData.application.reviewReason}
           </p>
         ) : null}
       </article>
@@ -329,14 +334,14 @@ const InactiveOrApprovedWorkspaceContent = ({
       <article className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-6 shadow-sm">
         <h2 className="font-semibold text-xl">Hồ sơ công khai đã phát hành</h2>
         <p className="mt-2 text-muted-foreground text-sm">
-          Version hiện tại: {workspaceData.publicProfile.versionNumber} ·{" "}
+          Phiên bản hiện tại: {workspaceData.publicProfile.versionNumber} ·{" "}
           {PROFILE_STATUS_LABELS[workspaceData.publicProfile.status]}
         </p>
         <a
           className="mt-4 inline-flex font-medium text-primary text-sm underline underline-offset-4"
           href={workspaceData.publicProfile.publicUrl}
         >
-          Mở profile công khai
+          Xem hồ sơ công khai
         </a>
       </article>
     ) : null}
@@ -390,12 +395,12 @@ export const ProviderWorkspacePage = () => {
       </header>
 
       {workspace.isPending ? (
-        <output aria-live="polite">Đang tải hồ sơ Provider...</output>
+        <output aria-live="polite">Đang tải hồ sơ đối tác...</output>
       ) : null}
 
       {workspace.isError ? (
         <p className="text-destructive" role="alert">
-          Không thể tải workspace Provider. Vui lòng thử lại.
+          Không thể tải thông tin đối tác. Vui lòng thử lại.
         </p>
       ) : null}
 

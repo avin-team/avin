@@ -49,9 +49,11 @@ describe("ProviderWorkspacePage", () => {
         name: "Không gian riêng của Đối tác Avin",
       })
     ).toBeInTheDocument();
-    expect(screen.getByText("1. Thông tin & Kênh liên hệ")).toBeInTheDocument();
     expect(
-      screen.getByText("2. Đối soát & Cam kết điều khoản")
+      screen.getByText("1. Thông tin cá nhân & Kênh liên hệ")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("2. Tài khoản đối soát & Cam kết")
     ).toBeInTheDocument();
     expect(screen.getByText("Avin Check Certified")).toBeInTheDocument();
   });

@@ -41,19 +41,20 @@ const VIETNAMESE_BANKS = [
   "VPBank",
   "TPBank",
   "Sacombank",
-  "MoMo Wallet",
-  "ZaloPay Wallet",
+  "Ví MoMo (MoMo)",
+  "Ví ZaloPay",
   "Viettel Money",
 ] as const;
 
 const DEFAULT_SERVICES_DRAFT = `• Dịch Vụ Mạng Xã Hội : 
-• (GDTG) Giao dịch trung gian : 
-• Hotline/Zalo phụ (nếu có) : 
+• Giao dịch trung gian (GDTG) : 
+• Hotline / Zalo phụ (nếu có) : 
 
-Chủ TK ""
-• Vcb: 
-• Acb: 
-• Momo: `;
+Chủ TK "[HỌ VÀ TÊN]"
+• Vietcombank (VCB) : 
+• ACB : 
+• MB Bank : 
+• Ví MoMo : `;
 
 const formatDateVi = (dateStr: string): string => {
   if (!dateStr) {
@@ -307,10 +308,11 @@ const IdentityAndChannelsTabPanel = ({
   <div className="space-y-6 rounded-3xl border border-border/70 bg-card p-6 shadow-xs">
     <div className="border-border/50 border-b pb-4">
       <h3 className="font-bold text-lg">
-        1. Thông tin Đại diện & Kênh liên hệ
+        1. Thông tin đại diện & Kênh liên hệ chính thức
       </h3>
       <p className="text-muted-foreground text-xs">
-        Khai báo thông tin hiển thị trên thẻ hồ sơ xác minh uy tín công khai.
+        Thông tin này sẽ được hiển thị công khai trên thẻ xác minh uy tín Avin
+        Check.
       </p>
     </div>
 
@@ -325,7 +327,7 @@ const IdentityAndChannelsTabPanel = ({
     <div className="grid gap-4 sm:grid-cols-2">
       <div className="space-y-2">
         <Label htmlFor="app-full-name">
-          Họ và tên pháp lý <span className="text-destructive">*</span>
+          Họ và tên (chính chủ) <span className="text-destructive">*</span>
         </Label>
         <Input
           disabled={disabled}
@@ -338,7 +340,7 @@ const IdentityAndChannelsTabPanel = ({
 
       <div className="space-y-2">
         <Label htmlFor="app-operating-since">
-          Bắt đầu hoạt động từ <span className="text-destructive">*</span>
+          Ngày bắt đầu hoạt động <span className="text-destructive">*</span>
         </Label>
         <Input
           disabled={disabled}
@@ -353,13 +355,12 @@ const IdentityAndChannelsTabPanel = ({
     {/* Official Channels Grid */}
     <div className="rounded-2xl border border-border/70 bg-muted/20 p-4 space-y-4">
       <h4 className="font-semibold text-xs text-foreground uppercase tracking-wide">
-        Kênh giao dịch & Liên hệ chính thức
+        Kênh liên hệ & Mạng xã hội chính thức
       </h4>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="app-zalo">
-            Số Hotline / Zalo chính thức{" "}
-            <span className="text-destructive">*</span>
+            Hotline / Zalo chính chủ <span className="text-destructive">*</span>
           </Label>
           <Input
             disabled={disabled}
@@ -383,7 +384,7 @@ const IdentityAndChannelsTabPanel = ({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="app-fb-url">Facebook Profile URL</Label>
+          <Label htmlFor="app-fb-url">Link Facebook chính chủ (URL)</Label>
           <Input
             disabled={disabled}
             id="app-fb-url"
@@ -394,7 +395,7 @@ const IdentityAndChannelsTabPanel = ({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="app-bio">Mã Bio Shop / Bio Link</Label>
+          <Label htmlFor="app-bio">Mã Bio Shop / Link Bio (nếu có)</Label>
           <Input
             disabled={disabled}
             id="app-bio"
@@ -404,7 +405,7 @@ const IdentityAndChannelsTabPanel = ({
           />
         </div>
         <div className="space-y-2 sm:col-span-2">
-          <Label htmlFor="app-website">Website riêng (nếu có)</Label>
+          <Label htmlFor="app-website">Website cá nhân / Shop (nếu có)</Label>
           <Input
             disabled={disabled}
             id="app-website"
@@ -425,7 +426,7 @@ const IdentityAndChannelsTabPanel = ({
           <span className="text-destructive">*</span>
         </Label>
         <span className="text-[11px] text-muted-foreground">
-          Hỗ trợ xuống dòng, bullet points và danh sách STK
+          Hỗ trợ xuống dòng, danh sách dịch vụ và STK ngân hàng công khai
         </span>
       </div>
       <Textarea
@@ -434,7 +435,7 @@ const IdentityAndChannelsTabPanel = ({
         id="app-services"
         maxLength={4000}
         onChange={(e) => updateField("services", e.target.value)}
-        placeholder={`VD:\n• Dịch Vụ Mạng Xã Hội : mở khoá các tài khoản mạng xã hội bị khóa\n  https://LikeSub.Vip\n• (GDTG) Giao dịch trung gian mua bán tài khoản fb, tiktok, ytb, liên quân\n• Zalo phụ: 0832635555 Dương GDTG\n\nChủ TK "NGUYỄN HOÀNG DƯƠNG"\n• Vcb: 1031000002351\n• Acb: 162198888\n• Momo: 0934567643`}
+        placeholder={`VD:\n• Dịch Vụ Mạng Xã Hội : mở khoá tài khoản MXH\n• Giao dịch trung gian (GDTG) : fb, tiktok, game\n• Hotline / Zalo phụ : 0832635555\n\nChủ TK "NGUYỄN HOÀNG DƯƠNG"\n• Vietcombank: 1031000002351\n• ACB: 162198888\n• MoMo: 0934567643`}
         rows={8}
         value={form.services}
       />
@@ -442,7 +443,7 @@ const IdentityAndChannelsTabPanel = ({
 
     <div className="flex justify-end pt-2">
       <Button onClick={onNextTab} size="sm" type="button">
-        Tiếp tục: Đối soát & Điều khoản →
+        Tiếp tục: Tài khoản đối soát & Cam kết →
       </Button>
     </div>
   </div>
@@ -478,8 +479,8 @@ const PayoutAndPolicyTabPanel = ({
         2. Tài khoản Đối soát & Điều khoản Cam kết
       </h3>
       <p className="text-muted-foreground text-xs">
-        Tài khoản dùng để hoàn quỹ ký quỹ và cam kết tuân thủ tiêu chuẩn Avin
-        Check.
+        Cung cấp tài khoản ngân hàng dùng để đối soát / hoàn tiền ký quỹ và cam
+        kết tuân thủ quy chế đối tác.
       </p>
     </div>
 
@@ -487,11 +488,11 @@ const PayoutAndPolicyTabPanel = ({
     <div className="space-y-4 rounded-2xl border border-border/70 bg-muted/20 p-5">
       <div className="flex items-center gap-2 font-semibold text-foreground text-xs uppercase tracking-wide">
         <Bank className="size-4 text-primary" />
-        Tài khoản nhận hoàn tiền ký quỹ (Đối soát nội bộ)
+        Tài khoản nhận hoàn tiền bảo lãnh (Bảo mật nội bộ)
       </div>
       <p className="text-muted-foreground text-xs">
-        Thông tin này được dùng nội bộ bởi Admin Avin Check để nộp/hoàn tiền bảo
-        lãnh và đối soát bồi thường, không công khai ra bên ngoài.
+        Thông tin này chỉ dùng nội bộ để Admin Avin Check đối soát và chuyển
+        hoàn tiền ký quỹ, không công khai ra bên ngoài.
       </p>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -513,7 +514,7 @@ const PayoutAndPolicyTabPanel = ({
 
         <div className="space-y-2">
           <Label htmlFor="app-institution">
-            Ngân hàng / Tổ chức phát hành{" "}
+            Ngân hàng / Đơn vị cung cấp{" "}
             <span className="text-destructive">*</span>
           </Label>
           <select
@@ -523,7 +524,7 @@ const PayoutAndPolicyTabPanel = ({
             onChange={(e) => updatePayment("institution", e.target.value)}
             value={form.paymentAccount.institution}
           >
-            <option value="">-- Chọn tổ chức ngân hàng --</option>
+            <option value="">-- Chọn ngân hàng hoặc ví điện tử --</option>
             {VIETNAMESE_BANKS.map((b) => (
               <option key={b} value={b}>
                 {b}
@@ -534,7 +535,8 @@ const PayoutAndPolicyTabPanel = ({
 
         <div className="space-y-2">
           <Label htmlFor="app-acc-name">
-            Tên chủ tài khoản <span className="text-destructive">*</span>
+            Tên chủ tài khoản (in hoa không dấu){" "}
+            <span className="text-destructive">*</span>
           </Label>
           <Input
             disabled={disabled}
@@ -572,16 +574,16 @@ const PayoutAndPolicyTabPanel = ({
       <div className="grid gap-3 text-xs sm:grid-cols-2">
         <div className="rounded-xl border border-border/60 bg-background/60 p-3">
           <p className="font-semibold text-foreground">
-            Hạn mức ký quỹ tối thiểu (Bond)
+            Hạn mức ký quỹ bảo hiểm (Bond)
           </p>
           <p className="mt-0.5 font-bold text-primary">30.000.000 ₫</p>
         </div>
         <div className="rounded-xl border border-border/60 bg-background/60 p-3">
           <p className="font-semibold text-foreground">
-            Phí duy trì (Membership Fee)
+            Phí thẩm định & duy trì
           </p>
           <p className="mt-0.5 text-muted-foreground">
-            3.000.000 ₫ · không hoàn lại
+            3.000.000 ₫ · một lần duy nhất
           </p>
         </div>
       </div>
@@ -589,34 +591,37 @@ const PayoutAndPolicyTabPanel = ({
       <ul className="list-inside list-disc space-y-1.5 text-muted-foreground text-xs leading-relaxed">
         <li>
           <strong className="text-foreground">Độ tuổi & Chính chủ:</strong> Đối
-          tác cam kết đã đủ 18 tuổi, thông tin định danh CCCD và tài khoản ngân
-          hàng khai báo là chính chủ.
+          tác cam kết từ đủ 18 tuổi trở lên, thông tin định danh CCCD và tài
+          khoản ngân hàng khai báo là hoàn toàn chính chủ.
         </li>
         <li>
           <strong className="text-foreground">Kênh giao dịch an toàn:</strong>{" "}
-          Đối tác cam kết chỉ giao dịch qua các kênh liên hệ và số tài khoản đã
-          đăng ký trên hệ thống.
+          Đối tác cam kết chỉ thực hiện giao dịch qua các kênh liên hệ và số tài
+          khoản ngân hàng đã đăng ký xác minh trên hệ thống.
         </li>
         <li>
           <strong className="text-foreground">Trách nhiệm pháp lý:</strong> Đối
-          tác hoàn toàn chịu trách nhiệm trước pháp luật về tính hợp pháp của
-          các giao dịch thực hiện.
+          tác hoàn toàn chịu trách nhiệm trước pháp luật về tính hợp pháp, nguồn
+          gốc và chất lượng của các giao dịch thực hiện.
         </li>
         <li>
-          <strong className="text-foreground">Bảo lãnh Quỹ Escrow:</strong> Tiền
-          ký quỹ bảo lãnh được bảo lưu trong Quỹ Escrow và được giải ngân hoàn
-          trả theo quy định khi ngừng làm đối tác.
+          <strong className="text-foreground">Bảo lãnh Quỹ Ký quỹ:</strong> Tiền
+          ký quỹ bảo lãnh được lưu giữ an toàn trong Quỹ bảo hiểm và được giải
+          ngân hoàn trả theo quy định khi ngừng làm đối tác.
         </li>
       </ul>
 
       <details className="rounded-xl border border-border/60 bg-background/40 p-3 text-xs">
         <summary className="cursor-pointer font-semibold text-primary select-none">
-          Xem toàn bộ điều khoản chi tiết
+          Xem chi tiết quy chế đối tác & chính sách bồi thường
         </summary>
         <p className="mt-2 whitespace-pre-wrap text-muted-foreground leading-relaxed">
-          Provider phải đáp ứng điều kiện xét duyệt, duy trì thông tin xác minh
-          chính xác, chấp nhận các policy version hiện hành và tuân thủ quy
-          trình Risk Report, Support Review và Bond off-platform.
+          Đối tác tham gia chương trình Avin Check phải đáp ứng đầy đủ các tiêu
+          chuẩn xét duyệt uy tín, duy trì thông tin xác minh chính xác, chấp
+          nhận các phiên bản quy chế hiện hành và tuân thủ quy trình xử lý khiếu
+          nại (Risk Report) cũng như bảo đảm hạn mức bảo hiểm ký quỹ. Mọi hành
+          vi gian lận hoặc mạo danh sẽ bị xử lý nghiêm theo quy chế nền tảng và
+          quy định pháp luật hiện hành.
         </p>
       </details>
     </div>
@@ -630,8 +635,9 @@ const PayoutAndPolicyTabPanel = ({
         type="checkbox"
       />
       <span className="font-medium text-foreground leading-relaxed">
-        Tôi cam kết đã đủ 18 tuổi, toàn bộ thông tin đăng ký là chính chủ, chịu
-        hoàn toàn trách nhiệm trước pháp luật và đồng ý tuân thủ toàn bộ{" "}
+        Tôi cam kết từ đủ 18 tuổi trở lên, toàn bộ thông tin đăng ký là chính
+        chủ, chịu hoàn toàn trách nhiệm trước pháp luật và đồng ý tuân thủ toàn
+        bộ{" "}
         <a
           className="text-primary underline underline-offset-2 hover:opacity-80"
           href="/avin-check"
@@ -675,7 +681,9 @@ const LivePreviewCard = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Eye className="size-4 text-primary" />
-            <span className="font-bold text-xs">Xem trước công khai</span>
+            <span className="font-bold text-xs">
+              Xem trước giao diện công khai
+            </span>
           </div>
           <Badge
             className={
@@ -701,7 +709,7 @@ const LivePreviewCard = ({
         {/* Top Header */}
         <div className="border-border/50 border-b bg-muted/10 p-5 text-center space-y-3">
           <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-            <span>Mã hồ sơ: #PREVIEW</span>
+            <span>Mã hồ sơ: #XAC-MINH</span>
             <span className="font-bold text-primary">Avin Check Certified</span>
           </div>
 
@@ -827,7 +835,7 @@ const LivePreviewCard = ({
                   Khuyến nghị giao dịch:{" "}
                 </span>
                 <span className="font-bold text-blue-600 dark:text-blue-400">
-                  theo hạn mức ký quỹ
+                  theo hạn mức bảo hiểm
                 </span>
               </div>
             </div>
@@ -848,7 +856,7 @@ const LivePreviewCard = ({
             </h5>
             <div className="whitespace-pre-wrap font-sans text-xs text-foreground leading-relaxed">
               {form.services.trim() ||
-                "Chưa nhập mô tả dịch vụ & STK ngân hàng"}
+                "Chưa nhập thông tin dịch vụ & STK ngân hàng"}
             </div>
 
             {/* Verification Watermark Stamp */}
@@ -940,7 +948,7 @@ export const ProviderApplicationForm = ({
 
     if (!form.fullName.trim()) {
       setActiveTab("identity_and_channels");
-      toast.error("Vui lòng nhập Họ và tên.");
+      toast.error("Vui lòng nhập Họ và tên (chính chủ).");
       return;
     }
 
@@ -952,13 +960,15 @@ export const ProviderApplicationForm = ({
 
     if (!form.officialChannels.zalo.trim()) {
       setActiveTab("identity_and_channels");
-      toast.error("Vui lòng nhập Số điện thoại Hotline / Zalo chính thức.");
+      toast.error("Vui lòng nhập số Hotline / Zalo chính chủ.");
       return;
     }
 
     if (!form.services.trim()) {
       setActiveTab("identity_and_channels");
-      toast.error("Vui lòng mô tả dịch vụ cung cấp & STK công khai.");
+      toast.error(
+        "Vui lòng mô tả dịch vụ cung cấp và danh sách STK ngân hàng."
+      );
       return;
     }
 
@@ -968,13 +978,15 @@ export const ProviderApplicationForm = ({
       !form.paymentAccount.accountNumber.trim()
     ) {
       setActiveTab("payout_and_policy");
-      toast.error("Vui lòng nhập đầy đủ tài khoản ngân hàng nhận hoàn tiền.");
+      toast.error(
+        "Vui lòng nhập đầy đủ thông tin tài khoản ngân hàng đối soát."
+      );
       return;
     }
 
     if (!form.policyAccepted) {
       setActiveTab("payout_and_policy");
-      toast.error("Vui lòng đọc và đồng ý với Quy chế Hoạt động Đối tác.");
+      toast.error("Vui lòng đọc và tích chọn đồng ý với Quy chế Đối tác.");
       return;
     }
 
@@ -1019,7 +1031,7 @@ export const ProviderApplicationForm = ({
               role="tab"
               type="button"
             >
-              1. Thông tin & Kênh liên hệ
+              1. Thông tin cá nhân & Kênh liên hệ
             </button>
             <button
               aria-selected={activeTab === "payout_and_policy"}
@@ -1032,7 +1044,7 @@ export const ProviderApplicationForm = ({
               role="tab"
               type="button"
             >
-              2. Đối soát & Cam kết điều khoản
+              2. Tài khoản đối soát & Cam kết
             </button>
           </div>
 
@@ -1074,7 +1086,7 @@ export const ProviderApplicationForm = ({
               disabled={!canSubmit || disabled}
               type="submit"
             >
-              {isSubmitting ? "Đang gửi..." : "Gửi hồ sơ duyệt"}
+              {isSubmitting ? "Đang gửi hồ sơ..." : "Gửi hồ sơ đăng ký"}
             </Button>
           </div>
         </div>
