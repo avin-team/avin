@@ -514,7 +514,7 @@ const PayoutAndPolicyTabPanel = ({
 
         <div className="space-y-2">
           <Label htmlFor="app-institution">
-            Ngân hàng / Đơn vị cung cấp{" "}
+            Ngân hàng
             <span className="text-destructive">*</span>
           </Label>
           <select
@@ -551,7 +551,7 @@ const PayoutAndPolicyTabPanel = ({
 
         <div className="space-y-2">
           <Label htmlFor="app-acc-number">
-            Số tài khoản / Số ví <span className="text-destructive">*</span>
+            Số tài khoản<span className="text-destructive">*</span>
           </Label>
           <Input
             disabled={disabled}
@@ -576,15 +576,20 @@ const PayoutAndPolicyTabPanel = ({
           <p className="font-semibold text-foreground">
             Hạn mức ký quỹ bảo hiểm (Bond)
           </p>
-          <p className="mt-0.5 font-bold text-primary">30.000.000 ₫</p>
+          <p className="mt-0.5 font-bold text-primary text-sm">1.000.000 ₫</p>
         </div>
         <div className="rounded-xl border border-border/60 bg-background/60 p-3">
           <p className="font-semibold text-foreground">
             Phí thẩm định & duy trì
           </p>
-          <p className="mt-0.5 text-muted-foreground">
-            3.000.000 ₫ · một lần duy nhất
-          </p>
+          <div className="mt-0.5 flex items-baseline gap-1.5">
+            <span className="text-muted-foreground line-through text-xs">
+              3.000.000 ₫
+            </span>
+            <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">
+              0 ₫ (Miễn phí)
+            </span>
+          </div>
         </div>
       </div>
 
