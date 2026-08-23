@@ -7,13 +7,14 @@ import {
   CardTitle,
 } from "@avin/ui/components/card";
 import {
+  ArrowLeft,
   CheckCircle,
   LockKey,
   PaperPlaneTilt,
   SealCheck,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
-import { useParams } from "@tanstack/react-router";
+import { Link, useParams } from "@tanstack/react-router";
 
 import { orpc } from "@/utils/orpc";
 
@@ -293,8 +294,16 @@ export const ProviderPublicProfilePage = () => {
   return (
     <section
       aria-labelledby="provider-public-profile-title"
-      className="mx-auto flex max-w-3xl flex-col gap-8 py-10 px-4"
+      className="mx-auto flex max-w-3xl flex-col gap-6 py-10 px-4"
     >
+      <Link
+        className="inline-flex items-center gap-1.5 font-medium text-muted-foreground text-sm transition-colors hover:text-foreground"
+        to="/avin-check"
+      >
+        <ArrowLeft aria-hidden="true" className="size-4" />
+        Quay lại Avin Check
+      </Link>
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Badge
           className="border-primary/40 bg-primary/10 text-primary text-xs"

@@ -1,4 +1,6 @@
 import { Button } from "@avin/ui/components/button";
+import { ArrowLeftIcon } from "@phosphor-icons/react";
+import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 
 import { Shell } from "@/components/shell";
@@ -378,8 +380,16 @@ export const ProviderWorkspacePage = () => {
     <Shell
       aria-labelledby="provider-workspace-title"
       as="section"
-      className="flex w-full flex-col items-start gap-8"
+      className="flex w-full flex-col items-start gap-6"
     >
+      <Link
+        className="inline-flex items-center gap-1.5 font-medium text-muted-foreground text-sm transition-colors hover:text-foreground"
+        to="/avin-check"
+      >
+        <ArrowLeftIcon aria-hidden="true" className="size-4" />
+        Quay lại Avin Check
+      </Link>
+
       <header className="flex w-full max-w-3xl flex-col items-start gap-2 text-left">
         <p className="font-medium text-primary text-sm">Avin Check</p>
         <h1

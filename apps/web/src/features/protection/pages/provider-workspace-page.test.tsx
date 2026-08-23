@@ -3,6 +3,22 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ProviderWorkspacePage } from "./provider-workspace-page";
 
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({
+    children,
+    className,
+    to,
+  }: {
+    children: React.ReactNode;
+    className?: string;
+    to: string;
+  }) => (
+    <a className={className} href={to}>
+      {children}
+    </a>
+  ),
+}));
+
 vi.mock("@/features/protection/api/provider-api", () => ({
   useProviderApplicationActions: () => ({
     saveDraft: { isPending: false, mutateAsync: vi.fn() },
@@ -48,6 +64,9 @@ describe("ProviderWorkspacePage", () => {
       screen.getByRole("heading", {
         name: "Không gian riêng của Đối tác Avin",
       })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Quay lại Avin Check" })
     ).toBeInTheDocument();
     expect(
       screen.getByText("1. Thông tin cá nhân & Kênh liên hệ")
