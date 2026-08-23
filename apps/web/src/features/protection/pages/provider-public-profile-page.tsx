@@ -301,7 +301,7 @@ export const ProviderPublicProfilePage = () => {
         to="/avin-check"
       >
         <ArrowLeft aria-hidden="true" className="size-4" />
-        Quay lại Avin Check
+        Quay lại
       </Link>
 
       <div className="flex flex-wrap items-center justify-between gap-3">

@@ -360,7 +360,7 @@ const IdentityAndChannelsTabPanel = ({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="app-zalo">
-            Hotline / Zalo chính chủ <span className="text-destructive">*</span>
+            Zalo chính chủ <span className="text-destructive">*</span>
           </Label>
           <Input
             disabled={disabled}
@@ -443,7 +443,7 @@ const IdentityAndChannelsTabPanel = ({
 
     <div className="flex justify-end pt-2">
       <Button onClick={onNextTab} size="sm" type="button">
-        Tiếp tục: Tài khoản đối soát & Cam kết →
+        Tiếp tục
       </Button>
     </div>
   </div>
@@ -657,7 +657,7 @@ const PayoutAndPolicyTabPanel = ({
 
     <div className="flex justify-between pt-2">
       <Button onClick={onPrevTab} size="sm" type="button" variant="outline">
-        ← Quay lại: Thông tin & Kênh
+        Quay lại
       </Button>
     </div>
   </div>

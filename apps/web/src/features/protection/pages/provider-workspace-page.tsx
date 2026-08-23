@@ -387,7 +387,7 @@ export const ProviderWorkspacePage = () => {
         to="/avin-check"
       >
         <ArrowLeftIcon aria-hidden="true" className="size-4" />
-        Quay lại Avin Check
+        Quay lại
       </Link>
 
       <header className="flex w-full max-w-3xl flex-col items-start gap-2 text-left">

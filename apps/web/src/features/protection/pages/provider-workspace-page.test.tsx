@@ -65,9 +65,7 @@ describe("ProviderWorkspacePage", () => {
         name: "Không gian riêng của Đối tác Avin",
       })
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "Quay lại Avin Check" })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Quay lại" })).toBeInTheDocument();
     expect(
       screen.getByText("1. Thông tin cá nhân & Kênh liên hệ")
     ).toBeInTheDocument();
