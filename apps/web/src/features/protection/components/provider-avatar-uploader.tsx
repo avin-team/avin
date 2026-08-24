@@ -135,7 +135,7 @@ export const ProviderAvatarUploader = ({
   };
 
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-border/70 bg-linear-to-br from-primary/[0.07] via-card to-card p-4 shadow-xs sm:p-5">
+    <div className="relative overflow-hidden rounded-3xl border border-border/70 bg-linear-to-br from-primary/7 via-card to-card p-4 shadow-xs sm:p-5">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute -left-12 -top-16 size-40 rounded-full bg-primary/10 blur-3xl"
@@ -151,7 +151,7 @@ export const ProviderAvatarUploader = ({
               {avatarUrl ? (
                 <AvatarImage alt="Ảnh đại diện đối tác" src={avatarUrl} />
               ) : null}
-              <AvatarFallback className="bg-primary/[0.06] text-primary/55">
+              <AvatarFallback className="bg-primary/6 text-primary/55">
                 <UserCircle className="size-14" weight="duotone" />
               </AvatarFallback>
             </Avatar>
@@ -236,7 +236,7 @@ export const ProviderAvatarUploader = ({
           ) : (
             <FileDropzone
               {...dropzoneProps}
-              className="min-h-28 border-primary/25 bg-background/55 px-4 py-4 transition-[border-color,background-color,transform] duration-150 hover:border-primary/50 hover:bg-primary/[0.04] active:scale-[0.995]"
+              className="min-h-28 border-primary/25 bg-background/55 px-4 py-4 transition-[border-color,background-color,transform] duration-150 hover:border-primary/50 hover:bg-primary/4 active:scale-[0.995]"
               label="Chọn ảnh từ thiết bị"
             />
           )}

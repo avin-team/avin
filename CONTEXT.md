@@ -28,7 +28,7 @@ The public Avin module for verified Provider discovery, external identifier look
 
 ### Provider Directory
 
-The public list of active Protection Providers, ordered by Provider Tier from `VIP` through `NORMAL`, then by recognized Provider Bond descending, verification recency, and display name. Each card shows the Provider's avatar, name, tier presentation, exact Bond, Recommended Transaction Limit, summarized services, Zalo/Facebook channels, and verification date; full Registered Bank Accounts remain on the profile detail. A specific search ranks identity relevance instead of forcing tier order: it supports exact normalized lookup by bank account number, Hotline/Zalo, and social username or URL, plus fuzzy lookup by display name, verified legal name, and registered service. CCCD values are never searchable. _Avoid_: paid placement, trust leaderboard.
+The public list of active Protection Providers, ordered by Provider Tier from `VIP` through `NORMAL`, then by recognized Provider Bond descending, verification recency, and display name. Each card shows the Provider's avatar, name, tier presentation, exact Bond, Recommended Transaction Limit, summarized services, Zalo/Facebook channels, and verification date; full Registered Bank Accounts remain on the profile detail. A specific search ranks identity relevance instead of forcing tier order: it supports exact normalized lookup by bank account number, optional phone/Zalo, and social username or URL, plus fuzzy lookup by display name, verified legal name, and registered service. CCCD values are never searchable. _Avoid_: paid placement, trust leaderboard.
 
 ### Protection Provider
 
@@ -112,7 +112,7 @@ The single Registered Bank Account marked as the Protection Provider's preferred
 
 ### Verified Provider Information
 
-The Provider-consented public identity and transaction data verified by an Admin, including the verified legal name, chosen display name, required Hotline/Zalo, optional Facebook, Telegram, TikTok, YouTube, and website channels, full Registered Bank Account details, and the exact recognized Provider Bond. It is presented for Real/Fake comparison without a payment QR and does not expose CCCD fragments, KYC evidence, transfer receipts, or internal reconciliation notes.
+The Provider-consented public identity and transaction data verified by an Admin, including the verified legal name, chosen display name, optional phone number, required Zalo, optional Facebook, Telegram, TikTok, YouTube, and website channels, full Registered Bank Account details, and the exact recognized Provider Bond. It is presented for Real/Fake comparison without a payment QR and does not expose CCCD fragments, KYC evidence, transfer receipts, or internal reconciliation notes.
 
 ### Provider Lifecycle Notification
 

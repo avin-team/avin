@@ -60,6 +60,7 @@
     "db:studio": "turbo -F @avin/db db:studio",
     "db:generate": "turbo -F @avin/db db:generate",
     "db:migrate": "turbo -F @avin/db db:migrate",
+    "db:backup": "bun run --cwd packages/db db:backup",
     "db:clear": "bun run --cwd packages/db db:clear",
     "db:seed-seller-listings": "bun run --cwd packages/db db:seed-seller-listings",
     "check": "ultracite check",
