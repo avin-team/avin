@@ -897,7 +897,7 @@ export const protectionRouter = {
         saveProviderApplicationDraft(context.db, context.session.user.id, input)
       ),
 
-    submit: providerSensitiveProcedure
+    submit: providerProcedure
       .input(providerApplicationSubmissionInputSchema)
       .handler(({ context, input }) =>
         submitProviderApplication(context.db, context.session.user.id, input)
@@ -1008,7 +1008,7 @@ export const protectionRouter = {
       startProviderProfileRevision(context.db, context.session.user.id)
     ),
 
-    submit: providerSensitiveProcedure
+    submit: providerProcedure
       .input(providerProfileRevisionSubmissionInputSchema)
       .handler(({ context, input }) =>
         submitProviderProfileRevision(
