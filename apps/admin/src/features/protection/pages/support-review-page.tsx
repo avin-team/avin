@@ -7,6 +7,14 @@ import {
   CardTitle,
 } from "@avin/ui/components/card";
 import { Input } from "@avin/ui/components/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@avin/ui/components/select";
 import { Textarea } from "@avin/ui/components/textarea";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -59,6 +67,26 @@ const TRANSACTION_SCOPE_LABELS = {
   OUT_OF_SCOPE: "Out of scope",
   WEBSITE_OPERATED: "Website-operated",
 } as const;
+
+const SUPPORT_CHANNEL_ITEMS = [
+  { label: "Facebook", value: "FACEBOOK" },
+  { label: "Zalo", value: "ZALO" },
+  { label: "Kênh khác", value: "OTHER" },
+] as const;
+
+const TRANSACTION_SCOPE_ITEMS = Object.entries(TRANSACTION_SCOPE_LABELS).map(
+  ([value, label]) => ({ label, value })
+);
+
+const SUPPORT_OUTCOME_ITEMS = SUPPORT_OUTCOME_OPTIONS.map((value) => ({
+  label: OUTCOME_LABELS[value],
+  value,
+}));
+
+const RECONSIDERATION_BASIS_ITEMS = [
+  { label: "Bằng chứng mới", value: "NEW_EVIDENCE" },
+  { label: "Lỗi quy trình", value: "PROCEDURAL_ERROR" },
+] as const;
 
 const vndFormatter = new Intl.NumberFormat("vi-VN", {
   currency: "VND",
@@ -144,6 +172,10 @@ const EligibilityForm = ({ review }: { review: SupportReview }) => {
     requiredProcessCompleted: false,
     transactionLawfulConfirmed: false,
   });
+  const profileVersionItems = review.profileVersions.map((version) => ({
+    label: `v${version.versionNumber} · limit ${version.recommendedTransactionLimit}`,
+    value: version.versionId,
+  }));
 
   const updateCheck = (key: keyof typeof checks, value: boolean): void => {
     setChecks((current) => ({ ...current, [key]: value }));
@@ -183,40 +215,58 @@ const EligibilityForm = ({ review }: { review: SupportReview }) => {
           htmlFor={`support-channel-${review.id}`}
         >
           Kênh giao dịch
-          <select
-            className="h-9 rounded-md border border-input bg-background px-3"
-            id={`support-channel-${review.id}`}
-            onChange={(event) =>
-              setChannel(event.target.value as "FACEBOOK" | "ZALO" | "OTHER")
+          <Select
+            items={SUPPORT_CHANNEL_ITEMS}
+            onValueChange={(value) =>
+              setChannel(value as "FACEBOOK" | "ZALO" | "OTHER")
             }
             value={channel}
           >
-            <option value="FACEBOOK">Facebook</option>
-            <option value="ZALO">Zalo</option>
-            <option value="OTHER">Kênh khác</option>
-          </select>
+            <SelectTrigger
+              className="h-9 w-full rounded-md border border-input bg-background px-3"
+              id={`support-channel-${review.id}`}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {SUPPORT_CHANNEL_ITEMS.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </label>
         <label
           className="grid gap-2 text-sm"
           htmlFor={`support-scope-${review.id}`}
         >
           Phạm vi giao dịch
-          <select
-            className="h-9 rounded-md border border-input bg-background px-3"
-            id={`support-scope-${review.id}`}
-            onChange={(event) =>
-              setScope(
-                event.target.value as keyof typeof TRANSACTION_SCOPE_LABELS
-              )
+          <Select
+            items={TRANSACTION_SCOPE_ITEMS}
+            onValueChange={(value) =>
+              setScope(value as keyof typeof TRANSACTION_SCOPE_LABELS)
             }
             value={scope}
           >
-            {Object.entries(TRANSACTION_SCOPE_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger
+              className="h-9 w-full rounded-md border border-input bg-background px-3"
+              id={`support-scope-${review.id}`}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {TRANSACTION_SCOPE_ITEMS.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </label>
         <label
           className="grid gap-2 text-sm"
@@ -235,19 +285,27 @@ const EligibilityForm = ({ review }: { review: SupportReview }) => {
           htmlFor={`support-version-${review.id}`}
         >
           Profile version tại thời điểm giao dịch
-          <select
-            className="h-9 rounded-md border border-input bg-background px-3"
-            id={`support-version-${review.id}`}
-            onChange={(event) => setProfileVersionId(event.target.value)}
+          <Select
+            items={profileVersionItems}
+            onValueChange={(value) => setProfileVersionId(value ?? "")}
             value={profileVersionId}
           >
-            {review.profileVersions.map((version) => (
-              <option key={version.versionId} value={version.versionId}>
-                v{version.versionNumber} · limit{" "}
-                {version.recommendedTransactionLimit}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger
+              className="h-9 w-full rounded-md border border-input bg-background px-3"
+              id={`support-version-${review.id}`}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {profileVersionItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </label>
         <label
           className="grid gap-2 text-sm"
@@ -386,20 +444,27 @@ const OutcomeForm = ({ review }: { review: SupportReview }) => {
           htmlFor={`support-outcome-${review.id}`}
         >
           Public outcome label
-          <select
-            className="h-9 rounded-md border border-input bg-background px-3"
-            id={`support-outcome-${review.id}`}
-            onChange={(event) =>
-              setOutcome(event.target.value as typeof outcome)
-            }
+          <Select
+            items={SUPPORT_OUTCOME_ITEMS}
+            onValueChange={(value) => setOutcome(value as typeof outcome)}
             value={outcome}
           >
-            {SUPPORT_OUTCOME_OPTIONS.map((value) => (
-              <option key={value} value={value}>
-                {OUTCOME_LABELS[value]}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger
+              className="h-9 w-full rounded-md border border-input bg-background px-3"
+              id={`support-outcome-${review.id}`}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {SUPPORT_OUTCOME_ITEMS.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </label>
         <label
           className="grid gap-2 text-sm"
@@ -571,19 +636,29 @@ const ReconsiderationForm = ({ review }: { review: SupportReview }) => {
           htmlFor={`support-reconsider-basis-${review.id}`}
         >
           Căn cứ
-          <select
-            className="h-9 rounded-md border border-input bg-background px-3"
-            id={`support-reconsider-basis-${review.id}`}
-            onChange={(event) =>
-              setBasis(
-                event.target.value as "NEW_EVIDENCE" | "PROCEDURAL_ERROR"
-              )
+          <Select
+            items={RECONSIDERATION_BASIS_ITEMS}
+            onValueChange={(value) =>
+              setBasis(value as "NEW_EVIDENCE" | "PROCEDURAL_ERROR")
             }
             value={basis}
           >
-            <option value="NEW_EVIDENCE">Bằng chứng mới</option>
-            <option value="PROCEDURAL_ERROR">Lỗi quy trình</option>
-          </select>
+            <SelectTrigger
+              className="h-9 w-full rounded-md border border-input bg-background px-3"
+              id={`support-reconsider-basis-${review.id}`}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {RECONSIDERATION_BASIS_ITEMS.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </label>
         <label
           className="grid gap-2 text-sm"

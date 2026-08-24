@@ -6,6 +6,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@avin/ui/components/select";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -17,10 +25,7 @@ import {
   useLinkAdminProviderRiskIncident,
   useReviewAdminProviderRiskIncident,
 } from "../api/risk-reports-api";
-import type {
-  ProviderRiskIncident,
-  ProviderRiskIncidentCandidate,
-} from "../api/risk-reports-api";
+import type { ProviderRiskIncident } from "../api/risk-reports-api";
 import {
   useAdminSupportReviews,
   useStartAdminSupportReview,
@@ -225,6 +230,13 @@ export const ProviderRiskIncidentPanel = ({
   const selectedCandidate = candidates.data?.find(
     (candidate) => candidate.id === selectedProfileId
   );
+  const profileCandidateItems = [
+    { label: "Chọn Provider profile", value: null },
+    ...(candidates.data ?? []).map((candidate) => ({
+      label: `${candidate.displayName} · ${candidate.profileSlug} · v${candidate.versionNumber}`,
+      value: candidate.id,
+    })),
+  ];
 
   const handleLink = async () => {
     if (!selectedCandidate) {
@@ -276,22 +288,27 @@ export const ProviderRiskIncidentPanel = ({
             htmlFor="provider-profile-candidate"
           >
             Profile/version authoritative
-            <select
-              className="rounded-lg border bg-background p-2"
-              id="provider-profile-candidate"
-              onChange={(event) => setSelectedProfileId(event.target.value)}
-              value={selectedProfileId}
+            <Select
+              items={profileCandidateItems}
+              onValueChange={(value) => setSelectedProfileId(value ?? "")}
+              value={selectedProfileId || null}
             >
-              <option value="">Chọn Provider profile</option>
-              {(candidates.data ?? []).map(
-                (candidate: ProviderRiskIncidentCandidate) => (
-                  <option key={candidate.id} value={candidate.id}>
-                    {candidate.displayName} · {candidate.profileSlug} · v
-                    {candidate.versionNumber}
-                  </option>
-                )
-              )}
-            </select>
+              <SelectTrigger
+                className="w-full rounded-lg border bg-background p-2"
+                id="provider-profile-candidate"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {profileCandidateItems.map((item) => (
+                    <SelectItem key={item.value ?? "empty"} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
           </label>
           <Button
             className="w-fit"

@@ -7,6 +7,14 @@ import {
 } from "@avin/ui/components/card";
 import { Input } from "@avin/ui/components/input";
 import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@avin/ui/components/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -93,22 +101,29 @@ export const ProviderApplicationQueuePage = () => {
                   value={query}
                 />
               </div>
-              <select
-                aria-label="Lọc trạng thái Provider"
-                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-                onChange={(event) =>
-                  setStatus(
-                    event.target.value as ProviderApplicationStatusFilter
-                  )
+              <Select
+                items={STATUS_FILTER_ITEMS}
+                onValueChange={(value) =>
+                  setStatus(value as ProviderApplicationStatusFilter)
                 }
                 value={status}
               >
-                {STATUS_FILTER_ITEMS.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger
+                  aria-label="Lọc trạng thái Provider"
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm sm:w-52"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {STATUS_FILTER_ITEMS.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             </div>
           </CardHeader>
           <CardContent className="p-0">

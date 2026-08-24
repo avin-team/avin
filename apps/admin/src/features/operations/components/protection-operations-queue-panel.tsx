@@ -9,6 +9,14 @@ import {
 } from "@avin/ui/components/card";
 import { Input } from "@avin/ui/components/input";
 import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@avin/ui/components/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -241,20 +249,29 @@ export const ProtectionOperationsQueuePanel = () => {
             htmlFor="protection-export-dataset"
           >
             <span className="font-medium">Dataset</span>
-            <select
-              className="h-10 rounded-md border bg-background px-3 text-sm"
-              id="protection-export-dataset"
-              onChange={(event) =>
-                setExportDataset(event.target.value as ExportDataset)
+            <Select
+              items={EXPORT_DATASETS}
+              onValueChange={(value) =>
+                setExportDataset(value as ExportDataset)
               }
               value={exportDataset}
             >
-              {EXPORT_DATASETS.map((dataset) => (
-                <option key={dataset.value} value={dataset.value}>
-                  {dataset.label}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger
+                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                id="protection-export-dataset"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {EXPORT_DATASETS.map((dataset) => (
+                    <SelectItem key={dataset.value} value={dataset.value}>
+                      {dataset.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
           </label>
           <label
             className="grid gap-2 text-sm"

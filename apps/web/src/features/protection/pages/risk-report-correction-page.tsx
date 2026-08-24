@@ -8,6 +8,14 @@ import {
   CardTitle,
 } from "@avin/ui/components/card";
 import { Input } from "@avin/ui/components/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@avin/ui/components/select";
 import { Textarea } from "@avin/ui/components/textarea";
 import { useMutation } from "@tanstack/react-query";
 import { Link, useSearch } from "@tanstack/react-router";
@@ -120,22 +128,29 @@ export const RiskReportCorrectionPage = () => {
                 htmlFor="correction-relationship"
               >
                 Tư cách yêu cầu
-                <select
-                  className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                  id="correction-relationship"
-                  onChange={(event) =>
-                    setRequesterRelationship(
-                      event.target.value as RequesterRelationship
-                    )
+                <Select
+                  items={requesterRelationshipOptions}
+                  onValueChange={(value) =>
+                    setRequesterRelationship(value as RequesterRelationship)
                   }
                   value={requesterRelationship}
                 >
-                  {requesterRelationshipOptions.map((item) => (
-                    <option key={item.value} value={item.value}>
-                      {item.label}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    id="correction-relationship"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {requesterRelationshipOptions.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
               </label>
               <label
                 className="grid gap-1.5 font-medium"

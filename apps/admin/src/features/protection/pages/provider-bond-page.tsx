@@ -8,6 +8,14 @@ import {
   CardTitle,
 } from "@avin/ui/components/card";
 import { Input } from "@avin/ui/components/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@avin/ui/components/select";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -377,6 +385,13 @@ export const ProviderBondPage = () => {
   const [reason, setReason] = useState("");
 
   const selectedProfileId = profileId || bonds[0]?.profile.id || "";
+  const providerItems = [
+    { label: "Chọn Provider", value: null },
+    ...bonds.map((bond) => ({
+      label: `${bond.profile.displayName} · ${bond.profile.profileSlug}`,
+      value: bond.profile.id,
+    })),
+  ];
 
   const recordAdjustment = async () => {
     const deltaAmount = getAdjustmentDelta(kind, amount);
@@ -438,36 +453,54 @@ export const ProviderBondPage = () => {
               htmlFor="provider-bond-profile"
             >
               <span className="font-medium">Provider</span>
-              <select
-                className="h-9 rounded-md border border-input bg-background px-3"
-                id="provider-bond-profile"
-                onChange={(event) => setProfileId(event.target.value)}
-                value={selectedProfileId}
+              <Select
+                items={providerItems}
+                onValueChange={(value) => setProfileId(value ?? "")}
+                value={selectedProfileId || null}
               >
-                <option value="">Chọn Provider</option>
-                {bonds.map((bond) => (
-                  <option key={bond.profile.id} value={bond.profile.id}>
-                    {bond.profile.displayName} · {bond.profile.profileSlug}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger
+                  className="h-9 w-full rounded-md border border-input bg-background px-3"
+                  id="provider-bond-profile"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {providerItems.map((item) => (
+                      <SelectItem
+                        key={item.value ?? "empty"}
+                        value={item.value}
+                      >
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             </label>
             <label className="grid gap-2 text-sm" htmlFor="provider-bond-kind">
               <span className="font-medium">Loại adjustment</span>
-              <select
-                className="h-9 rounded-md border border-input bg-background px-3"
-                id="provider-bond-kind"
-                onChange={(event) =>
-                  setKind(event.target.value as BondAdjustmentKind)
-                }
+              <Select
+                items={ADJUSTMENT_KIND_ITEMS}
+                onValueChange={(value) => setKind(value as BondAdjustmentKind)}
                 value={kind}
               >
-                {ADJUSTMENT_KIND_ITEMS.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger
+                  className="h-9 w-full rounded-md border border-input bg-background px-3"
+                  id="provider-bond-kind"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {ADJUSTMENT_KIND_ITEMS.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             </label>
             <label
               className="grid gap-2 text-sm"

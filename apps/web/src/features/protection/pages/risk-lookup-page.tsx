@@ -10,6 +10,14 @@ import {
 } from "@avin/ui/components/card";
 import { Input } from "@avin/ui/components/input";
 import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@avin/ui/components/select";
+import {
   ChartLineUpIcon,
   MagnifyingGlassIcon,
   ShieldCheckIcon,
@@ -293,20 +301,29 @@ export const RiskLookupPage = () => {
               >
                 Loại định danh
               </label>
-              <select
-                className="flex h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                id="risk-lookup-type"
-                onChange={(event) =>
-                  setIdentifierType(event.target.value as IdentifierType)
+              <Select
+                items={identifierTypeOptions}
+                onValueChange={(selectedValue) =>
+                  setIdentifierType(selectedValue as IdentifierType)
                 }
                 value={identifierType}
               >
-                {identifierTypeOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger
+                  className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                  id="risk-lookup-type"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {identifierTypeOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <label

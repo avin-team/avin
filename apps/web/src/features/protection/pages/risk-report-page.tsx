@@ -15,6 +15,14 @@ import {
 } from "@avin/ui/components/card";
 import { FileDropzone } from "@avin/ui/components/file-dropzone";
 import { Input } from "@avin/ui/components/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@avin/ui/components/select";
 import { Textarea } from "@avin/ui/components/textarea";
 import { useUploadFiles } from "@better-upload/client";
 import { ShieldCheckIcon } from "@phosphor-icons/react";
@@ -116,6 +124,11 @@ const websiteViolationOptions = [
 ] as const;
 
 type WebsiteViolationType = (typeof websiteViolationOptions)[number]["value"];
+
+const urgencyOptions = [
+  { label: "Thông thường", value: "NORMAL" },
+  { label: "Khẩn cấp", value: "URGENT" },
+] as const;
 
 type Step = "details" | "submitted";
 
@@ -262,21 +275,29 @@ const RiskReportTypeFields = ({
         htmlFor="risk-website-violation"
       >
         Loại vi phạm website
-        <select
-          className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-          id="risk-website-violation"
-          onChange={(event) =>
-            onViolationTypeChange(event.target.value as WebsiteViolationType)
+        <Select
+          items={websiteViolationOptions}
+          onValueChange={(value) =>
+            onViolationTypeChange(value as WebsiteViolationType)
           }
-          required
           value={violationType}
         >
-          {websiteViolationOptions.map((item) => (
-            <option key={item.value} value={item.value}>
-              {item.label}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger
+            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            id="risk-website-violation"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {websiteViolationOptions.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
       </label>
     ) : null}
 
@@ -303,20 +324,29 @@ const RiskReportTypeFields = ({
         htmlFor="risk-identifier-type"
       >
         Loại định danh
-        <select
-          className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-          id="risk-identifier-type"
-          onChange={(event) =>
-            onIdentifierTypeChange(event.target.value as IdentifierType)
+        <Select
+          items={identifierTypeOptions[reportType]}
+          onValueChange={(value) =>
+            onIdentifierTypeChange(value as IdentifierType)
           }
           value={identifierType}
         >
-          {identifierTypeOptions[reportType].map((item) => (
-            <option key={item.value} value={item.value}>
-              {item.label}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger
+            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            id="risk-identifier-type"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {identifierTypeOptions[reportType].map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
       </label>
       <label
         className="grid gap-1.5 text-sm font-medium"
@@ -573,22 +603,29 @@ export const RiskReportPage = () => {
                 htmlFor="risk-reporter-relationship"
               >
                 Quan hệ với Provider (nếu có)
-                <select
-                  className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                  id="risk-reporter-relationship"
-                  onChange={(event) =>
-                    setReporterRelationship(
-                      event.target.value as ReporterRelationship
-                    )
+                <Select
+                  items={reporterRelationshipOptions}
+                  onValueChange={(value) =>
+                    setReporterRelationship(value as ReporterRelationship)
                   }
                   value={reporterRelationship}
                 >
-                  {reporterRelationshipOptions.map((item) => (
-                    <option key={item.value} value={item.value}>
-                      {item.label}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    id="risk-reporter-relationship"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {reporterRelationshipOptions.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
                 <span className="font-normal text-muted-foreground text-xs">
                   Chỉ Risk Moderator nhìn thấy tín hiệu xung đột này; cảnh báo
                   công khai không tiết lộ người gửi hay quan hệ Provider.
@@ -631,21 +668,30 @@ export const RiskReportPage = () => {
                 htmlFor="risk-report-type"
               >
                 Loại cảnh báo
-                <select
-                  className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                  disabled={Boolean(reportId)}
-                  id="risk-report-type"
-                  onChange={(event) =>
-                    handleReportTypeChange(event.target.value as ReportType)
+                <Select
+                  items={reportTypeOptions}
+                  onValueChange={(value) =>
+                    handleReportTypeChange(value as ReportType)
                   }
                   value={reportType}
                 >
-                  {reportTypeOptions.map((item) => (
-                    <option key={item.value} value={item.value}>
-                      {item.label}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    disabled={Boolean(reportId)}
+                    id="risk-report-type"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {reportTypeOptions.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
                 {reportId ? (
                   <span className="font-normal text-muted-foreground text-xs">
                     Không thể đổi loại sau khi đã lưu bản nháp.
@@ -673,17 +719,29 @@ export const RiskReportPage = () => {
                   htmlFor="risk-urgency"
                 >
                   Mức độ khẩn cấp
-                  <select
-                    className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                    id="risk-urgency"
-                    onChange={(event) =>
-                      setUrgency(event.target.value as "NORMAL" | "URGENT")
+                  <Select
+                    items={urgencyOptions}
+                    onValueChange={(value) =>
+                      setUrgency(value as "NORMAL" | "URGENT")
                     }
                     value={urgency}
                   >
-                    <option value="NORMAL">Thông thường</option>
-                    <option value="URGENT">Khẩn cấp</option>
-                  </select>
+                    <SelectTrigger
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      id="risk-urgency"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {urgencyOptions.map((item) => (
+                          <SelectItem key={item.value} value={item.value}>
+                            {item.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
                 </label>
                 <label
                   className="grid gap-1.5 text-sm font-medium"
@@ -738,20 +796,29 @@ export const RiskReportPage = () => {
                 htmlFor="risk-evidence-kind"
               >
                 Loại bằng chứng đang tải
-                <select
-                  className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                  id="risk-evidence-kind"
-                  onChange={(event) =>
-                    setEvidenceKind(event.target.value as EvidenceKind)
+                <Select
+                  items={evidenceTypeOptions[reportType]}
+                  onValueChange={(value) =>
+                    setEvidenceKind(value as EvidenceKind)
                   }
                   value={evidenceKind}
                 >
-                  {evidenceTypeOptions[reportType].map((item) => (
-                    <option key={item.value} value={item.value}>
-                      {item.label}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    id="risk-evidence-kind"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {evidenceTypeOptions[reportType].map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
               </label>
               <FileDropzone
                 accept={ACCEPTED_CONTENT_TYPES}

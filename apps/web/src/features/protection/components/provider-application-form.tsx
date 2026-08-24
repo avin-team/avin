@@ -12,6 +12,14 @@ import { Button } from "@avin/ui/components/button";
 import { Checkbox } from "@avin/ui/components/checkbox";
 import { Input } from "@avin/ui/components/input";
 import { Label } from "@avin/ui/components/label";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@avin/ui/components/select";
 import { Textarea } from "@avin/ui/components/textarea";
 import { Bank, Copy, MapPin, QrCode, ShieldCheck } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
@@ -42,6 +50,11 @@ const BANK_CODES = [
   "TPB",
   "STB",
   "Other",
+];
+
+const BANK_ITEMS = [
+  { label: "Chọn ngân hàng", value: null },
+  ...BANK_CODES.map((bank) => ({ label: bank, value: bank })),
 ];
 const BOND_PRESETS = [
   1_000_000, 5_000_000, 10_000_000, 20_000_000, 50_000_000, 100_000_000,
@@ -787,22 +800,33 @@ const ProviderApplicationFormContent = ({
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor={`bank-code-${index}`}>Ngân hàng</Label>
-                  <select
-                    className="h-9 w-full rounded-xl border bg-background px-3 text-sm"
-                    disabled={isBusy}
-                    id={`bank-code-${index}`}
-                    onChange={(event) =>
-                      updateBank(index, "bankCode", event.target.value)
+                  <Select
+                    items={BANK_ITEMS}
+                    onValueChange={(value) =>
+                      updateBank(index, "bankCode", value ?? "")
                     }
-                    value={account.bankCode}
+                    value={account.bankCode || null}
                   >
-                    <option value="">Chọn ngân hàng</option>
-                    {BANK_CODES.map((bank) => (
-                      <option key={bank} value={bank}>
-                        {bank}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger
+                      className="h-9 w-full rounded-xl border bg-background px-3 text-sm"
+                      disabled={isBusy}
+                      id={`bank-code-${index}`}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {BANK_ITEMS.map((item) => (
+                          <SelectItem
+                            key={item.value ?? "empty"}
+                            value={item.value}
+                          >
+                            {item.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="flex items-center gap-3 sm:col-span-4">
                   <Checkbox

@@ -7,6 +7,14 @@ import {
 } from "@avin/ui/components/card";
 import { Input } from "@avin/ui/components/input";
 import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@avin/ui/components/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -93,23 +101,29 @@ export const RiskReportQueuePage = () => {
                   value={query}
                 />
               </div>
-              <select
-                aria-label="Lọc trạng thái risk report"
-                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-                onChange={(event) =>
-                  setStatus(
-                    event.target
-                      .value as (typeof STATUS_FILTERS)[number]["value"]
-                  )
+              <Select
+                items={STATUS_FILTERS}
+                onValueChange={(value) =>
+                  setStatus(value as (typeof STATUS_FILTERS)[number]["value"])
                 }
                 value={status}
               >
-                {STATUS_FILTERS.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger
+                  aria-label="Lọc trạng thái risk report"
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm sm:w-52"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {STATUS_FILTERS.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             </div>
           </CardHeader>
           <CardContent className="p-0">
