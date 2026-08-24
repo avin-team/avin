@@ -67,7 +67,7 @@ describe("ProviderWorkspacePage", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Quay lại" })).toBeInTheDocument();
     expect(
-      screen.getByText("1. Thông tin cá nhân & Kênh liên hệ")
+      screen.getByRole("tab", { name: "1. Thông tin cá nhân" })
     ).toBeInTheDocument();
     expect(
       screen.getByText("2. Tài khoản đối soát & Cam kết")

@@ -39,7 +39,7 @@ describe("ProviderApplicationForm with Split Live-Preview", () => {
     render(<ProviderApplicationForm application={null} />);
 
     expect(
-      screen.getByText("1. Thông tin cá nhân & Kênh liên hệ")
+      screen.getByRole("tab", { name: "1. Thông tin cá nhân" })
     ).toBeInTheDocument();
     expect(
       screen.getByText("2. Tài khoản đối soát & Cam kết")
@@ -65,7 +65,7 @@ describe("ProviderApplicationForm with Split Live-Preview", () => {
     render(<ProviderApplicationForm application={null} />);
 
     const servicesInput = screen.getByLabelText(
-      /Dịch vụ cung cấp & Danh sách tài khoản ngân hàng/iu
+      /Dịch vụ cung cấp/iu
     ) as HTMLTextAreaElement;
     expect(servicesInput.value).toContain("Dịch Vụ Mạng Xã Hội");
   });

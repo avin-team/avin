@@ -78,15 +78,7 @@ const ACCOUNT_TYPE_ITEMS = [
   { label: "Ví điện tử", value: "WALLET" },
 ];
 
-const DEFAULT_SERVICES_DRAFT = `• Dịch Vụ Mạng Xã Hội : 
-• Giao dịch trung gian (GDTG) : 
-• Hotline / Zalo phụ (nếu có) : 
-
-Chủ TK "[HỌ VÀ TÊN]"
-• Vietcombank (VCB) : 
-• ACB : 
-• MB Bank : 
-• Ví MoMo : `;
+const DEFAULT_SERVICES_DRAFT = `• Dịch Vụ Mạng Xã Hội`;
 
 const formatDateVi = (dateStr: string): string => {
   if (!dateStr) {
@@ -399,24 +391,20 @@ const IdentityAndChannelsTabPanel = ({
           </Label>
           <Popover>
             <PopoverTrigger
-              render={
-                <Button
-                  className={cn(
-                    "w-full justify-start text-left font-normal bg-input/50 border-transparent hover:bg-input/70 h-9 rounded-3xl px-3",
-                    !form.operatingSince && "text-muted-foreground"
-                  )}
-                  disabled={disabled}
-                  id="app-operating-since"
-                  type="button"
-                  variant="outline"
-                >
-                  <CalendarBlankIcon className="mr-2 size-4 text-muted-foreground" />
-                  {form.operatingSince
-                    ? formatDateVi(form.operatingSince)
-                    : "Chọn ngày bắt đầu"}
-                </Button>
-              }
-            />
+              className={cn(
+                "flex h-9 w-full items-center justify-start rounded-3xl border border-transparent bg-input/50 px-3 text-left text-base font-normal transition-[color,box-shadow,background-color] outline-none hover:bg-input/70 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm cursor-pointer",
+                form.operatingSince
+                  ? "text-foreground"
+                  : "text-muted-foreground"
+              )}
+              disabled={disabled}
+              id="app-operating-since"
+            >
+              <CalendarBlankIcon className="mr-2 size-4 shrink-0 text-muted-foreground" />
+              {form.operatingSince
+                ? formatDateVi(form.operatingSince)
+                : "Chọn ngày bắt đầu"}
+            </PopoverTrigger>
             <PopoverContent align="start" className="w-auto p-0">
               <Calendar
                 captionLayout="dropdown"
@@ -497,24 +485,18 @@ const IdentityAndChannelsTabPanel = ({
         </div>
       </div>
 
-      {/* Services & Bank Details Textarea */}
+      {/* Services Textarea */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="app-services">
-            Dịch vụ cung cấp & Danh sách tài khoản ngân hàng{" "}
-            <span className="text-destructive">*</span>
-          </Label>
-          <span className="text-[11px] text-muted-foreground">
-            Hỗ trợ xuống dòng, danh sách dịch vụ và STK ngân hàng công khai
-          </span>
-        </div>
+        <Label htmlFor="app-services">
+          Dịch vụ cung cấp <span className="text-destructive">*</span>
+        </Label>
         <Textarea
           className="font-mono text-xs leading-relaxed"
           disabled={disabled}
           id="app-services"
           maxLength={4000}
           onChange={(e) => updateField("services", e.target.value)}
-          placeholder={`VD:\n• Dịch Vụ Mạng Xã Hội : mở khoá tài khoản MXH\n• Giao dịch trung gian (GDTG) : fb, tiktok, game\n• Hotline / Zalo phụ : 0832635555\n\nChủ TK "NGUYỄN HOÀNG DƯƠNG"\n• Vietcombank: 1031000002351\n• ACB: 162198888\n• MoMo: 0934567643`}
+          placeholder={`VD:\n• Dịch Vụ Mạng Xã Hội : mở khoá tài khoản MXH`}
           rows={8}
           value={form.services}
         />
@@ -864,7 +846,7 @@ const LivePreviewCard = ({
             <div className="space-y-1.5 text-xs">
               <div className="flex items-start gap-1.5">
                 <span className="font-semibold text-foreground shrink-0">
-                  Fb (C):
+                  Facebook:
                 </span>
                 <span className="font-mono text-primary font-medium truncate">
                   {form.officialChannels.facebookUrl || "Chưa cập nhật"}
@@ -872,7 +854,7 @@ const LivePreviewCard = ({
               </div>
               <div className="flex items-start gap-1.5">
                 <span className="font-semibold text-foreground shrink-0">
-                  Inbox Zalo:
+                  Zalo:
                 </span>
                 <span className="font-mono text-primary font-bold">
                   {form.officialChannels.zalo || "Chưa cấu hình"}
@@ -1126,7 +1108,7 @@ export const ProviderApplicationForm = ({
               role="tab"
               type="button"
             >
-              1. Thông tin cá nhân & Kênh liên hệ
+              1. Thông tin cá nhân
             </button>
             <button
               aria-selected={activeTab === "payout_and_policy"}

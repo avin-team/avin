@@ -344,22 +344,15 @@ export const EnforcementDialog = ({
               </Label>
               <Popover>
                 <PopoverTrigger
-                  render={
-                    <Button
-                      disabled={isPending}
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !expiresAt && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarBlankIcon className="mr-2 size-4" />
-                      {expiresAt
-                        ? format(expiresAt, "dd/MM/yyyy")
-                        : "dd/mm/yyyy"}
-                    </Button>
-                  }
-                />
+                  className={cn(
+                    "flex h-9 w-full items-center justify-start rounded-3xl border border-transparent bg-input/50 px-3 text-left text-base font-normal transition-[color,box-shadow,background-color] outline-none hover:bg-input/70 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm cursor-pointer",
+                    expiresAt ? "text-foreground" : "text-muted-foreground"
+                  )}
+                  disabled={isPending}
+                >
+                  <CalendarBlankIcon className="mr-2 size-4 shrink-0 text-muted-foreground" />
+                  {expiresAt ? format(expiresAt, "dd/MM/yyyy") : "dd/mm/yyyy"}
+                </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
