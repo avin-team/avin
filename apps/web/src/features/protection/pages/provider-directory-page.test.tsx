@@ -55,6 +55,22 @@ vi.mock("@tanstack/react-query", () => ({
   }),
 }));
 
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({
+    children,
+    to,
+    ...props
+  }: {
+    children: React.ReactNode;
+    to: string;
+    [key: string]: unknown;
+  }) => (
+    <a href={to} {...props}>
+      {children}
+    </a>
+  ),
+}));
+
 describe("ProviderDirectoryPage", () => {
   afterEach(() => {
     cleanup();
@@ -66,29 +82,34 @@ describe("ProviderDirectoryPage", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: "Tìm Đối tác Avin đã được xem xét.",
+        name: "Tìm đối tác đã xác minh",
       })
     ).toBeInTheDocument();
     expect(screen.getByText("Provider One")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Xem hồ sơ" })).toHaveAttribute(
+      "href",
+      "/avin-check/provider/provider-one"
+    );
     expect(
-      screen.getByRole("link", { name: "Xem profile ổn định" })
-    ).toHaveAttribute("href", "/avin-check/provider/provider-one");
+      screen.getByRole("link", { name: "Đăng ký đối tác" })
+    ).toHaveAttribute("href", "/avin-check/apply");
     expect(screen.getByRole("textbox")).toHaveAttribute("autocomplete", "off");
   });
 
-  it("submits exact search as a mutation without putting it in navigation", async () => {
+  it("searches by partner name without putting it in navigation", async () => {
     render(<ProviderDirectoryPage />);
 
     const searchInput = screen.getByRole("textbox");
-    fireEvent.change(searchInput, { target: { value: "123456789" } });
-    fireEvent.click(screen.getByRole("button", { name: "Tìm chính xác" }));
+    fireEvent.change(searchInput, { target: { value: "Provider" } });
+    fireEvent.click(screen.getByRole("button", { name: "Tìm đối tác" }));
 
     await waitFor(() => {
-      expect(mocks.mutateAsync).toHaveBeenCalledWith({ query: "123456789" });
+      expect(mocks.mutateAsync).toHaveBeenCalledWith({ query: "Provider" });
     });
-    expect(
-      screen.getByRole("link", { name: "Xem profile ổn định" })
-    ).toHaveAttribute("href", "/avin-check/provider/provider-one");
-    expect(document.title).not.toContain("123456789");
+    expect(screen.getByRole("link", { name: "Xem hồ sơ" })).toHaveAttribute(
+      "href",
+      "/avin-check/provider/provider-one"
+    );
+    expect(document.title).not.toContain("Provider");
   });
 });

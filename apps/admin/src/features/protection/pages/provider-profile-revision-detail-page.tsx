@@ -56,33 +56,18 @@ const DetailField = ({ label, value }: { label: string; value: string }) => (
 const displayValue = (value: unknown): string =>
   typeof value === "string" && value.length > 0 ? value : "Chưa cung cấp";
 
-const maskAccountNumber = (value: string | null | undefined): string => {
-  if (!value) {
-    return "Chưa cung cấp";
-  }
-  if (value.length <= 4) {
-    return value;
-  }
-  return `${"•".repeat(Math.max(0, value.length - 4))}${value.slice(-4)}`;
-};
-
 const RevisionFacts = ({ detail }: { detail: RevisionDetail }) => {
   const revision = detail.profileRevision;
   const channels = revision.officialChannels ?? {};
-  const payment = revision.paymentAccount as {
-    accountName?: string;
-    accountNumber?: string;
-    accountType?: string;
-    institution?: string;
-  } | null;
 
   return (
     <div className="grid gap-6">
       <Card>
         <CardHeader>
-          <CardTitle>Thông tin revision và bằng chứng</CardTitle>
+          <CardTitle>Thông tin cập nhật đối tác</CardTitle>
           <CardDescription>
-            Đây là dữ liệu private chỉ hiển thị trong khu vực Reviewer có 2FA.
+            Dữ liệu riêng tư do đối tác cập nhật, chỉ hiển thị cho Reviewer có
+            2FA.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-5 sm:grid-cols-2">
@@ -94,24 +79,12 @@ const RevisionFacts = ({ detail }: { detail: RevisionDetail }) => {
             value={displayValue(revision.fullName)}
           />
           <DetailField
-            label="Bằng chứng định danh"
-            value={displayValue(revision.identityEvidenceReference)}
+            label="Địa điểm"
+            value={displayValue(revision.location)}
           />
           <DetailField
-            label="Bằng chứng đủ tuổi"
-            value={displayValue(revision.ageEvidenceReference)}
-          />
-          <DetailField
-            label="Bằng chứng lịch sử"
-            value={displayValue(revision.operatingHistoryEvidenceReference)}
-          />
-          <DetailField
-            label="Bằng chứng kênh chính thức"
-            value={displayValue(revision.officialChannelEvidenceReference)}
-          />
-          <DetailField
-            label="Bằng chứng thanh toán"
-            value={displayValue(revision.paymentEvidenceReference)}
+            label="CCCD"
+            value={displayValue(revision.citizenIdNumber)}
           />
           <DetailField
             label="Chính sách"
@@ -122,7 +95,7 @@ const RevisionFacts = ({ detail }: { detail: RevisionDetail }) => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Dữ liệu dự kiến phát hành</CardTitle>
+          <CardTitle>Thông tin sẽ công khai sau khi duyệt</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-5 sm:grid-cols-2">
           {channels.avatarUrl ? (
@@ -138,11 +111,7 @@ const RevisionFacts = ({ detail }: { detail: RevisionDetail }) => {
             </div>
           ) : null}
           <DetailField
-            label="Lời nhắn / Ghi chú"
-            value={displayValue(channels.note)}
-          />
-          <DetailField
-            label="Dịch vụ & STK công khai"
+            label="Dịch vụ cung cấp"
             value={displayValue(revision.services)}
           />
           <DetailField
@@ -150,17 +119,20 @@ const RevisionFacts = ({ detail }: { detail: RevisionDetail }) => {
             value={displayValue(channels.facebookUrl)}
           />
           <DetailField
-            label="Facebook UID"
-            value={displayValue(channels.facebookId)}
+            label="Hotline / Zalo"
+            value={`${displayValue(channels.hotline)} · ${displayValue(channels.zalo)}`}
           />
-          <DetailField label="Zalo" value={displayValue(channels.zalo)} />
           <DetailField
             label="Nhóm Telegram"
             value={displayValue(channels.telegramCommunityUrl)}
           />
           <DetailField
-            label="Bio Shop"
-            value={displayValue(channels.bioShop)}
+            label="TikTok"
+            value={displayValue(channels.tiktokUrl)}
+          />
+          <DetailField
+            label="YouTube"
+            value={displayValue(channels.youtubeUrl)}
           />
           <DetailField
             label="Website"
@@ -171,29 +143,25 @@ const RevisionFacts = ({ detail }: { detail: RevisionDetail }) => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Tài khoản thanh toán đã đăng ký</CardTitle>
+          <CardTitle>Tài khoản ngân hàng đã đăng ký</CardTitle>
           <CardDescription>
-            Dữ liệu này chỉ dùng cho re-verification, không đưa vào public
-            version.
+            Các số tài khoản được công khai sau khi revision được duyệt.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-5 sm:grid-cols-2">
-          <DetailField
-            label="Loại"
-            value={displayValue(payment?.accountType)}
-          />
-          <DetailField
-            label="Tổ chức"
-            value={displayValue(payment?.institution)}
-          />
-          <DetailField
-            label="Tên tài khoản"
-            value={displayValue(payment?.accountName)}
-          />
-          <DetailField
-            label="Số tài khoản (che một phần)"
-            value={maskAccountNumber(payment?.accountNumber)}
-          />
+        <CardContent className="grid gap-3">
+          {(revision.registeredBankAccounts ?? []).map((account) => (
+            <div
+              className="rounded-xl border p-3"
+              key={`${account.bankCode}-${account.accountNumber}`}
+            >
+              <p className="font-medium text-sm">{account.accountName}</p>
+              <p className="font-mono text-sm">{account.accountNumber}</p>
+              <p className="text-muted-foreground text-xs">
+                {account.bankCode}
+                {account.isPrimary ? " · Tài khoản chính" : ""}
+              </p>
+            </div>
+          ))}
         </CardContent>
       </Card>
 

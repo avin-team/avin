@@ -22,7 +22,8 @@ vi.mock("./provider-application-service", () => ({
     mocks.publishProviderProfileStatusInTransaction,
 }));
 
-const { enforceProtectionPolicyDeadlines } = await import("./policy-service");
+const { enforceProtectionPolicyDeadlines, getPublicCurrentProtectionPolicy } =
+  await import("./policy-service");
 
 type PolicyRow = typeof protectionPolicyVersion.$inferSelect;
 type ApplicationRow = typeof protectionProviderApplication.$inferSelect;
@@ -44,8 +45,8 @@ const policy = {
     changedAreas: ["support eligibility"],
     rationale: "Clarify the support eligibility process.",
   },
-  membershipFeeAmount: 3_000_000,
-  minimumBondAmount: 30_000_000,
+  membershipFeeAmount: 0,
+  minimumBondAmount: 1_000_000,
   publishedAt: new Date("2026-09-01T00:00:00.000Z"),
   publishedByUserId: "admin-1",
   reacceptDeadlineAt: new Date("2026-10-01T00:00:00.000Z"),
@@ -149,5 +150,26 @@ describe("Protection policy enforcement", () => {
         eventType: "protection_provider_policy.suspended",
       })
     );
+  });
+});
+
+describe("Public protection policy", () => {
+  it("returns only the public fields from the current policy", async () => {
+    const result = await getPublicCurrentProtectionPolicy(
+      createDatabase(),
+      now
+    );
+
+    expect(result).toEqual({
+      effectiveAt: policy.effectiveAt.toISOString(),
+      membershipFeeAmount: policy.membershipFeeAmount,
+      minimumBondAmount: policy.minimumBondAmount,
+      summary: policy.summary,
+      terms: policy.terms,
+      title: policy.title,
+      version: policy.version,
+    });
+    expect(result).not.toHaveProperty("publishedByUserId");
+    expect(result).not.toHaveProperty("retentionPolicyReference");
   });
 });

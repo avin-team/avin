@@ -1,6 +1,6 @@
 import { Alert, AlertDescription, AlertTitle } from "@avin/ui/components/alert";
 import { Badge } from "@avin/ui/components/badge";
-import { Button } from "@avin/ui/components/button";
+import { Button, buttonVariants } from "@avin/ui/components/button";
 import {
   Card,
   CardContent,
@@ -8,9 +8,28 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
-import { Input } from "@avin/ui/components/input";
-import { MagnifyingGlassIcon, ShieldCheckIcon } from "@phosphor-icons/react";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@avin/ui/components/empty";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@avin/ui/components/input-group";
+import { Spinner } from "@avin/ui/components/spinner";
+import {
+  ArrowRightIcon,
+  BuildingsIcon,
+  MagnifyingGlassIcon,
+  ShieldCheckIcon,
+} from "@phosphor-icons/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import type { FormEvent } from "react";
 
@@ -20,24 +39,42 @@ import { orpc } from "@/utils/orpc";
 const providerDateFormatter = new Intl.DateTimeFormat("vi-VN", {
   dateStyle: "medium",
 });
+const providerMoneyFormatter = new Intl.NumberFormat("vi-VN");
 
 const formatDate = (value: string): string =>
   providerDateFormatter.format(new Date(value));
+
+const TIER_LABELS = {
+  BRONZE: "Đồng",
+  DIAMOND: "Kim cương",
+  GOLD: "Vàng",
+  NORMAL: "Normal",
+  SILVER: "Bạc",
+  VIP: "VIP",
+} as const;
 
 const ProviderDirectoryCard = ({
   provider,
 }: {
   provider: {
     displayName: string;
+    location: string;
     officialChannels: {
       facebookUrl?: string;
+      hotline?: string;
+      telegramCommunityUrl?: string;
+      tiktokUrl?: string;
       websiteUrl?: string;
+      youtubeUrl?: string;
       zalo?: string;
     };
     profileSlug: string;
     publicUrl: string;
     publishedAt: string;
+    recommendedTransactionLimit: number;
+    recognizedBondAmount: number;
     services: string;
+    tier: string;
     verifiedAt: string;
   };
 }) => (
@@ -47,7 +84,8 @@ const ProviderDirectoryCard = ({
         <div>
           <CardTitle>{provider.displayName}</CardTitle>
           <CardDescription className="mt-1">
-            Đã xác minh {formatDate(provider.verifiedAt)}
+            {provider.location || "Địa điểm chưa cập nhật"} · Đã xác minh{" "}
+            {formatDate(provider.verifiedAt)}
           </CardDescription>
         </div>
         <Badge className="shrink-0" variant="outline">
@@ -59,12 +97,32 @@ const ProviderDirectoryCard = ({
       <p className="whitespace-pre-wrap text-sm leading-6">
         {provider.services}
       </p>
+      <div className="flex flex-wrap gap-2 text-xs">
+        {provider.tier === "NORMAL" ? (
+          <span className="py-1 text-muted-foreground">Normal</span>
+        ) : (
+          <Badge variant="secondary">
+            Hạng{" "}
+            {TIER_LABELS[provider.tier as keyof typeof TIER_LABELS] ??
+              provider.tier}
+          </Badge>
+        )}
+        <Badge variant="secondary">
+          Bond {providerMoneyFormatter.format(provider.recognizedBondAmount)} ₫
+        </Badge>
+        <Badge variant="secondary">
+          Khuyến nghị ≤{" "}
+          {providerMoneyFormatter.format(provider.recommendedTransactionLimit)}{" "}
+          ₫
+        </Badge>
+      </div>
       <div className="mt-auto flex flex-wrap gap-x-4 gap-y-2 text-sm">
         <a
-          className="font-medium text-primary underline underline-offset-4"
+          className="inline-flex items-center gap-1 font-medium text-primary underline underline-offset-4"
           href={provider.publicUrl}
         >
-          Xem profile ổn định
+          Xem hồ sơ
+          <ArrowRightIcon aria-hidden="true" />
         </a>
         {provider.officialChannels.facebookUrl ? (
           <a
@@ -86,10 +144,29 @@ const ProviderDirectoryCard = ({
             Website
           </a>
         ) : null}
+        {provider.officialChannels.tiktokUrl ? (
+          <a
+            className="text-muted-foreground underline underline-offset-4"
+            href={provider.officialChannels.tiktokUrl}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            TikTok
+          </a>
+        ) : null}
+        {provider.officialChannels.youtubeUrl ? (
+          <a
+            className="text-muted-foreground underline underline-offset-4"
+            href={provider.officialChannels.youtubeUrl}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            YouTube
+          </a>
+        ) : null}
       </div>
       <p className="text-muted-foreground text-xs">
-        Cập nhật profile: {formatDate(provider.publishedAt)} ·{" "}
-        {provider.profileSlug}
+        Hồ sơ được cập nhật ngày {formatDate(provider.publishedAt)}
       </p>
     </CardContent>
   </Card>
@@ -121,105 +198,137 @@ export const ProviderDirectoryPage = () => {
   };
 
   return (
-    <Shell as="div" className="gap-8" variant="default">
+    <Shell as="div" className="gap-6" variant="default">
       <section
         aria-labelledby="provider-directory-heading"
-        className="rounded-[2rem] border border-primary/20 bg-linear-to-br from-primary/10 via-card to-card px-6 py-10 shadow-sm sm:px-10"
+        className="rounded-3xl border border-primary/20 bg-linear-to-r from-primary/8 via-card to-card px-5 py-5 shadow-sm sm:px-6"
       >
-        <Badge className="mb-4 gap-1.5" variant="outline">
-          <ShieldCheckIcon aria-hidden="true" />
-          Avin Check · Directory
-        </Badge>
-        <h1
-          className="font-black text-4xl tracking-tight sm:text-5xl"
-          id="provider-directory-heading"
-        >
-          Tìm Đối tác Avin đã được xem xét.
-        </h1>
-        <p className="mt-4 max-w-3xl text-muted-foreground leading-7">
-          Duyệt các profile đang hoạt động hoặc tìm chính xác theo tên,
-          Facebook, Zalo/số điện thoại, tài khoản thanh toán hay nội dung dịch
-          vụ đã được Reviewer phê duyệt.
-        </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <Badge className="mb-2 gap-1.5" variant="outline">
+              <ShieldCheckIcon aria-hidden="true" /> Đối tác Avin
+            </Badge>
+            <h1
+              className="font-bold text-2xl tracking-tight sm:text-3xl"
+              id="provider-directory-heading"
+            >
+              Tìm đối tác đã xác minh
+            </h1>
+            <p className="mt-1 text-muted-foreground text-sm">
+              Tìm theo tên, dịch vụ, địa điểm, số tài khoản, hotline hoặc kênh
+              mạng xã hội.
+            </p>
+          </div>
+          <Link
+            className={buttonVariants({ size: "sm", variant: "outline" })}
+            to="/avin-check/apply"
+          >
+            Đăng ký đối tác
+            <ArrowRightIcon aria-hidden="true" data-icon="inline-end" />
+          </Link>
+        </div>
+
         <form
-          className="mt-7 flex flex-col gap-3 sm:flex-row"
+          className="mt-4 flex max-w-3xl flex-col gap-2 sm:flex-row"
           onSubmit={handleSearch}
         >
           <label className="sr-only" htmlFor="provider-directory-search">
-            Tìm Provider
+            Tên, STK hoặc kênh liên hệ
           </label>
-          <div className="relative flex-1">
-            <MagnifyingGlassIcon
-              aria-hidden="true"
-              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-            />
-            <Input
+          <InputGroup className="h-10 flex-1 bg-background/80">
+            <InputGroupInput
               autoComplete="off"
-              className="h-11 pl-9"
               id="provider-directory-search"
               maxLength={200}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Tên, Facebook URL/ID, Zalo, số tài khoản hoặc dịch vụ"
-              spellCheck="false"
+              placeholder="Nhập tên, STK, hotline, Zalo..."
               value={query}
             />
-          </div>
+            <InputGroupAddon>
+              <MagnifyingGlassIcon aria-hidden="true" />
+            </InputGroupAddon>
+          </InputGroup>
           <Button
-            className="h-11 sm:px-6"
+            className="h-10 sm:px-5"
             disabled={searchMutation.isPending || !query.trim()}
             type="submit"
           >
-            {searchMutation.isPending ? "Đang tìm..." : "Tìm chính xác"}
+            {searchMutation.isPending ? (
+              <>
+                <Spinner data-icon="inline-start" />
+                Đang tìm...
+              </>
+            ) : (
+              "Tìm đối tác"
+            )}
           </Button>
         </form>
-        <p className="mt-3 text-muted-foreground text-xs">
-          Tra cứu tài khoản thanh toán chỉ đối chiếu chính xác; hệ thống không
-          fuzzy-match hoặc lưu giá trị tìm kiếm vào URL/autocomplete.
-        </p>
       </section>
 
       {searchMutation.isError ? (
-        <Alert className="border-amber-500/30 bg-amber-500/5" role="alert">
-          <AlertTitle>Không thể hoàn tất tra cứu</AlertTitle>
+        <Alert role="alert">
+          <AlertTitle>Chưa thể tìm đối tác</AlertTitle>
           <AlertDescription>
-            Vui lòng thử lại sau. Vì lý do riêng tư, giá trị tìm kiếm không được
-            ghi vào thông báo lỗi.
+            Hệ thống đang gặp sự cố. Vui lòng thử lại sau ít phút.
           </AlertDescription>
         </Alert>
       ) : null}
 
       <section aria-labelledby="provider-directory-results-heading">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="font-medium text-primary text-sm">
-              Provider đang hoạt động
-            </p>
-            <h2
-              className="font-bold text-3xl tracking-tight"
-              id="provider-directory-results-heading"
-            >
-              {isSearchActive ? "Kết quả tra cứu" : "Directory công khai"}
-            </h2>
-          </div>
+          <h2
+            className="font-bold text-2xl tracking-tight sm:text-3xl"
+            id="provider-directory-results-heading"
+          >
+            {isSearchActive ? "Kết quả tìm kiếm" : "Đối tác đã xác minh"}
+          </h2>
           <p aria-live="polite" className="text-muted-foreground text-sm">
             {directoryQuery.isPending || searchMutation.isPending
               ? "Đang tải..."
-              : `${providers.length} profile`}
+              : `${providers.length} đối tác`}
           </p>
         </div>
 
         {directoryQuery.isError && !isSearchActive ? (
-          <p className="mt-6 rounded-2xl border border-destructive/30 p-5 text-sm">
-            Không thể tải Directory lúc này. Vui lòng thử lại sau.
-          </p>
+          <Alert className="mt-6" role="alert">
+            <AlertTitle>Chưa thể tải danh sách đối tác</AlertTitle>
+            <AlertDescription>Vui lòng thử lại sau ít phút.</AlertDescription>
+          </Alert>
         ) : null}
 
         {!directoryQuery.isPending &&
         !searchMutation.isPending &&
         providers.length === 0 ? (
-          <p className="mt-6 rounded-2xl border border-border/60 p-5 text-muted-foreground text-sm">
-            Không tìm thấy profile phù hợp.
-          </p>
+          <Empty className="mt-6 border">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                {isSearchActive ? (
+                  <MagnifyingGlassIcon aria-hidden="true" />
+                ) : (
+                  <BuildingsIcon aria-hidden="true" />
+                )}
+              </EmptyMedia>
+              <EmptyTitle>
+                {isSearchActive
+                  ? "Chưa tìm thấy đối tác"
+                  : "Chưa có đối tác công khai"}
+              </EmptyTitle>
+              <EmptyDescription>
+                {isSearchActive
+                  ? "Hãy kiểm tra lại tên hoặc thử với một phần tên ngắn hơn."
+                  : "Bạn có thể đăng ký để trở thành đối tác đầu tiên xuất hiện tại đây."}
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <Link
+                className={buttonVariants({ variant: "outline" })}
+                to="/avin-check/apply"
+              >
+                Đăng ký đối tác
+                <ArrowRightIcon aria-hidden="true" data-icon="inline-end" />
+              </Link>
+            </EmptyContent>
+          </Empty>
         ) : null}
 
         <div className="mt-6 grid gap-4 md:grid-cols-2">

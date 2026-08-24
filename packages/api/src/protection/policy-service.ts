@@ -100,8 +100,11 @@ const findPolicyAcceptance = async (
 };
 
 const toAdminProtectionPolicyVersionView = (policy: PolicyVersion) => ({
+  bronzeMinimumBondAmount: policy.bronzeMinimumBondAmount,
   createdAt: policy.createdAt.toISOString(),
+  diamondMinimumBondAmount: policy.diamondMinimumBondAmount,
   effectiveAt: policy.effectiveAt.toISOString(),
+  goldMinimumBondAmount: policy.goldMinimumBondAmount,
   id: policy.id,
   materialChange: policy.materialChange,
   materialChangeMetadata: policy.materialChangeMetadata,
@@ -110,11 +113,32 @@ const toAdminProtectionPolicyVersionView = (policy: PolicyVersion) => ({
   publishedAt: policy.publishedAt.toISOString(),
   publishedByUserId: policy.publishedByUserId,
   reacceptDeadlineAt: toIso(policy.reacceptDeadlineAt),
+  recommendedLimitPercentage: policy.recommendedLimitPercentage,
+  recommendedLimitRounding: policy.recommendedLimitRounding,
   retentionPolicyReference: policy.retentionPolicyReference,
+  silverMinimumBondAmount: policy.silverMinimumBondAmount,
   summary: policy.summary,
   terms: policy.terms,
   title: policy.title,
   version: policy.version,
+  vipMinimumBondAmount: policy.vipMinimumBondAmount,
+});
+
+const toPublicProtectionPolicyVersionView = (policy: PolicyVersion) => ({
+  bronzeMinimumBondAmount: policy.bronzeMinimumBondAmount,
+  diamondMinimumBondAmount: policy.diamondMinimumBondAmount,
+  effectiveAt: policy.effectiveAt.toISOString(),
+  goldMinimumBondAmount: policy.goldMinimumBondAmount,
+  membershipFeeAmount: policy.membershipFeeAmount,
+  minimumBondAmount: policy.minimumBondAmount,
+  recommendedLimitPercentage: policy.recommendedLimitPercentage,
+  recommendedLimitRounding: policy.recommendedLimitRounding,
+  silverMinimumBondAmount: policy.silverMinimumBondAmount,
+  summary: policy.summary,
+  terms: policy.terms,
+  title: policy.title,
+  version: policy.version,
+  vipMinimumBondAmount: policy.vipMinimumBondAmount,
 });
 
 const toProviderProtectionPolicyView = ({
@@ -150,7 +174,10 @@ const toProviderProtectionPolicyView = ({
     acceptanceOverdue,
     accepted,
     acceptedAt: toIso(acceptedAt),
+    bronzeMinimumBondAmount: policy.bronzeMinimumBondAmount,
+    diamondMinimumBondAmount: policy.diamondMinimumBondAmount,
     effectiveAt: policy.effectiveAt.toISOString(),
+    goldMinimumBondAmount: policy.goldMinimumBondAmount,
     id: policy.id,
     materialChange: policy.materialChange,
     materialChangeMetadata: policy.materialChangeMetadata,
@@ -158,11 +185,15 @@ const toProviderProtectionPolicyView = ({
     minimumBondAmount: policy.minimumBondAmount,
     profileStatus,
     reacceptDeadlineAt: toIso(policy.reacceptDeadlineAt),
+    recommendedLimitPercentage: policy.recommendedLimitPercentage,
+    recommendedLimitRounding: policy.recommendedLimitRounding,
     requiresReacceptance: policy.materialChange && !accepted,
+    silverMinimumBondAmount: policy.silverMinimumBondAmount,
     summary: policy.summary,
     terms: policy.terms,
     title: policy.title,
     version: policy.version,
+    vipMinimumBondAmount: policy.vipMinimumBondAmount,
   };
 };
 
@@ -170,6 +201,14 @@ export const getCurrentProtectionPolicyVersion = (
   database: Database,
   now = new Date()
 ) => findCurrentProtectionPolicyVersion(database, now);
+
+export const getPublicCurrentProtectionPolicy = async (
+  database: Database,
+  now = new Date()
+) => {
+  const policy = await findCurrentProtectionPolicyVersion(database, now);
+  return policy ? toPublicProtectionPolicyVersionView(policy) : null;
+};
 
 export const getAdminProtectionPolicyVersion = async (
   database: Database,
@@ -221,18 +260,25 @@ export const publishProtectionPolicyVersion = async ({
   const [created] = await database
     .insert(protectionPolicyVersion)
     .values({
+      bronzeMinimumBondAmount: parsedInput.bronzeMinimumBondAmount,
+      diamondMinimumBondAmount: parsedInput.diamondMinimumBondAmount,
       effectiveAt: parsedInput.effectiveAt,
+      goldMinimumBondAmount: parsedInput.goldMinimumBondAmount,
       materialChange: parsedInput.materialChange,
       materialChangeMetadata: parsedInput.materialChangeMetadata,
       membershipFeeAmount: parsedInput.membershipFeeAmount,
       minimumBondAmount: parsedInput.minimumBondAmount,
       publishedByUserId: publisherUserId,
       reacceptDeadlineAt: parsedInput.reacceptDeadlineAt ?? null,
+      recommendedLimitPercentage: parsedInput.recommendedLimitPercentage,
+      recommendedLimitRounding: parsedInput.recommendedLimitRounding,
       retentionPolicyReference: parsedInput.retentionPolicyReference,
+      silverMinimumBondAmount: parsedInput.silverMinimumBondAmount,
       summary: parsedInput.summary,
       terms: parsedInput.terms,
       title: parsedInput.title,
       version: parsedInput.version,
+      vipMinimumBondAmount: parsedInput.vipMinimumBondAmount,
     })
     .returning();
 

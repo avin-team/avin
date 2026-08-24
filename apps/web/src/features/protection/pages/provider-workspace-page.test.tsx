@@ -21,9 +21,14 @@ vi.mock("@tanstack/react-router", () => ({
 
 vi.mock("@/features/protection/api/provider-api", () => ({
   useProviderApplicationActions: () => ({
+    createDepositIntent: { isPending: false, mutateAsync: vi.fn() },
     saveDraft: { isPending: false, mutateAsync: vi.fn() },
     submit: { isPending: false, mutateAsync: vi.fn() },
   }),
+  useProviderBondActions: () => ({
+    createTopUpIntent: { isPending: false, mutateAsync: vi.fn() },
+  }),
+  useProviderDepositIntent: () => ({ data: null, isPending: false }),
   useProviderProfileRevisionActions: () => ({
     saveDraft: { isPending: false, mutateAsync: vi.fn() },
     start: { isPending: false, mutateAsync: vi.fn() },
@@ -67,11 +72,9 @@ describe("ProviderWorkspacePage", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Quay lại" })).toBeInTheDocument();
     expect(
-      screen.getByRole("tab", { name: "1. Thông tin cá nhân" })
+      screen.getByRole("tab", { name: "1. Thông tin & liên hệ" })
     ).toBeInTheDocument();
-    expect(
-      screen.getByText("2. Tài khoản đối soát & Cam kết")
-    ).toBeInTheDocument();
-    expect(screen.getByText("Avin Check Certified")).toBeInTheDocument();
+    expect(screen.getByText("2. Bond & cam kết")).toBeInTheDocument();
+    expect(screen.getByText("Đăng ký đối tác")).toBeInTheDocument();
   });
 });

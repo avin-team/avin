@@ -1,6 +1,5 @@
 import {
   boolean,
-  date,
   index,
   integer,
   jsonb,
@@ -140,6 +139,34 @@ export const protectionProviderBondAdjustmentStatus = pgEnum(
   ["APPLIED", "PENDING_APPROVAL", "REJECTED"]
 );
 
+export const protectionProviderTier = pgEnum("protection_provider_tier", [
+  "NORMAL",
+  "BRONZE",
+  "SILVER",
+  "GOLD",
+  "DIAMOND",
+  "VIP",
+]);
+
+export type ProviderTier = (typeof protectionProviderTier.enumValues)[number];
+
+export const protectionProviderDepositIntentStatus = pgEnum(
+  "protection_provider_deposit_intent_status",
+  [
+    "PENDING",
+    "MATCHED",
+    "MANUAL_REVIEW",
+    "EXPIRED",
+    "REFUND_PENDING",
+    "REFUNDED",
+  ]
+);
+
+export const protectionProviderDepositIntentKind = pgEnum(
+  "protection_provider_deposit_intent_kind",
+  ["APPLICATION", "TOP_UP"]
+);
+
 export interface ProtectionPolicyMaterialChangeMetadata {
   changedAreas: string[];
   rationale: string;
@@ -193,14 +220,16 @@ export const protectionSupportTransactionScope = pgEnum(
   ]
 );
 
+const providerChannelUrl = z.string().trim().url().max(2000);
+
 export const providerOfficialChannelsSchema = z.object({
-  avatarUrl: z.string().trim().max(2000).optional(),
-  bioShop: z.string().trim().max(200).optional(),
-  facebookId: z.string().trim().max(200).optional(),
-  facebookUrl: z.string().trim().max(2000).optional(),
-  note: z.string().trim().max(500).optional(),
-  telegramCommunityUrl: z.string().trim().max(2000).optional(),
-  websiteUrl: z.string().trim().max(2000).optional(),
+  avatarUrl: providerChannelUrl.optional(),
+  facebookUrl: providerChannelUrl.optional(),
+  hotline: z.string().trim().max(100).optional(),
+  telegramCommunityUrl: providerChannelUrl.optional(),
+  tiktokUrl: providerChannelUrl.optional(),
+  websiteUrl: providerChannelUrl.optional(),
+  youtubeUrl: providerChannelUrl.optional(),
   zalo: z.string().trim().max(100).optional(),
 });
 
@@ -208,22 +237,52 @@ export type ProviderOfficialChannels = z.infer<
   typeof providerOfficialChannelsSchema
 >;
 
-export const providerPaymentAccountSchema = z.object({
+export const providerRegisteredBankAccountSchema = z.object({
   accountName: z.string().trim().min(1).max(200),
-  accountNumber: z.string().trim().min(1).max(100),
-  accountType: z.enum(["BANK", "WALLET"]),
-  institution: z.string().trim().min(1).max(200),
+  accountNumber: z
+    .string()
+    .trim()
+    .regex(/^\d{4,30}$/u),
+  bankCode: z.string().trim().min(2).max(50),
+  isPrimary: z.boolean(),
 });
 
-export type ProviderPaymentAccount = z.infer<
-  typeof providerPaymentAccountSchema
+export type ProviderRegisteredBankAccount = z.infer<
+  typeof providerRegisteredBankAccountSchema
+>;
+
+export const providerRegisteredBankAccountsSchema = z
+  .array(providerRegisteredBankAccountSchema)
+  .min(1)
+  .max(10)
+  .superRefine((accounts, context) => {
+    const primaryCount = accounts.filter((account) => account.isPrimary).length;
+    if (primaryCount !== 1) {
+      context.addIssue({
+        code: "custom",
+        message: "Exactly one bank account must be marked as primary",
+      });
+    }
+  });
+
+export type ProviderRegisteredBankAccounts = z.infer<
+  typeof providerRegisteredBankAccountsSchema
 >;
 
 export const protectionPolicyVersion = pgTable(
   "protection_policy_version",
   {
+    bronzeMinimumBondAmount: integer("bronze_minimum_bond_amount")
+      .default(5_000_000)
+      .notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
+    diamondMinimumBondAmount: integer("diamond_minimum_bond_amount")
+      .default(50_000_000)
+      .notNull(),
     effectiveAt: timestamp("effective_at").notNull(),
+    goldMinimumBondAmount: integer("gold_minimum_bond_amount")
+      .default(20_000_000)
+      .notNull(),
     id: uuid("id").defaultRandom().primaryKey(),
     materialChange: boolean("material_change").notNull(),
     materialChangeMetadata: jsonb("material_change_metadata")
@@ -236,11 +295,23 @@ export const protectionPolicyVersion = pgTable(
       onDelete: "set null",
     }),
     reacceptDeadlineAt: timestamp("reaccept_deadline_at"),
+    recommendedLimitPercentage: integer("recommended_limit_percentage")
+      .default(80)
+      .notNull(),
+    recommendedLimitRounding: integer("recommended_limit_rounding")
+      .default(100_000)
+      .notNull(),
     retentionPolicyReference: text("retention_policy_reference").notNull(),
+    silverMinimumBondAmount: integer("silver_minimum_bond_amount")
+      .default(10_000_000)
+      .notNull(),
     summary: text("summary").notNull(),
     terms: text("terms").notNull(),
     title: text("title").notNull(),
     version: text("version").notNull().unique(),
+    vipMinimumBondAmount: integer("vip_minimum_bond_amount")
+      .default(100_000_000)
+      .notNull(),
   },
   (table) => [
     index("protection_policy_version_effective_idx").on(table.effectiveAt),
@@ -287,23 +358,18 @@ export const protectionPilotInvitation = pgTable(
 export const protectionProviderApplication = pgTable(
   "protection_provider_application",
   {
-    ageEvidenceReference: text("age_evidence_reference"),
+    bondAmount: integer("bond_amount"),
+    citizenIdCiphertext: text("citizen_id_ciphertext"),
+    citizenIdHash: text("citizen_id_hash"),
+    citizenIdLast4: text("citizen_id_last4"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
+    depositIntentId: uuid("deposit_intent_id"),
     fullName: text("full_name"),
     id: uuid("id").defaultRandom().primaryKey(),
     identityEvidenceReference: text("identity_evidence_reference"),
-    officialChannelEvidenceReference: text(
-      "official_channel_evidence_reference"
-    ),
+    location: text("location"),
     officialChannels:
       jsonb("official_channels").$type<ProviderOfficialChannels>(),
-    operatingHistoryEvidenceReference: text(
-      "operating_history_evidence_reference"
-    ),
-    operatingSince: date("operating_since", { mode: "string" }),
-    paymentAccount: jsonb("payment_account").$type<ProviderPaymentAccount>(),
-    paymentDisclosureConsent: boolean("payment_disclosure_consent"),
-    paymentEvidenceReference: text("payment_evidence_reference"),
     policyAcceptedAt: timestamp("policy_accepted_at"),
     policyVersion: text("policy_version"),
     policyVersionId: uuid("policy_version_id").references(
@@ -314,6 +380,13 @@ export const protectionProviderApplication = pgTable(
       .notNull()
       .unique()
       .references(() => user.id, { onDelete: "cascade" }),
+    publicDataConsent: boolean("public_data_consent"),
+    recognizedBondAmount: integer("recognized_bond_amount")
+      .default(0)
+      .notNull(),
+    registeredBankAccounts: jsonb(
+      "registered_bank_accounts"
+    ).$type<ProviderRegisteredBankAccounts>(),
     reviewReason: text("review_reason"),
     reviewedAt: timestamp("reviewed_at"),
     reviewedByUserId: text("reviewed_by_user_id").references(() => user.id, {
@@ -331,6 +404,10 @@ export const protectionProviderApplication = pgTable(
       .notNull(),
   },
   (table) => [
+    index("protection_provider_application_citizen_hash_idx").on(
+      table.citizenIdHash
+    ),
+    index("protection_provider_application_location_idx").on(table.location),
     index("protection_provider_application_status_idx").on(table.status),
     index("protection_provider_application_submitted_idx").on(
       table.submittedAt
@@ -353,6 +430,7 @@ export const protectionProviderProfile = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
     displayName: text("display_name").notNull(),
     id: uuid("id").defaultRandom().primaryKey(),
+    location: text("location").default("Chưa cập nhật").notNull(),
     officialChannels: jsonb("official_channels")
       .$type<ProviderOfficialChannels>()
       .notNull(),
@@ -385,10 +463,10 @@ export const protectionProviderProfileVersion = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
     displayName: text("display_name").notNull(),
     id: uuid("id").defaultRandom().primaryKey(),
+    location: text("location").default("Chưa cập nhật").notNull(),
     officialChannels: jsonb("official_channels")
       .$type<ProviderOfficialChannels>()
       .notNull(),
-    paymentAccount: jsonb("payment_account").$type<ProviderPaymentAccount>(),
     policyVersionId: uuid("policy_version_id").references(
       () => protectionPolicyVersion.id,
       { onDelete: "restrict" }
@@ -403,8 +481,15 @@ export const protectionProviderProfileVersion = pgTable(
     publishedByUserId: text("published_by_user_id").references(() => user.id, {
       onDelete: "set null",
     }),
+    recognizedBondAmount: integer("recognized_bond_amount")
+      .default(0)
+      .notNull(),
     recommendedTransactionLimit: integer("recommended_transaction_limit")
       .default(0)
+      .notNull(),
+    registeredBankAccounts: jsonb("registered_bank_accounts")
+      .$type<ProviderRegisteredBankAccounts>()
+      .default([])
       .notNull(),
     services: text("services").notNull(),
     sourceApplicationId: uuid("source_application_id").references(
@@ -413,6 +498,7 @@ export const protectionProviderProfileVersion = pgTable(
     ),
     status: protectionProviderProfileStatus("status").notNull(),
     statusReason: text("status_reason"),
+    tier: protectionProviderTier("tier").default("NORMAL").notNull(),
     verifiedAt: timestamp("verified_at").defaultNow().notNull(),
     versionNumber: integer("version_number").notNull(),
   },
@@ -428,28 +514,21 @@ export const protectionProviderProfileVersion = pgTable(
 export const protectionProviderProfileRevision = pgTable(
   "protection_provider_profile_revision",
   {
-    ageEvidenceReference: text("age_evidence_reference"),
     baseVersionId: uuid("base_version_id")
       .notNull()
       .references(() => protectionProviderProfileVersion.id, {
         onDelete: "restrict",
       }),
+    citizenIdCiphertext: text("citizen_id_ciphertext"),
+    citizenIdHash: text("citizen_id_hash"),
+    citizenIdLast4: text("citizen_id_last4"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     fullName: text("full_name"),
     id: uuid("id").defaultRandom().primaryKey(),
     identityEvidenceReference: text("identity_evidence_reference"),
-    officialChannelEvidenceReference: text(
-      "official_channel_evidence_reference"
-    ),
+    location: text("location"),
     officialChannels:
       jsonb("official_channels").$type<ProviderOfficialChannels>(),
-    operatingHistoryEvidenceReference: text(
-      "operating_history_evidence_reference"
-    ),
-    operatingSince: date("operating_since", { mode: "string" }),
-    paymentAccount: jsonb("payment_account").$type<ProviderPaymentAccount>(),
-    paymentDisclosureConsent: boolean("payment_disclosure_consent"),
-    paymentEvidenceReference: text("payment_evidence_reference"),
     policyAcceptedAt: timestamp("policy_accepted_at"),
     policyVersion: text("policy_version"),
     policyVersionId: uuid("policy_version_id").references(
@@ -464,6 +543,10 @@ export const protectionProviderProfileRevision = pgTable(
     providerUserId: text("provider_user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
+    publicDataConsent: boolean("public_data_consent"),
+    registeredBankAccounts: jsonb(
+      "registered_bank_accounts"
+    ).$type<ProviderRegisteredBankAccounts>(),
     reviewReason: text("review_reason"),
     reviewedAt: timestamp("reviewed_at"),
     reviewedByUserId: text("reviewed_by_user_id").references(() => user.id, {
@@ -488,6 +571,70 @@ export const protectionProviderProfileRevision = pgTable(
     index("protection_provider_profile_revision_status_idx").on(table.status),
     index("protection_provider_profile_revision_submitted_idx").on(
       table.submittedAt
+    ),
+  ]
+);
+
+export const protectionProviderDepositIntent = pgTable(
+  "protection_provider_deposit_intent",
+  {
+    amount: integer("amount").notNull(),
+    applicationId: uuid("application_id").references(
+      () => protectionProviderApplication.id,
+      { onDelete: "set null" }
+    ),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    kind: protectionProviderDepositIntentKind("kind").notNull(),
+    manualReason: text("manual_reason"),
+    matchedAmount: integer("matched_amount"),
+    matchedAt: timestamp("matched_at"),
+    matchedEventId: text("matched_event_id"),
+    matchedSourceEventIds: jsonb("matched_source_event_ids")
+      .$type<string[]>()
+      .default([])
+      .notNull(),
+    paymentCode: text("payment_code").notNull().unique(),
+    policyVersionId: uuid("policy_version_id").references(
+      () => protectionPolicyVersion.id,
+      { onDelete: "restrict" }
+    ),
+    profileId: uuid("profile_id").references(
+      () => protectionProviderProfile.id,
+      { onDelete: "set null" }
+    ),
+    providerUserId: text("provider_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    refundBankReference: text("refund_bank_reference"),
+    refundDestination: text("refund_destination"),
+    refundedAt: timestamp("refunded_at"),
+    status: protectionProviderDepositIntentStatus("status")
+      .default("PENDING")
+      .notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("protection_provider_deposit_intent_application_idx").on(
+      table.applicationId,
+      table.createdAt
+    ),
+    index("protection_provider_deposit_intent_profile_idx").on(
+      table.profileId,
+      table.createdAt
+    ),
+    index("protection_provider_deposit_intent_provider_status_idx").on(
+      table.providerUserId,
+      table.status,
+      table.createdAt
+    ),
+    index("protection_provider_deposit_intent_expiry_idx").on(
+      table.status,
+      table.expiresAt
     ),
   ]
 );

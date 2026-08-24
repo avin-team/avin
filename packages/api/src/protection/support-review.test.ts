@@ -53,6 +53,7 @@ const createProfile = (): ProfileRow => ({
   createdAt: timestamp,
   displayName: "Provider One",
   id: profileId,
+  location: "Ho Chi Minh City",
   officialChannels: { facebookUrl: "https://facebook.com/provider-one" },
   profileSlug: "provider-one",
   providerUserId: "provider-1",
@@ -73,23 +74,28 @@ const createVersion = (
   createdAt: publishedAt,
   displayName: "Provider One",
   id,
+  location: "Ho Chi Minh City",
   officialChannels: { facebookUrl: "https://facebook.com/provider-one" },
-  paymentAccount: {
-    accountName: "PROVIDER ONE",
-    accountNumber: "123456",
-    accountType: "BANK",
-    institution: "Avin Bank",
-  },
   policyVersionId: null,
   profileId,
   profileSlug: "provider-one",
   publishedAt,
   publishedByUserId: "admin-1",
+  recognizedBondAmount: 0,
   recommendedTransactionLimit,
+  registeredBankAccounts: [
+    {
+      accountName: "PROVIDER ONE",
+      accountNumber: "123456",
+      bankCode: "VCB",
+      isPrimary: true,
+    },
+  ],
   services: "Game account support",
   sourceApplicationId: "application-1",
   status: "ACTIVE",
   statusReason: null,
+  tier: "NORMAL",
   verifiedAt: publishedAt,
   versionNumber,
 });
@@ -446,7 +452,7 @@ describe("Support Review service", () => {
     expect(review.transactionProfileVersionId).toBe(versionOneId);
   });
 
-  it("requires a distinct approver for a Bond-backed support outcome", async () => {
+  it("allows SUPER_ADMIN to complete a Bond-backed support outcome", async () => {
     const state = createState("UNDER_REVIEW");
     state.review = {
       ...createReview("ELIGIBLE"),
@@ -492,20 +498,8 @@ describe("Support Review service", () => {
       })
     );
 
-    await expect(
-      approveSupportReview({
-        approverUserId: "operator-1",
-        database,
-        input: {
-          decision: "APPROVED",
-          reason: "Không được tự duyệt outcome do chính mình ghi.",
-          reviewId,
-        },
-      })
-    ).rejects.toMatchObject({ code: "FORBIDDEN" });
-
     const approved = await approveSupportReview({
-      approverUserId: "manager-1",
+      approverUserId: "operator-1",
       database,
       input: {
         decision: "APPROVED",
@@ -515,14 +509,14 @@ describe("Support Review service", () => {
     });
 
     expect(approved.status).toBe("APPROVED");
-    expect(approved.approvedByUserId).toBe("manager-1");
+    expect(approved.approvedByUserId).toBe("operator-1");
     expect(bondServiceMocks.approveProviderBondAdjustment).toHaveBeenCalledWith(
       expect.objectContaining({
         input: expect.objectContaining({
           adjustmentId: "adjustment-1",
           decision: "APPROVED",
         }),
-        reviewerUserId: "manager-1",
+        reviewerUserId: "operator-1",
       })
     );
   });

@@ -30,7 +30,7 @@ const STATUS_LABELS = {
   ELIGIBILITY_REVIEW: "Đang xét điều kiện",
   ELIGIBLE: "Đủ điều kiện, chờ ghi outcome",
   INELIGIBLE: "Không đủ điều kiện",
-  PENDING_APPROVAL: "Chờ Protection Manager duyệt",
+  PENDING_APPROVAL: "Chờ SUPER_ADMIN xử lý",
 } as const;
 
 const OUTCOME_LABELS = {
@@ -366,7 +366,7 @@ const OutcomeForm = ({ review }: { review: SupportReview }) => {
         reviewId: review.id,
         supportAmount: Number(supportAmount),
       });
-      toast.success("Đã ghi outcome và chờ Protection Manager duyệt.");
+      toast.success("Đã ghi outcome và hoàn tất bằng quyền SUPER_ADMIN.");
       setReason("");
     } catch (error) {
       toast.error(
@@ -457,7 +457,7 @@ const OutcomeForm = ({ review }: { review: SupportReview }) => {
         onClick={() => void submit()}
         type="button"
       >
-        {record.isPending ? "Đang ghi..." : "Ghi outcome chờ duyệt"}
+        {record.isPending ? "Đang ghi..." : "Ghi outcome & hoàn tất"}
       </Button>
     </div>
   );
@@ -493,10 +493,10 @@ const ApprovalPanel = ({ review }: { review: SupportReview }) => {
 
   return (
     <div className="grid gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
-      <p className="font-medium text-sm">Dual control</p>
+      <p className="font-medium text-sm">SUPER_ADMIN review</p>
       <p className="text-muted-foreground text-sm">
-        Recorder: {review.outcomeRecordedByUserId ?? "—"}. Người duyệt phải là
-        Protection Manager khác recorder. Avin chỉ ghi sổ, không chuyển tiền.
+        Recorder: {review.outcomeRecordedByUserId ?? "—"}. SUPER_ADMIN kiểm tra
+        và quyết định; Avin chỉ ghi sổ, không chuyển tiền.
       </p>
       <label
         className="grid gap-2 text-sm"

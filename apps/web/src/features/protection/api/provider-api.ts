@@ -15,6 +15,9 @@ export type ProviderBondWithdrawal = NonNullable<
   ProviderWorkspace["bondWithdrawal"]
 >;
 export type ProviderProtectionPolicy = NonNullable<ProviderWorkspace["policy"]>;
+export type ProviderDepositIntent = NonNullable<
+  ProviderWorkspace["depositIntent"]
+>;
 
 export const useProviderWorkspace = () =>
   useQuery(orpc.protection.providerWorkspace.queryOptions());
@@ -32,9 +35,14 @@ export const useProviderNotifications = () =>
 export const useProviderApplicationActions = () => {
   const queryClient = useQueryClient();
   const invalidateWorkspace = async (): Promise<void> => {
-    await queryClient.invalidateQueries({
-      queryKey: orpc.protection.providerWorkspace.queryOptions().queryKey,
-    });
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: orpc.protection.providerWorkspace.queryOptions().queryKey,
+      }),
+      queryClient.invalidateQueries({
+        queryKey: orpc.protection.providerApplication.getDepositIntent.key(),
+      }),
+    ]);
   };
 
   const saveDraft = useMutation({
@@ -45,8 +53,32 @@ export const useProviderApplicationActions = () => {
     ...orpc.protection.providerApplication.submit.mutationOptions(),
     onSuccess: invalidateWorkspace,
   });
+  const createDepositIntent = useMutation({
+    ...orpc.protection.providerApplication.createDepositIntent.mutationOptions(),
+    onSuccess: invalidateWorkspace,
+  });
 
-  return { saveDraft, submit };
+  return { createDepositIntent, saveDraft, submit };
+};
+
+export const useProviderDepositIntent = () =>
+  useQuery({
+    ...orpc.protection.providerApplication.getDepositIntent.queryOptions(),
+    refetchInterval: 5000,
+  });
+
+export const useProviderBondActions = () => {
+  const queryClient = useQueryClient();
+  const invalidateWorkspace = async (): Promise<void> => {
+    await queryClient.invalidateQueries({
+      queryKey: orpc.protection.providerWorkspace.queryOptions().queryKey,
+    });
+  };
+  const createTopUpIntent = useMutation({
+    ...orpc.protection.providerBond.createTopUpIntent.mutationOptions(),
+    onSuccess: invalidateWorkspace,
+  });
+  return { createTopUpIntent };
 };
 
 export const useProviderProfileRevisionActions = () => {

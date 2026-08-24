@@ -12,8 +12,8 @@ const baseInput = {
     changedAreas: ["support eligibility"],
     rationale: "Clarify the support eligibility process.",
   },
-  membershipFeeAmount: 3_000_000,
-  minimumBondAmount: 30_000_000,
+  membershipFeeAmount: 0,
+  minimumBondAmount: 1_000_000,
   reacceptDeadlineAt: "2026-10-01T00:00:00.000Z",
   retentionPolicyReference: "LEGAL_DATA_GOVERNANCE_APPROVAL_REQUIRED",
   summary: "A versioned Provider policy.",
@@ -46,6 +46,15 @@ describe("Protection policy contracts", () => {
         materialChange: false,
       })
     ).toThrow(/only material policy changes/iu);
+  });
+
+  it("keeps the P0 membership fee fixed at zero", () => {
+    expect(() =>
+      protectionPolicyVersionPublishInputSchema.parse({
+        ...baseInput,
+        membershipFeeAmount: 1,
+      })
+    ).toThrow();
   });
 
   it("marks only an unaccepted, material policy past its deadline as overdue", () => {

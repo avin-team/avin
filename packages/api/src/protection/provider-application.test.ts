@@ -8,25 +8,26 @@ import {
 } from "./provider-application";
 
 const validSubmission = {
-  ageEvidenceReference: "evidence/age/provider-1",
+  bondAmount: 5_000_000,
+  citizenIdNumber: "123456789012",
   fullName: "Nguyen Provider",
-  identityEvidenceReference: "evidence/identity/provider-1",
-  officialChannelEvidenceReference: "evidence/channels/provider-1",
+  location: "Ho Chi Minh City",
   officialChannels: {
     facebookUrl: "https://facebook.com/provider-one",
+    hotline: "0901234567",
+    zalo: "0901234567",
   },
-  operatingHistoryEvidenceReference: "evidence/operating/provider-1",
-  operatingSince: "2024-01-01",
-  paymentAccount: {
-    accountName: "NGUYEN PROVIDER",
-    accountNumber: "123456789",
-    accountType: "BANK" as const,
-    institution: "Avin Bank",
-  },
-  paymentDisclosureConsent: false,
-  paymentEvidenceReference: "evidence/payment/provider-1",
   policyAccepted: true,
   policyVersion: CURRENT_PROVIDER_POLICY_VERSION,
+  publicDataConsent: true,
+  registeredBankAccounts: [
+    {
+      accountName: "NGUYEN PROVIDER",
+      accountNumber: "123456789",
+      bankCode: "VCB",
+      isPrimary: true,
+    },
+  ],
   services: "Dịch vụ hỗ trợ tài khoản game và giao dịch Facebook.",
 };
 
@@ -56,7 +57,7 @@ describe("Provider application transitions", () => {
 });
 
 describe("Provider application submission validation", () => {
-  it("accepts complete evidence and current policy consent", () => {
+  it("accepts complete submission and current policy consent", () => {
     expect(
       validateProviderApplicationSubmission(
         validSubmission,
@@ -67,27 +68,27 @@ describe("Provider application submission validation", () => {
 
   it("accepts streamlined submission without evidence references", () => {
     const streamlinedSubmission = {
+      bondAmount: 1_000_000,
+      citizenIdNumber: "987654321012",
       fullName: "Nguyen Hoang Duong",
+      location: "Da Nang",
       officialChannels: {
         avatarUrl: "https://example.com/avatar.png",
-        bioShop: "12553",
-        facebookId: "100005959991439",
-        facebookUrl: "https://facebook.com/provider-one",
-        note: "(Giao dịch qua Zalo nhé mọi người)",
-        telegramCommunityUrl: "https://t.me/congdongcheck",
+        hotline: "0934567643",
         zalo: "0934567643",
       },
-      operatingSince: "2024-01-01",
-      paymentAccount: {
-        accountName: "NGUYEN HOANG DUONG",
-        accountNumber: "1031000002351",
-        accountType: "BANK" as const,
-        institution: "Vietcombank (VCB)",
-      },
-      paymentDisclosureConsent: true,
       policyAccepted: true,
       policyVersion: CURRENT_PROVIDER_POLICY_VERSION,
-      services: "• Dịch Vụ Mạng Xã Hội\n• GDTG",
+      publicDataConsent: true,
+      registeredBankAccounts: [
+        {
+          accountName: "NGUYEN HOANG DUONG",
+          accountNumber: "1031000002351",
+          bankCode: "VCB",
+          isPrimary: true,
+        },
+      ],
+      services: "Dịch vụ hỗ trợ giao dịch và mạng xã hội.",
     };
 
     expect(
@@ -120,16 +121,33 @@ describe("Provider application submission validation", () => {
     ).toThrow(/policy/iu);
   });
 
-  it("requires at least one year of operating history", () => {
+  it("requires a valid primary bank account and public consent", () => {
     expect(() =>
       validateProviderApplicationSubmission(
         {
           ...validSubmission,
-          operatingSince: "2025-08-22",
+          publicDataConsent: false,
         },
         new Date("2026-08-21T00:00:00.000Z")
       )
-    ).toThrow(/one year/iu);
+    ).toThrow(/expected true/iu);
+
+    expect(() =>
+      validateProviderApplicationSubmission(
+        {
+          ...validSubmission,
+          registeredBankAccounts: [
+            {
+              accountName: "NGUYEN PROVIDER",
+              accountNumber: "123456789",
+              bankCode: "VCB",
+              isPrimary: false,
+            },
+          ],
+        },
+        new Date("2026-08-21T00:00:00.000Z")
+      )
+    ).toThrow(/primary/iu);
   });
 });
 

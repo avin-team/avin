@@ -4,6 +4,7 @@ import {
   protectionProviderProfile,
   protectionProviderProfileVersion,
 } from "@avin/db/schema/protection";
+import type { ProviderTier } from "@avin/db/schema/protection";
 import { ORPCError } from "@orpc/server";
 import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
@@ -18,6 +19,14 @@ type ProviderProfileVersion =
 export const PROVIDER_DIRECTORY_DEFAULT_LIMIT = 24;
 export const PROVIDER_DIRECTORY_MAX_LIMIT = 50;
 export const PROVIDER_DIRECTORY_SEARCHES_PER_MINUTE = 30;
+const PROVIDER_TIER_SORT_ORDER: Record<ProviderTier, number> = {
+  BRONZE: 4,
+  DIAMOND: 1,
+  GOLD: 2,
+  NORMAL: 5,
+  SILVER: 3,
+  VIP: 0,
+};
 
 export const providerDirectoryListInputSchema = z.object({
   limit: z
@@ -48,18 +57,9 @@ const searchRateLimitBuckets = new Map<string, SearchRateLimitBucket>();
 const providerProfilePath = (profileSlug: string): string =>
   `/avin-check/provider/${profileSlug}`;
 
-const normalizeProviderDirectorySearch = (value: string): string =>
-  value.normalize("NFKC").trim().toLocaleLowerCase("vi-VN");
-
-const getProviderDirectoryExactValues = (
-  candidate: ProviderDirectoryCandidate
-): string[] => [
-  candidate.version.displayName,
-  candidate.version.officialChannels.facebookId ?? "",
-  candidate.version.officialChannels.facebookUrl ?? "",
-  candidate.version.officialChannels.zalo ?? "",
-  candidate.version.paymentAccount?.accountNumber ?? "",
-];
+const normalizeProviderDirectorySearch = (
+  value: string | null | undefined
+): string => value?.normalize("NFKC").trim().toLocaleLowerCase("vi-VN") ?? "";
 
 export const getProviderDirectoryMatchScore = (
   candidate: ProviderDirectoryCandidate,
@@ -70,27 +70,61 @@ export const getProviderDirectoryMatchScore = (
     return null;
   }
 
-  const hasExactIdentityMatch = getProviderDirectoryExactValues(candidate).some(
-    (value) =>
-      value.length > 0 &&
-      normalizeProviderDirectorySearch(value) === normalizedQuery
+  const normalizedDisplayName = normalizeProviderDirectorySearch(
+    candidate.version.displayName
   );
-  if (hasExactIdentityMatch) {
-    return 2;
+  const searchableExactValues = [
+    candidate.profile.location,
+    candidate.version.location,
+    candidate.version.officialChannels.hotline,
+    candidate.version.officialChannels.zalo,
+    candidate.version.officialChannels.facebookUrl,
+    candidate.version.officialChannels.telegramCommunityUrl,
+    candidate.version.officialChannels.tiktokUrl,
+    candidate.version.officialChannels.youtubeUrl,
+    candidate.version.officialChannels.websiteUrl,
+    ...(candidate.version.registeredBankAccounts ?? []).flatMap((account) => [
+      account.accountNumber,
+      account.bankCode,
+      account.accountName,
+    ]),
+  ].map((value) => normalizeProviderDirectorySearch(value ?? ""));
+  if (searchableExactValues.includes(normalizedQuery)) {
+    return 5;
   }
-
-  const normalizedServices = normalizeProviderDirectorySearch(
-    candidate.version.services
-  );
-  return normalizedServices.includes(normalizedQuery) ? 1 : null;
+  if (normalizedDisplayName === normalizedQuery) {
+    return 4;
+  }
+  if (normalizedDisplayName.startsWith(normalizedQuery)) {
+    return 3;
+  }
+  const fuzzyValues = [
+    normalizedDisplayName,
+    normalizeProviderDirectorySearch(candidate.version.services),
+    normalizeProviderDirectorySearch(candidate.version.location),
+  ];
+  return fuzzyValues.some((value) => value.includes(normalizedQuery))
+    ? 2
+    : null;
 };
 
 const sortByFreshness = (
   left: ProviderDirectoryCandidate,
   right: ProviderDirectoryCandidate
 ): number => {
+  const tierDifference =
+    PROVIDER_TIER_SORT_ORDER[left.version.tier] -
+    PROVIDER_TIER_SORT_ORDER[right.version.tier];
+  if (tierDifference !== 0) {
+    return tierDifference;
+  }
+  const bondDifference =
+    right.version.recognizedBondAmount - left.version.recognizedBondAmount;
+  if (bondDifference !== 0) {
+    return bondDifference;
+  }
   const freshnessDifference =
-    right.version.publishedAt.getTime() - left.version.publishedAt.getTime();
+    right.version.verifiedAt.getTime() - left.version.verifiedAt.getTime();
   if (freshnessDifference !== 0) {
     return freshnessDifference;
   }
@@ -122,16 +156,25 @@ export const toProviderDirectoryEntry = (
 ) => ({
   displayName: candidate.version.displayName,
   id: candidate.profile.id,
+  location: candidate.version.location,
   officialChannels: {
     facebookUrl: candidate.version.officialChannels.facebookUrl,
+    hotline: candidate.version.officialChannels.hotline,
+    telegramCommunityUrl:
+      candidate.version.officialChannels.telegramCommunityUrl,
+    tiktokUrl: candidate.version.officialChannels.tiktokUrl,
     websiteUrl: candidate.version.officialChannels.websiteUrl,
+    youtubeUrl: candidate.version.officialChannels.youtubeUrl,
     zalo: candidate.version.officialChannels.zalo,
   },
   profileSlug: candidate.profile.profileSlug,
   publicUrl: providerProfilePath(candidate.profile.profileSlug),
   publishedAt: candidate.version.publishedAt.toISOString(),
+  recognizedBondAmount: candidate.version.recognizedBondAmount,
+  recommendedTransactionLimit: candidate.version.recommendedTransactionLimit,
   services: candidate.version.services,
   status: candidate.version.status,
+  tier: candidate.version.tier,
   verifiedAt: candidate.version.verifiedAt.toISOString(),
   versionNumber: candidate.version.versionNumber,
 });

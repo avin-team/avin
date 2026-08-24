@@ -1,6 +1,6 @@
 import {
   providerOfficialChannelsSchema,
-  providerPaymentAccountSchema,
+  providerRegisteredBankAccountsSchema,
 } from "@avin/db/schema/protection";
 import { z } from "zod";
 
@@ -33,37 +33,37 @@ export type ProviderApplicationDecision = Exclude<
 >;
 
 const evidenceReference = z.string().trim().min(1).max(500);
-const operatingSince = z.string().regex(/^\d{4}-\d{2}-\d{2}$/u);
+const citizenIdNumber = z.string().regex(/^\d{12}$/u);
+const location = z.string().trim().min(2).max(200);
+const bondAmount = z.number().int().min(1_000_000).max(1_000_000_000_000);
+
+const registeredBankAccountsDraftSchema = z
+  .array(providerRegisteredBankAccountsSchema.element)
+  .max(10);
 
 const providerApplicationFieldsSchema = z.object({
-  ageEvidenceReference: evidenceReference.optional(),
+  bondAmount,
+  citizenIdNumber,
   fullName: z.string().trim().min(2).max(200),
-  identityEvidenceReference: evidenceReference.optional(),
-  officialChannelEvidenceReference: evidenceReference.optional(),
+  location,
   officialChannels: providerOfficialChannelsSchema,
-  operatingHistoryEvidenceReference: evidenceReference.optional(),
-  operatingSince,
-  paymentAccount: providerPaymentAccountSchema,
-  paymentDisclosureConsent: z.boolean().optional(),
-  paymentEvidenceReference: evidenceReference.optional(),
   policyAccepted: z.boolean(),
   policyVersion: z.string().trim().min(1).max(50),
+  publicDataConsent: z.literal(true),
+  registeredBankAccounts: providerRegisteredBankAccountsSchema,
   services: z.string().trim().min(5).max(4000),
 });
 
 export const providerApplicationDraftInputSchema = z.object({
-  ageEvidenceReference: evidenceReference.optional(),
+  bondAmount: bondAmount.optional(),
+  citizenIdNumber: citizenIdNumber.optional(),
   fullName: providerApplicationFieldsSchema.shape.fullName.optional(),
-  identityEvidenceReference: evidenceReference.optional(),
-  officialChannelEvidenceReference: evidenceReference.optional(),
+  location: location.optional(),
   officialChannels: providerOfficialChannelsSchema.partial().optional(),
-  operatingHistoryEvidenceReference: evidenceReference.optional(),
-  operatingSince: operatingSince.optional(),
-  paymentAccount: providerPaymentAccountSchema.partial().optional(),
-  paymentDisclosureConsent: z.boolean().optional(),
-  paymentEvidenceReference: evidenceReference.optional(),
   policyAccepted: z.boolean().optional(),
   policyVersion: z.string().trim().min(1).max(50).optional(),
+  publicDataConsent: z.boolean().optional(),
+  registeredBankAccounts: registeredBankAccountsDraftSchema.optional(),
   services: providerApplicationFieldsSchema.shape.services.optional(),
 });
 
@@ -84,11 +84,35 @@ export const providerApplicationSubmissionInputSchema =
       });
     }
 
+    if (!input.officialChannels.hotline?.trim()) {
+      context.addIssue({
+        code: "custom",
+        message: "Hotline is required",
+        path: ["officialChannels", "hotline"],
+      });
+    }
+
+    if (!input.officialChannels.zalo?.trim()) {
+      context.addIssue({
+        code: "custom",
+        message: "Zalo is required",
+        path: ["officialChannels", "zalo"],
+      });
+    }
+
     if (!input.policyAccepted) {
       context.addIssue({
         code: "custom",
         message: "Current policy acceptance is required",
         path: ["policyAccepted"],
+      });
+    }
+
+    if (!input.publicDataConsent) {
+      context.addIssue({
+        code: "custom",
+        message: "Public data consent is required",
+        path: ["publicDataConsent"],
       });
     }
   });
@@ -172,21 +196,12 @@ export const assertProviderApplicationTransition = (
 
 export const validateProviderApplicationSubmission = (
   input: unknown,
-  now = new Date(),
+  _now = new Date(),
   expectedPolicyVersion = CURRENT_PROVIDER_POLICY_VERSION
 ): ProviderApplicationSubmission => {
   const submission = providerApplicationSubmissionInputSchema.parse(input);
   if (submission.policyVersion !== expectedPolicyVersion) {
     throw new Error("Provider application must accept the current policy");
-  }
-
-  const operatingDate = new Date(`${submission.operatingSince}T00:00:00.000Z`);
-  const oneYearAgo = new Date(now);
-  oneYearAgo.setUTCFullYear(oneYearAgo.getUTCFullYear() - 1);
-  if (operatingDate > oneYearAgo) {
-    throw new Error(
-      "Provider must show at least one year of operating history"
-    );
   }
 
   return submission;

@@ -21,17 +21,24 @@ import {
 import type { AdminProtectionPolicy } from "../api/policy-api";
 
 interface PolicyFormState {
+  bronzeMinimumBondAmount: string;
+  diamondMinimumBondAmount: string;
   changedAreas: string;
   effectiveAt: string;
   materialChange: boolean;
   membershipFeeAmount: string;
   minimumBondAmount: string;
+  goldMinimumBondAmount: string;
+  recommendedLimitPercentage: string;
+  recommendedLimitRounding: string;
   rationale: string;
   reacceptDeadlineAt: string;
   retentionPolicyReference: string;
   summary: string;
+  silverMinimumBondAmount: string;
   terms: string;
   title: string;
+  vipMinimumBondAmount: string;
   version: string;
 }
 
@@ -44,18 +51,25 @@ const createInitialForm = (): PolicyFormState => {
   const effectiveAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
   const deadline = new Date(effectiveAt.getTime() + 30 * 24 * 60 * 60 * 1000);
   return {
+    bronzeMinimumBondAmount: "5000000",
     changedAreas: "",
+    diamondMinimumBondAmount: "50000000",
     effectiveAt: toLocalDateTime(effectiveAt),
+    goldMinimumBondAmount: "20000000",
     materialChange: true,
-    membershipFeeAmount: "3000000",
-    minimumBondAmount: "30000000",
+    membershipFeeAmount: "0",
+    minimumBondAmount: "1000000",
     rationale: "",
     reacceptDeadlineAt: toLocalDateTime(deadline),
+    recommendedLimitPercentage: "80",
+    recommendedLimitRounding: "100000",
     retentionPolicyReference: "LEGAL_DATA_GOVERNANCE_APPROVAL_REQUIRED",
+    silverMinimumBondAmount: "10000000",
     summary: "",
     terms: "",
     title: "",
     version: "",
+    vipMinimumBondAmount: "100000000",
   };
 };
 
@@ -75,6 +89,20 @@ const PolicyCard = ({ policy }: { policy: AdminProtectionPolicy }) => (
     </CardHeader>
     <CardContent className="grid gap-4 text-sm">
       <p>{policy.summary}</p>
+      <div className="rounded-xl border bg-muted/20 p-3 text-sm">
+        <p className="font-medium">Hạng đối tác</p>
+        <p className="text-muted-foreground">
+          Đồng {policy.bronzeMinimumBondAmount.toLocaleString("vi-VN")} · Bạc{" "}
+          {policy.silverMinimumBondAmount.toLocaleString("vi-VN")} · Vàng{" "}
+          {policy.goldMinimumBondAmount.toLocaleString("vi-VN")} · Kim cương{" "}
+          {policy.diamondMinimumBondAmount.toLocaleString("vi-VN")} · VIP{" "}
+          {policy.vipMinimumBondAmount.toLocaleString("vi-VN")}
+        </p>
+        <p className="mt-1 text-muted-foreground">
+          Hạn mức khuyến nghị ≤ {policy.recommendedLimitPercentage}% Bond, làm
+          tròn {policy.recommendedLimitRounding.toLocaleString("vi-VN")} VND.
+        </p>
+      </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <p className="font-medium">Material change</p>
@@ -146,22 +174,29 @@ export const ProtectionPolicyPage = () => {
     }
     try {
       await publish.mutateAsync({
+        bronzeMinimumBondAmount: Number(form.bronzeMinimumBondAmount),
+        diamondMinimumBondAmount: Number(form.diamondMinimumBondAmount),
         effectiveAt: form.effectiveAt,
+        goldMinimumBondAmount: Number(form.goldMinimumBondAmount),
         materialChange: form.materialChange,
         materialChangeMetadata: {
           changedAreas,
           rationale: form.rationale.trim(),
         },
-        membershipFeeAmount: Number(form.membershipFeeAmount),
+        membershipFeeAmount: 0,
         minimumBondAmount: Number(form.minimumBondAmount),
         reacceptDeadlineAt: form.materialChange
           ? form.reacceptDeadlineAt
           : null,
+        recommendedLimitPercentage: Number(form.recommendedLimitPercentage),
+        recommendedLimitRounding: Number(form.recommendedLimitRounding),
         retentionPolicyReference: form.retentionPolicyReference.trim(),
+        silverMinimumBondAmount: Number(form.silverMinimumBondAmount),
         summary: form.summary.trim(),
         terms: form.terms.trim(),
         title: form.title.trim(),
         version: form.version.trim(),
+        vipMinimumBondAmount: Number(form.vipMinimumBondAmount),
       });
       toast.success("Đã phát hành policy version bất biến.");
       setForm(createInitialForm());
@@ -196,7 +231,7 @@ export const ProtectionPolicyPage = () => {
           <CardHeader>
             <CardTitle>Phát hành policy version</CardTitle>
             <CardDescription>
-              Chỉ Protection Manager có capability phù hợp mới có thể phát hành.
+              Chỉ SUPER_ADMIN có capability phù hợp mới có thể phát hành.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
@@ -307,13 +342,14 @@ export const ProtectionPolicyPage = () => {
               <label className="grid gap-2 text-sm" htmlFor="policy-fee">
                 <span className="font-medium">Membership Fee (VND)</span>
                 <Input
+                  disabled
                   id="policy-fee"
-                  inputMode="numeric"
-                  onChange={(event) =>
-                    update("membershipFeeAmount", event.target.value)
-                  }
                   value={form.membershipFeeAmount}
                 />
+                <span className="text-muted-foreground text-xs">
+                  P0 cố định 0 VND; muốn bật phí phải có policy/luồng hoàn tiền
+                  riêng.
+                </span>
               </label>
               <label className="grid gap-2 text-sm" htmlFor="policy-retention">
                 <span className="font-medium">Retention policy reference</span>
@@ -325,6 +361,33 @@ export const ProtectionPolicyPage = () => {
                   value={form.retentionPolicyReference}
                 />
               </label>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              {(
+                [
+                  ["bronzeMinimumBondAmount", "Đồng từ (VND)"],
+                  ["silverMinimumBondAmount", "Bạc từ (VND)"],
+                  ["goldMinimumBondAmount", "Vàng từ (VND)"],
+                  ["diamondMinimumBondAmount", "Kim cương từ (VND)"],
+                  ["vipMinimumBondAmount", "VIP từ (VND)"],
+                  ["recommendedLimitPercentage", "% hạn mức khuyến nghị"],
+                  ["recommendedLimitRounding", "Đơn vị làm tròn (VND)"],
+                ] as const
+              ).map(([field, label]) => (
+                <label
+                  className="grid gap-2 text-sm"
+                  htmlFor={`policy-${field}`}
+                  key={field}
+                >
+                  <span className="font-medium">{label}</span>
+                  <Input
+                    id={`policy-${field}`}
+                    inputMode="numeric"
+                    onChange={(event) => update(field, event.target.value)}
+                    value={form[field]}
+                  />
+                </label>
+              ))}
             </div>
             <Button
               className="w-fit"

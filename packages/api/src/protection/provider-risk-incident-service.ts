@@ -127,7 +127,7 @@ const toProfileVersionView = (version: ProviderProfileVersion) => ({
 const toAdminProfileVersionView = (version: ProviderProfileVersion) => ({
   ...toProfileVersionView(version),
   officialChannels: version.officialChannels,
-  paymentAccount: version.paymentAccount,
+  registeredBankAccounts: version.registeredBankAccounts,
 });
 
 const toAdminEvidenceView = (evidence: ProviderRiskIncidentEvidence) => ({

@@ -69,6 +69,7 @@ import {
   acceptCurrentProtectionPolicy,
   getAdminProtectionPolicyVersion,
   getProviderProtectionPolicy,
+  getPublicCurrentProtectionPolicy,
   listAdminProtectionPolicyVersions,
   publishProtectionPolicyVersion,
 } from "./policy-service";
@@ -104,6 +105,18 @@ import {
   submitProviderApplication,
   submitProviderProfileRevision,
 } from "./provider-application-service";
+import {
+  providerDepositIntentAdminListInputSchema,
+  providerDepositIntentCreateInputSchema,
+  providerDepositIntentManualDecisionInputSchema,
+} from "./provider-deposit-intent";
+import {
+  createProviderApplicationDepositIntent,
+  createProviderBondTopUpIntent,
+  decideProviderDepositIntentManually,
+  getProviderDepositIntent,
+  listProviderDepositIntentsForAdmin,
+} from "./provider-deposit-intent-service";
 import {
   listProviderDirectory,
   providerDirectoryListInputSchema,
@@ -210,6 +223,16 @@ const providerReviewerProcedure = protectionAdminProcedure({
   },
 });
 
+const providerDepositIntentAdminProcedure = protectionAdminProcedure({
+  action: "protection.provider_deposit_intent.reconcile",
+  capability: PROTECTION_ADMIN_CAPABILITY.SUPER_ADMIN,
+  purpose: "Manually reconcile or refund Provider deposit intents",
+  target: {
+    id: "PROTECTION_PROVIDER_DEPOSIT_INTENT_QUEUE",
+    type: "PROTECTION_PROVIDER_DEPOSIT_INTENT_QUEUE",
+  },
+});
+
 const providerPolicyReadProcedure = protectionAdminProcedure({
   action: "protection.provider_policy.read",
   capability: [
@@ -225,7 +248,7 @@ const providerPolicyReadProcedure = protectionAdminProcedure({
 
 const providerPolicyPublishProcedure = protectionAdminProcedure({
   action: "protection.provider_policy.publish",
-  capability: PROTECTION_ADMIN_CAPABILITY.PROTECTION_MANAGER,
+  capability: PROTECTION_ADMIN_CAPABILITY.SUPER_ADMIN,
   purpose: "Publish immutable Avin Check Provider policy versions",
   target: {
     id: "PROTECTION_PROVIDER_POLICY_QUEUE",
@@ -342,7 +365,7 @@ const providerRiskIncidentManagerProcedure = protectionAdminProcedure({
 
 const providerBondOperatorProcedure = protectionAdminProcedure({
   action: "protection.provider_bond.operate",
-  capability: PROTECTION_ADMIN_CAPABILITY.BOND_OPERATOR,
+  capability: PROTECTION_ADMIN_CAPABILITY.SUPER_ADMIN,
   purpose: "Record reconciled Provider Bond adjustments",
   target: {
     id: "PROTECTION_PROVIDER_BOND_QUEUE",
@@ -352,7 +375,7 @@ const providerBondOperatorProcedure = protectionAdminProcedure({
 
 const providerBondManagerProcedure = protectionAdminProcedure({
   action: "protection.provider_bond.approve",
-  capability: PROTECTION_ADMIN_CAPABILITY.PROTECTION_MANAGER,
+  capability: PROTECTION_ADMIN_CAPABILITY.SUPER_ADMIN,
   purpose: "Approve Provider Bond decreases and publish supported limits",
   target: {
     id: "PROTECTION_PROVIDER_BOND_QUEUE",
@@ -375,7 +398,7 @@ const providerBondWithdrawalReadProcedure = protectionAdminProcedure({
 
 const providerBondWithdrawalOperatorProcedure = protectionAdminProcedure({
   action: "protection.provider_bond_withdrawal.record",
-  capability: PROTECTION_ADMIN_CAPABILITY.BOND_OPERATOR,
+  capability: PROTECTION_ADMIN_CAPABILITY.SUPER_ADMIN,
   purpose: "Record off-platform Provider Bond Withdrawal actions",
   target: {
     id: "PROTECTION_PROVIDER_BOND_WITHDRAWAL_QUEUE",
@@ -385,8 +408,8 @@ const providerBondWithdrawalOperatorProcedure = protectionAdminProcedure({
 
 const providerBondWithdrawalManagerProcedure = protectionAdminProcedure({
   action: "protection.provider_bond_withdrawal.approve",
-  capability: PROTECTION_ADMIN_CAPABILITY.PROTECTION_MANAGER,
-  purpose: "Approve dual-controlled Provider Bond Withdrawals",
+  capability: PROTECTION_ADMIN_CAPABILITY.SUPER_ADMIN,
+  purpose: "Approve Provider Bond Withdrawals",
   target: {
     id: "PROTECTION_PROVIDER_BOND_WITHDRAWAL_QUEUE",
     type: "PROTECTION_PROVIDER_BOND_WITHDRAWAL_QUEUE",
@@ -419,8 +442,9 @@ const supportReviewModeratorProcedure = protectionAdminProcedure({
 
 const supportReviewOperatorProcedure = protectionAdminProcedure({
   action: "protection.support_review.record_outcome",
-  capability: PROTECTION_ADMIN_CAPABILITY.BOND_OPERATOR,
-  purpose: "Record off-platform support outcome and Bond allocation",
+  capability: PROTECTION_ADMIN_CAPABILITY.SUPER_ADMIN,
+  purpose:
+    "Record and complete off-platform support outcome and Bond allocation",
   target: {
     id: "PROTECTION_SUPPORT_REVIEW_QUEUE",
     type: "PROTECTION_SUPPORT_REVIEW_QUEUE",
@@ -429,8 +453,8 @@ const supportReviewOperatorProcedure = protectionAdminProcedure({
 
 const supportReviewManagerProcedure = protectionAdminProcedure({
   action: "protection.support_review.approve",
-  capability: PROTECTION_ADMIN_CAPABILITY.PROTECTION_MANAGER,
-  purpose: "Approve dual-controlled Support Review outcomes",
+  capability: PROTECTION_ADMIN_CAPABILITY.SUPER_ADMIN,
+  purpose: "Approve Support Review outcomes as SUPER_ADMIN",
   target: {
     id: "PROTECTION_SUPPORT_REVIEW_QUEUE",
     type: "PROTECTION_SUPPORT_REVIEW_QUEUE",
@@ -573,6 +597,7 @@ export const protectionRouter = {
       .input(providerBondWithdrawalRecordInputSchema)
       .handler(({ context, input }) =>
         recordProviderBondWithdrawal({
+          completeImmediately: true,
           database: context.db,
           input,
           recorderUserId: context.session.user.id,
@@ -615,6 +640,7 @@ export const protectionRouter = {
       .input(providerBondAdjustmentRecordInputSchema)
       .handler(({ context, input }) =>
         recordProviderBondAdjustment({
+          applyImmediately: true,
           database: context.db,
           input,
           recordedByUserId: context.session.user.id,
@@ -865,6 +891,7 @@ export const protectionRouter = {
       .input(supportReviewOutcomeInputSchema)
       .handler(({ context, input }) =>
         recordSupportReviewOutcome({
+          completeImmediately: true,
           database: context.db,
           input,
           recorderUserId: context.session.user.id,
@@ -887,6 +914,23 @@ export const protectionRouter = {
   ),
 
   providerApplication: {
+    createDepositIntent: providerSensitiveProcedure
+      .input(providerDepositIntentCreateInputSchema)
+      .handler(({ context, input }) =>
+        createProviderApplicationDepositIntent({
+          amount: input.amount,
+          database: context.db,
+          providerUserId: context.session.user.id,
+        })
+      ),
+
+    getDepositIntent: providerProcedure.handler(({ context }) =>
+      getProviderDepositIntent({
+        database: context.db,
+        providerUserId: context.session.user.id,
+      })
+    ),
+
     getMine: providerProcedure.handler(({ context }) =>
       getProviderApplicationSnapshot(context.db, context.session.user.id)
     ),
@@ -897,11 +941,30 @@ export const protectionRouter = {
         saveProviderApplicationDraft(context.db, context.session.user.id, input)
       ),
 
-    submit: providerProcedure
+    submit: providerSensitiveProcedure
       .input(providerApplicationSubmissionInputSchema)
       .handler(({ context, input }) =>
         submitProviderApplication(context.db, context.session.user.id, input)
       ),
+  },
+
+  providerBond: {
+    createTopUpIntent: providerSensitiveProcedure
+      .input(providerDepositIntentCreateInputSchema)
+      .handler(({ context, input }) =>
+        createProviderBondTopUpIntent({
+          amount: input.amount,
+          database: context.db,
+          providerUserId: context.session.user.id,
+        })
+      ),
+
+    getDepositIntent: providerProcedure.handler(({ context }) =>
+      getProviderDepositIntent({
+        database: context.db,
+        providerUserId: context.session.user.id,
+      })
+    ),
   },
 
   providerBondWithdrawals: {
@@ -920,6 +983,24 @@ export const protectionRouter = {
           input,
           providerUserId: context.session.user.id,
         })
+      ),
+  },
+
+  providerDepositIntents: {
+    decide: providerDepositIntentAdminProcedure
+      .input(providerDepositIntentManualDecisionInputSchema)
+      .handler(({ context, input }) =>
+        decideProviderDepositIntentManually({
+          database: context.db,
+          input,
+          reviewerUserId: context.session.user.id,
+        })
+      ),
+
+    list: providerDepositIntentAdminProcedure
+      .input(providerDepositIntentAdminListInputSchema)
+      .handler(({ context, input }) =>
+        listProviderDepositIntentsForAdmin(context.db, input)
       ),
   },
 
@@ -984,6 +1065,10 @@ export const protectionRouter = {
         })
       ),
 
+    current: publicProcedure.handler(({ context }) =>
+      getPublicCurrentProtectionPolicy(context.db)
+    ),
+
     get: providerProcedure.handler(({ context }) =>
       getProviderProtectionPolicy(context.db, context.session.user.id)
     ),
@@ -1008,7 +1093,7 @@ export const protectionRouter = {
       startProviderProfileRevision(context.db, context.session.user.id)
     ),
 
-    submit: providerProcedure
+    submit: providerSensitiveProcedure
       .input(providerProfileRevisionSubmissionInputSchema)
       .handler(({ context, input }) =>
         submitProviderProfileRevision(
@@ -1049,27 +1134,38 @@ export const protectionRouter = {
   },
 
   providerWorkspace: providerProcedure.handler(async ({ context }) => {
-    const [snapshot, riskIncidents, bond, bondWithdrawal, policy] =
-      await Promise.all([
-        getProviderApplicationSnapshot(context.db, context.session.user.id),
-        listProviderRiskIncidentsForProvider({
-          database: context.db,
-          providerUserId: context.session.user.id,
-        }),
-        getProviderBondForProvider({
-          database: context.db,
-          providerUserId: context.session.user.id,
-        }),
-        getProviderBondWithdrawal({
-          database: context.db,
-          providerUserId: context.session.user.id,
-        }),
-        getProviderProtectionPolicy(context.db, context.session.user.id),
-      ]);
+    const [
+      snapshot,
+      riskIncidents,
+      bond,
+      bondWithdrawal,
+      policy,
+      depositIntent,
+    ] = await Promise.all([
+      getProviderApplicationSnapshot(context.db, context.session.user.id),
+      listProviderRiskIncidentsForProvider({
+        database: context.db,
+        providerUserId: context.session.user.id,
+      }),
+      getProviderBondForProvider({
+        database: context.db,
+        providerUserId: context.session.user.id,
+      }),
+      getProviderBondWithdrawal({
+        database: context.db,
+        providerUserId: context.session.user.id,
+      }),
+      getProviderProtectionPolicy(context.db, context.session.user.id),
+      getProviderDepositIntent({
+        database: context.db,
+        providerUserId: context.session.user.id,
+      }),
+    ]);
 
     return {
       bond,
       bondWithdrawal,
+      depositIntent,
       identity: {
         id: context.session.user.id,
         name: context.session.user.name,

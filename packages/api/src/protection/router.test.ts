@@ -123,6 +123,7 @@ describe("Avin Check public launch status", () => {
       application: null,
       bond: null,
       bondWithdrawal: null,
+      depositIntent: null,
       identity: {
         id: "provider-1",
         name: "Provider One",

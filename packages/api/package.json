@@ -23,6 +23,7 @@
     "./protection/bond-withdrawal-service": "./src/protection/bond-withdrawal-service.ts",
     "./protection/procedures": "./src/protection/procedures.ts",
     "./protection/provider-application": "./src/protection/provider-application.ts",
+    "./protection/provider-tier": "./src/protection/provider-tier.ts",
     "./protection/provider-risk-incident": "./src/protection/provider-risk-incident.ts",
     "./protection/provider-risk-incident-service": "./src/protection/provider-risk-incident-service.ts",
     "./protection/support-review": "./src/protection/support-review.ts",

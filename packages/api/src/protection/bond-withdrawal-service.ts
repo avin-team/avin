@@ -514,9 +514,11 @@ export const requestProviderBondWithdrawal = async ({
 export const recordProviderBondWithdrawal = async ({
   database,
   input,
+  completeImmediately = false,
   now = new Date(),
   recorderUserId,
 }: {
+  completeImmediately?: boolean;
   database: Database;
   input: ProviderBondWithdrawalRecordInput;
   now?: Date;
@@ -657,7 +659,9 @@ export const recordProviderBondWithdrawal = async ({
     );
     await createNotificationEvent(transaction, {
       actorUserId: recorderUserId,
-      body: "Yêu cầu rút Bond đã hết cooling và đang chờ Protection Manager duyệt.",
+      body: completeImmediately
+        ? "Yêu cầu rút Bond đã hết cooling và được SUPER_ADMIN ghi nhận hoàn tất."
+        : "Yêu cầu rút Bond đã hết cooling và đang chờ SUPER_ADMIN xử lý.",
       context: { withdrawalId: input.withdrawalId },
       eventType: "protection_provider_bond.withdrawal_pending_approval",
       now,
@@ -673,10 +677,24 @@ export const recordProviderBondWithdrawal = async ({
       ],
       sourceId: input.withdrawalId,
       sourceType: WITHDRAWAL_SOURCE_TYPE,
-      title: "Provider Bond Withdrawal chờ duyệt",
+      title: completeImmediately
+        ? "Provider Bond Withdrawal đã được ghi nhận"
+        : "Provider Bond Withdrawal chờ SUPER_ADMIN xử lý",
     });
   });
 
+  if (completeImmediately) {
+    // oxlint-disable-next-line no-use-before-define
+    return approveProviderBondWithdrawal({
+      approverUserId: recorderUserId,
+      database,
+      input: {
+        decision: "APPROVED",
+        withdrawalId: input.withdrawalId,
+      },
+      now,
+    });
+  }
   return getAdminWithdrawalView(database, input.withdrawalId);
 };
 
@@ -887,12 +905,6 @@ export const approveProviderBondWithdrawal = async ({
     return throwConflict(
       "Chỉ Provider Bond Withdrawal đang chờ duyệt mới được quyết định"
     );
-  }
-  if (row.withdrawal.recordedByUserId === approverUserId) {
-    throw new ORPCError("FORBIDDEN", {
-      message:
-        "Admin đã ghi nhận Bond decrease không thể tự phê duyệt withdrawal",
-    });
   }
   if (input.decision === "REJECTED" && !input.reason?.trim()) {
     return throwBadRequest("Cần lý do khi từ chối Provider Bond Withdrawal");

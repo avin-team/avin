@@ -12,6 +12,9 @@ export type ProviderBondWithdrawal = Awaited<
     AppRouterClient["protection"]["adminProviderBondWithdrawals"]["get"]
   >
 >;
+export type ProviderDepositIntent = Awaited<
+  ReturnType<AppRouterClient["protection"]["providerDepositIntents"]["list"]>
+>[number];
 
 const invalidateProviderBonds = async (): Promise<void> => {
   await Promise.all([
@@ -29,6 +32,9 @@ const invalidateProviderBonds = async (): Promise<void> => {
     }),
     queryClient.invalidateQueries({
       queryKey: orpc.protection.providerWorkspace.key(),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: orpc.protection.providerDepositIntents.list.key(),
     }),
     queryClient.invalidateQueries({
       queryKey: orpc.protection.publicProfile.key(),
@@ -59,6 +65,17 @@ export const usePublishAdminProviderBondLimit = () =>
 
 export const useAdminProviderBondWithdrawals = () =>
   useQuery(orpc.protection.adminProviderBondWithdrawals.list.queryOptions());
+
+export const useAdminProviderDepositIntents = () =>
+  useQuery(
+    orpc.protection.providerDepositIntents.list.queryOptions({ input: {} })
+  );
+
+export const useDecideAdminProviderDepositIntent = () =>
+  useMutation({
+    ...orpc.protection.providerDepositIntents.decide.mutationOptions(),
+    onSuccess: invalidateProviderBonds,
+  });
 
 export const useRecordAdminProviderBondWithdrawal = () =>
   useMutation({

@@ -475,7 +475,7 @@ const getEligibilityFailures = ({
   }
   if (
     !input.registeredPaymentIdentityConfirmed ||
-    !effectiveVersion?.paymentAccount
+    !effectiveVersion?.registeredBankAccounts?.length
   ) {
     failures.push("The transaction does not use a registered payment identity");
   }
@@ -600,7 +600,7 @@ export const evaluateSupportReview = async ({
           : 0,
         registeredPaymentIdentityConfirmed:
           input.registeredPaymentIdentityConfirmed &&
-          Boolean(effectiveVersion.paymentAccount),
+          Boolean(effectiveVersion.registeredBankAccounts.length),
         requiredProcessCompleted: input.requiredProcessCompleted,
         reviewedAt: now,
         reviewedByUserId: reviewerUserId,
@@ -638,10 +638,12 @@ export const evaluateSupportReview = async ({
 
 export const recordSupportReviewOutcome = async ({
   database,
+  completeImmediately = false,
   input,
   now = new Date(),
   recorderUserId,
 }: {
+  completeImmediately?: boolean;
   database: Database;
   input: SupportReviewOutcomeInput;
   now?: Date;
@@ -744,6 +746,19 @@ export const recordSupportReviewOutcome = async ({
     );
   });
 
+  if (completeImmediately) {
+    // oxlint-disable-next-line no-use-before-define
+    return approveSupportReview({
+      approverUserId: recorderUserId,
+      database,
+      input: {
+        decision: "APPROVED",
+        reason: input.reason,
+        reviewId: input.reviewId,
+      },
+      now,
+    });
+  }
   return getAdminSupportReviewView(database, input.reviewId);
 };
 
@@ -769,11 +784,6 @@ export const approveSupportReview = async ({
   }
   if (review.review.status !== "PENDING_APPROVAL") {
     throwConflict("Only a pending Support Review can be decided");
-  }
-  if (review.review.outcomeRecordedByUserId === approverUserId) {
-    throw new ORPCError("FORBIDDEN", {
-      message: "The Admin who recorded the support outcome cannot approve it",
-    });
   }
   if (input.decision === "REJECTED" && !input.reason?.trim()) {
     throwBadRequest("A reason is required to reject a Support Review");

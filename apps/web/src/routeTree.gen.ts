@@ -32,6 +32,8 @@ import { Route as publicAvinCheckApplyRouteImport } from './routes/(public)/avin
 import { Route as publicAvinCheckCheckRouteImport } from './routes/(public)/avin-check/check'
 import { Route as publicAvinCheckCorrectionRouteImport } from './routes/(public)/avin-check/correction'
 import { Route as publicAvinCheckDirectoryRouteImport } from './routes/(public)/avin-check/directory'
+import { Route as publicAvinCheckGuideRouteImport } from './routes/(public)/avin-check/guide'
+import { Route as publicAvinCheckPartnerPolicyRouteImport } from './routes/(public)/avin-check/partner-policy'
 import { Route as publicAvinCheckReportRouteImport } from './routes/(public)/avin-check/report'
 import { Route as publicAvinCheckWarningsRouteImport } from './routes/(public)/avin-check/warnings'
 import { Route as publicAvinCheckWorkspaceRouteImport } from './routes/(public)/avin-check/workspace'
@@ -167,6 +169,17 @@ const publicAvinCheckDirectoryRoute =
     path: '/directory',
     getParentRoute: () => publicAvinCheckRoute,
   } as any)
+const publicAvinCheckGuideRoute = publicAvinCheckGuideRouteImport.update({
+  id: '/guide',
+  path: '/guide',
+  getParentRoute: () => publicAvinCheckRoute,
+} as any)
+const publicAvinCheckPartnerPolicyRoute =
+  publicAvinCheckPartnerPolicyRouteImport.update({
+    id: '/partner-policy',
+    path: '/partner-policy',
+    getParentRoute: () => publicAvinCheckRoute,
+  } as any)
 const publicAvinCheckReportRoute = publicAvinCheckReportRouteImport.update({
   id: '/report',
   path: '/report',
@@ -296,6 +309,8 @@ export interface FileRoutesByFullPath {
   '/avin-check/check': typeof publicAvinCheckCheckRoute
   '/avin-check/correction': typeof publicAvinCheckCorrectionRoute
   '/avin-check/directory': typeof publicAvinCheckDirectoryRoute
+  '/avin-check/guide': typeof publicAvinCheckGuideRoute
+  '/avin-check/partner-policy': typeof publicAvinCheckPartnerPolicyRoute
   '/avin-check/report': typeof publicAvinCheckReportRoute
   '/avin-check/warnings': typeof publicAvinCheckWarningsRoute
   '/avin-check/workspace': typeof publicAvinCheckWorkspaceRoute
@@ -336,6 +351,8 @@ export interface FileRoutesByTo {
   '/avin-check/check': typeof publicAvinCheckCheckRoute
   '/avin-check/correction': typeof publicAvinCheckCorrectionRoute
   '/avin-check/directory': typeof publicAvinCheckDirectoryRoute
+  '/avin-check/guide': typeof publicAvinCheckGuideRoute
+  '/avin-check/partner-policy': typeof publicAvinCheckPartnerPolicyRoute
   '/avin-check/report': typeof publicAvinCheckReportRoute
   '/avin-check/warnings': typeof publicAvinCheckWarningsRoute
   '/avin-check/workspace': typeof publicAvinCheckWorkspaceRoute
@@ -381,6 +398,8 @@ export interface FileRoutesById {
   '/(public)/avin-check/check': typeof publicAvinCheckCheckRoute
   '/(public)/avin-check/correction': typeof publicAvinCheckCorrectionRoute
   '/(public)/avin-check/directory': typeof publicAvinCheckDirectoryRoute
+  '/(public)/avin-check/guide': typeof publicAvinCheckGuideRoute
+  '/(public)/avin-check/partner-policy': typeof publicAvinCheckPartnerPolicyRoute
   '/(public)/avin-check/report': typeof publicAvinCheckReportRoute
   '/(public)/avin-check/warnings': typeof publicAvinCheckWarningsRoute
   '/(public)/avin-check/workspace': typeof publicAvinCheckWorkspaceRoute
@@ -424,6 +443,8 @@ export interface FileRouteTypes {
     | '/avin-check/check'
     | '/avin-check/correction'
     | '/avin-check/directory'
+    | '/avin-check/guide'
+    | '/avin-check/partner-policy'
     | '/avin-check/report'
     | '/avin-check/warnings'
     | '/avin-check/workspace'
@@ -464,6 +485,8 @@ export interface FileRouteTypes {
     | '/avin-check/check'
     | '/avin-check/correction'
     | '/avin-check/directory'
+    | '/avin-check/guide'
+    | '/avin-check/partner-policy'
     | '/avin-check/report'
     | '/avin-check/warnings'
     | '/avin-check/workspace'
@@ -508,6 +531,8 @@ export interface FileRouteTypes {
     | '/(public)/avin-check/check'
     | '/(public)/avin-check/correction'
     | '/(public)/avin-check/directory'
+    | '/(public)/avin-check/guide'
+    | '/(public)/avin-check/partner-policy'
     | '/(public)/avin-check/report'
     | '/(public)/avin-check/warnings'
     | '/(public)/avin-check/workspace'
@@ -704,6 +729,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof publicAvinCheckDirectoryRouteImport
       parentRoute: typeof publicAvinCheckRoute
     }
+    '/(public)/avin-check/guide': {
+      id: '/(public)/avin-check/guide'
+      path: '/guide'
+      fullPath: '/avin-check/guide'
+      preLoaderRoute: typeof publicAvinCheckGuideRouteImport
+      parentRoute: typeof publicAvinCheckRoute
+    }
+    '/(public)/avin-check/partner-policy': {
+      id: '/(public)/avin-check/partner-policy'
+      path: '/partner-policy'
+      fullPath: '/avin-check/partner-policy'
+      preLoaderRoute: typeof publicAvinCheckPartnerPolicyRouteImport
+      parentRoute: typeof publicAvinCheckRoute
+    }
     '/(public)/avin-check/report': {
       id: '/(public)/avin-check/report'
       path: '/report'
@@ -859,6 +898,8 @@ interface publicAvinCheckRouteChildren {
   publicAvinCheckCheckRoute: typeof publicAvinCheckCheckRoute
   publicAvinCheckCorrectionRoute: typeof publicAvinCheckCorrectionRoute
   publicAvinCheckDirectoryRoute: typeof publicAvinCheckDirectoryRoute
+  publicAvinCheckGuideRoute: typeof publicAvinCheckGuideRoute
+  publicAvinCheckPartnerPolicyRoute: typeof publicAvinCheckPartnerPolicyRoute
   publicAvinCheckReportRoute: typeof publicAvinCheckReportRoute
   publicAvinCheckWarningsRoute: typeof publicAvinCheckWarningsRoute
   publicAvinCheckWorkspaceRoute: typeof publicAvinCheckWorkspaceRoute
@@ -873,6 +914,8 @@ const publicAvinCheckRouteChildren: publicAvinCheckRouteChildren = {
   publicAvinCheckCheckRoute: publicAvinCheckCheckRoute,
   publicAvinCheckCorrectionRoute: publicAvinCheckCorrectionRoute,
   publicAvinCheckDirectoryRoute: publicAvinCheckDirectoryRoute,
+  publicAvinCheckGuideRoute: publicAvinCheckGuideRoute,
+  publicAvinCheckPartnerPolicyRoute: publicAvinCheckPartnerPolicyRoute,
   publicAvinCheckReportRoute: publicAvinCheckReportRoute,
   publicAvinCheckWarningsRoute: publicAvinCheckWarningsRoute,
   publicAvinCheckWorkspaceRoute: publicAvinCheckWorkspaceRoute,

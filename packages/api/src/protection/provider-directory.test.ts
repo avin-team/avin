@@ -20,29 +20,36 @@ const createCandidate = (
 ): ProviderDirectoryCandidate => ({
   profile: {
     id: "profile-1",
+    location: "Ho Chi Minh City",
     profileSlug: "provider-one",
     ...profileOverrides,
   } as ProviderDirectoryCandidate["profile"],
   version: {
     displayName: "Provider One",
     id: "version-1",
+    location: "Ho Chi Minh City",
     officialChannels: {
       facebookId: "facebook-123",
       facebookUrl: "https://facebook.com/provider-one",
+      hotline: "0901234567",
       websiteUrl: "https://provider.example",
       zalo: "0901234567",
-    },
-    paymentAccount: {
-      accountName: "PROVIDER ONE",
-      accountNumber: "123456789",
-      accountType: "BANK",
-      institution: "Avin Bank",
     },
     profileId: "profile-1",
     profileSlug: "provider-one",
     publishedAt,
+    recognizedBondAmount: 5_000_000,
+    registeredBankAccounts: [
+      {
+        accountName: "PROVIDER ONE",
+        accountNumber: "123456789",
+        bankCode: "VCB",
+        isPrimary: true,
+      },
+    ],
     services: "Thiết kế nhận diện thương hiệu",
     status: "ACTIVE",
+    tier: "BRONZE",
     verifiedAt: publishedAt,
     versionNumber: 1,
     ...overrides,
@@ -71,59 +78,75 @@ describe("provider directory matching", () => {
   });
 
   it.each([
-    "Provider One",
-    "https://facebook.com/provider-one",
-    "facebook-123",
-    "0901234567",
-    "123456789",
-  ])("supports exact identity lookup for %s", (query) => {
+    ["Provider One", 5],
+    ["Provider", 3],
+    ["One", 2],
+  ])("matches partner name %s", (query, expectedScore) => {
     const candidate = createCandidate();
 
-    expect(getProviderDirectoryMatchScore(candidate, query)).toBe(2);
+    expect(getProviderDirectoryMatchScore(candidate, query)).toBe(
+      expectedScore
+    );
     expect(
       rankProviderDirectoryCandidates([candidate], query, 50)
     ).toHaveLength(1);
   });
 
-  it("does not fuzzy-match a payment account near miss", () => {
+  it.each([
+    ["https://facebook.com/provider-one", 5],
+    ["0901234567", 5],
+    ["123456789", 5],
+    ["nhận diện thương hiệu", 2],
+  ])("searches the public field %s", (query, expectedScore) => {
     const candidate = createCandidate();
 
-    expect(getProviderDirectoryMatchScore(candidate, "123456788")).toBeNull();
+    expect(getProviderDirectoryMatchScore(candidate, query)).toBe(
+      expectedScore
+    );
     expect(
-      rankProviderDirectoryCandidates([candidate], "123456788", 50)
-    ).toEqual([]);
+      rankProviderDirectoryCandidates([candidate], query, 50)
+    ).toHaveLength(1);
   });
 
-  it("matches approved service text after exact identity matches", () => {
-    const exactIdentity = createCandidate(
-      { publishedAt: new Date("2025-01-01T00:00:00.000Z") },
+  it("does not search Facebook IDs or CCCD", () => {
+    const candidate = createCandidate();
+
+    for (const query of ["facebook-123", "123456789012"]) {
+      expect(getProviderDirectoryMatchScore(candidate, query)).toBeNull();
+      expect(rankProviderDirectoryCandidates([candidate], query, 50)).toEqual(
+        []
+      );
+    }
+  });
+
+  it("ranks exact names before prefix and partial matches", () => {
+    const exactMatch = createCandidate(
+      {
+        publishedAt: new Date("2025-01-01T00:00:00.000Z"),
+        registeredBankAccounts: [],
+      },
       { id: "profile-exact", profileSlug: "provider-exact" }
     );
-    const serviceMatch = createCandidate(
+    const prefixMatch = createCandidate(
       {
-        displayName: "Another Provider",
-        officialChannels: {},
-        paymentAccount: null,
+        displayName: "Provider One Studio",
         publishedAt: new Date("2026-01-01T00:00:00.000Z"),
-        services: "Thiết kế nhận diện thương hiệu và bao bì",
+        registeredBankAccounts: [],
       },
-      { id: "profile-service", profileSlug: "provider-service" }
+      { id: "profile-prefix", profileSlug: "provider-prefix" }
+    );
+    const partialMatch = createCandidate(
+      { displayName: "The Provider One Agency", registeredBankAccounts: [] },
+      { id: "profile-partial", profileSlug: "provider-partial" }
     );
 
     expect(
       rankProviderDirectoryCandidates(
-        [serviceMatch, exactIdentity],
+        [partialMatch, prefixMatch, exactMatch],
         "Provider One",
         50
       ).map(({ profile }) => profile.id)
-    ).toEqual(["profile-exact"]);
-    expect(
-      rankProviderDirectoryCandidates(
-        [serviceMatch, exactIdentity],
-        "bao bì",
-        50
-      ).map(({ profile }) => profile.id)
-    ).toEqual(["profile-service"]);
+    ).toEqual(["profile-exact", "profile-prefix", "profile-partial"]);
   });
 
   it("returns only the public projection", () => {
@@ -168,7 +191,7 @@ describe("provider directory matching", () => {
 
     const searched = await searchProviderDirectory(
       database,
-      "123456789",
+      "Provider",
       "203.0.113.12"
     );
     expect(searched.providers).toHaveLength(1);

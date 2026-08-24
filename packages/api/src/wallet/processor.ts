@@ -3,6 +3,7 @@ import { depositRequest, sepayPaymentEvent } from "@avin/db/schema/wallet";
 import { ORPCError } from "@orpc/server";
 import { and, eq } from "drizzle-orm";
 
+import { processProviderDepositEvent } from "../protection/provider-deposit-intent-service";
 import { isAvinPaymentCode } from "./sepay";
 import type { NormalizedSePayEvent } from "./sepay";
 import { creditDepositForEvent } from "./service";
@@ -13,7 +14,7 @@ export interface SePayProcessorConfiguration {
 
 export interface ProcessedSePayEvent {
   eventId: string;
-  status: "CREDITED" | "DUPLICATE" | "UNMATCHED";
+  status: "CREDITED" | "DUPLICATE" | "PROVIDER_MATCHED" | "UNMATCHED";
   transactionReference?: string;
 }
 
@@ -176,6 +177,31 @@ export const processSePayEvent = (
       return {
         eventId: duplicate.id,
         status: "DUPLICATE" as const,
+      };
+    }
+
+    const providerDeposit = await processProviderDepositEvent({
+      database: transaction,
+      event,
+      now,
+      receivingAccountNumber: configuration.receivingAccountNumber,
+    });
+    if (providerDeposit) {
+      await transaction
+        .update(sepayPaymentEvent)
+        .set({
+          failureReason: providerDeposit.reason ?? null,
+          processedAt: now,
+          providerDepositIntentId: providerDeposit.intentId,
+          status: providerDeposit.matched ? "RECONCILED" : "UNMATCHED",
+        })
+        .where(eq(sepayPaymentEvent.id, stored.id));
+
+      return {
+        eventId: stored.id,
+        status: providerDeposit.matched
+          ? ("PROVIDER_MATCHED" as const)
+          : ("UNMATCHED" as const),
       };
     }
 

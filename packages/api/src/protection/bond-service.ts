@@ -3,6 +3,7 @@ import {
   protectionProviderBondAdjustment,
   protectionProviderProfile,
   protectionProviderProfileVersion,
+  protectionPolicyVersion,
 } from "@avin/db/schema/protection";
 import { ORPCError } from "@orpc/server";
 import { and, asc, desc, eq } from "drizzle-orm";
@@ -21,6 +22,10 @@ import type {
 } from "./bond";
 import { getProtectionLaunchConfiguration } from "./configuration";
 import { assertProtectionOperationAllowed } from "./launch-gates";
+import {
+  calculateRecommendedTransactionLimit,
+  getProviderTier,
+} from "./provider-tier";
 
 type Database = Context["db"];
 type ProviderBondAccount = typeof protectionProviderBondAccount.$inferSelect;
@@ -209,16 +214,23 @@ const toAdminBondView = (
   adjustments: ProviderBondAdjustment[]
 ) => ({
   adjustments: adjustments.map(toAdminAdjustmentView),
+  primaryBankAccount:
+    version?.registeredBankAccounts.find(
+      (registeredAccount) => registeredAccount.isPrimary
+    ) ?? null,
   profile: {
     displayName: profile.displayName,
     id: profile.id,
+    location: profile.location,
     profileSlug: profile.profileSlug,
     providerUserId: profile.providerUserId,
     status: profile.status,
   },
   recognizedAmount: account.recognizedAmount,
   recommendedTransactionLimit: version?.recommendedTransactionLimit ?? 0,
+  tier: version?.tier ?? "NORMAL",
   updatedAt: account.updatedAt.toISOString(),
+  verifiedAt: version?.verifiedAt.toISOString() ?? null,
 });
 
 const toProviderBondView = (
@@ -270,6 +282,45 @@ const assertPositiveAdjustmentIsAllowed = (): void => {
   );
 };
 
+const getReconciledBondPresentation = ({
+  currentVersion,
+  policy,
+  profile,
+  recognizedAmount,
+}: {
+  currentVersion: ProviderProfileVersion;
+  policy: typeof protectionPolicyVersion.$inferSelect | null;
+  profile: ProviderProfile;
+  recognizedAmount: number;
+}) => {
+  const calculatedRecommendedTransactionLimit = policy
+    ? calculateRecommendedTransactionLimit({
+        percentage: policy.recommendedLimitPercentage,
+        recognizedBondAmount: recognizedAmount,
+        rounding: policy.recommendedLimitRounding,
+      })
+    : Math.min(currentVersion.recommendedTransactionLimit, recognizedAmount);
+  const minimumBondAmount = policy?.minimumBondAmount ?? 1_000_000;
+  const isBelowMinimum = recognizedAmount < minimumBondAmount;
+  const nextStatus =
+    profile.status === "ACTIVE" && isBelowMinimum
+      ? "SUSPENDED_PENDING_REVIEW"
+      : profile.status;
+  return {
+    nextStatus,
+    recommendedTransactionLimit: isBelowMinimum
+      ? 0
+      : calculatedRecommendedTransactionLimit,
+    statusReason:
+      nextStatus === "SUSPENDED_PENDING_REVIEW" && isBelowMinimum
+        ? `Provider Bond đã giảm dưới mức tối thiểu ${minimumBondAmount.toLocaleString("vi-VN")} VND; cần Admin review trước khi hoạt động lại.`
+        : (profile.statusReason ?? currentVersion.statusReason),
+    tier: policy
+      ? getProviderTier(recognizedAmount, policy)
+      : currentVersion.tier,
+  };
+};
+
 const reconcileRecommendedTransactionLimit = async ({
   database,
   now,
@@ -289,25 +340,68 @@ const reconcileRecommendedTransactionLimit = async ({
   if (!currentVersion) {
     return throwConflict("Provider profile has no published version");
   }
-  if (currentVersion.recommendedTransactionLimit <= recognizedAmount) {
+  const [policy] = currentVersion.policyVersionId
+    ? await database
+        .select()
+        .from(protectionPolicyVersion)
+        .where(eq(protectionPolicyVersion.id, currentVersion.policyVersionId))
+        .limit(1)
+    : [];
+  const { nextStatus, recommendedTransactionLimit, statusReason, tier } =
+    getReconciledBondPresentation({
+      currentVersion,
+      policy: policy ?? null,
+      profile,
+      recognizedAmount,
+    });
+  if (
+    currentVersion.recommendedTransactionLimit ===
+      recommendedTransactionLimit &&
+    currentVersion.tier === tier &&
+    currentVersion.recognizedBondAmount === recognizedAmount &&
+    currentVersion.status === nextStatus
+  ) {
     return currentVersion;
+  }
+
+  if (
+    profile.status === "ACTIVE" &&
+    nextStatus === "SUSPENDED_PENDING_REVIEW"
+  ) {
+    await database
+      .update(protectionProviderProfile)
+      .set({
+        status: nextStatus,
+        statusReason,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(protectionProviderProfile.id, profile.id),
+          eq(protectionProviderProfile.status, "ACTIVE")
+        )
+      );
   }
 
   const [loweredVersion] = await database
     .insert(protectionProviderProfileVersion)
     .values({
       displayName: currentVersion.displayName,
+      location: currentVersion.location,
       officialChannels: currentVersion.officialChannels,
-      paymentAccount: currentVersion.paymentAccount,
+      policyVersionId: currentVersion.policyVersionId,
       profileId: profile.id,
       profileSlug: profile.profileSlug,
       publishedAt: now,
       publishedByUserId: null,
-      recommendedTransactionLimit: recognizedAmount,
+      recognizedBondAmount: recognizedAmount,
+      recommendedTransactionLimit,
+      registeredBankAccounts: currentVersion.registeredBankAccounts,
       services: currentVersion.services,
       sourceApplicationId: profile.applicationId,
-      status: currentVersion.status,
-      statusReason: null,
+      status: nextStatus,
+      statusReason,
+      tier,
       verifiedAt: currentVersion.verifiedAt,
       versionNumber: currentVersion.versionNumber + 1,
     })
@@ -492,9 +586,11 @@ const insertProviderBondAdjustment = async ({
 export const recordProviderBondAdjustment = async ({
   database,
   input,
+  applyImmediately = false,
   recordedByUserId,
   now = new Date(),
 }: {
+  applyImmediately?: boolean;
   database: Database;
   input: ProviderBondAdjustmentRecordInput;
   now?: Date;
@@ -538,6 +634,21 @@ export const recordProviderBondAdjustment = async ({
     return { adjustment, profileId: profile.id };
   });
 
+  if (applyImmediately && result.adjustment.status === "PENDING_APPROVAL") {
+    // oxlint-disable-next-line no-use-before-define
+    await approveProviderBondAdjustment({
+      database,
+      input: {
+        adjustmentId: result.adjustment.id,
+        decision: "APPROVED",
+        reason:
+          "SUPER_ADMIN manual Bond adjustment; no dual approval required.",
+      },
+      now,
+      reviewerUserId: recordedByUserId,
+    });
+  }
+
   return getProviderBondForAdmin(database, result.profileId);
 };
 
@@ -564,12 +675,6 @@ export const approveProviderBondAdjustment = async ({
     if (adjustment.status !== "PENDING_APPROVAL") {
       return { profileId: adjustment.profileId };
     }
-    if (adjustment.recordedByUserId === reviewerUserId) {
-      throw new ORPCError("FORBIDDEN", {
-        message: "The Admin who recorded a Bond decrease cannot approve it",
-      });
-    }
-
     const nextStatus: BondAdjustmentStatus =
       input.decision === "APPROVED" ? "APPLIED" : "REJECTED";
     assertBondAdjustmentTransition(adjustment.status, nextStatus);
@@ -697,6 +802,27 @@ export const publishProviderRecommendedTransactionLimit = async ({
     if (!currentVersion) {
       return throwConflict("Provider profile has no published version");
     }
+    const [policy] = currentVersion.policyVersionId
+      ? await transaction
+          .select()
+          .from(protectionPolicyVersion)
+          .where(eq(protectionPolicyVersion.id, currentVersion.policyVersionId))
+          .limit(1)
+      : [];
+    const maximumRecommendedLimit = policy
+      ? calculateRecommendedTransactionLimit({
+          percentage: policy.recommendedLimitPercentage,
+          recognizedBondAmount: account.recognizedAmount,
+          rounding: policy.recommendedLimitRounding,
+        })
+      : calculateRecommendedTransactionLimit({
+          recognizedBondAmount: account.recognizedAmount,
+        });
+    if (input.recommendedTransactionLimit !== maximumRecommendedLimit) {
+      throwConflict(
+        "Recommended Transaction Limit được tính tự động bằng tối đa 80% Bond và không thể chỉnh độc lập"
+      );
+    }
     if (
       currentVersion.recommendedTransactionLimit ===
       input.recommendedTransactionLimit
@@ -708,17 +834,21 @@ export const publishProviderRecommendedTransactionLimit = async ({
       .insert(protectionProviderProfileVersion)
       .values({
         displayName: currentVersion.displayName,
+        location: currentVersion.location,
         officialChannels: currentVersion.officialChannels,
-        paymentAccount: currentVersion.paymentAccount,
+        policyVersionId: currentVersion.policyVersionId,
         profileId: profile.id,
         profileSlug: profile.profileSlug,
         publishedAt: now,
         publishedByUserId: publisherUserId,
+        recognizedBondAmount: currentVersion.recognizedBondAmount,
         recommendedTransactionLimit: input.recommendedTransactionLimit,
+        registeredBankAccounts: currentVersion.registeredBankAccounts,
         services: currentVersion.services,
         sourceApplicationId: profile.applicationId,
         status: currentVersion.status,
         statusReason: null,
+        tier: currentVersion.tier,
         verifiedAt: currentVersion.verifiedAt,
         versionNumber: currentVersion.versionNumber + 1,
       })

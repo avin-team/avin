@@ -6,10 +6,10 @@ export const Route = createFileRoute("/(public)/avin-check/directory")({
   component: ProviderDirectoryPage,
   head: () => ({
     meta: [
-      { title: "Provider Directory | Avin Check" },
+      { title: "Đối tác | Avin Check" },
       {
         content:
-          "Duyệt và tra cứu chính xác các profile Provider đang hoạt động trong Avin Check.",
+          "Tìm kiếm theo tên và xem hồ sơ công khai của các đối tác Avin đã được xác minh.",
         name: "description",
       },
     ],

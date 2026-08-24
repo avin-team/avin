@@ -11,19 +11,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
-import {
-  ArrowLeft,
-  CheckCircle,
-  LockKey,
-  PaperPlaneTilt,
-  SealCheck,
-} from "@phosphor-icons/react";
+import { ArrowLeft, MapPin, SealCheck } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "@tanstack/react-router";
 
 import { orpc } from "@/utils/orpc";
 
-const PROFILE_STATUS_LABELS = {
+const STATUS_LABELS = {
   ACTIVE: "Đang hoạt động",
   REMOVED_FOR_FRAUD: "Đã gỡ vì gian lận",
   SUSPENDED_PENDING_REVIEW: "Tạm ngưng, chờ xem xét",
@@ -31,235 +25,51 @@ const PROFILE_STATUS_LABELS = {
   WITHDRAWN: "Đã rút khỏi chương trình",
 } as const;
 
-const RISK_STATUS_LABELS = {
-  CORRECTED: "Đã cập nhật",
-  PUBLISHED: "Đã công khai",
-  UNDER_VERIFICATION: "Đang xác minh",
+const TIER_LABELS = {
+  BRONZE: "Đồng",
+  DIAMOND: "Kim cương",
+  GOLD: "Vàng",
+  NORMAL: "Normal",
+  SILVER: "Bạc",
+  VIP: "VIP",
 } as const;
 
-const vndFormatter = new Intl.NumberFormat("vi-VN", {
+const money = new Intl.NumberFormat("vi-VN", {
   currency: "VND",
   maximumFractionDigits: 0,
   style: "currency",
 });
-
-const formatDateVi = (dateStr: string | null | undefined): string => {
-  if (!dateStr) {
+const providerDateFormatter = new Intl.DateTimeFormat("vi-VN", {
+  dateStyle: "medium",
+});
+const formatDate = (value: string | null | undefined): string => {
+  if (!value) {
     return "Đang cập nhật";
   }
-  const date = new Date(dateStr);
-  if (Number.isNaN(date.getTime())) {
-    return dateStr;
-  }
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = date.getFullYear();
-  return `${day}/${month}/${year}`;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? value
+    : providerDateFormatter.format(date);
 };
+const initials = (name: string): string =>
+  name
+    .trim()
+    .split(/\s+/u)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase() || "AV";
 
-const getInitials = (name: string): string => {
-  const trimmed = name.trim();
-  if (!trimmed) {
-    return "AV";
-  }
-  const parts = trimmed.split(/\s+/u);
-  const first = parts[0]?.[0] ?? "A";
-  const last = parts.at(-1)?.[0] ?? "V";
-  return `${first}${last}`.toUpperCase();
-};
-
-interface OfficialChannelsData {
+interface Channels {
   avatarUrl?: string;
-  bioShop?: string;
-  facebookId?: string;
   facebookUrl?: string;
-  note?: string;
+  hotline?: string;
   telegramCommunityUrl?: string;
+  tiktokUrl?: string;
   websiteUrl?: string;
+  youtubeUrl?: string;
   zalo?: string;
 }
-
-const ProviderHeaderSection = ({
-  channels,
-  displayName,
-  profileId,
-}: {
-  channels: OfficialChannelsData;
-  displayName: string;
-  profileId: string;
-}) => {
-  const zaloNumber = channels.zalo?.trim() ?? "";
-  const zaloUrl = zaloNumber
-    ? `https://zalo.me/${zaloNumber.replaceAll(/\s+/gu, "")}`
-    : "#";
-  const telegramUrl =
-    channels.telegramCommunityUrl?.trim() ||
-    "https://t.me/avin_check_community";
-
-  return (
-    <div className="border-border/50 border-b bg-card p-6 text-center space-y-4">
-      <div className="flex items-center justify-between">
-        <span className="font-semibold text-xs text-muted-foreground">
-          Mã hồ sơ: #{profileId.slice(0, 8)}
-        </span>
-        <span className="font-bold text-xs text-primary">
-          Avin Check Certified
-        </span>
-      </div>
-
-      <div className="flex flex-col items-center">
-        <Avatar className="size-24 border-3 border-primary/30 bg-primary/10 shadow-md">
-          {channels.avatarUrl ? (
-            <AvatarImage alt={displayName} src={channels.avatarUrl} />
-          ) : null}
-          <AvatarFallback className="font-black text-primary text-2xl">
-            {getInitials(displayName)}
-          </AvatarFallback>
-        </Avatar>
-
-        <div className="mt-3.5 flex items-center justify-center gap-1.5">
-          <h1
-            className="font-extrabold text-foreground text-2xl sm:text-3xl tracking-tight"
-            id="provider-public-profile-title"
-          >
-            {displayName}
-          </h1>
-          <SealCheck className="size-6 text-primary" weight="fill" />
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-        <a
-          className="inline-flex items-center gap-2 rounded-xl bg-[#0068FF] px-5 py-2.5 text-xs font-bold text-white shadow-sm transition-all hover:bg-[#0055d4] hover:shadow-md"
-          href={zaloUrl}
-          rel="noopener noreferrer"
-          target="_blank"
-        >
-          <CheckCircle className="size-4.5" weight="bold" />
-          Check Zalo Real
-        </a>
-        <a
-          className="inline-flex items-center gap-2 rounded-xl bg-[#229ED9] px-5 py-2.5 text-xs font-bold text-white shadow-sm transition-all hover:bg-[#1a8bc2] hover:shadow-md"
-          href={telegramUrl}
-          rel="noopener noreferrer"
-          target="_blank"
-        >
-          <PaperPlaneTilt className="size-4.5" weight="fill" />
-          Nhóm Telegram
-        </a>
-      </div>
-    </div>
-  );
-};
-
-const ProviderVerificationBox = ({
-  channels,
-}: {
-  channels: OfficialChannelsData;
-}) => (
-  <div className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-5 space-y-3">
-    <h2 className="font-bold text-sm text-foreground">Thông tin Xác Minh:</h2>
-    <div className="space-y-2 text-xs">
-      <div className="flex items-start gap-2">
-        <span className="font-semibold text-foreground shrink-0">Fb (C):</span>
-        {channels.facebookUrl ? (
-          <a
-            className="text-primary font-medium hover:underline truncate"
-            href={channels.facebookUrl}
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            {channels.facebookUrl}
-          </a>
-        ) : (
-          <span className="text-muted-foreground">Chưa cập nhật</span>
-        )}
-      </div>
-      <div className="flex items-start gap-2">
-        <span className="font-semibold text-foreground shrink-0">
-          Inbox Zalo:
-        </span>
-        <span className="font-mono text-primary font-bold">
-          {channels.zalo || "Chưa cấu hình"}
-        </span>
-      </div>
-      {channels.bioShop ? (
-        <div className="flex items-start gap-2">
-          <span className="font-semibold text-foreground shrink-0">
-            Bio Shop:
-          </span>
-          <span className="font-mono text-foreground font-medium">
-            {channels.bioShop}
-          </span>
-        </div>
-      ) : null}
-      {channels.websiteUrl ? (
-        <div className="flex items-start gap-2">
-          <span className="font-semibold text-foreground shrink-0">
-            Website:
-          </span>
-          <a
-            className="text-primary hover:underline truncate"
-            href={channels.websiteUrl}
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            {channels.websiteUrl}
-          </a>
-        </div>
-      ) : null}
-    </div>
-  </div>
-);
-
-const ProviderTierBox = ({
-  isRoyal,
-  limit,
-  verifiedDate,
-}: {
-  isRoyal: boolean;
-  limit: number;
-  verifiedDate: string | null | undefined;
-}) => (
-  <div className="relative rounded-2xl border border-amber-500/40 bg-amber-500/5 p-5 space-y-2">
-    <h2 className="font-bold text-sm text-foreground">
-      {isRoyal ? "Hồ Sơ Hạng Royal" : "Hồ Sơ Hạng Bạc"}:
-    </h2>
-    <div className="space-y-1.5 text-xs">
-      <div>
-        <span className="text-muted-foreground">Hỗ trợ: </span>
-        <span className="font-bold text-emerald-600 dark:text-emerald-400">
-          Xuất sắc
-        </span>
-      </div>
-      <div>
-        <span className="text-muted-foreground">Điểm tín nhiệm: </span>
-        <span className="font-bold text-emerald-600 dark:text-emerald-400">
-          100/100
-        </span>
-      </div>
-      <div>
-        <span className="text-muted-foreground">Ngày tham gia: </span>
-        <span className="font-medium text-foreground">
-          {formatDateVi(verifiedDate)}
-        </span>
-      </div>
-      <div>
-        <span className="text-muted-foreground">Khuyến nghị giao dịch: </span>
-        <span className="font-bold text-blue-600 dark:text-blue-400">
-          {limit > 0
-            ? `dưới ${vndFormatter.format(limit)}`
-            : "theo hạn mức ký quỹ"}
-        </span>
-      </div>
-    </div>
-    <div className="absolute right-4 top-4">
-      <div className="flex size-11 items-center justify-center rounded-2xl bg-destructive/10 text-destructive shadow-xs">
-        <LockKey className="size-7" weight="fill" />
-      </div>
-    </div>
-  </div>
-);
 
 export const ProviderPublicProfilePage = () => {
   const { slug } = useParams({ from: "/(public)/avin-check/provider/$slug" });
@@ -270,125 +80,182 @@ export const ProviderPublicProfilePage = () => {
   if (profileQuery.isPending) {
     return (
       <section className="mx-auto max-w-3xl py-16 text-center text-muted-foreground">
-        <output aria-live="polite">Đang tải hồ sơ xác minh Đối tác...</output>
+        Đang tải hồ sơ đối tác...
       </section>
     );
   }
-
   if (profileQuery.isError) {
     return (
       <section className="mx-auto max-w-2xl py-16 text-center">
-        <h1 className="font-bold text-3xl">Không tìm thấy profile Provider</h1>
+        <h1 className="font-bold text-3xl">Không tìm thấy hồ sơ đối tác</h1>
         <p className="mt-3 text-muted-foreground">
-          Profile có thể chưa được phát hành hoặc đường dẫn không còn hợp lệ.
+          Hồ sơ có thể chưa được phát hành hoặc đường dẫn không còn hợp lệ.
         </p>
       </section>
     );
   }
 
   const profile = profileQuery.data;
-  const officialChannels = (profile.officialChannels ??
-    {}) as OfficialChannelsData;
-  const isRoyal = profile.recommendedTransactionLimit >= 50_000_000;
+  const channels = (profile.officialChannels ?? {}) as Channels;
+  const tier =
+    TIER_LABELS[profile.tier as keyof typeof TIER_LABELS] ?? profile.tier;
 
   return (
     <section
       aria-labelledby="provider-public-profile-title"
-      className="mx-auto flex max-w-3xl flex-col gap-6 py-10 px-4"
+      className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-10"
     >
       <Link
-        className="inline-flex items-center gap-1.5 font-medium text-muted-foreground text-sm transition-colors hover:text-foreground"
+        className="inline-flex items-center gap-1.5 font-medium text-muted-foreground text-sm hover:text-foreground"
         to="/avin-check"
       >
         <ArrowLeft aria-hidden="true" className="size-4" />
         Quay lại
       </Link>
-
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Badge
-          className="border-primary/40 bg-primary/10 text-primary text-xs"
-          variant="outline"
-        >
-          Avin Check · {PROFILE_STATUS_LABELS[profile.status]}
+        <Badge variant="outline">
+          Avin Check · {STATUS_LABELS[profile.status]}
         </Badge>
-        <span className="text-muted-foreground text-xs font-mono">
-          Slug: {profile.profileSlug}
+        <span className="font-mono text-muted-foreground text-xs">
+          {profile.profileSlug}
         </span>
       </div>
 
-      {profile.statusReason ? (
-        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm text-foreground">
-          {profile.statusReason}
-        </div>
-      ) : null}
-
-      <div className="overflow-hidden rounded-3xl border border-border/80 bg-card shadow-xl">
-        <ProviderHeaderSection
-          channels={officialChannels}
-          displayName={profile.displayName}
-          profileId={profile.id}
-        />
-
-        <div className="grid gap-4 p-5 sm:grid-cols-2">
-          <ProviderVerificationBox channels={officialChannels} />
-          <ProviderTierBox
-            isRoyal={isRoyal}
-            limit={profile.recommendedTransactionLimit}
-            verifiedDate={profile.verifiedAt || profile.publishedAt}
-          />
-        </div>
-
-        <div className="px-5 pb-5">
-          <div className="relative rounded-2xl border border-amber-500/40 bg-amber-500/5 p-5 min-h-40">
-            <h2 className="font-bold text-sm text-foreground mb-3">
-              Dịch vụ cung cấp:
-            </h2>
-            <div className="whitespace-pre-wrap font-sans text-xs text-foreground leading-relaxed">
-              {profile.services}
+      <Card className="overflow-hidden">
+        <CardHeader className="items-center border-b bg-primary/5 text-center">
+          <Avatar className="size-24 border-2 border-primary/30">
+            <AvatarImage alt={profile.displayName} src={channels.avatarUrl} />
+            <AvatarFallback>{initials(profile.displayName)}</AvatarFallback>
+          </Avatar>
+          <div className="mt-2 flex items-center gap-2">
+            <CardTitle className="text-2xl" id="provider-public-profile-title">
+              {profile.displayName}
+            </CardTitle>
+            <SealCheck
+              aria-label="Đã xác minh"
+              className="size-6 text-primary"
+              weight="fill"
+            />
+          </div>
+          <CardDescription>
+            <MapPin aria-hidden="true" className="mr-1 inline size-4" />
+            {profile.location || "Địa điểm chưa cập nhật"} · Xác minh{" "}
+            {formatDate(profile.verifiedAt)}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5 p-5">
+          <div className="grid gap-3 sm:grid-cols-4">
+            <div
+              className={
+                profile.tier === "NORMAL" ? "p-3" : "rounded-xl border p-3"
+              }
+            >
+              <p className="text-muted-foreground text-xs">Hạng</p>
+              <p className="mt-1 font-bold text-primary">{tier}</p>
             </div>
-
-            <div className="mt-6 flex justify-end">
-              <div className="inline-flex items-center gap-1.5 rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-1.5 text-[11px] font-extrabold uppercase text-destructive/80 rotate-[-2deg] shadow-2xs">
-                <LockKey className="size-3.5" weight="fill" />
-                HỒ SƠ XÁC MINH UY TÍN AVIN CHECK
+            <div className="rounded-xl border p-3">
+              <p className="text-muted-foreground text-xs">Bond chính xác</p>
+              <p className="mt-1 font-semibold">
+                {money.format(profile.recognizedBondAmount)}
+              </p>
+            </div>
+            <div className="rounded-xl border p-3 sm:col-span-2">
+              <p className="text-muted-foreground text-xs">
+                Hạn mức khuyến nghị
+              </p>
+              <p className="mt-1 font-semibold">
+                ≤ {money.format(profile.recommendedTransactionLimit)}
+              </p>
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl border p-4">
+              <h2 className="font-semibold text-sm">Kênh liên hệ</h2>
+              <div className="mt-3 grid gap-2 text-sm">
+                {(
+                  [
+                    ["Hotline", channels.hotline],
+                    ["Zalo", channels.zalo],
+                    ["Facebook", channels.facebookUrl],
+                    ["Telegram", channels.telegramCommunityUrl],
+                    ["TikTok", channels.tiktokUrl],
+                    ["YouTube", channels.youtubeUrl],
+                    ["Website", channels.websiteUrl],
+                  ] as const
+                ).map(([label, value]) =>
+                  value ? (
+                    <a
+                      className="truncate text-primary underline underline-offset-4"
+                      href={
+                        label === "Zalo"
+                          ? `https://zalo.me/${value.replaceAll(/\s+/gu, "")}`
+                          : value
+                      }
+                      key={label}
+                      rel="noopener noreferrer"
+                      target="_blank"
+                    >
+                      {label}: {value}
+                    </a>
+                  ) : null
+                )}
+              </div>
+            </div>
+            <div className="rounded-2xl border p-4">
+              <h2 className="font-semibold text-sm">
+                Tài khoản ngân hàng đã đăng ký
+              </h2>
+              <p className="mt-1 text-muted-foreground text-xs">
+                Đối tác đã đồng ý công khai toàn bộ số tài khoản.
+              </p>
+              <div className="mt-3 grid gap-2">
+                {(profile.registeredBankAccounts ?? []).map((account) => (
+                  <div
+                    className="rounded-xl bg-muted/40 p-3 text-sm"
+                    key={`${account.bankCode}-${account.accountNumber}`}
+                  >
+                    <p className="font-semibold">{account.accountName}</p>
+                    <p className="font-mono">{account.accountNumber}</p>
+                    <p className="text-muted-foreground text-xs">
+                      {account.bankCode}
+                      {account.isPrimary ? " · Tài khoản chính" : ""}
+                    </p>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
-        </div>
-      </div>
+          <div className="rounded-2xl border bg-muted/20 p-4">
+            <h2 className="font-semibold text-sm">Dịch vụ cung cấp</h2>
+            <p className="mt-2 whitespace-pre-wrap text-sm leading-6">
+              {profile.services}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       {profile.relatedWarnings.length > 0 ? (
         <Card>
           <CardHeader>
             <CardTitle>Cảnh báo công khai liên quan</CardTitle>
-            <CardDescription>
-              Chỉ các Risk Report đã được công khai mới được liên kết ở đây.
-            </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-2 text-sm">
             {profile.relatedWarnings.map((warning) => (
               <a
-                className="flex flex-wrap justify-between gap-2 rounded-xl border p-3 text-primary underline underline-offset-4"
+                className="rounded-xl border p-3 text-primary underline"
                 href={warning.publicPath}
                 key={warning.publicSlug}
               >
-                <span>{warning.publicSlug}</span>
-                <span className="text-muted-foreground no-underline">
-                  {RISK_STATUS_LABELS[warning.status]}
-                </span>
+                {warning.publicSlug}
               </a>
             ))}
           </CardContent>
         </Card>
       ) : null}
-
       {profile.history.length > 0 ? (
         <Card>
           <CardHeader>
             <CardTitle>Lịch sử phiên bản hồ sơ</CardTitle>
-            <CardDescription>
-              Đối chiếu trạng thái và các phiên bản đã phát hành bởi Avin Check.
-            </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-2 text-sm">
             {profile.history.map((version) => (
@@ -397,17 +264,13 @@ export const ProviderPublicProfilePage = () => {
                 key={version.versionNumber}
               >
                 <span>
-                  Phiên bản {version.versionNumber} ·{" "}
-                  {PROFILE_STATUS_LABELS[version.status]}
+                  {version.versionNumber}.{" "}
+                  {TIER_LABELS[version.tier as keyof typeof TIER_LABELS] ??
+                    version.tier}
                 </span>
-                <span className="text-muted-foreground text-right text-xs">
-                  <span className="block">
-                    {formatDateVi(version.publishedAt)}
-                  </span>
-                  <span className="block">
-                    Hạn mức:{" "}
-                    {vndFormatter.format(version.recommendedTransactionLimit)}
-                  </span>
+                <span className="text-muted-foreground text-xs">
+                  {formatDate(version.publishedAt)} · Bond{" "}
+                  {money.format(version.recognizedBondAmount)}
                 </span>
               </div>
             ))}

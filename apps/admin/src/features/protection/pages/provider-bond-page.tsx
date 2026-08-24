@@ -17,11 +17,15 @@ import { ThemeSwitch } from "@/components/theme-switch";
 
 import {
   useAdminProviderBonds,
+  useAdminProviderDepositIntents,
   useApproveAdminProviderBondAdjustment,
-  usePublishAdminProviderBondLimit,
+  useDecideAdminProviderDepositIntent,
   useRecordAdminProviderBondAdjustment,
 } from "../api/provider-bond-api";
-import type { ProviderBond } from "../api/provider-bond-api";
+import type {
+  ProviderBond,
+  ProviderDepositIntent,
+} from "../api/provider-bond-api";
 
 const ADJUSTMENT_KIND_ITEMS: { label: string; value: BondAdjustmentKind }[] = [
   { label: "Deposit đã đối soát", value: "DEPOSIT" },
@@ -32,7 +36,7 @@ const ADJUSTMENT_KIND_ITEMS: { label: string; value: BondAdjustmentKind }[] = [
 
 const ADJUSTMENT_STATUS_LABELS = {
   APPLIED: "Đã áp dụng",
-  PENDING_APPROVAL: "Chờ Protection Manager duyệt",
+  PENDING_APPROVAL: "Chờ Admin xử lý",
   REJECTED: "Đã từ chối",
 } as const;
 
@@ -142,20 +146,77 @@ const AdjustmentHistory = ({ bond }: { bond: ProviderBond }) => {
   );
 };
 
-const ProviderBondCard = ({ bond }: { bond: ProviderBond }) => {
-  const [limit, setLimit] = useState(String(bond.recommendedTransactionLimit));
-  const publishLimit = usePublishAdminProviderBondLimit();
+const ProviderDepositIntentQueue = () => {
+  const { data: intents = [], isPending } = useAdminProviderDepositIntents();
+  const decide = useDecideAdminProviderDepositIntent();
+  const [reasons, setReasons] = useState<Record<string, string>>({});
+  const [matchedAmounts, setMatchedAmounts] = useState<Record<string, string>>(
+    {}
+  );
+  const [refundReferences, setRefundReferences] = useState<
+    Record<string, string>
+  >({});
+  const [sourceEventIds, setSourceEventIds] = useState<Record<string, string>>(
+    {}
+  );
 
-  const saveLimit = async () => {
+  const actionableIntents = intents.filter((intent) =>
+    ["MANUAL_REVIEW", "REFUND_PENDING"].includes(intent.status)
+  );
+  const updateReason = (id: string, value: string) =>
+    setReasons((current) => ({ ...current, [id]: value }));
+  const updateMatchedAmount = (id: string, value: string) =>
+    setMatchedAmounts((current) => ({ ...current, [id]: value }));
+  const updateRefundReference = (id: string, value: string) =>
+    setRefundReferences((current) => ({ ...current, [id]: value }));
+  const updateSourceEventIds = (id: string, value: string) =>
+    setSourceEventIds((current) => ({ ...current, [id]: value }));
+  const handleDecision = async (
+    intent: ProviderDepositIntent,
+    decision: "MATCH" | "REFUND"
+  ) => {
+    const reason = reasons[intent.id]?.trim();
+    if (!reason || reason.length < 10) {
+      toast.error("Cần ghi lý do đối soát tối thiểu 10 ký tự.");
+      return;
+    }
+    const refundBankReference = refundReferences[intent.id]?.trim();
+    if (decision === "REFUND" && !refundBankReference) {
+      toast.error(
+        "Cần nhập external bank reference khi xác nhận đã hoàn tiền."
+      );
+      return;
+    }
     try {
-      await publishLimit.mutateAsync({
-        profileId: bond.profile.id,
-        recommendedTransactionLimit: Number(limit),
+      await decide.mutateAsync({
+        decision,
+        id: intent.id,
+        matchedAmount:
+          decision === "MATCH"
+            ? Number(matchedAmounts[intent.id]) || intent.amount
+            : undefined,
+        reason,
+        refundBankReference:
+          decision === "REFUND" ? refundBankReference : undefined,
+        sourceEventIds:
+          decision === "MATCH"
+            ? (sourceEventIds[intent.id] ?? "")
+                .split(",")
+                .map((value) => value.trim())
+                .filter(Boolean)
+            : [],
       });
-      toast.success("Đã phát hành Recommended Transaction Limit version mới.");
+      toast.success(
+        decision === "MATCH"
+          ? "Đã ghi nhận khoản Bond."
+          : "Đã ghi nhận hoàn tiền Bond."
+      );
+      setReasons((current) => ({ ...current, [intent.id]: "" }));
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Không thể phát hành limit."
+        error instanceof Error
+          ? error.message
+          : "Không thể xử lý khoản chuyển khoản."
       );
     }
   };
@@ -163,51 +224,147 @@ const ProviderBondCard = ({ bond }: { bond: ProviderBond }) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{bond.profile.displayName}</CardTitle>
+        <CardTitle>Đối soát chuyển khoản Provider</CardTitle>
         <CardDescription>
-          {bond.profile.profileSlug} · {bond.profile.status} ·{" "}
-          {bond.profile.providerUserId}
+          Chỉ SUPER_ADMIN được xử lý khoản trễ, thiếu, thừa, tách giao dịch hoặc
+          hoàn Bond.
         </CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-6">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-xl border bg-muted/20 p-4">
-            <p className="font-medium text-sm">Recognized Provider Bond</p>
-            <p className="mt-1 font-semibold text-2xl">
-              {vndFormatter.format(bond.recognizedAmount)}
+      <CardContent className="grid gap-3">
+        {isPending ? (
+          <output aria-live="polite">Đang tải hàng đợi chuyển khoản...</output>
+        ) : null}
+        {!isPending && actionableIntents.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            Không có khoản cần đối soát thủ công.
+          </p>
+        ) : null}
+        {actionableIntents.map((intent) => (
+          <div
+            className="grid gap-3 rounded-xl border bg-muted/20 p-4"
+            key={intent.id}
+          >
+            <div className="flex flex-wrap justify-between gap-2 text-sm">
+              <span className="font-medium">
+                {intent.kind} · {intent.status}
+              </span>
+              <span>{vndFormatter.format(intent.amount)}</span>
+            </div>
+            <p className="font-mono text-xs text-muted-foreground">
+              {intent.paymentCode}
             </p>
-          </div>
-          <div className="rounded-xl border bg-muted/20 p-4">
-            <p className="font-medium text-sm">Recommended Transaction Limit</p>
-            <div className="mt-2 flex gap-2">
+            <Input
+              aria-label={`Lý do đối soát ${intent.paymentCode}`}
+              onChange={(event) => updateReason(intent.id, event.target.value)}
+              placeholder="Lý do và chứng từ chuyển khoản ngoài hệ thống"
+              value={reasons[intent.id] ?? ""}
+            />
+            {intent.status !== "REFUND_PENDING" && (
               <Input
-                aria-label={`Recommended Transaction Limit của ${
-                  bond.profile.displayName
-                }`}
+                aria-label={`Số tiền Bond đã nhận ${intent.paymentCode}`}
                 inputMode="numeric"
-                min={0}
-                onChange={(event) => setLimit(event.target.value)}
+                min={1_000_000}
+                onChange={(event) =>
+                  updateMatchedAmount(intent.id, event.target.value)
+                }
+                placeholder={`Mặc định ${intent.amount.toLocaleString("vi-VN")} VND`}
                 type="number"
-                value={limit}
+                value={matchedAmounts[intent.id] ?? ""}
               />
+            )}
+            {intent.status !== "REFUND_PENDING" && (
+              <Input
+                aria-label={`SePay source event IDs ${intent.paymentCode}`}
+                onChange={(event) =>
+                  updateSourceEventIds(intent.id, event.target.value)
+                }
+                placeholder="Source event UUIDs, phân cách bằng dấu phẩy (nếu chuyển nhiều lần)"
+                value={sourceEventIds[intent.id] ?? ""}
+              />
+            )}
+            <Input
+              aria-label={`External bank reference hoàn tiền ${intent.paymentCode}`}
+              onChange={(event) =>
+                updateRefundReference(intent.id, event.target.value)
+              }
+              placeholder="External bank reference nếu chọn hoàn tiền"
+              value={refundReferences[intent.id] ?? ""}
+            />
+            <div className="flex flex-wrap gap-2">
+              {intent.status !== "REFUND_PENDING" && (
+                <Button
+                  disabled={decide.isPending}
+                  onClick={() => void handleDecision(intent, "MATCH")}
+                  size="sm"
+                  type="button"
+                >
+                  Ghi nhận Bond
+                </Button>
+              )}
               <Button
-                disabled={publishLimit.isPending}
-                onClick={() => void saveLimit()}
+                disabled={decide.isPending}
+                onClick={() => void handleDecision(intent, "REFUND")}
+                size="sm"
                 type="button"
+                variant="outline"
               >
-                Phát hành
+                Đã hoàn tiền
               </Button>
             </div>
-            <p className="mt-2 text-muted-foreground text-xs">
-              Không được vượt quá Recognized Bond.
-            </p>
           </div>
-        </div>
-        <AdjustmentHistory bond={bond} />
+        ))}
       </CardContent>
     </Card>
   );
 };
+
+const ProviderBondCard = ({ bond }: { bond: ProviderBond }) => (
+  <Card>
+    <CardHeader>
+      <CardTitle>{bond.profile.displayName}</CardTitle>
+      <CardDescription>
+        {bond.profile.location} · {bond.profile.profileSlug} ·{" "}
+        {bond.profile.status} · {bond.profile.providerUserId}
+      </CardDescription>
+    </CardHeader>
+    <CardContent className="grid gap-6">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-xl border bg-muted/20 p-4">
+          <p className="font-medium text-sm">Recognized Provider Bond</p>
+          <p className="mt-1 font-semibold text-2xl">
+            {vndFormatter.format(bond.recognizedAmount)}
+          </p>
+          <p className="mt-1 text-muted-foreground text-xs">
+            Hạng {bond.tier} · Xác minh {bond.verifiedAt ?? "—"}
+          </p>
+        </div>
+        <div className="rounded-xl border bg-muted/20 p-4">
+          <p className="font-medium text-sm">Recommended Transaction Limit</p>
+          <p className="mt-2 font-semibold text-2xl">
+            {vndFormatter.format(bond.recommendedTransactionLimit)}
+          </p>
+          <p className="mt-2 text-muted-foreground text-xs">
+            Tự động bằng tối đa 80% Bond, làm tròn xuống 100.000 VND; Admin
+            không chỉnh độc lập.
+          </p>
+        </div>
+      </div>
+      <div className="rounded-xl border bg-muted/20 p-4 text-sm">
+        <p className="font-medium">Tài khoản ngân hàng chính</p>
+        {bond.primaryBankAccount ? (
+          <p className="mt-1 font-mono">
+            {bond.primaryBankAccount.accountName} ·{" "}
+            {bond.primaryBankAccount.accountNumber} ·{" "}
+            {bond.primaryBankAccount.bankCode}
+          </p>
+        ) : (
+          <p className="mt-1 text-muted-foreground">Chưa cung cấp</p>
+        )}
+      </div>
+      <AdjustmentHistory bond={bond} />
+    </CardContent>
+  </Card>
+);
 
 export const ProviderBondPage = () => {
   const { data: bonds = [], isPending } = useAdminProviderBonds();
@@ -261,9 +418,9 @@ export const ProviderBondPage = () => {
             Đối soát và phê duyệt Provider Bond
           </h1>
           <p className="mt-2 max-w-3xl text-muted-foreground">
-            Đây là sổ ghi nhận đối soát ngoài hệ thống. Avin không khởi tạo,
-            nhận, hoàn, bù trừ hoặc chuyển tiền; mọi Bond increase trong pilot
-            không tiền đều bị launch gate từ chối.
+            Các khoản chuyển vào tài khoản lưu ký Avin Check được đối soát tự
+            động qua SePay; trường hợp ngoại lệ cần SUPER_ADMIN xử lý và ghi lý
+            do.
           </p>
         </div>
 
@@ -272,8 +429,7 @@ export const ProviderBondPage = () => {
             <CardTitle>Ghi adjustment</CardTitle>
             <CardDescription>
               Deposit cần external bank reference và evidence. Withdrawal,
-              support allocation, correction sẽ chờ Protection Manager khác
-              người ghi duyệt.
+              support allocation, correction sẽ chờ Admin xử lý.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
@@ -324,7 +480,7 @@ export const ProviderBondPage = () => {
                 id="provider-bond-amount"
                 inputMode="numeric"
                 onChange={(event) => setAmount(event.target.value)}
-                placeholder={kind === "CORRECTION" ? "-1000000" : "30000000"}
+                placeholder={kind === "CORRECTION" ? "-1000000" : "1000000"}
                 type="number"
                 value={amount}
               />
@@ -378,6 +534,8 @@ export const ProviderBondPage = () => {
             </div>
           </CardContent>
         </Card>
+
+        <ProviderDepositIntentQueue />
 
         {isPending ? (
           <output aria-live="polite">Đang tải Bond...</output>

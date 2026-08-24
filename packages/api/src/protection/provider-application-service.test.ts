@@ -1,8 +1,12 @@
 import {
   protectionProviderApplication,
+  protectionProviderBondAccount,
+  protectionProviderBondAdjustment,
+  protectionProviderDepositIntent,
   protectionProviderProfile,
   protectionProviderProfileRevision,
   protectionProviderProfileVersion,
+  protectionPolicyVersion,
 } from "@avin/db/schema/protection";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -40,62 +44,133 @@ type ApplicationRow = typeof protectionProviderApplication.$inferSelect;
 type ProfileRow = typeof protectionProviderProfile.$inferSelect;
 type ProfileRevisionRow = typeof protectionProviderProfileRevision.$inferSelect;
 type ProfileVersionRow = typeof protectionProviderProfileVersion.$inferSelect;
+type DepositIntentRow = typeof protectionProviderDepositIntent.$inferSelect;
+type PolicyRow = typeof protectionPolicyVersion.$inferSelect;
+type BondAccountRow = typeof protectionProviderBondAccount.$inferSelect;
+type BondAdjustmentRow = typeof protectionProviderBondAdjustment.$inferSelect;
 type Database = Parameters<typeof submitProviderApplication>[0];
 
 interface ProviderApplicationState {
   application: ApplicationRow | null;
+  bondAccounts: BondAccountRow[];
+  bondAdjustments: BondAdjustmentRow[];
+  depositIntents: DepositIntentRow[];
+  policies: PolicyRow[];
   profile: ProfileRow | null;
   revisions: ProfileRevisionRow[];
   versions: ProfileVersionRow[];
 }
 
 const validSubmission: ProviderApplicationSubmission = {
-  ageEvidenceReference: "evidence/age/provider-1",
+  bondAmount: 5_000_000,
+  citizenIdNumber: "123456789012",
   fullName: "Nguyen Provider",
-  identityEvidenceReference: "evidence/identity/provider-1",
-  officialChannelEvidenceReference: "evidence/channels/provider-1",
+  location: "Ho Chi Minh City",
   officialChannels: {
-    facebookId: "facebook-123",
     facebookUrl: "https://facebook.com/provider-one",
+    hotline: "0901234567",
+    zalo: "0901234567",
   },
-  operatingHistoryEvidenceReference: "evidence/operating/provider-1",
-  operatingSince: "2024-01-01",
-  paymentAccount: {
-    accountName: "NGUYEN PROVIDER",
-    accountNumber: "123456789",
-    accountType: "BANK",
-    institution: "Avin Bank",
-  },
-  paymentDisclosureConsent: false,
-  paymentEvidenceReference: "evidence/payment/provider-1",
   policyAccepted: true,
   policyVersion: CURRENT_PROVIDER_POLICY_VERSION,
+  publicDataConsent: true,
+  registeredBankAccounts: [
+    {
+      accountName: "NGUYEN PROVIDER",
+      accountNumber: "123456789",
+      bankCode: "VCB",
+      isPrimary: true,
+    },
+  ],
   services: "Dịch vụ hỗ trợ tài khoản game và giao dịch Facebook.",
 };
 
 const timestamp = new Date("2026-08-21T00:00:00.000Z");
+const { protectCitizenId } = await import("./provider-identity");
+const protectedCitizenId = protectCitizenId(validSubmission.citizenIdNumber);
+
+const createPolicy = (): PolicyRow => ({
+  bronzeMinimumBondAmount: 5_000_000,
+  createdAt: timestamp,
+  diamondMinimumBondAmount: 50_000_000,
+  effectiveAt: new Date("2026-01-01T00:00:00.000Z"),
+  goldMinimumBondAmount: 20_000_000,
+  id: "policy-1",
+  materialChange: false,
+  materialChangeMetadata: { changedAreas: [], rationale: "Test policy" },
+  membershipFeeAmount: 0,
+  minimumBondAmount: 1_000_000,
+  publishedAt: timestamp,
+  publishedByUserId: "admin-1",
+  reacceptDeadlineAt: null,
+  recommendedLimitPercentage: 80,
+  recommendedLimitRounding: 100_000,
+  retentionPolicyReference: "test-retention",
+  silverMinimumBondAmount: 10_000_000,
+  summary: "Test policy",
+  terms: "Test terms",
+  title: "Test policy",
+  version: CURRENT_PROVIDER_POLICY_VERSION,
+  vipMinimumBondAmount: 100_000_000,
+});
+
+const createDepositIntent = (
+  overrides: Partial<DepositIntentRow> = {}
+): DepositIntentRow => ({
+  amount: validSubmission.bondAmount,
+  applicationId: "application-1",
+  createdAt: timestamp,
+  expiresAt: new Date("2026-08-22T00:00:00.000Z"),
+  id: "deposit-intent-1",
+  kind: "APPLICATION",
+  manualReason: null,
+  matchedAmount: validSubmission.bondAmount,
+  matchedAt: timestamp,
+  matchedEventId: "sepay-event-1",
+  matchedSourceEventIds: [],
+  paymentCode: "AVPROVIDER123456",
+  policyVersionId: "policy-1",
+  profileId: null,
+  providerUserId: "provider-1",
+  refundBankReference: null,
+  refundDestination: null,
+  refundedAt: null,
+  status: "MATCHED",
+  updatedAt: timestamp,
+  ...overrides,
+});
+
+const createBondAccount = (): BondAccountRow => ({
+  createdAt: timestamp,
+  id: "bond-account-1",
+  providerProfileId: "profile-1",
+  providerUserId: "provider-1",
+  recognizedAmount: validSubmission.bondAmount,
+  updatedAt: timestamp,
+});
 
 const createApplication = (
-  status: ApplicationRow["status"] = "DRAFT"
+  status: ApplicationRow["status"] = "DRAFT",
+  overrides: Partial<ApplicationRow> = {}
 ): ApplicationRow => ({
-  ageEvidenceReference: validSubmission.ageEvidenceReference ?? null,
+  bondAmount: validSubmission.bondAmount,
+  citizenIdCiphertext: protectedCitizenId.citizenIdCiphertext,
+  citizenIdHash: protectedCitizenId.citizenIdHash,
+  citizenIdLast4: protectedCitizenId.citizenIdLast4,
   createdAt: timestamp,
+  depositIntentId: "deposit-intent-1",
   fullName: validSubmission.fullName,
   id: "application-1",
-  identityEvidenceReference: validSubmission.identityEvidenceReference ?? null,
-  officialChannelEvidenceReference:
-    validSubmission.officialChannelEvidenceReference ?? null,
+  identityEvidenceReference: null,
+  location: validSubmission.location,
   officialChannels: validSubmission.officialChannels,
-  operatingHistoryEvidenceReference:
-    validSubmission.operatingHistoryEvidenceReference ?? null,
-  operatingSince: validSubmission.operatingSince,
-  paymentAccount: validSubmission.paymentAccount,
-  paymentDisclosureConsent: validSubmission.paymentDisclosureConsent ?? null,
-  paymentEvidenceReference: validSubmission.paymentEvidenceReference ?? null,
   policyAcceptedAt: timestamp,
   policyVersion: validSubmission.policyVersion,
   policyVersionId: null,
   providerUserId: "provider-1",
+  publicDataConsent: true,
+  recognizedBondAmount: validSubmission.bondAmount,
+  registeredBankAccounts: validSubmission.registeredBankAccounts,
   reviewReason: null,
   reviewedAt: null,
   reviewedByUserId: null,
@@ -104,6 +179,7 @@ const createApplication = (
   status,
   submittedAt: null,
   updatedAt: timestamp,
+  ...overrides,
 });
 
 const createProfile = (): ProfileRow => ({
@@ -111,6 +187,7 @@ const createProfile = (): ProfileRow => ({
   createdAt: timestamp,
   displayName: validSubmission.fullName,
   id: "profile-1",
+  location: validSubmission.location,
   officialChannels: validSubmission.officialChannels,
   profileSlug: "nguyen-provider-provider1",
   providerUserId: "provider-1",
@@ -129,46 +206,47 @@ const createProfileVersion = (
   createdAt: timestamp,
   displayName: validSubmission.fullName,
   id: `profile-version-${versionNumber}`,
+  location: validSubmission.location,
   officialChannels: validSubmission.officialChannels,
-  paymentAccount: validSubmission.paymentAccount,
+  policyVersionId: overrides.policyVersionId ?? null,
   profileId: "profile-1",
   profileSlug: "nguyen-provider-provider1",
   publishedAt: timestamp,
   publishedByUserId: "admin-1",
+  recognizedBondAmount: validSubmission.bondAmount,
   recommendedTransactionLimit: 0,
+  registeredBankAccounts: validSubmission.registeredBankAccounts,
   services: validSubmission.services,
   sourceApplicationId: "application-1",
   status: "ACTIVE",
   statusReason: null,
+  tier: "BRONZE",
   verifiedAt: timestamp,
   versionNumber,
   ...overrides,
-  policyVersionId: overrides.policyVersionId ?? null,
 });
 
 const createProfileRevision = (
   status: ProfileRevisionRow["status"] = "DRAFT",
   overrides: Partial<ProfileRevisionRow> = {}
 ): ProfileRevisionRow => ({
-  ageEvidenceReference: validSubmission.ageEvidenceReference ?? null,
   baseVersionId: "profile-version-1",
+  citizenIdCiphertext: protectedCitizenId.citizenIdCiphertext,
+  citizenIdHash: protectedCitizenId.citizenIdHash,
+  citizenIdLast4: protectedCitizenId.citizenIdLast4,
   createdAt: timestamp,
   fullName: validSubmission.fullName,
   id: "profile-revision-1",
-  identityEvidenceReference: validSubmission.identityEvidenceReference ?? null,
-  officialChannelEvidenceReference:
-    validSubmission.officialChannelEvidenceReference ?? null,
+  identityEvidenceReference: null,
+  location: validSubmission.location,
   officialChannels: validSubmission.officialChannels,
-  operatingHistoryEvidenceReference:
-    validSubmission.operatingHistoryEvidenceReference ?? null,
-  operatingSince: validSubmission.operatingSince,
-  paymentAccount: validSubmission.paymentAccount,
-  paymentDisclosureConsent: validSubmission.paymentDisclosureConsent ?? null,
-  paymentEvidenceReference: validSubmission.paymentEvidenceReference ?? null,
   policyAcceptedAt: timestamp,
   policyVersion: validSubmission.policyVersion,
+  policyVersionId: overrides.policyVersionId ?? null,
   profileId: "profile-1",
   providerUserId: "provider-1",
+  publicDataConsent: true,
+  registeredBankAccounts: validSubmission.registeredBankAccounts,
   reviewReason: null,
   reviewedAt: null,
   reviewedByUserId: null,
@@ -178,7 +256,6 @@ const createProfileRevision = (
   submittedAt: null,
   updatedAt: timestamp,
   ...overrides,
-  policyVersionId: overrides.policyVersionId ?? null,
 });
 
 const createDatabase = (state: ProviderApplicationState): Database => {
@@ -186,6 +263,18 @@ const createDatabase = (state: ProviderApplicationState): Database => {
     let table: unknown;
     const query = {
       execute: vi.fn(() => {
+        if (table === protectionProviderBondAccount) {
+          return state.bondAccounts;
+        }
+        if (table === protectionProviderBondAdjustment) {
+          return state.bondAdjustments;
+        }
+        if (table === protectionProviderDepositIntent) {
+          return state.depositIntents;
+        }
+        if (table === protectionPolicyVersion) {
+          return state.policies;
+        }
         if (table === protectionProviderProfileVersion) {
           return state.versions;
         }
@@ -194,6 +283,7 @@ const createDatabase = (state: ProviderApplicationState): Database => {
         }
         return [];
       }),
+      for: vi.fn(() => query),
       from: vi.fn((nextTable: unknown) => {
         table = nextTable;
         return query;
@@ -217,6 +307,18 @@ const createDatabase = (state: ProviderApplicationState): Database => {
           );
           return requestedLimit === 1 ? revisions.slice(0, 1) : revisions;
         }
+        if (table === protectionProviderDepositIntent) {
+          return state.depositIntents.slice(0, requestedLimit);
+        }
+        if (table === protectionPolicyVersion) {
+          return state.policies.slice(0, requestedLimit);
+        }
+        if (table === protectionProviderBondAccount) {
+          return state.bondAccounts.slice(0, requestedLimit);
+        }
+        if (table === protectionProviderBondAdjustment) {
+          return state.bondAdjustments.slice(0, requestedLimit);
+        }
         return [];
       }),
       orderBy: vi.fn(() => query),
@@ -227,7 +329,16 @@ const createDatabase = (state: ProviderApplicationState): Database => {
 
   const insert = vi.fn((table: unknown) => ({
     values: vi.fn((values: Record<string, unknown>) => ({
-      onConflictDoNothing: vi.fn(() => Promise.resolve()),
+      onConflictDoNothing: vi.fn(() => ({
+        returning: vi.fn(() => {
+          if (table === protectionProviderBondAccount) {
+            const account = createBondAccount();
+            state.bondAccounts.push(account);
+            return [account];
+          }
+          return [];
+        }),
+      })),
       returning: vi.fn(() => {
         if (table === protectionProviderApplication) {
           state.application = {
@@ -269,6 +380,26 @@ const createDatabase = (state: ProviderApplicationState): Database => {
           state.revisions.push(revision);
           return [revision];
         }
+        if (table === protectionProviderBondAccount) {
+          const account = {
+            ...createBondAccount(),
+            ...values,
+            id: "bond-account-1",
+          } as BondAccountRow;
+          state.bondAccounts.push(account);
+          return [account];
+        }
+        if (table === protectionProviderBondAdjustment) {
+          const adjustment = {
+            ...values,
+            createdAt: timestamp,
+            id: `bond-adjustment-${state.bondAdjustments.length + 1}`,
+            recordedAt: timestamp,
+            updatedAt: timestamp,
+          } as BondAdjustmentRow;
+          state.bondAdjustments.push(adjustment);
+          return [];
+        }
         return [];
       }),
     })),
@@ -302,6 +433,26 @@ const createDatabase = (state: ProviderApplicationState): Database => {
               return [state.revisions[0]];
             }
           }
+          if (table === protectionProviderDepositIntent) {
+            const [intent] = state.depositIntents;
+            if (intent) {
+              state.depositIntents[0] = {
+                ...intent,
+                ...values,
+              } as DepositIntentRow;
+              return [state.depositIntents[0]];
+            }
+          }
+          if (table === protectionProviderBondAccount) {
+            const [account] = state.bondAccounts;
+            if (account) {
+              state.bondAccounts[0] = {
+                ...account,
+                ...values,
+              } as BondAccountRow;
+              return [state.bondAccounts[0]];
+            }
+          }
           return [];
         }),
       })),
@@ -328,7 +479,11 @@ describe("Provider application review workflow", () => {
 
   it("covers submit, changes request, resubmit, and approval publication", async () => {
     const state: ProviderApplicationState = {
-      application: null,
+      application: createApplication(),
+      bondAccounts: [],
+      bondAdjustments: [],
+      depositIntents: [createDepositIntent()],
+      policies: [createPolicy()],
       profile: null,
       revisions: [],
       versions: [],
@@ -375,9 +530,14 @@ describe("Provider application review workflow", () => {
     });
     expect(approved.publicProfile).not.toHaveProperty("paymentAccount");
     expect(approved.publicProfile?.officialChannels).toHaveProperty(
-      "facebookId",
-      "facebook-123"
+      "facebookUrl",
+      "https://facebook.com/provider-one"
     );
+    expect(approved.publicProfile).toMatchObject({
+      location: "Ho Chi Minh City",
+      recognizedBondAmount: 5_000_000,
+      tier: "BRONZE",
+    });
     expect(state.application?.status).toBe("APPROVED");
     expect(state.versions).toHaveLength(1);
     expect(createNotificationEvent).toHaveBeenLastCalledWith(
@@ -391,6 +551,10 @@ describe("Provider application review workflow", () => {
   it("rejects a pending application with an explicit reason", async () => {
     const state: ProviderApplicationState = {
       application: createApplication("PENDING_REVIEW"),
+      bondAccounts: [],
+      bondAdjustments: [],
+      depositIntents: [createDepositIntent()],
+      policies: [createPolicy()],
       profile: null,
       revisions: [],
       versions: [],
@@ -417,9 +581,38 @@ describe("Provider application review workflow", () => {
     );
   });
 
+  it("approves a pending application without optional evidence references", async () => {
+    const state: ProviderApplicationState = {
+      application: createApplication("PENDING_REVIEW", {
+        identityEvidenceReference: null,
+      }),
+      bondAccounts: [],
+      bondAdjustments: [],
+      depositIntents: [createDepositIntent()],
+      policies: [createPolicy()],
+      profile: null,
+      revisions: [],
+      versions: [],
+    };
+
+    const approved = await decideProviderApplication({
+      applicationId: "application-1",
+      database: createDatabase(state),
+      decision: "APPROVED",
+      reviewerUserId: "admin-1",
+    });
+
+    expect(approved.application.status).toBe("APPROVED");
+    expect(approved.publicProfile).toMatchObject({ status: "ACTIVE" });
+  });
+
   it("keeps pending revisions private and publishes immutable history", async () => {
     const state: ProviderApplicationState = {
       application: createApplication("APPROVED"),
+      bondAccounts: [createBondAccount()],
+      bondAdjustments: [],
+      depositIntents: [createDepositIntent()],
+      policies: [createPolicy()],
       profile: createProfile(),
       revisions: [],
       versions: [createProfileVersion()],

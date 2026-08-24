@@ -25,7 +25,7 @@ import type { ProviderBondWithdrawal } from "../api/provider-bond-api";
 const STATUS_LABELS = {
   COMPLETED: "Đã hoàn tất",
   COOLING: "Đang cooling 30 ngày",
-  PENDING_APPROVAL: "Chờ Protection Manager duyệt",
+  PENDING_APPROVAL: "Chờ Admin xử lý",
   REJECTED: "Đã từ chối",
 } as const;
 
@@ -154,7 +154,7 @@ const RecordPanel = ({
         onClick={() => void submit()}
         type="button"
       >
-        Ghi nhận, chờ duyệt
+        Ghi nhận & hoàn tất (SUPER_ADMIN)
       </Button>
     </div>
   );
@@ -195,10 +195,10 @@ const ApprovalPanel = ({
   return (
     <div className="grid gap-3 rounded-xl border bg-muted/20 p-4">
       <div>
-        <p className="font-medium">Protection Manager approval</p>
+        <p className="font-medium">Admin xử lý hoàn trả</p>
         <p className="text-muted-foreground text-xs">
-          Người duyệt phải khác người ghi nhận Bond decrease. Approval sẽ kiểm
-          tra lại toàn bộ unresolved matters trước khi hoàn tất.
+          Không yêu cầu dual approval. Admin kiểm tra toàn bộ unresolved matters
+          trước khi hoàn tất.
         </p>
       </div>
       <label

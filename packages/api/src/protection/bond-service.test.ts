@@ -37,6 +37,7 @@ const createProfile = (): ProfileRow => ({
   createdAt: timestamp,
   displayName: "Provider One",
   id: "profile-1",
+  location: "Ho Chi Minh City",
   officialChannels: { websiteUrl: "https://provider.example" },
   profileSlug: "provider-one",
   providerUserId: "provider-1",
@@ -55,18 +56,21 @@ const createVersion = (
   createdAt: timestamp,
   displayName: "Provider One",
   id: `profile-version-${versionNumber}`,
+  location: "Ho Chi Minh City",
   officialChannels: { websiteUrl: "https://provider.example" },
-  paymentAccount: null,
   policyVersionId: null,
   profileId: "profile-1",
   profileSlug: "provider-one",
   publishedAt: timestamp,
   publishedByUserId: "admin-1",
+  recognizedBondAmount: 0,
   recommendedTransactionLimit,
+  registeredBankAccounts: [],
   services: "Game account support",
   sourceApplicationId: "application-1",
   status: "ACTIVE",
   statusReason: null,
+  tier: "NORMAL",
   verifiedAt: timestamp,
   versionNumber,
 });
@@ -263,7 +267,7 @@ describe("Provider Bond service", () => {
     expect(state.account.recognizedAmount).toBe(100);
     expect(state.adjustments).toHaveLength(1);
     expect(state.adjustments[0]?.status).toBe("APPLIED");
-    expect(state.versions.at(-1)?.recommendedTransactionLimit).toBe(100);
+    expect(state.versions.at(-1)?.recommendedTransactionLimit).toBe(0);
   });
 
   it("requires reconciliation evidence for every Bond increase", async () => {
@@ -288,7 +292,7 @@ describe("Provider Bond service", () => {
     expect(state.adjustments).toHaveLength(0);
   });
 
-  it("requires a different Protection Manager for a Bond decrease", async () => {
+  it("allows one authorized Admin to complete a Bond decrease without dual approval", async () => {
     const state = createState(100, 100);
     const database = createDatabase(state);
     const result = await recordProviderBondAdjustment({
@@ -309,18 +313,10 @@ describe("Provider Bond service", () => {
     expect(state.account.recognizedAmount).toBe(100);
     expect(state.adjustments[0]?.status).toBe("PENDING_APPROVAL");
 
-    await expect(
-      approveProviderBondAdjustment({
-        database,
-        input: { adjustmentId: adjustmentId ?? "", decision: "APPROVED" },
-        reviewerUserId: "bond-operator-1",
-      })
-    ).rejects.toMatchObject({ code: "FORBIDDEN" });
-
     await approveProviderBondAdjustment({
       database,
       input: { adjustmentId: adjustmentId ?? "", decision: "APPROVED" },
-      reviewerUserId: "protection-manager-1",
+      reviewerUserId: "super-admin-1",
     });
     expect(state.account.recognizedAmount).toBe(60);
     expect(state.adjustments[0]?.status).toBe("APPLIED");
@@ -341,7 +337,7 @@ describe("Provider Bond service", () => {
     });
     expect(providerView).toMatchObject({
       recognizedAmount: 200,
-      recommendedTransactionLimit: 100,
+      recommendedTransactionLimit: 0,
     });
     expect(providerView?.adjustments[0]).not.toHaveProperty(
       "externalBankReference"
@@ -355,7 +351,7 @@ describe("Provider Bond service", () => {
       state.versions.at(-1),
       state.versions
     );
-    expect(publicView).toMatchObject({ recommendedTransactionLimit: 100 });
+    expect(publicView).toMatchObject({ recommendedTransactionLimit: 0 });
     expect(publicView).not.toHaveProperty("recognizedAmount");
   });
 

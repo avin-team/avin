@@ -10,20 +10,33 @@ export type PolicyMaterialChangeMetadata = z.infer<
 >;
 
 const policyMoneyAmount = z.number().int().min(0).max(1_000_000_000_000);
+const policyPercentage = z.number().int().min(0).max(80);
 
 export const protectionPolicyVersionPublishInputSchema = z
   .object({
+    bronzeMinimumBondAmount: policyMoneyAmount.default(5_000_000),
+    diamondMinimumBondAmount: policyMoneyAmount.default(50_000_000),
     effectiveAt: z.coerce.date(),
+    goldMinimumBondAmount: policyMoneyAmount.default(20_000_000),
     materialChange: z.boolean(),
     materialChangeMetadata: policyMaterialChangeMetadataSchema,
-    membershipFeeAmount: policyMoneyAmount,
-    minimumBondAmount: policyMoneyAmount,
+    membershipFeeAmount: z.literal(0).default(0),
+    minimumBondAmount: policyMoneyAmount.min(1_000_000).default(1_000_000),
     reacceptDeadlineAt: z.coerce.date().nullable().optional(),
+    recommendedLimitPercentage: policyPercentage.default(80),
+    recommendedLimitRounding: z
+      .number()
+      .int()
+      .min(1)
+      .max(1_000_000_000)
+      .default(100_000),
     retentionPolicyReference: z.string().trim().min(1).max(500),
+    silverMinimumBondAmount: policyMoneyAmount.default(10_000_000),
     summary: z.string().trim().min(1).max(2000),
     terms: z.string().trim().min(1).max(20_000),
     title: z.string().trim().min(1).max(200),
     version: z.string().trim().min(1).max(50),
+    vipMinimumBondAmount: policyMoneyAmount.default(100_000_000),
   })
   .superRefine((input, context) => {
     if (input.materialChange && !input.reacceptDeadlineAt) {
@@ -49,6 +62,26 @@ export const protectionPolicyVersionPublishInputSchema = z
         code: "custom",
         message: "Reacceptance deadline must be after the effective time",
         path: ["reacceptDeadlineAt"],
+      });
+    }
+    const thresholds = [
+      input.minimumBondAmount,
+      input.bronzeMinimumBondAmount,
+      input.silverMinimumBondAmount,
+      input.goldMinimumBondAmount,
+      input.diamondMinimumBondAmount,
+      input.vipMinimumBondAmount,
+    ];
+    if (
+      thresholds.some((value, index) => {
+        const previous = thresholds[index - 1];
+        return index > 0 && previous !== undefined && value <= previous;
+      })
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "Provider Bond thresholds must be strictly increasing",
+        path: ["vipMinimumBondAmount"],
       });
     }
   });

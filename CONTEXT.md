@@ -26,13 +26,21 @@ An authenticated entity representing an independent seller/merchant on the marke
 
 The public Avin module for verified Provider discovery, external identifier lookup, moderated transaction warnings, and manually administered protection records. It shares Avin applications and infrastructure while remaining distinct from marketplace commerce.
 
+### Provider Directory
+
+The public list of active Protection Providers, ordered by Provider Tier from `VIP` through `NORMAL`, then by recognized Provider Bond descending, verification recency, and display name. Each card shows the Provider's avatar, name, tier presentation, exact Bond, Recommended Transaction Limit, summarized services, Zalo/Facebook channels, and verification date; full Registered Bank Accounts remain on the profile detail. A specific search ranks identity relevance instead of forcing tier order: it supports exact normalized lookup by bank account number, Hotline/Zalo, and social username or URL, plus fuzzy lookup by display name, verified legal name, and registered service. CCCD values are never searchable. _Avoid_: paid placement, trust leaderboard.
+
 ### Protection Provider
 
 A person or business accepted into Avin Check, whether their owning account is a Buyer or Seller, and presented publicly as a **Đối tác Avin**. Its Provider profile neither reveals nor automatically links its marketplace role or Store; a Protection Provider is not an `Admin` and cannot delegate its verified standing. _Avoid in code_: Admin, guaranteed Seller, protected Seller, GDV network owner.
 
 ### Protection Provider Application
 
-An evidence-backed, year-round request owned by an active, non-locked Buyer or Seller account to become a Protection Provider, reviewed as `PENDING_REVIEW`, `CHANGES_REQUESTED`, `APPROVED`, or `REJECTED` with an explicit reason. Missing or correctable information uses `CHANGES_REQUESTED` and may be revised on the same application; `REJECTED` is terminal and reserved for fraud, impersonation, or a definitive policy prohibition. Seller approval is not a prerequisite, but confirmed marketplace fraud blocks a new application, and the same verified person or business cannot acquire a second Provider standing through another account. Submitting the application requires the owner to complete 2FA.
+An evidence-backed, year-round request owned by an active, non-locked Buyer or Seller account to become a Protection Provider. A complete application enters review only after its Provider Deposit Intent is matched, then is reviewed as `PENDING_REVIEW`, `CHANGES_REQUESTED`, `APPROVED`, or `REJECTED` with an explicit reason. Missing or correctable information uses `CHANGES_REQUESTED` and may be revised on the same application; `REJECTED` is terminal and reserved for fraud, impersonation, or a definitive policy prohibition. Seller approval is not a prerequisite, but confirmed marketplace fraud blocks a new application, and the same verified person or business cannot acquire a second Provider standing through another account. Avin does not classify applicants as individuals or businesses in a separate lifecycle; an Admin verifies the declared legal identity, CCCD, and Registered Bank Accounts. Creating the transfer instruction and submitting the application require the owner to complete 2FA and separately acknowledge that the exact Bond and full Registered Bank Account numbers will become public after approval. Once the first transfer is matched, the Bond amount is fixed throughout review: no additional application deposit or decrease is permitted, and a later increase uses Provider Bond Top-up after approval. Approval is one atomic operation that verifies the matched Bond has not entered refund, consumes it into the active standing, and creates the Protection Provider, its Bond record, and first Provider Profile Version; a concurrent refund committed first makes approval fail.
+
+### Provider CCCD
+
+The applicant's required 12-digit citizen identity number used privately by an Admin to verify identity and prevent duplicate Provider standing. Avin accepts the number as text and never collects a front or back card image; the full value is encrypted while the application remains editable or under review and is excluded from public profiles, public list views, search indexes, logs, and notification payloads. A duplicate keyed hash blocks submission with a neutral message and may be relinked by a `SUPER_ADMIN` only after proving the same identity. After approval or rejection, Avin deletes the full value and retains only the keyed hash, last four digits, verifier, and verification time; even the last four digits remain Admin-only. _Avoid_: identity image, public identifier, generic evidence reference.
 
 ### Protection Provider Workspace
 
@@ -44,35 +52,47 @@ The existing Buyer or Seller account that owns a Protection Provider Application
 
 ### Protection Program Policy
 
-The versioned terms governing Provider eligibility, Membership Fee, minimum Provider Bond, Recommended Transaction Limit, support rules, and withdrawal conditions. Material changes require existing Providers to re-accept by a stated deadline or become suspended; editorial changes do not.
+The versioned terms governing Provider eligibility, the currently applicable Membership Fee, minimum Provider Bond, Provider Tier thresholds, Recommended Transaction Limit ratio and rounding, support rules, and withdrawal conditions. A Provider Deposit Intent snapshots the current policy, and successful payment matching binds the resulting application, Bond, tier, and limit to that policy version so a later policy change cannot retrospectively change a standing still under review. Material changes require existing Providers to re-accept by a stated deadline or become suspended; editorial changes do not.
+
+### Provider Deposit Intent
+
+A one-time instruction for an applicant to transfer a chosen Provider Bond amount of at least 1,000,000 VND to Avin using a unique payment reference. An application has at most one active intent, which expires after 24 hours and may be replaced before receiving money. Exact amount and reference matches are recognized automatically; late, partial, excess, or split transfers enter manual reconciliation available only to a `SUPER_ADMIN`, who may link multiple source transactions and recognize their actual total when it meets the minimum. A matched Provider Deposit Intent gates entry into application review and remains separate from UserWallet deposits and marketplace Transactions. _Avoid_: wallet deposit, membership payment, application fee.
 
 ### Provider Bond
 
-Provider-owned money transferred to and managed directly by an `Admin` outside Avin's automated payment flows, with its recognized amount recorded by Avin for the Protection Provider. It is neither an Avin wallet balance nor an `EscrowHold` tied to an `OrderItem`. _Avoid_: wallet balance, escrow, insurance fund.
+Provider-owned money transferred to a dedicated Avin Check custody bank account and recognized after its Provider Deposit Intent is matched. Its exact recognized amount is public on the Provider profile and determines the Provider Tier and maximum Recommended Transaction Limit. It remains separate from Avin's marketplace payment flows and is neither an Avin wallet balance nor an `EscrowHold` tied to an `OrderItem`. _Avoid_: wallet balance, escrow, insurance fund.
+
+### Provider Tier
+
+The public presentation level derived from a Protection Provider's confirmed Provider Bond, never assigned independently by an Admin. `NORMAL` applies from 1,000,000 VND to below 5,000,000 VND and has no decorative frame; `BRONZE`, `SILVER`, `GOLD`, `DIAMOND`, and `VIP` begin at 5,000,000, 10,000,000, 20,000,000, 50,000,000, and 100,000,000 VND respectively. Top-ups and decreases recalculate the tier automatically; falling below 1,000,000 VND suspends the Provider pending review. _Avoid_: trust score, Royal, manually assigned rank.
 
 ### Bond Adjustment
 
-An immutable Admin record that changes Avin's recognized `Provider Bond` amount after an externally completed deposit, withdrawal, support payment, or correction. It records the reason and private evidence but never moves money itself. _Avoid_: wallet transaction, payout transaction.
+An immutable record that changes Avin's recognized `Provider Bond` amount after a matched deposit, withdrawal, support payment, refund, or correction. SePay creates exact-match increases automatically; only a `SUPER_ADMIN` may reconcile a mismatch, issue a refund, or record a manual adjustment, and every manual action records its reason and external evidence without dual approval. Any applied change publishes a new Provider Profile Version containing the resulting Bond, Provider Tier, and Recommended Transaction Limit. _Avoid_: wallet transaction, unreviewed manual mutation.
 
-### Bond Adjustment Approval
+### Application Bond Refund
 
-A second authorized Admin's confirmation of a Bond decrease, withdrawal, or Support Allocation recorded by another Admin. A Bond increase may be recorded by one authorized operator with private transfer evidence. _Avoid_: self-approval.
+The full return of matched Provider Bond when a Provider Application is terminally rejected or its owner abandons the application. `CHANGES_REQUESTED` retains the Bond for resubmission; a paid application becomes abandoned after 30 days without owner activity following its final reminder. An Application Bond Refund moves through `REFUND_PENDING` to `REFUNDED`, has a three-business-day operating target, and is executed only by a `SUPER_ADMIN` without dual approval. It returns to the verified source account when available, otherwise the Primary Bank Account; exceptions enter manual review, and completion records the external bank reference. _Avoid_: wallet refund, rejection fee, partial forfeiture.
 
 ### Bond Withdrawal
 
-An off-platform Provider request, recorded by an Admin, to leave the program and recover the remaining Provider Bond after a 30-day cooling period, open Support Reviews, and valid Bond Adjustments are resolved. The remaining Bond is fully returnable; the separate Membership Fee is not. _Avoid_: wallet withdrawal, early-exit forfeiture.
+An off-platform Provider request, recorded by an Admin, to leave the program and recover the remaining Provider Bond after a 30-day cooling period, open Support Reviews, and valid Bond Adjustments are resolved. P0 has no voluntary partial withdrawal: a Provider may top up or request full exit only; a decrease while remaining active can result solely from support, refund, or a `SUPER_ADMIN` correction. The remaining Bond is fully returnable; the separate Membership Fee is not. _Avoid_: partial cash-out, wallet withdrawal, early-exit forfeiture.
+
+### Provider Bond Top-up
+
+A 2FA-authorized, 24-hour VietQR/SePay intent created by an active Protection Provider to add a chosen amount to its recognized Bond. It uses the same dedicated Avin Check custody and exact-match rules as the application deposit, snapshots the current Protection Program Policy, and remains separate from UserWallet. An exact match atomically increases Bond and publishes a new Provider Profile Version with the derived tier and limit without repeating identity review; late, partial, excess, or split payments require `SUPER_ADMIN` reconciliation. _Avoid_: application amendment, wallet deposit, manual tier upgrade.
 
 ### Membership Fee
 
-A non-refundable charge for participation or verification in the protection program, separate from the refundable `Provider Bond`. _Avoid_: bond fee, protection balance.
+A policy-configured charge concept for participation or verification in the protection program, separate from the refundable `Provider Bond`. P0 fixes it at zero and neither Provider Deposit Intent nor Provider Bond Top-up collects it; enabling a non-zero fee requires an explicit future collection and refund decision instead of silently adding it to Bond transfers. _Avoid_: bond fee, protection balance, latent payment split.
 
 ### Recommended Transaction Limit
 
-The public per-Provider amount used as the upper bound when an Admin considers support for eligible external losses; it must not exceed the Provider's recognized `Provider Bond`. It is neither the Provider's private Bond balance nor a promise that every transaction will be compensated. _Avoid_: trust score, guaranteed payout, Bond balance.
+The public per-Provider amount used as the upper bound when an Admin considers support for eligible external losses. It is calculated automatically as 80% of the recognized Provider Bond, rounded down to the nearest 100,000 VND, and cannot be edited independently by an Admin. It is not a promise that every transaction will be compensated. _Avoid_: trust score, guaranteed payout, manually assigned limit.
 
 ### Provider Profile Version
 
-An immutable historical snapshot of the Protection Provider's public identity, registered services, payment information, Recommended Transaction Limit, status, and publication consent. Eligibility is evaluated against the version effective when the reported transaction occurred, not later profile edits.
+An immutable historical snapshot of the Protection Provider's public identity, registered services, Registered Bank Accounts, official contact channels, exact recognized Provider Bond, Provider Tier, Recommended Transaction Limit, status, and publication consent. Every applied Bond change creates a new version; public history shows its date, Bond, and tier without exposing receipts, reconciliation evidence, or internal reasons. Eligibility is evaluated against the version effective when the reported transaction occurred, not later profile edits.
 
 ### Provider Profile Revision
 
@@ -82,13 +102,25 @@ A Provider-requested change that requires Admin verification before becoming a n
 
 A free-text description of a service that an Admin has approved for publication on a Protection Provider profile. Only a transaction within the approved wording can be a Support-Eligible Transaction. _Avoid_: category, unverified service.
 
+### Registered Bank Account
+
+A bank account verified for a Protection Provider and published for Real/Fake transaction checks. It contains only the bank identifier, full account number, verified account-holder name, and primary flag; P0 has no branch, account type, wallet, or per-account QR fields. A Provider may have at most ten Registered Bank Accounts, exactly one of which is the Primary Bank Account; account changes require a new Provider Profile Version, and removed accounts remain in immutable version history. _Avoid_: refund-only account, wallet account, unverified payment destination.
+
+### Primary Bank Account
+
+The single Registered Bank Account marked as the Protection Provider's preferred payment destination. Its primary status does not make the Provider's other registered accounts invalid. _Avoid_: only valid account, Avin receiving account.
+
 ### Verified Provider Information
 
-The Provider-consented public identity and transaction data verified by an Admin, including official Facebook/Zalo contacts and full registered bank or wallet account details. It is presented for Real/Fake comparison without a payment QR and does not expose KYC or the private Provider Bond amount.
+The Provider-consented public identity and transaction data verified by an Admin, including the verified legal name, chosen display name, required Hotline/Zalo, optional Facebook, Telegram, TikTok, YouTube, and website channels, full Registered Bank Account details, and the exact recognized Provider Bond. It is presented for Real/Fake comparison without a payment QR and does not expose CCCD fragments, KYC evidence, transfer receipts, or internal reconciliation notes.
+
+### Provider Lifecycle Notification
+
+An in-app message and verified-email notification sent when a Provider Deposit Intent is matched, an application enters review or needs changes, an application is approved or rejected, a refund completes, or an active Provider's Bond or Provider Tier changes. Public Zalo, Telegram, and other contact channels are not notification consent and receive no automated lifecycle messages in P0.
 
 ### Provider Verification Badge
 
-A single public indicator that the displayed Provider information was verified and the profile is active. It has no Silver/Gold tiers, trust score, or unconditional guarantee meaning. _Avoid_: insurance badge, trust tier, red tick.
+A public indicator that the displayed Provider information was verified and the profile is active. It may be presented with the Provider Tier derived from confirmed Bond, but never carries a numeric trust score, fabricated support rating, or unconditional guarantee meaning. _Avoid_: insurance badge, trust score, Royal, guaranteed badge.
 
 ### Support-Eligible Transaction
 
@@ -156,7 +188,11 @@ A privacy-safe label stating that a Provider-related report is under verificatio
 
 ### Protection Admin Permission
 
-A least-privilege capability assigned to an Admin for Provider review, risk moderation, Bond operations, protection management, or program administration. Sensitive financial and publication actions depend on capabilities rather than the undifferentiated Admin role alone.
+A least-privilege capability assigned to an Admin. `PROVIDER_REVIEWER` verifies applications and profile revisions but cannot mutate money; `RISK_MODERATOR` handles reports and support review; `SUPER_ADMIN` alone manages policy and performs manual reconciliation, refunds, and Bond adjustments, audited without dual approval. SePay still applies exact-match deposits automatically. P0 has no separate `BOND_OPERATOR` or `PROTECTION_MANAGER` role.
+
+### Provider Admin List
+
+The Admin operations list of Provider standing, showing legal name, status, Provider Tier, exact recognized Bond, Recommended Transaction Limit, full Primary Bank Account, verification date, and actionable warnings. Provider Reviewers may inspect application and identity-verification material with 2FA, while financial mutations remain restricted to `SUPER_ADMIN`. _Avoid_: masked operations list, public directory.
 
 ### Store profile
 

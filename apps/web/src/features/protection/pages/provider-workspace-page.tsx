@@ -1,12 +1,15 @@
 import { Button } from "@avin/ui/components/button";
+import { Input } from "@avin/ui/components/input";
 import { ArrowLeftIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { Shell } from "@/components/shell";
 
 import {
   useProviderBondWithdrawalActions,
+  useProviderBondActions,
   useProviderProfileRevisionActions,
   useProviderProtectionPolicyActions,
   useProviderWorkspace,
@@ -193,12 +196,29 @@ const ProviderProfileRevisionPanel = ({
 
 const ProviderBondSummary = ({
   bond,
+  depositIntent,
   withdrawal,
 }: {
   bond: NonNullable<ProviderWorkspace["bond"]>;
+  depositIntent: ProviderWorkspace["depositIntent"];
   withdrawal: ProviderWorkspace["bondWithdrawal"];
 }) => {
   const { request } = useProviderBondWithdrawalActions();
+  const { createTopUpIntent } = useProviderBondActions();
+  const [topUpAmount, setTopUpAmount] = useState(1_000_000);
+
+  const createTopUp = async () => {
+    try {
+      await createTopUpIntent.mutateAsync({ amount: topUpAmount });
+      toast.success(
+        "Đã tạo lệnh nạp thêm Bond. Hãy chuyển đúng số tiền trong 24 giờ."
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Không thể tạo lệnh nạp Bond."
+      );
+    }
+  };
 
   const requestWithdrawal = async () => {
     try {
@@ -221,10 +241,10 @@ const ProviderBondSummary = ({
     <article className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="font-semibold text-xl">Quỹ Bảo Hiểm Ký Quỹ (Bond)</h2>
+          <h2 className="font-semibold text-xl">Bond ký quỹ Provider</h2>
           <p className="mt-2 text-muted-foreground text-sm">
-            Số tiền bảo hiểm được Avin xác nhận lưu ký để bảo vệ quyền lợi người
-            mua khi giao dịch.
+            Số tiền Avin xác nhận lưu ký, dùng để tính hạng và hạn mức khuyến
+            nghị.
           </p>
         </div>
         <div className="text-right">
@@ -249,11 +269,56 @@ const ProviderBondSummary = ({
         </div>
       </div>
       <div className="mt-5 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm">
-        <p className="font-medium">Rút quỹ bảo hiểm</p>
+        <p className="font-medium">Nạp thêm Bond</p>
         <p className="mt-1 text-muted-foreground">
-          Yêu cầu rút quỹ sẽ có thời gian đối soát 30 ngày để đảm bảo không phát
-          sinh khiếu nại giao dịch tồn đọng. Phí thẩm định duy trì không hoàn
-          lại.
+          Tạo một lệnh riêng và chuyển đúng số tiền theo QR trong 24 giờ. Hệ
+          thống tự cập nhật hạng và hạn mức sau khi đối soát.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Input
+            className="max-w-48"
+            inputMode="numeric"
+            min={1_000_000}
+            onChange={(event) =>
+              setTopUpAmount(
+                Number(event.target.value.replaceAll(/\D/gu, "")) || 0
+              )
+            }
+            type="number"
+            value={topUpAmount || ""}
+          />
+          <Button
+            disabled={createTopUpIntent.isPending || topUpAmount < 1_000_000}
+            onClick={() => void createTopUp()}
+            type="button"
+            variant="outline"
+          >
+            {createTopUpIntent.isPending ? "Đang tạo..." : "Tạo lệnh nạp Bond"}
+          </Button>
+        </div>
+        {depositIntent?.kind === "TOP_UP" &&
+        depositIntent.status === "PENDING" ? (
+          <div className="mt-3 rounded-xl border bg-background p-3 text-sm">
+            <p>
+              Lệnh đang chờ:{" "}
+              <strong>{vndFormatter.format(depositIntent.amount)}</strong>
+            </p>
+            <p className="font-mono text-xs text-muted-foreground">
+              Nội dung: {depositIntent.paymentCode}
+            </p>
+            {depositIntent.qrUrl ? (
+              <img
+                alt="Mã QR nạp thêm Bond"
+                className="mt-3 size-44 rounded-xl border bg-white p-2"
+                src={depositIntent.qrUrl}
+              />
+            ) : null}
+          </div>
+        ) : null}
+        <p className="mt-5 font-medium">Rút toàn bộ Bond</p>
+        <p className="mt-1 text-muted-foreground">
+          Yêu cầu rút toàn bộ Bond sẽ qua thời gian đối soát 30 ngày để xử lý
+          các giao dịch còn tồn đọng.
         </p>
         {withdrawal ? (
           <div className="mt-3 grid gap-1 text-muted-foreground">
@@ -359,6 +424,7 @@ const InactiveOrApprovedWorkspaceContent = ({
     {workspaceData.bond ? (
       <ProviderBondSummary
         bond={workspaceData.bond}
+        depositIntent={workspaceData.depositIntent}
         withdrawal={workspaceData.bondWithdrawal}
       />
     ) : null}

@@ -47,16 +47,6 @@ const DetailField = ({ label, value }: { label: string; value: string }) => (
 const displayValue = (value: unknown): string =>
   typeof value === "string" && value.length > 0 ? value : "Chưa cung cấp";
 
-const maskAccountNumber = (value: string | null | undefined): string => {
-  if (!value) {
-    return "Chưa cung cấp";
-  }
-  if (value.length <= 4) {
-    return value;
-  }
-  return `${"•".repeat(Math.max(0, value.length - 4))}${value.slice(-4)}`;
-};
-
 const ProviderApplicationFacts = ({
   applicant,
   application,
@@ -65,20 +55,15 @@ const ProviderApplicationFacts = ({
   application: ProviderApplication;
 }) => {
   const officialChannels = application.officialChannels ?? {};
-  const paymentAccount = application.paymentAccount as {
-    accountName?: string;
-    accountNumber?: string;
-    accountType?: string;
-    institution?: string;
-  } | null;
 
   return (
     <div className="grid gap-6">
       <Card>
         <CardHeader>
-          <CardTitle>Thông tin applicant và bằng chứng</CardTitle>
+          <CardTitle>Thông tin đăng ký đối tác</CardTitle>
           <CardDescription>
-            Dữ liệu private chỉ hiển thị trong khu vực Reviewer có 2FA.
+            Dữ liệu riêng tư do đối tác kê khai, chỉ hiển thị cho Reviewer có
+            2FA.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-5 sm:grid-cols-2">
@@ -88,28 +73,16 @@ const ProviderApplicationFacts = ({
           />
           <DetailField label="Email" value={applicant.email} />
           <DetailField
-            label="Bắt đầu hoạt động"
-            value={displayValue(application.operatingSince)}
+            label="Địa điểm"
+            value={displayValue(application.location)}
           />
           <DetailField
-            label="Bằng chứng định danh"
-            value={displayValue(application.identityEvidenceReference)}
+            label="CCCD"
+            value={displayValue(application.citizenIdNumber)}
           />
           <DetailField
-            label="Bằng chứng đủ tuổi"
-            value={displayValue(application.ageEvidenceReference)}
-          />
-          <DetailField
-            label="Bằng chứng lịch sử"
-            value={displayValue(application.operatingHistoryEvidenceReference)}
-          />
-          <DetailField
-            label="Bằng chứng kênh chính thức"
-            value={displayValue(application.officialChannelEvidenceReference)}
-          />
-          <DetailField
-            label="Bằng chứng tài khoản thanh toán"
-            value={displayValue(application.paymentEvidenceReference)}
+            label="Bond / hạng dự kiến"
+            value={`${application.bondAmount?.toLocaleString("vi-VN") ?? "0"} ₫ · ${application.tier ?? "NORMAL"}`}
           />
           <DetailField
             label="Chính sách"
@@ -124,7 +97,7 @@ const ProviderApplicationFacts = ({
 
       <Card>
         <CardHeader>
-          <CardTitle>Kênh và dịch vụ dự kiến công khai</CardTitle>
+          <CardTitle>Thông tin sẽ công khai sau khi duyệt</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-5">
           {officialChannels.avatarUrl ? (
@@ -140,11 +113,7 @@ const ProviderApplicationFacts = ({
             </div>
           ) : null}
           <DetailField
-            label="Lời nhắn / Ghi chú"
-            value={displayValue(officialChannels.note)}
-          />
-          <DetailField
-            label="Dịch vụ & STK công khai"
+            label="Dịch vụ cung cấp"
             value={displayValue(application.services)}
           />
           <DetailField
@@ -152,20 +121,20 @@ const ProviderApplicationFacts = ({
             value={displayValue(officialChannels.facebookUrl)}
           />
           <DetailField
-            label="Facebook UID"
-            value={displayValue(officialChannels.facebookId)}
-          />
-          <DetailField
-            label="Zalo"
-            value={displayValue(officialChannels.zalo)}
+            label="Hotline / Zalo"
+            value={`${displayValue(officialChannels.hotline)} · ${displayValue(officialChannels.zalo)}`}
           />
           <DetailField
             label="Nhóm Telegram"
             value={displayValue(officialChannels.telegramCommunityUrl)}
           />
           <DetailField
-            label="Bio Shop"
-            value={displayValue(officialChannels.bioShop)}
+            label="TikTok"
+            value={displayValue(officialChannels.tiktokUrl)}
+          />
+          <DetailField
+            label="YouTube"
+            value={displayValue(officialChannels.youtubeUrl)}
           />
           <DetailField
             label="Website"
@@ -176,33 +145,26 @@ const ProviderApplicationFacts = ({
 
       <Card>
         <CardHeader>
-          <CardTitle>Tài khoản thanh toán đã đăng ký</CardTitle>
+          <CardTitle>Tài khoản ngân hàng đã đăng ký</CardTitle>
           <CardDescription>
-            Reviewer có thể đối chiếu nhưng dữ liệu này không được đưa vào
-            profile public.
+            Reviewer có 2FA được xem đầy đủ để đối soát. Sau khi duyệt, các số
+            tài khoản được công khai theo đồng ý của đối tác.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-5 sm:grid-cols-2">
-          <DetailField
-            label="Loại"
-            value={displayValue(paymentAccount?.accountType)}
-          />
-          <DetailField
-            label="Tổ chức"
-            value={displayValue(paymentAccount?.institution)}
-          />
-          <DetailField
-            label="Tên tài khoản"
-            value={displayValue(paymentAccount?.accountName)}
-          />
-          <DetailField
-            label="Số tài khoản (che một phần)"
-            value={maskAccountNumber(paymentAccount?.accountNumber)}
-          />
-          <DetailField
-            label="Đồng ý dùng cho kiểm tra"
-            value={application.paymentDisclosureConsent ? "Có" : "Không"}
-          />
+        <CardContent className="grid gap-3">
+          {(application.registeredBankAccounts ?? []).map((account) => (
+            <div
+              className="rounded-xl border p-3"
+              key={`${account.bankCode}-${account.accountNumber}`}
+            >
+              <p className="font-medium text-sm">{account.accountName}</p>
+              <p className="font-mono text-sm">{account.accountNumber}</p>
+              <p className="text-muted-foreground text-xs">
+                {account.bankCode}
+                {account.isPrimary ? " · Tài khoản chính" : ""}
+              </p>
+            </div>
+          ))}
         </CardContent>
       </Card>
 

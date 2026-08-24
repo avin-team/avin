@@ -5,6 +5,7 @@ import {
   protectionProviderBondWithdrawal,
   protectionPolicyVersion,
   protectionProviderApplication,
+  protectionProviderDepositIntent,
   protectionProviderOwnershipChange,
   protectionProviderProfile,
   protectionProviderProfileRevision,
@@ -33,6 +34,11 @@ import type {
   ProviderApplicationDecision,
   ProviderApplicationStatus,
 } from "./provider-application";
+import { decryptCitizenId, protectCitizenId } from "./provider-identity";
+import {
+  calculateRecommendedTransactionLimit,
+  getProviderTier,
+} from "./provider-tier";
 import {
   createRiskReportPublicPath,
   publicRiskReportStatuses,
@@ -53,12 +59,12 @@ const toPublicProviderOfficialChannels = (
   channels: ProviderOfficialChannels | null | undefined
 ) => ({
   avatarUrl: channels?.avatarUrl,
-  bioShop: channels?.bioShop,
-  facebookId: channels?.facebookId,
   facebookUrl: channels?.facebookUrl,
-  note: channels?.note,
+  hotline: channels?.hotline,
   telegramCommunityUrl: channels?.telegramCommunityUrl,
+  tiktokUrl: channels?.tiktokUrl,
   websiteUrl: channels?.websiteUrl,
+  youtubeUrl: channels?.youtubeUrl,
   zalo: channels?.zalo,
 });
 
@@ -123,10 +129,10 @@ const assertNoDuplicateProviderIdentity = async (
   database: Database,
   application: Pick<
     ProviderApplication,
-    "id" | "identityEvidenceReference" | "providerUserId"
+    "citizenIdHash" | "id" | "providerUserId"
   >
 ): Promise<void> => {
-  if (!application.identityEvidenceReference) {
+  if (!application.citizenIdHash) {
     return;
   }
 
@@ -139,8 +145,8 @@ const assertNoDuplicateProviderIdentity = async (
     .where(
       and(
         eq(
-          protectionProviderApplication.identityEvidenceReference,
-          application.identityEvidenceReference
+          protectionProviderApplication.citizenIdHash,
+          application.citizenIdHash
         ),
         inArray(protectionProviderApplication.status, [
           "APPROVED",
@@ -170,38 +176,42 @@ const assertNoDuplicateProviderIdentity = async (
 export const toProviderApplicationView = (
   application: ProviderApplication
 ) => ({
-  ageEvidenceReference: application.ageEvidenceReference,
+  bondAmount: application.bondAmount,
   createdAt: application.createdAt.toISOString(),
+  depositIntentId: application.depositIntentId,
   fullName: application.fullName,
   id: application.id,
-  identityEvidenceReference: application.identityEvidenceReference,
-  officialChannelEvidenceReference:
-    application.officialChannelEvidenceReference,
-  officialChannels: application.officialChannels,
-  operatingHistoryEvidenceReference:
-    application.operatingHistoryEvidenceReference,
-  operatingSince: application.operatingSince,
-  paymentAccount: application.paymentAccount,
-  paymentDisclosureConsent: application.paymentDisclosureConsent,
-  paymentEvidenceReference: application.paymentEvidenceReference,
+  location: application.location,
+  officialChannels: toPublicProviderOfficialChannels(
+    application.officialChannels
+  ),
   policyAcceptedAt: toIso(application.policyAcceptedAt),
   policyVersion: application.policyVersion,
   policyVersionId: application.policyVersionId,
   providerUserId: application.providerUserId,
+  publicDataConsent: application.publicDataConsent,
+  recognizedBondAmount: application.recognizedBondAmount,
+  recommendedTransactionLimit: calculateRecommendedTransactionLimit({
+    recognizedBondAmount: application.recognizedBondAmount,
+  }),
+  registeredBankAccounts: application.registeredBankAccounts,
   reviewReason: application.reviewReason,
   reviewedAt: toIso(application.reviewedAt),
   revisionCount: application.revisionCount,
   services: application.services,
   status: application.status,
   submittedAt: toIso(application.submittedAt),
+  tier: getProviderTier(application.recognizedBondAmount),
   updatedAt: application.updatedAt.toISOString(),
 });
 
 const toProviderProfileHistoryView = (version: ProviderProfileVersion) => ({
   publishedAt: version.publishedAt.toISOString(),
+  recognizedBondAmount: version.recognizedBondAmount,
   recommendedTransactionLimit: version.recommendedTransactionLimit,
   status: version.status,
   statusReason: version.statusReason,
+  tier: version.tier,
   versionNumber: version.versionNumber,
 });
 
@@ -214,12 +224,16 @@ export const toProviderProfileView = (
   const currentVersion = version ?? {
     displayName: profile.displayName,
     id: profile.id,
+    location: profile.location,
     officialChannels: profile.officialChannels,
     publishedAt: profile.publishedAt,
+    recognizedBondAmount: 0,
     recommendedTransactionLimit: 0,
+    registeredBankAccounts: [],
     services: profile.services,
     status: profile.status,
     statusReason: null,
+    tier: "NORMAL" as const,
     verifiedAt: profile.verifiedAt,
     versionNumber: 1,
   };
@@ -228,18 +242,22 @@ export const toProviderProfileView = (
     displayName: currentVersion.displayName,
     history: history.map(toProviderProfileHistoryView),
     id: profile.id,
+    location: currentVersion.location,
     officialChannels: toPublicProviderOfficialChannels(
       currentVersion.officialChannels
     ),
     profileSlug: profile.profileSlug,
     publicUrl: providerProfilePath(profile.profileSlug),
     publishedAt: currentVersion.publishedAt.toISOString(),
+    recognizedBondAmount: currentVersion.recognizedBondAmount,
     recommendedTransactionLimit: currentVersion.recommendedTransactionLimit,
+    registeredBankAccounts: currentVersion.registeredBankAccounts,
     relatedWarnings,
     services: currentVersion.services,
     status:
       profile.status === "ACTIVE" ? currentVersion.status : profile.status,
     statusReason: profile.statusReason ?? currentVersion.statusReason,
+    tier: currentVersion.tier,
     verifiedAt: currentVersion.verifiedAt.toISOString(),
     versionId: currentVersion.id,
     versionNumber: currentVersion.versionNumber,
@@ -257,24 +275,19 @@ export interface ProviderRelatedWarning {
 export const toProviderProfileRevisionView = (
   revision: ProviderProfileRevision
 ) => ({
-  ageEvidenceReference: revision.ageEvidenceReference,
   baseVersionId: revision.baseVersionId,
   createdAt: revision.createdAt.toISOString(),
   fullName: revision.fullName,
   id: revision.id,
-  identityEvidenceReference: revision.identityEvidenceReference,
-  officialChannelEvidenceReference: revision.officialChannelEvidenceReference,
-  officialChannels: revision.officialChannels,
-  operatingHistoryEvidenceReference: revision.operatingHistoryEvidenceReference,
-  operatingSince: revision.operatingSince,
-  paymentAccount: revision.paymentAccount,
-  paymentDisclosureConsent: revision.paymentDisclosureConsent,
-  paymentEvidenceReference: revision.paymentEvidenceReference,
+  location: revision.location,
+  officialChannels: toPublicProviderOfficialChannels(revision.officialChannels),
   policyAcceptedAt: toIso(revision.policyAcceptedAt),
   policyVersion: revision.policyVersion,
   policyVersionId: revision.policyVersionId,
   profileId: revision.profileId,
   providerUserId: revision.providerUserId,
+  publicDataConsent: revision.publicDataConsent,
+  registeredBankAccounts: revision.registeredBankAccounts,
   reviewReason: revision.reviewReason,
   reviewedAt: toIso(revision.reviewedAt),
   reviewedByUserId: revision.reviewedByUserId,
@@ -291,12 +304,22 @@ const toAdminApplicationView = (
 ) => ({
   applicantEmail: applicant.email,
   applicantName: applicant.name,
+  bondAmount: application.bondAmount,
   id: application.id,
+  location: application.location,
+  primaryBankAccount:
+    application.registeredBankAccounts?.find((account) => account.isPrimary) ??
+    null,
+  recognizedBondAmount: application.recognizedBondAmount,
+  recommendedTransactionLimit: calculateRecommendedTransactionLimit({
+    recognizedBondAmount: application.recognizedBondAmount,
+  }),
   reviewReason: application.reviewReason,
   revisionCount: application.revisionCount,
   services: application.services,
   status: application.status,
   submittedAt: toIso(application.submittedAt),
+  tier: getProviderTier(application.recognizedBondAmount),
 });
 
 const findProviderApplication = async (
@@ -600,7 +623,13 @@ const ensureProviderProfileVersion = async (
   }
 
   const [application] = await database
-    .select({ policyVersionId: protectionProviderApplication.policyVersionId })
+    .select({
+      bondAmount: protectionProviderApplication.recognizedBondAmount,
+      location: protectionProviderApplication.location,
+      policyVersionId: protectionProviderApplication.policyVersionId,
+      registeredBankAccounts:
+        protectionProviderApplication.registeredBankAccounts,
+    })
     .from(protectionProviderApplication)
     .where(eq(protectionProviderApplication.id, profile.applicationId))
     .limit(1);
@@ -609,16 +638,19 @@ const ensureProviderProfileVersion = async (
     .insert(protectionProviderProfileVersion)
     .values({
       displayName: profile.displayName,
+      location: profile.location,
       officialChannels: profile.officialChannels,
-      paymentAccount: null,
       policyVersionId: application?.policyVersionId ?? null,
       profileId: profile.id,
       profileSlug: profile.profileSlug,
       publishedAt: profile.publishedAt,
+      recognizedBondAmount: application?.bondAmount ?? 0,
       recommendedTransactionLimit: 0,
+      registeredBankAccounts: application?.registeredBankAccounts ?? [],
       services: profile.services,
       sourceApplicationId: profile.applicationId,
       status: profile.status,
+      tier: "NORMAL",
       verifiedAt: profile.verifiedAt,
       versionNumber: 1,
     })
@@ -670,6 +702,92 @@ const throwApplicationMutationError = (error: unknown): never => {
   });
 };
 
+interface ProviderSubmissionValidationSource {
+  bondAmount?: number | null;
+  citizenIdCiphertext: string | null;
+  fullName: string | null;
+  location: string | null;
+  officialChannels: ProviderOfficialChannels | null;
+  policyAcceptedAt: Date | null;
+  policyVersion: string | null;
+  publicDataConsent: boolean | null;
+  registeredBankAccounts: ProviderApplication["registeredBankAccounts"];
+  services: string | null;
+}
+
+const toProviderSubmissionValidationInput = (
+  source: ProviderSubmissionValidationSource
+) => ({
+  bondAmount: source.bondAmount ?? 0,
+  citizenIdNumber: source.citizenIdCiphertext
+    ? decryptCitizenId(source.citizenIdCiphertext)
+    : "",
+  fullName: source.fullName,
+  location: source.location ?? "",
+  officialChannels: source.officialChannels ?? {},
+  policyAccepted: Boolean(source.policyAcceptedAt),
+  policyVersion: source.policyVersion,
+  publicDataConsent: source.publicDataConsent === true,
+  registeredBankAccounts: source.registeredBankAccounts ?? [],
+  services: source.services,
+});
+
+const toStoredProviderFields = (
+  input: Record<string, unknown>,
+  existing?: ProviderApplication | ProviderProfileRevision | null
+) => {
+  const {
+    citizenIdNumber,
+    policyAccepted: _policyAccepted,
+    policyVersion: _policyVersion,
+    ...rest
+  } = input;
+  const fields: Record<string, unknown> = { ...rest };
+  if (typeof citizenIdNumber === "string" && citizenIdNumber.length > 0) {
+    Object.assign(fields, protectCitizenId(citizenIdNumber));
+  }
+  const accounts = Array.isArray(input.registeredBankAccounts)
+    ? input.registeredBankAccounts
+    : undefined;
+  if (accounts) {
+    fields.registeredBankAccounts = accounts;
+  } else if (existing && "registeredBankAccounts" in existing) {
+    fields.registeredBankAccounts = existing.registeredBankAccounts;
+  }
+  return fields;
+};
+
+const assertApplicationBondUnchanged = async (
+  database: Database,
+  application: ProviderApplication | null | undefined,
+  requestedBondAmount: unknown
+): Promise<void> => {
+  if (!application || typeof requestedBondAmount !== "number") {
+    return;
+  }
+  const [matchedIntent] = await database
+    .select({ matchedAmount: protectionProviderDepositIntent.matchedAmount })
+    .from(protectionProviderDepositIntent)
+    .where(
+      and(
+        eq(protectionProviderDepositIntent.applicationId, application.id),
+        eq(protectionProviderDepositIntent.kind, "APPLICATION"),
+        eq(protectionProviderDepositIntent.status, "MATCHED")
+      )
+    )
+    .orderBy(desc(protectionProviderDepositIntent.matchedAt))
+    .limit(1);
+  if (
+    matchedIntent?.matchedAmount !== null &&
+    matchedIntent?.matchedAmount !== undefined &&
+    requestedBondAmount !== matchedIntent.matchedAmount
+  ) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Số tiền Bond đã đối soát không thể thay đổi trong hồ sơ này.",
+    });
+  }
+};
+
 export const saveProviderApplicationDraft = async (
   database: Database,
   providerUserId: string,
@@ -694,7 +812,16 @@ export const saveProviderApplicationDraft = async (
   }
 
   const now = new Date();
-  const { policyAccepted, ...draftFields } = input;
+  const { policyAccepted, policyVersion, ...draftInput } = input;
+  await assertApplicationBondUnchanged(
+    database,
+    existing,
+    draftInput.bondAmount
+  );
+  const draftFields = toStoredProviderFields(
+    { ...draftInput, policyVersion },
+    existing
+  );
   let policyAcceptedAt = existing?.policyAcceptedAt;
   if (policyAccepted === true) {
     policyAcceptedAt = now;
@@ -702,8 +829,8 @@ export const saveProviderApplicationDraft = async (
     policyAcceptedAt = null;
   }
   const policyVersionId =
-    "policyVersion" in draftFields
-      ? await findPolicyVersionId(database, draftFields.policyVersion)
+    typeof policyVersion === "string"
+      ? await findPolicyVersionId(database, policyVersion)
       : (existing?.policyVersionId ?? null);
 
   if (existing) {
@@ -712,6 +839,10 @@ export const saveProviderApplicationDraft = async (
       .set({
         ...draftFields,
         policyAcceptedAt,
+        policyVersion:
+          typeof policyVersion === "string"
+            ? policyVersion
+            : (existing?.policyVersion ?? null),
         policyVersionId,
         updatedAt: now,
       })
@@ -729,6 +860,7 @@ export const saveProviderApplicationDraft = async (
       .values({
         ...draftFields,
         policyAcceptedAt,
+        policyVersion: typeof policyVersion === "string" ? policyVersion : null,
         policyVersionId,
         providerUserId,
         status: "DRAFT",
@@ -751,82 +883,109 @@ export const submitProviderApplication = async (
   input: unknown
 ) => {
   const now = new Date();
-  const currentPolicy = await findCurrentPolicyVersion(database, now);
-  let submission;
-  try {
-    submission = validateProviderApplicationSubmission(
-      input,
-      now,
-      currentPolicy?.version ?? CURRENT_PROVIDER_POLICY_VERSION
-    );
-  } catch (error) {
-    return throwApplicationMutationError(error);
-  }
-
   const existing = await findProviderApplication(database, providerUserId);
   await assertProviderApplicationEligibility(database, providerUserId);
-  if (existing?.status === "PENDING_REVIEW") {
+  if (!existing) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Hãy lưu hồ sơ nháp và hoàn tất chuyển khoản ký quỹ trước.",
+    });
+  }
+  if (existing.status === "PENDING_REVIEW") {
     throw new ORPCError("BAD_REQUEST", {
       message: "Provider application is already pending review",
     });
   }
-  if (existing?.status === "APPROVED") {
+  if (existing.status === "APPROVED") {
     throw new ORPCError("BAD_REQUEST", {
       message: "Approved Provider data requires a revision workflow",
     });
   }
-  if (existing?.status === "REJECTED") {
+  if (existing.status === "REJECTED") {
     throw new ORPCError("BAD_REQUEST", {
       message: "Rejected Provider applications cannot be resubmitted",
     });
   }
 
-  const { policyAccepted: _policyAccepted, ...submissionFields } = submission;
-  const policyVersionId = currentPolicy?.id ?? null;
+  const [matchedIntent] = await database
+    .select()
+    .from(protectionProviderDepositIntent)
+    .where(
+      and(
+        eq(protectionProviderDepositIntent.applicationId, existing.id),
+        eq(protectionProviderDepositIntent.kind, "APPLICATION"),
+        eq(protectionProviderDepositIntent.providerUserId, providerUserId),
+        eq(protectionProviderDepositIntent.status, "MATCHED")
+      )
+    )
+    .orderBy(desc(protectionProviderDepositIntent.matchedAt))
+    .limit(1);
+  if (!matchedIntent || matchedIntent.matchedAmount === null) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Cần chuyển khoản đúng số tiền ký quỹ và chờ hệ thống đối soát.",
+    });
+  }
+  const matchedBondAmount = matchedIntent.matchedAmount;
+  const [matchedPolicy] = matchedIntent.policyVersionId
+    ? await database
+        .select()
+        .from(protectionPolicyVersion)
+        .where(eq(protectionPolicyVersion.id, matchedIntent.policyVersionId))
+        .limit(1)
+    : [];
+  const policyVersion =
+    matchedPolicy?.version ??
+    existing.policyVersion ??
+    CURRENT_PROVIDER_POLICY_VERSION;
+  let submission;
+  try {
+    submission = validateProviderApplicationSubmission(
+      input,
+      now,
+      policyVersion
+    );
+  } catch (error) {
+    return throwApplicationMutationError(error);
+  }
+  if (submission.bondAmount !== matchedBondAmount) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Số tiền Bond trong hồ sơ phải trùng số tiền đã đối soát.",
+    });
+  }
+
+  const { policyAccepted: _policyAccepted, ...submissionInput } = submission;
+  const submissionFields = toStoredProviderFields(submissionInput, existing);
+  const { policyVersionId } = matchedIntent;
   const result = await database.transaction(async (transaction) => {
-    let application: ProviderApplication | undefined;
     const nextRevisionCount =
       existing?.status === "CHANGES_REQUESTED"
         ? existing.revisionCount + 1
         : (existing?.revisionCount ?? 0);
 
-    if (existing) {
-      assertProviderApplicationTransition(existing.status, "PENDING_REVIEW");
-      const [updated] = await transaction
-        .update(protectionProviderApplication)
-        .set({
-          ...submissionFields,
-          policyAcceptedAt: now,
-          policyVersionId,
-          reviewReason: null,
-          revisionCount: nextRevisionCount,
-          status: "PENDING_REVIEW",
-          submittedAt: now,
-          updatedAt: now,
-        })
-        .where(
-          and(
-            eq(protectionProviderApplication.id, existing.id),
-            eq(protectionProviderApplication.status, existing.status)
-          )
+    assertProviderApplicationTransition(existing.status, "PENDING_REVIEW");
+    const [updated] = await transaction
+      .update(protectionProviderApplication)
+      .set({
+        ...submissionFields,
+        bondAmount: matchedBondAmount,
+        depositIntentId: matchedIntent.id,
+        policyAcceptedAt: now,
+        policyVersion,
+        policyVersionId,
+        recognizedBondAmount: matchedBondAmount,
+        reviewReason: null,
+        revisionCount: nextRevisionCount,
+        status: "PENDING_REVIEW",
+        submittedAt: now,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(protectionProviderApplication.id, existing.id),
+          eq(protectionProviderApplication.status, existing.status)
         )
-        .returning();
-      application = updated;
-    } else {
-      const [created] = await transaction
-        .insert(protectionProviderApplication)
-        .values({
-          ...submissionFields,
-          policyAcceptedAt: now,
-          policyVersionId,
-          providerUserId,
-          revisionCount: 0,
-          status: "PENDING_REVIEW",
-          submittedAt: now,
-        })
-        .returning();
-      application = created;
-    }
+      )
+      .returning();
+    const application = updated;
 
     if (!application) {
       throw new ORPCError("CONFLICT", {
@@ -889,7 +1048,15 @@ export const listProviderApplications = async (
         applicant.name,
         applicant.email,
         application.fullName,
+        application.location,
         application.services,
+        application.officialChannels?.hotline,
+        application.officialChannels?.zalo,
+        ...(application.registeredBankAccounts ?? []).flatMap((account) => [
+          account.accountNumber,
+          account.accountName,
+          account.bankCode,
+        ]),
       ]
         .filter((value): value is string => Boolean(value))
         .some((value) => value.toLowerCase().includes(normalizedSearch))
@@ -934,13 +1101,20 @@ export const getProviderApplicationForAdmin = async (
       id: row.applicant.id,
       name: row.applicant.name,
     },
-    application: toProviderApplicationView(row.application),
+    application: {
+      ...toProviderApplicationView(row.application),
+      citizenIdLast4: row.application.citizenIdLast4,
+      citizenIdNumber: row.application.citizenIdCiphertext
+        ? decryptCitizenId(row.application.citizenIdCiphertext)
+        : null,
+    },
     publicProfile: row.profile
       ? await getProviderProfilePublicView(database, row.profile)
       : null,
   };
 };
 
+// oxlint-disable-next-line complexity
 export const startProviderProfileRevision = async (
   database: Database,
   providerUserId: string
@@ -968,19 +1142,37 @@ export const startProviderProfileRevision = async (
     return toProviderProfileRevisionView(latestRevision);
   }
 
-  const baseVersion = await ensureProviderProfileVersion(database, profile);
-  const currentPolicy = await findCurrentPolicyVersion(database, new Date());
+  const [baseVersion, currentPolicy, applicationRows] = await Promise.all([
+    ensureProviderProfileVersion(database, profile),
+    findCurrentPolicyVersion(database, new Date()),
+    database
+      .select({
+        citizenIdCiphertext: protectionProviderApplication.citizenIdCiphertext,
+        citizenIdHash: protectionProviderApplication.citizenIdHash,
+        citizenIdLast4: protectionProviderApplication.citizenIdLast4,
+        publicDataConsent: protectionProviderApplication.publicDataConsent,
+      })
+      .from(protectionProviderApplication)
+      .where(eq(protectionProviderApplication.id, profile.applicationId))
+      .limit(1),
+  ]);
+  const [application] = applicationRows;
   const [created] = await database
     .insert(protectionProviderProfileRevision)
     .values({
       baseVersionId: baseVersion.id,
+      citizenIdCiphertext: application?.citizenIdCiphertext ?? null,
+      citizenIdHash: application?.citizenIdHash ?? null,
+      citizenIdLast4: application?.citizenIdLast4 ?? null,
       fullName: baseVersion.displayName,
+      location: baseVersion.location,
       officialChannels: baseVersion.officialChannels,
-      operatingSince: null,
       policyVersion: currentPolicy?.version ?? CURRENT_PROVIDER_POLICY_VERSION,
       policyVersionId: currentPolicy?.id ?? baseVersion.policyVersionId ?? null,
       profileId: profile.id,
       providerUserId,
+      publicDataConsent: application?.publicDataConsent ?? true,
+      registeredBankAccounts: baseVersion.registeredBankAccounts,
       revisionNumber: (latestRevision?.revisionNumber ?? 0) + 1,
       services: baseVersion.services,
       status: "DRAFT",
@@ -1024,7 +1216,11 @@ export const saveProviderProfileRevisionDraft = async (
   }
 
   const now = new Date();
-  const { policyAccepted, ...draftFields } = input;
+  const { policyAccepted, policyVersion, ...draftInput } = input;
+  const draftFields = toStoredProviderFields(
+    { ...draftInput, policyVersion },
+    revision
+  );
   const { policyAcceptedAt: existingPolicyAcceptedAt } = revision;
   let policyAcceptedAt = existingPolicyAcceptedAt;
   if (policyAccepted === true) {
@@ -1033,8 +1229,8 @@ export const saveProviderProfileRevisionDraft = async (
     policyAcceptedAt = null;
   }
   const policyVersionId =
-    "policyVersion" in draftFields
-      ? await findPolicyVersionId(database, draftFields.policyVersion)
+    typeof policyVersion === "string"
+      ? await findPolicyVersionId(database, policyVersion)
       : (revision.policyVersionId ?? null);
 
   const [updated] = await database
@@ -1042,6 +1238,10 @@ export const saveProviderProfileRevisionDraft = async (
     .set({
       ...draftFields,
       policyAcceptedAt,
+      policyVersion:
+        typeof policyVersion === "string"
+          ? policyVersion
+          : (revision.policyVersion ?? null),
       policyVersionId,
       updatedAt: now,
     })
@@ -1106,7 +1306,12 @@ export const submitProviderProfileRevision = async (
     });
   }
 
-  const { policyAccepted: _policyAccepted, ...submissionFields } = submission;
+  const {
+    bondAmount: _bondAmount,
+    policyAccepted: _policyAccepted,
+    ...submissionInput
+  } = submission;
+  const submissionFields = toStoredProviderFields(submissionInput, existing);
   const policyVersionId = currentPolicy?.id ?? null;
   const result = await database.transaction(async (transaction) => {
     const currentVersion = await findLatestProviderProfileVersion(
@@ -1194,7 +1399,9 @@ const toAdminProfileRevisionView = (
   applicantName: applicant.name,
   fullName: revision.fullName,
   id: revision.id,
+  location: revision.location,
   profileId: revision.profileId,
+  registeredBankAccounts: revision.registeredBankAccounts,
   reviewReason: revision.reviewReason,
   revisionNumber: revision.revisionNumber,
   services: revision.services,
@@ -1273,7 +1480,13 @@ export const getProviderProfileRevisionForAdmin = async (
       name: row.applicant.name,
     },
     profileId: row.profile.id,
-    profileRevision: toProviderProfileRevisionView(row.revision),
+    profileRevision: {
+      ...toProviderProfileRevisionView(row.revision),
+      citizenIdLast4: row.revision.citizenIdLast4,
+      citizenIdNumber: row.revision.citizenIdCiphertext
+        ? decryptCitizenId(row.revision.citizenIdCiphertext)
+        : null,
+    },
     publicProfile: await getProviderProfilePublicView(database, row.profile),
   };
 };
@@ -1319,6 +1532,7 @@ const getProfileRevisionDecisionNotification = (
   };
 };
 
+// oxlint-disable-next-line complexity
 export const decideProviderProfileRevision = async ({
   database,
   decision,
@@ -1340,6 +1554,7 @@ export const decideProviderProfileRevision = async ({
   }
 
   const now = new Date();
+  // oxlint-disable-next-line complexity
   const result = await database.transaction(async (transaction) => {
     const [revision] = await transaction
       .select()
@@ -1386,23 +1601,7 @@ export const decideProviderProfileRevision = async ({
       }
       try {
         validateProviderApplicationSubmission(
-          {
-            ageEvidenceReference: revision.ageEvidenceReference,
-            fullName: revision.fullName,
-            identityEvidenceReference: revision.identityEvidenceReference,
-            officialChannelEvidenceReference:
-              revision.officialChannelEvidenceReference,
-            officialChannels: revision.officialChannels,
-            operatingHistoryEvidenceReference:
-              revision.operatingHistoryEvidenceReference,
-            operatingSince: revision.operatingSince,
-            paymentAccount: revision.paymentAccount,
-            paymentDisclosureConsent: revision.paymentDisclosureConsent,
-            paymentEvidenceReference: revision.paymentEvidenceReference,
-            policyAccepted: Boolean(revision.policyAcceptedAt),
-            policyVersion: revision.policyVersion,
-            services: revision.services,
-          },
+          toProviderSubmissionValidationInput(revision),
           now,
           getPolicyVersionForValidation(currentPolicy)
         );
@@ -1449,18 +1648,23 @@ export const decideProviderProfileRevision = async ({
         .insert(protectionProviderProfileVersion)
         .values({
           displayName: updated.fullName,
+          location: updated.location ?? currentVersion.location,
           officialChannels: updated.officialChannels ?? {},
-          paymentAccount: updated.paymentAccount ?? null,
-          policyVersionId: updated.policyVersionId,
+          policyVersionId: currentVersion.policyVersionId,
           profileId: profile.id,
           profileSlug: profile.profileSlug,
           publishedAt: now,
           publishedByUserId: reviewerUserId,
+          recognizedBondAmount: currentVersion.recognizedBondAmount,
           recommendedTransactionLimit:
             currentVersion.recommendedTransactionLimit,
+          registeredBankAccounts:
+            updated.registeredBankAccounts ??
+            currentVersion.registeredBankAccounts,
           services: updated.services,
           sourceApplicationId: profile.applicationId,
           status: profile.status,
+          tier: currentVersion.tier,
           verifiedAt: now,
           versionNumber: currentVersion.versionNumber + 1,
         })
@@ -1476,6 +1680,7 @@ export const decideProviderProfileRevision = async ({
         .update(protectionProviderProfile)
         .set({
           displayName: updated.fullName,
+          location: updated.location ?? profile.location,
           officialChannels: updated.officialChannels ?? {},
           publishedAt: now,
           services: updated.services,
@@ -1489,6 +1694,12 @@ export const decideProviderProfileRevision = async ({
           message: "Provider profile could not be updated",
         });
       }
+    }
+    if (decision === "APPROVED" || decision === "REJECTED") {
+      await transaction
+        .update(protectionProviderProfileRevision)
+        .set({ citizenIdCiphertext: null, updatedAt: now })
+        .where(eq(protectionProviderProfileRevision.id, updated.id));
     }
 
     const copy = getProfileRevisionDecisionNotification(decision);
@@ -1581,18 +1792,21 @@ export const publishProviderProfileStatusInTransaction = async ({
     .insert(protectionProviderProfileVersion)
     .values({
       displayName: currentVersion.displayName,
+      location: currentVersion.location,
       officialChannels: currentVersion.officialChannels,
-      paymentAccount: currentVersion.paymentAccount,
       policyVersionId: currentVersion.policyVersionId,
       profileId: profile.id,
       profileSlug: profile.profileSlug,
       publishedAt: now,
       publishedByUserId: reviewerUserId,
+      recognizedBondAmount: currentVersion.recognizedBondAmount,
       recommendedTransactionLimit: currentVersion.recommendedTransactionLimit,
+      registeredBankAccounts: currentVersion.registeredBankAccounts,
       services: currentVersion.services,
       sourceApplicationId: profile.applicationId,
       status,
       statusReason: statusReason?.trim() || null,
+      tier: currentVersion.tier,
       verifiedAt: currentVersion.verifiedAt,
       versionNumber: currentVersion.versionNumber + 1,
     })
@@ -1672,6 +1886,7 @@ const getDecisionNotification = (decision: ProviderApplicationDecision) => {
   };
 };
 
+// oxlint-disable-next-line complexity
 export const decideProviderApplication = ({
   applicationId,
   database,
@@ -1693,6 +1908,7 @@ export const decideProviderApplication = ({
   }
 
   const now = new Date();
+  // oxlint-disable-next-line complexity
   return database.transaction(async (transaction) => {
     const [application] = await transaction
       .select()
@@ -1713,27 +1929,41 @@ export const decideProviderApplication = ({
 
     if (decision === "APPROVED") {
       try {
-        const currentPolicy = await findCurrentPolicyVersion(transaction, now);
+        const [matchedIntent] = await transaction
+          .select()
+          .from(protectionProviderDepositIntent)
+          .where(
+            and(
+              eq(protectionProviderDepositIntent.applicationId, application.id),
+              eq(protectionProviderDepositIntent.kind, "APPLICATION"),
+              eq(protectionProviderDepositIntent.status, "MATCHED")
+            )
+          )
+          .orderBy(desc(protectionProviderDepositIntent.matchedAt))
+          .limit(1);
+        if (
+          !matchedIntent?.policyVersionId ||
+          matchedIntent.matchedAmount === null
+        ) {
+          throw new ORPCError("BAD_REQUEST", {
+            message:
+              "Approved Provider application must have a matched Bond deposit.",
+          });
+        }
+        const [matchedPolicy] = await transaction
+          .select()
+          .from(protectionPolicyVersion)
+          .where(eq(protectionPolicyVersion.id, matchedIntent.policyVersionId))
+          .limit(1);
+        if (!matchedPolicy) {
+          throw new ORPCError("CONFLICT", {
+            message: "The matched Provider policy version is unavailable.",
+          });
+        }
         validateProviderApplicationSubmission(
-          {
-            ageEvidenceReference: application.ageEvidenceReference,
-            fullName: application.fullName,
-            identityEvidenceReference: application.identityEvidenceReference,
-            officialChannelEvidenceReference:
-              application.officialChannelEvidenceReference,
-            officialChannels: application.officialChannels,
-            operatingHistoryEvidenceReference:
-              application.operatingHistoryEvidenceReference,
-            operatingSince: application.operatingSince,
-            paymentAccount: application.paymentAccount,
-            paymentDisclosureConsent: application.paymentDisclosureConsent,
-            paymentEvidenceReference: application.paymentEvidenceReference,
-            policyAccepted: Boolean(application.policyAcceptedAt),
-            policyVersion: application.policyVersion,
-            services: application.services,
-          },
+          toProviderSubmissionValidationInput(application),
           now,
-          getPolicyVersionForValidation(currentPolicy)
+          matchedPolicy.version
         );
 
         await assertNoDuplicateProviderIdentity(transaction, application);
@@ -1777,6 +2007,43 @@ export const decideProviderApplication = ({
           message: "Approved Provider data is incomplete",
         });
       }
+      const [matchedIntent] = await transaction
+        .select()
+        .from(protectionProviderDepositIntent)
+        .where(
+          and(
+            eq(protectionProviderDepositIntent.applicationId, updated.id),
+            eq(protectionProviderDepositIntent.kind, "APPLICATION"),
+            eq(protectionProviderDepositIntent.status, "MATCHED")
+          )
+        )
+        .orderBy(desc(protectionProviderDepositIntent.matchedAt))
+        .limit(1);
+      const [matchedPolicy] = matchedIntent?.policyVersionId
+        ? await transaction
+            .select()
+            .from(protectionPolicyVersion)
+            .where(
+              eq(protectionPolicyVersion.id, matchedIntent.policyVersionId)
+            )
+            .limit(1)
+        : [];
+      if (
+        !matchedIntent ||
+        !matchedPolicy ||
+        matchedIntent.matchedAmount === null
+      ) {
+        throw new ORPCError("CONFLICT", {
+          message: "Matched Provider Bond is required before publication.",
+        });
+      }
+      const recognizedBondAmount = matchedIntent.matchedAmount;
+      const tier = getProviderTier(recognizedBondAmount, matchedPolicy);
+      const recommendedTransactionLimit = calculateRecommendedTransactionLimit({
+        percentage: matchedPolicy.recommendedLimitPercentage,
+        recognizedBondAmount,
+        rounding: matchedPolicy.recommendedLimitRounding,
+      });
       const displayName = updated.fullName;
       const { services } = updated;
       const [createdProfile] = await transaction
@@ -1784,6 +2051,7 @@ export const decideProviderApplication = ({
         .values({
           applicationId: updated.id,
           displayName,
+          location: updated.location ?? "Chưa cập nhật",
           officialChannels: updated.officialChannels ?? {},
           profileSlug: createProviderProfileSlug(
             displayName,
@@ -1806,17 +2074,20 @@ export const decideProviderApplication = ({
         .insert(protectionProviderProfileVersion)
         .values({
           displayName,
+          location: updated.location ?? "Chưa cập nhật",
           officialChannels: updated.officialChannels ?? {},
-          paymentAccount: updated.paymentAccount ?? null,
-          policyVersionId: updated.policyVersionId,
+          policyVersionId: matchedPolicy.id,
           profileId: profile.id,
           profileSlug: profile.profileSlug,
           publishedAt: now,
           publishedByUserId: reviewerUserId,
-          recommendedTransactionLimit: 0,
+          recognizedBondAmount,
+          recommendedTransactionLimit,
+          registeredBankAccounts: updated.registeredBankAccounts ?? [],
           services,
           sourceApplicationId: updated.id,
           status: "ACTIVE",
+          tier,
           verifiedAt: now,
           versionNumber: 1,
         })
@@ -1827,6 +2098,53 @@ export const decideProviderApplication = ({
           message: "Provider profile version could not be published",
         });
       }
+      const [bondAccount] = await transaction
+        .insert(protectionProviderBondAccount)
+        .values({
+          providerProfileId: profile.id,
+          providerUserId: updated.providerUserId,
+          recognizedAmount: recognizedBondAmount,
+        })
+        .onConflictDoNothing({
+          target: protectionProviderBondAccount.providerProfileId,
+        })
+        .returning();
+      if (!bondAccount) {
+        throw new ORPCError("CONFLICT", {
+          message: "Provider Bond account could not be initialized.",
+        });
+      }
+      await transaction.insert(protectionProviderBondAdjustment).values({
+        balanceAfter: recognizedBondAmount,
+        balanceBefore: 0,
+        deltaAmount: recognizedBondAmount,
+        evidenceReference: matchedIntent.matchedEventId,
+        idempotencyKey: `provider-application:${updated.id}`,
+        kind: "DEPOSIT",
+        profileId: profile.id,
+        providerUserId: updated.providerUserId,
+        reason: "Initial matched Provider Bond deposit",
+        recordedByUserId: reviewerUserId,
+        sourceId: matchedIntent.id,
+        sourceType: "PROVIDER_DEPOSIT_INTENT",
+        status: "APPLIED",
+      });
+    } else if (decision === "REJECTED") {
+      await transaction
+        .update(protectionProviderDepositIntent)
+        .set({ status: "REFUND_PENDING", updatedAt: now })
+        .where(
+          and(
+            eq(protectionProviderDepositIntent.applicationId, application.id),
+            eq(protectionProviderDepositIntent.status, "MATCHED")
+          )
+        );
+    }
+    if (decision === "APPROVED" || decision === "REJECTED") {
+      await transaction
+        .update(protectionProviderApplication)
+        .set({ citizenIdCiphertext: null, updatedAt: now })
+        .where(eq(protectionProviderApplication.id, updated.id));
     }
 
     const copy = getDecisionNotification(decision);
