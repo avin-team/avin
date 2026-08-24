@@ -66,6 +66,7 @@ import { listingEditorFormSchema } from "@/features/seller/schemas/listing-edito
 import { orpc } from "@/utils/orpc";
 
 import type { StoreSection } from "../data/store-types";
+import { getListingPublicationErrorMessage } from "../utils/listing-publication-error";
 import {
   getFirstIncompleteEditorStepIndex,
   getListingEditorStepOrder,
@@ -1356,9 +1357,12 @@ const ListingEditorFormPage = ({
   ]);
   const publishMutation = useMutation(
     orpc.listing.sellerWorkspace.publish.mutationOptions({
-      onError: () => {
+      onError: (error) => {
         toast.error(
-          "Không thể đăng bán sản phẩm. Vui lòng kiểm tra các mục còn thiếu."
+          getListingPublicationErrorMessage(
+            error,
+            "Không thể đăng bán sản phẩm. Vui lòng thử lại."
+          )
         );
       },
       onSuccess: async () => {
@@ -1375,9 +1379,12 @@ const ListingEditorFormPage = ({
   );
   const resumeMutation = useMutation(
     orpc.listing.sellerWorkspace.resume.mutationOptions({
-      onError: () => {
+      onError: (error) => {
         toast.error(
-          "Không thể đăng bán lại sản phẩm. Vui lòng kiểm tra các mục còn thiếu."
+          getListingPublicationErrorMessage(
+            error,
+            "Không thể đăng bán lại sản phẩm. Vui lòng thử lại."
+          )
         );
       },
       onSuccess: async () => {
