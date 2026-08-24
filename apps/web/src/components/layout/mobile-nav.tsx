@@ -193,13 +193,6 @@ export const MobileNav = ({ isOpen, items, onToggle }: MobileNavProps) => {
                         Quản lý gian hàng
                       </Link>
                     )}
-                    <Link
-                      className="block w-full rounded-lg px-4 py-2 font-medium text-foreground text-sm transition-colors duration-200 hover:bg-muted"
-                      onClick={onToggle}
-                      to="/security"
-                    >
-                      Bảo mật tài khoản
-                    </Link>
                     <button
                       className="block w-full rounded-lg px-4 py-2 text-left font-medium text-destructive text-sm transition-colors duration-200 hover:bg-destructive/10"
                       onClick={async () => {

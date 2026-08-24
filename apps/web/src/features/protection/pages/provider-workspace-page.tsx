@@ -211,11 +211,13 @@ const ProviderBondSummary = ({
     try {
       await createTopUpIntent.mutateAsync({ amount: topUpAmount });
       toast.success(
-        "Đã tạo lệnh nạp thêm Bond. Hãy chuyển đúng số tiền trong 24 giờ."
+        "Đã tạo lệnh nạp thêm vào quỹ đảm bảo. Hãy chuyển đúng số tiền trong 24 giờ."
       );
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Không thể tạo lệnh nạp Bond."
+        error instanceof Error
+          ? error.message
+          : "Không thể tạo lệnh nạp vào quỹ đảm bảo."
       );
     }
   };
@@ -223,16 +225,16 @@ const ProviderBondSummary = ({
   const requestWithdrawal = async () => {
     try {
       await request.mutateAsync({
-        reason: "Đối tác yêu cầu rút toàn bộ tiền bảo hiểm ký quỹ.",
+        reason: "Đối tác yêu cầu rút toàn bộ quỹ đảm bảo.",
       });
       toast.success(
-        "Đã gửi yêu cầu rút tiền ký quỹ; thời gian đối soát bắt đầu từ hôm nay."
+        "Đã gửi yêu cầu rút quỹ đảm bảo; thời gian đối soát bắt đầu từ hôm nay."
       );
     } catch (error) {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Không thể gửi yêu cầu rút tiền ký quỹ."
+          : "Không thể gửi yêu cầu rút quỹ đảm bảo."
       );
     }
   };
@@ -241,17 +243,19 @@ const ProviderBondSummary = ({
     <article className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="font-semibold text-xl">Bond ký quỹ Provider</h2>
+          <h2 className="font-semibold text-xl">Quỹ đảm bảo của Đối tác</h2>
           <p className="mt-2 text-muted-foreground text-sm">
-            Số tiền Avin xác nhận lưu ký, dùng để tính hạng và hạn mức khuyến
-            nghị.
+            Số tiền Avin đã xác nhận trong quỹ đảm bảo, dùng để xác định hạng và
+            hạn mức giao dịch đề xuất.
           </p>
         </div>
         <div className="text-right">
           <p className="font-semibold text-2xl">
             {vndFormatter.format(bond.recognizedAmount)}
           </p>
-          <p className="text-muted-foreground text-xs">Tiền bảo hiểm ký quỹ</p>
+          <p className="text-muted-foreground text-xs">
+            Số tiền quỹ đảm bảo đã xác nhận
+          </p>
         </div>
       </div>
       <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
@@ -269,7 +273,7 @@ const ProviderBondSummary = ({
         </div>
       </div>
       <div className="mt-5 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm">
-        <p className="font-medium">Nạp thêm Bond</p>
+        <p className="font-medium">Nạp thêm vào quỹ đảm bảo</p>
         <p className="mt-1 text-muted-foreground">
           Tạo một lệnh riêng và chuyển đúng số tiền theo QR trong 24 giờ. Hệ
           thống tự cập nhật hạng và hạn mức sau khi đối soát.
@@ -293,7 +297,9 @@ const ProviderBondSummary = ({
             type="button"
             variant="outline"
           >
-            {createTopUpIntent.isPending ? "Đang tạo..." : "Tạo lệnh nạp Bond"}
+            {createTopUpIntent.isPending
+              ? "Đang tạo..."
+              : "Tạo lệnh nạp vào quỹ đảm bảo"}
           </Button>
         </div>
         {depositIntent?.kind === "TOP_UP" &&
@@ -308,17 +314,17 @@ const ProviderBondSummary = ({
             </p>
             {depositIntent.qrUrl ? (
               <img
-                alt="Mã QR nạp thêm Bond"
+                alt="Mã QR nạp thêm vào quỹ đảm bảo"
                 className="mt-3 size-44 rounded-xl border bg-white p-2"
                 src={depositIntent.qrUrl}
               />
             ) : null}
           </div>
         ) : null}
-        <p className="mt-5 font-medium">Rút toàn bộ Bond</p>
+        <p className="mt-5 font-medium">Rút toàn bộ quỹ đảm bảo</p>
         <p className="mt-1 text-muted-foreground">
-          Yêu cầu rút toàn bộ Bond sẽ qua thời gian đối soát 30 ngày để xử lý
-          các giao dịch còn tồn đọng.
+          Yêu cầu rút toàn bộ quỹ đảm bảo sẽ cần 30 ngày đối soát để xử lý các
+          giao dịch còn tồn đọng.
         </p>
         {withdrawal ? (
           <div className="mt-3 grid gap-1 text-muted-foreground">
@@ -444,7 +450,7 @@ export const ProviderWorkspacePage = () => {
 
   return (
     <Shell
-      aria-labelledby="provider-workspace-title"
+      aria-label="Khu vực đối tác Avin Check"
       as="section"
       className="flex w-full flex-col items-start gap-6"
     >
@@ -455,20 +461,6 @@ export const ProviderWorkspacePage = () => {
         <ArrowLeftIcon aria-hidden="true" className="size-4" />
         Quay lại
       </Link>
-
-      <header className="flex w-full max-w-3xl flex-col items-start gap-2 text-left">
-        <p className="font-medium text-primary text-sm">Avin Check</p>
-        <h1
-          className="font-bold text-3xl tracking-tight text-foreground"
-          id="provider-workspace-title"
-        >
-          Không gian riêng của Đối tác Avin
-        </h1>
-        <p className="text-muted-foreground">
-          Đăng ký và quản lý hồ sơ xác minh uy tín đối tác giao dịch an toàn
-          trên Avin Check.
-        </p>
-      </header>
 
       {workspace.isPending ? (
         <output aria-live="polite">Đang tải hồ sơ đối tác...</output>

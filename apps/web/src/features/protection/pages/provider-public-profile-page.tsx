@@ -154,7 +154,9 @@ export const ProviderPublicProfilePage = () => {
               <p className="mt-1 font-bold text-primary">{tier}</p>
             </div>
             <div className="rounded-xl border p-3">
-              <p className="text-muted-foreground text-xs">Bond chính xác</p>
+              <p className="text-muted-foreground text-xs">
+                Số tiền quỹ đảm bảo đã xác nhận
+              </p>
               <p className="mt-1 font-semibold">
                 {money.format(profile.recognizedBondAmount)}
               </p>
@@ -174,7 +176,7 @@ export const ProviderPublicProfilePage = () => {
               <div className="mt-3 grid gap-2 text-sm">
                 {(
                   [
-                    ["Hotline", channels.hotline],
+                    ["Số điện thoại", channels.hotline],
                     ["Zalo", channels.zalo],
                     ["Facebook", channels.facebookUrl],
                     ["Telegram", channels.telegramCommunityUrl],
@@ -269,7 +271,7 @@ export const ProviderPublicProfilePage = () => {
                     version.tier}
                 </span>
                 <span className="text-muted-foreground text-xs">
-                  {formatDate(version.publishedAt)} · Bond{" "}
+                  {formatDate(version.publishedAt)} · Quỹ đảm bảo{" "}
                   {money.format(version.recognizedBondAmount)}
                 </span>
               </div>

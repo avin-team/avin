@@ -29,7 +29,9 @@ describe("AvinCheckLandingPage", () => {
       )
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/pilot không tiền và không ghi nhận Provider Bond/iu)
+      screen.getByText(
+        /pilot không tiền và không ghi nhận quỹ đảm bảo của Đối tác/iu
+      )
     ).toBeInTheDocument();
   });
 

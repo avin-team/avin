@@ -7,7 +7,6 @@ import {
   getProviderTier,
   providerTierLabel as providerTierLabels,
 } from "@avin/api/protection/provider-tier";
-import { Badge } from "@avin/ui/components/badge";
 import { Button } from "@avin/ui/components/button";
 import { Checkbox } from "@avin/ui/components/checkbox";
 import { Input } from "@avin/ui/components/input";
@@ -21,7 +20,7 @@ import {
   SelectValue,
 } from "@avin/ui/components/select";
 import { Textarea } from "@avin/ui/components/textarea";
-import { Bank, Copy, MapPin, QrCode, ShieldCheck } from "@phosphor-icons/react";
+import { Bank, Copy, QrCode } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
@@ -36,6 +35,7 @@ import type {
   ProviderApplication,
   ProviderProfileRevision,
 } from "../api/provider-api";
+import { ProviderAvatarUploader } from "./provider-avatar-uploader";
 
 const DEFAULT_BOND_AMOUNT = 1_000_000;
 const DEFAULT_SERVICES_DRAFT = "• Dịch vụ cung cấp của tôi";
@@ -62,7 +62,6 @@ const BOND_PRESETS = [
 const ACCOUNT_NUMBER_PATTERN = /^\d{4,30}$/u;
 const CITIZEN_ID_PATTERN = /^\d{12}$/u;
 const OPTIONAL_CHANNEL_LABELS = {
-  avatarUrl: "Ảnh đại diện (URL)",
   facebookUrl: "Facebook",
   telegramCommunityUrl: "Telegram",
   tiktokUrl: "TikTok",
@@ -136,6 +135,36 @@ const emptyFormState = (): ProviderApplicationFormState => ({
   publicDataConsent: false,
   registeredBankAccounts: [emptyBankAccount()],
   services: DEFAULT_SERVICES_DRAFT,
+});
+
+const createDevelopmentFormState = (): ProviderApplicationFormState => ({
+  bondAmount: DEFAULT_BOND_AMOUNT,
+  citizenIdNumber: "079123456789",
+  fullName: "Nguyễn Văn Dev",
+  location: "Quận 1, Thành phố Hồ Chí Minh",
+  officialChannels: {
+    avatarUrl: "",
+    facebookUrl: "https://www.facebook.com/vuduyhoanavin05",
+    hotline: "0900000000",
+    telegramCommunityUrl: "https://t.me/avin_check_dev",
+    tiktokUrl: "https://www.tiktok.com/@todun2710",
+    websiteUrl: "https://avin.dev",
+    youtubeUrl: "https://www.youtube.com/@vuduyhoan_avin05",
+    zalo: "0900000000",
+  },
+  policyAccepted: true,
+  publicDataConsent: true,
+  registeredBankAccounts: [
+    {
+      accountName: "NGUYEN VAN DEV",
+      accountNumber: "970412345678",
+      bankCode: "VCB",
+      id: globalThis.crypto.randomUUID(),
+      isPrimary: true,
+    },
+  ],
+  services:
+    "Cung cấp dịch vụ tư vấn, thiết kế và hỗ trợ kỹ thuật cho mục đích kiểm thử Provider.",
 });
 
 const readText = (value: unknown): string =>
@@ -247,20 +276,19 @@ const formatDate = (value: string): string => {
   return Number.isNaN(date.getTime()) ? "" : dateFormatter.format(date);
 };
 
+interface ProviderDepositIntentView {
+  amount: number;
+  expiresAt: string;
+  kind: string;
+  paymentCode: string;
+  qrUrl: string | null;
+  status: string;
+}
+
 const ProviderDepositPanel = ({
   intent,
 }: {
-  intent:
-    | {
-        amount: number;
-        expiresAt: string;
-        kind: string;
-        paymentCode: string;
-        qrUrl: string | null;
-        status: string;
-      }
-    | null
-    | undefined;
+  intent: ProviderDepositIntentView | null | undefined;
 }) => {
   if (
     !intent ||
@@ -296,18 +324,19 @@ const ProviderDepositPanel = ({
     }
   };
   return (
-    <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
+    <div className="mx-auto w-full max-w-3xl rounded-2xl border border-primary/30 bg-primary/5 p-4">
       <div className="flex items-center gap-2 font-semibold text-sm">
         <QrCode aria-hidden="true" className="size-5 text-primary" />
-        Chuyển khoản Bond để hoàn tất đăng ký
+        Chuyển khoản và chờ đối soát
       </div>
       <p className="mt-1 text-muted-foreground text-xs">
-        Chuyển đúng {formatVnd(intent.amount)} trong 24 giờ. Hồ sơ chỉ vào hàng
-        chờ duyệt sau khi hệ thống đối soát đúng số tiền.
+        Đã tạo lệnh quỹ đảm bảo. Chuyển đúng {formatVnd(intent.amount)} trong 24
+        giờ; hồ sơ sẽ chuyển sang chờ duyệt sau khi hệ thống đối soát đúng số
+        tiền.
       </p>
       {intent.qrUrl ? (
         <img
-          alt="Mã QR chuyển khoản Bond Provider"
+          alt="Mã QR chuyển khoản vào quỹ đảm bảo của Đối tác"
           className="mx-auto my-4 size-52 rounded-xl border bg-white p-2"
           src={intent.qrUrl}
         />
@@ -351,14 +380,25 @@ const ProviderApplicationFormContent = ({
   const [activeTab, setActiveTab] = useState<
     "identity_and_channels" | "payout_and_policy"
   >("identity_and_channels");
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [createdDepositIntent, setCreatedDepositIntent] =
+    useState<ProviderDepositIntentView | null>(null);
   const applicationActions = useProviderApplicationActions();
   const revisionActions = useProviderProfileRevisionActions();
   const depositIntentQuery = useProviderDepositIntent();
+  const paymentIntent = depositIntentQuery.data ?? createdDepositIntent;
+  const isPendingApplicationDeposit = Boolean(
+    mode === "application" &&
+    paymentIntent?.kind === "APPLICATION" &&
+    paymentIntent.status === "PENDING"
+  );
+
   const { saveDraft, submit } =
     mode === "revision" ? revisionActions : applicationActions;
   const isBusy =
     saveDraft.isPending ||
     submit.isPending ||
+    isUploadingAvatar ||
     ("createDepositIntent" in applicationActions &&
       applicationActions.createDepositIntent.isPending);
 
@@ -417,6 +457,14 @@ const ProviderApplicationFormContent = ({
       };
     });
   };
+  const fillDevelopmentForm = () => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+    setForm(createDevelopmentFormState());
+    setActiveTab("identity_and_channels");
+    toast.success("Đã điền dữ liệu mẫu cho môi trường dev.");
+  };
 
   const tier = useMemo(
     () => getProviderTier(form.bondAmount),
@@ -436,7 +484,6 @@ const ProviderApplicationFormContent = ({
     form.fullName.trim() &&
     form.location.trim() &&
     CITIZEN_ID_PATTERN.test(form.citizenIdNumber.trim()) &&
-    form.officialChannels.hotline.trim() &&
     form.officialChannels.zalo.trim() &&
     form.services.trim() &&
     form.policyAccepted &&
@@ -472,11 +519,13 @@ const ProviderApplicationFormContent = ({
         );
         const existingIntent = depositIntentQuery.data;
         if (existingIntent?.status !== "MATCHED") {
-          await applicationActions.createDepositIntent.mutateAsync({
-            amount: form.bondAmount,
-          });
+          const createdIntent =
+            await applicationActions.createDepositIntent.mutateAsync({
+              amount: form.bondAmount,
+            });
+          setCreatedDepositIntent(createdIntent);
           toast.success(
-            "Đã tạo lệnh chuyển khoản. Quét QR và quay lại sau khi tiền được đối soát."
+            "Đã tạo lệnh chuyển khoản. Vui lòng chuyển khoản và chờ hệ thống đối soát."
           );
           return;
         }
@@ -496,6 +545,10 @@ const ProviderApplicationFormContent = ({
     }
   };
 
+  if (isPendingApplicationDeposit) {
+    return <ProviderDepositPanel intent={paymentIntent} />;
+  }
+
   let submitLabel = "Lưu và chuyển sang thanh toán";
   if (mode === "revision") {
     submitLabel = "Gửi yêu cầu cập nhật";
@@ -505,31 +558,31 @@ const ProviderApplicationFormContent = ({
 
   return (
     <form className="space-y-6" onSubmit={handleSubmit}>
-      <div className="rounded-3xl border border-primary/20 bg-primary/5 p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <Badge className="mb-2 gap-1.5" variant="outline">
-              <ShieldCheck aria-hidden="true" /> Avin Check
-            </Badge>
-            <h2 className="font-bold text-2xl tracking-tight">
-              Đăng ký đối tác
-            </h2>
-            <p className="mt-1 text-muted-foreground text-sm">
-              Phí tham gia hiện tại: 0 ₫ · Bond tối thiểu: 1.000.000 ₫
-            </p>
-          </div>
-          <div
-            className={
-              tier === "NORMAL"
-                ? "px-4 py-3 text-right"
-                : "rounded-2xl border bg-background px-4 py-3 text-right"
-            }
+      <header className="flex w-full max-w-3xl flex-wrap items-start justify-between gap-2 text-left">
+        <div>
+          <p className="font-medium text-primary text-sm">Avin Check</p>
+          <h1
+            className="font-bold text-3xl tracking-tight text-foreground"
+            id="provider-application-title"
           >
-            <p className="text-muted-foreground text-xs">Hạng dự kiến</p>
-            <p className="font-bold text-primary">{providerTierLabel[tier]}</p>
-          </div>
+            Đăng ký đối tác
+          </h1>
+          <p className="text-muted-foreground">
+            Phí tham gia hiện tại: 0 ₫ · Quỹ đảm bảo tối thiểu: 1.000.000 ₫
+          </p>
         </div>
-      </div>
+        {import.meta.env.DEV ? (
+          <Button
+            disabled={isBusy}
+            onClick={fillDevelopmentForm}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            Điền dữ liệu mẫu
+          </Button>
+        ) : null}
+      </header>
 
       <div
         className="grid grid-cols-2 gap-2 rounded-2xl border bg-muted/30 p-1.5"
@@ -551,7 +604,7 @@ const ProviderApplicationFormContent = ({
           role="tab"
           type="button"
         >
-          2. Bond & cam kết
+          2. Quỹ đảm bảo & cam kết
         </button>
       </div>
 
@@ -569,6 +622,14 @@ const ProviderApplicationFormContent = ({
               ảnh CCCD.
             </p>
           </div>
+
+          <ProviderAvatarUploader
+            avatarUrl={form.officialChannels.avatarUrl}
+            disabled={isBusy}
+            onAvatarChange={(value) => updateChannel("avatarUrl", value.url)}
+            onUploadingChange={setIsUploadingAvatar}
+          />
+
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="app-full-name">
@@ -604,8 +665,8 @@ const ProviderApplicationFormContent = ({
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="app-location">
-                <MapPin aria-hidden="true" className="mr-1 inline size-4" />
-                Địa điểm hoạt động <span className="text-destructive">*</span>
+                Địa điểm (Tỉnh/Thành Phố){" "}
+                <span className="text-destructive">*</span>
               </Label>
               <Input
                 disabled={isBusy}
@@ -622,19 +683,6 @@ const ProviderApplicationFormContent = ({
             <h4 className="mb-3 font-semibold text-sm">Kênh liên hệ</h4>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="app-hotline">
-                  Hotline <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  disabled={isBusy}
-                  id="app-hotline"
-                  onChange={(event) =>
-                    updateChannel("hotline", event.target.value)
-                  }
-                  value={form.officialChannels.hotline}
-                />
-              </div>
-              <div className="space-y-2">
                 <Label htmlFor="app-zalo">
                   Zalo <span className="text-destructive">*</span>
                 </Label>
@@ -649,7 +697,6 @@ const ProviderApplicationFormContent = ({
               </div>
               {(
                 [
-                  "avatarUrl",
                   "facebookUrl",
                   "telegramCommunityUrl",
                   "tiktokUrl",
@@ -659,7 +706,7 @@ const ProviderApplicationFormContent = ({
               ).map((field) => (
                 <div className="space-y-2" key={field}>
                   <Label htmlFor={`app-${field}`}>
-                    {OPTIONAL_CHANNEL_LABELS[field]} (không bắt buộc)
+                    {OPTIONAL_CHANNEL_LABELS[field]}
                   </Label>
                   <Input
                     disabled={isBusy}
@@ -667,11 +714,24 @@ const ProviderApplicationFormContent = ({
                     onChange={(event) =>
                       updateChannel(field, event.target.value)
                     }
-                    type={field.endsWith("Url") ? "url" : "text"}
+                    type="url"
                     value={form.officialChannels[field]}
                   />
                 </div>
               ))}
+              <div className="space-y-2">
+                <Label htmlFor="app-hotline">Số điện thoại</Label>
+                <Input
+                  disabled={isBusy}
+                  id="app-hotline"
+                  inputMode="tel"
+                  onChange={(event) =>
+                    updateChannel("hotline", event.target.value)
+                  }
+                  type="tel"
+                  value={form.officialChannels.hotline}
+                />
+              </div>
             </div>
           </div>
           <div className="space-y-2">
@@ -687,12 +747,14 @@ const ProviderApplicationFormContent = ({
               value={form.services}
             />
           </div>
-          <Button
-            onClick={() => setActiveTab("payout_and_policy")}
-            type="button"
-          >
-            Tiếp tục
-          </Button>
+          <div className="flex justify-end">
+            <Button
+              onClick={() => setActiveTab("payout_and_policy")}
+              type="button"
+            >
+              Tiếp tục
+            </Button>
+          </div>
         </section>
       ) : (
         <section
@@ -701,7 +763,7 @@ const ProviderApplicationFormContent = ({
         >
           <div>
             <h3 className="font-bold text-lg" id="provider-bond-heading">
-              Bond và tài khoản ngân hàng
+              Quỹ đảm bảo và tài khoản ngân hàng
             </h3>
             <p className="text-muted-foreground text-xs">
               Có thể khai nhiều tài khoản; đúng một tài khoản là tài khoản
@@ -710,7 +772,8 @@ const ProviderApplicationFormContent = ({
           </div>
           <div className="space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-4">
             <Label htmlFor="app-bond">
-              Số tiền Bond (VND) <span className="text-destructive">*</span>
+              Số tiền quỹ đảm bảo (VND){" "}
+              <span className="text-destructive">*</span>
             </Label>
             <Input
               disabled={isBusy}
@@ -741,11 +804,12 @@ const ProviderApplicationFormContent = ({
               ))}
             </div>
             <p className="text-muted-foreground text-xs">
-              Hạng hiện tại theo số Bond:{" "}
+              Hạng hiện tại theo số tiền trong quỹ đảm bảo:{" "}
               <strong className="text-foreground">
                 {providerTierLabel(tier)}
               </strong>
-              . Hạn mức khuyến nghị tối đa 80% Bond.
+              . Hạn mức giao dịch đề xuất tối đa bằng 80% số tiền trong quỹ đảm
+              bảo.
             </p>
           </div>
           <div className="space-y-3">
@@ -866,9 +930,9 @@ const ProviderApplicationFormContent = ({
                 }
               />
               <Label className="text-xs leading-5" htmlFor="app-public-consent">
-                Tôi đồng ý công khai chính xác số Bond, hạng, hạn mức khuyến
-                nghị, địa điểm, kênh liên hệ và toàn bộ số tài khoản ngân hàng
-                sau khi được duyệt.
+                Tôi đồng ý công khai chính xác số tiền trong quỹ đảm bảo, hạng,
+                hạn mức giao dịch đề xuất, địa điểm, kênh liên hệ và toàn bộ số
+                tài khoản ngân hàng sau khi được duyệt.
               </Label>
             </div>
             <div className="flex items-start gap-3">
@@ -897,7 +961,7 @@ const ProviderApplicationFormContent = ({
               </Label>
             </div>
           </div>
-          <ProviderDepositPanel intent={depositIntentQuery.data} />
+          <ProviderDepositPanel intent={paymentIntent} />
           <div className="flex justify-between">
             <Button
               onClick={() => setActiveTab("identity_and_channels")}

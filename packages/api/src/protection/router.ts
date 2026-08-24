@@ -1,11 +1,7 @@
 import { PROTECTION_ADMIN_CAPABILITY } from "@avin/auth/permissions";
 import { z } from "zod";
 
-import {
-  providerProcedure,
-  providerSensitiveProcedure,
-  publicProcedure,
-} from "../access/procedures";
+import { providerProcedure, publicProcedure } from "../access/procedures";
 import {
   getUnreadNotificationCount,
   listNotifications,
@@ -914,7 +910,7 @@ export const protectionRouter = {
   ),
 
   providerApplication: {
-    createDepositIntent: providerSensitiveProcedure
+    createDepositIntent: providerProcedure
       .input(providerDepositIntentCreateInputSchema)
       .handler(({ context, input }) =>
         createProviderApplicationDepositIntent({
@@ -941,7 +937,7 @@ export const protectionRouter = {
         saveProviderApplicationDraft(context.db, context.session.user.id, input)
       ),
 
-    submit: providerSensitiveProcedure
+    submit: providerProcedure
       .input(providerApplicationSubmissionInputSchema)
       .handler(({ context, input }) =>
         submitProviderApplication(context.db, context.session.user.id, input)
@@ -949,7 +945,7 @@ export const protectionRouter = {
   },
 
   providerBond: {
-    createTopUpIntent: providerSensitiveProcedure
+    createTopUpIntent: providerProcedure
       .input(providerDepositIntentCreateInputSchema)
       .handler(({ context, input }) =>
         createProviderBondTopUpIntent({
@@ -975,7 +971,7 @@ export const protectionRouter = {
       })
     ),
 
-    request: providerSensitiveProcedure
+    request: providerProcedure
       .input(providerBondWithdrawalRequestInputSchema)
       .handler(({ context, input }) =>
         requestProviderBondWithdrawal({
@@ -1093,7 +1089,7 @@ export const protectionRouter = {
       startProviderProfileRevision(context.db, context.session.user.id)
     ),
 
-    submit: providerSensitiveProcedure
+    submit: providerProcedure
       .input(providerProfileRevisionSubmissionInputSchema)
       .handler(({ context, input }) =>
         submitProviderProfileRevision(

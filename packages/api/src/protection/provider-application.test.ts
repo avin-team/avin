@@ -66,6 +66,23 @@ describe("Provider application submission validation", () => {
     ).toMatchObject(validSubmission);
   });
 
+  it("accepts a submission without an optional phone number", () => {
+    const submissionWithoutPhone = {
+      ...validSubmission,
+      officialChannels: {
+        facebookUrl: validSubmission.officialChannels.facebookUrl,
+        zalo: validSubmission.officialChannels.zalo,
+      },
+    };
+
+    expect(
+      validateProviderApplicationSubmission(
+        submissionWithoutPhone,
+        new Date("2026-08-21T00:00:00.000Z")
+      )
+    ).toMatchObject(submissionWithoutPhone);
+  });
+
   it("accepts streamlined submission without evidence references", () => {
     const streamlinedSubmission = {
       bondAmount: 1_000_000,

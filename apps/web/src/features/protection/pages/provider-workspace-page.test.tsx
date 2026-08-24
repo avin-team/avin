@@ -66,15 +66,18 @@ describe("ProviderWorkspacePage", () => {
     render(<ProviderWorkspacePage />);
 
     expect(
-      screen.getByRole("heading", {
+      screen.queryByRole("heading", {
         name: "Không gian riêng của Đối tác Avin",
       })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Đăng ký đối tác" })
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Quay lại" })).toBeInTheDocument();
     expect(
       screen.getByRole("tab", { name: "1. Thông tin & liên hệ" })
     ).toBeInTheDocument();
-    expect(screen.getByText("2. Bond & cam kết")).toBeInTheDocument();
+    expect(screen.getByText("2. Quỹ đảm bảo & cam kết")).toBeInTheDocument();
     expect(screen.getByText("Đăng ký đối tác")).toBeInTheDocument();
   });
 });

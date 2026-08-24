@@ -119,9 +119,10 @@ const RevisionFacts = ({ detail }: { detail: RevisionDetail }) => {
             value={displayValue(channels.facebookUrl)}
           />
           <DetailField
-            label="Hotline / Zalo"
-            value={`${displayValue(channels.hotline)} · ${displayValue(channels.zalo)}`}
+            label="Số điện thoại"
+            value={displayValue(channels.hotline)}
           />
+          <DetailField label="Zalo" value={displayValue(channels.zalo)} />
           <DetailField
             label="Nhóm Telegram"
             value={displayValue(channels.telegramCommunityUrl)}

@@ -105,12 +105,12 @@ export const ProviderPolicyPage = () => {
       </header>
 
       <section
-        aria-label="Mức phí và ký quỹ"
+        aria-label="Mức phí và quỹ đảm bảo"
         className="grid gap-4 sm:grid-cols-2"
       >
         <Card size="sm">
           <CardHeader>
-            <CardDescription>Hạn mức ký quỹ tối thiểu</CardDescription>
+            <CardDescription>Quỹ đảm bảo tối thiểu</CardDescription>
             <CardTitle className="font-bold text-2xl text-primary">
               {policyMoneyFormatter.format(policy.minimumBondAmount)}
             </CardTitle>

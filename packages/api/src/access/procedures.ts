@@ -77,19 +77,6 @@ export const providerProcedure = authenticatedProcedure.use(
   }
 );
 
-export const providerSensitiveProcedure = providerProcedure.use(
-  ({ context, next }) => {
-    if (!context.session.user.twoFactorEnabled) {
-      throw new ORPCError("FORBIDDEN", {
-        message:
-          "Two-factor authentication is required for this Avin Check action.",
-      });
-    }
-
-    return next();
-  }
-);
-
 const procedureForRoles = (roles: readonly AccountRole[]) =>
   protectedProcedure.use(({ context, next }) => {
     const { role } = context.session.user;

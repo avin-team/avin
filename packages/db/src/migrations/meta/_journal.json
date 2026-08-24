@@ -365,6 +365,13 @@
       "when": 1787564090502,
       "tag": "0051_magical_old_lace",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1787569803813,
+      "tag": "0052_remove_provider_hotline",
+      "breakpoints": true
     }
   ]
 }

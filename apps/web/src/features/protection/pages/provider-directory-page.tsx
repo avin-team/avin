@@ -108,7 +108,8 @@ const ProviderDirectoryCard = ({
           </Badge>
         )}
         <Badge variant="secondary">
-          Bond {providerMoneyFormatter.format(provider.recognizedBondAmount)} ₫
+          Quỹ đảm bảo{" "}
+          {providerMoneyFormatter.format(provider.recognizedBondAmount)} ₫
         </Badge>
         <Badge variant="secondary">
           Khuyến nghị ≤{" "}
@@ -215,8 +216,8 @@ export const ProviderDirectoryPage = () => {
               Tìm đối tác đã xác minh
             </h1>
             <p className="mt-1 text-muted-foreground text-sm">
-              Tìm theo tên, dịch vụ, địa điểm, số tài khoản, hotline hoặc kênh
-              mạng xã hội.
+              Tìm theo tên, dịch vụ, địa điểm, số tài khoản, số điện thoại hoặc
+              kênh mạng xã hội.
             </p>
           </div>
           <Link
@@ -241,7 +242,7 @@ export const ProviderDirectoryPage = () => {
               id="provider-directory-search"
               maxLength={200}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Nhập tên, STK, hotline, Zalo..."
+              placeholder="Nhập tên, STK, số điện thoại, Zalo..."
               value={query}
             />
             <InputGroupAddon>

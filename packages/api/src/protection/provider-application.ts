@@ -84,14 +84,6 @@ export const providerApplicationSubmissionInputSchema =
       });
     }
 
-    if (!input.officialChannels.hotline?.trim()) {
-      context.addIssue({
-        code: "custom",
-        message: "Hotline is required",
-        path: ["officialChannels", "hotline"],
-      });
-    }
-
     if (!input.officialChannels.zalo?.trim()) {
       context.addIssue({
         code: "custom",

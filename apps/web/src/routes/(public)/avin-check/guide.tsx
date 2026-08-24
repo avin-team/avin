@@ -1,15 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AvinCheckLandingPage } from "@/features/protection/pages/avin-check-landing-page";
+import { AvinCheckGuidePage } from "@/features/protection/pages/avin-check-guide-page";
 
 export const Route = createFileRoute("/(public)/avin-check/guide")({
-  component: AvinCheckLandingPage,
+  component: AvinCheckGuidePage,
   head: () => ({
     meta: [
-      { title: "Hướng dẫn an toàn | Avin Check" },
+      { title: "Cẩm nang Quy chế & Hướng dẫn An toàn | Avin Check" },
       {
         content:
-          "Tìm hiểu phạm vi xác minh, chính sách và hướng dẫn giao dịch an toàn của Avin Check.",
+          "Tra cứu điều khoản sử dụng, nội quy giao dịch, cẩm nang phòng chống lừa đảo và 27 điều khoản nghiệp vụ Đối tác Avin Check.",
         name: "description",
       },
     ],

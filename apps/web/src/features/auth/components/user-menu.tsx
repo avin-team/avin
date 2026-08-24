@@ -24,7 +24,6 @@ import {
   DesktopIcon,
   MoonIcon,
   SignOutIcon,
-  ShieldCheckIcon,
   StorefrontIcon,
   SunIcon,
 } from "@phosphor-icons/react";
@@ -156,16 +155,6 @@ export const UserMenu = () => {
               Trở thành người bán
             </DropdownMenuItem>
           )}
-          <DropdownMenuItem
-            onClick={async () => {
-              await navigate({
-                to: "/security",
-              });
-            }}
-          >
-            <ShieldCheckIcon className="me-2 size-4" />
-            Bảo mật tài khoản
-          </DropdownMenuItem>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <SunIcon className="me-2 size-4" />

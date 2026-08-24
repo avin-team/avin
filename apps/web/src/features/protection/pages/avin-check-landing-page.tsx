@@ -172,7 +172,7 @@ export const AvinCheckLandingPage = () => (
         Việc xác minh không phải là bảo đảm giao dịch hoặc bảo hiểm tự động. Hãy
         kiểm tra đúng danh tính, dịch vụ và thông tin thanh toán trước khi
         chuyển tiền. Avin Check hiện vận hành theo pilot không tiền và không ghi
-        nhận Provider Bond trong ứng dụng.
+        nhận quỹ đảm bảo của Đối tác trong ứng dụng.
       </AlertDescription>
     </Alert>
 
@@ -287,7 +287,8 @@ export const AvinCheckLandingPage = () => (
           <CardTitle>Nguyên tắc vận hành</CardTitle>
           <CardDescription>
             Legal review, quản trị dữ liệu, pháp nhân chương trình và custody là
-            các gate độc lập trước khi mở tính năng rủi ro hoặc ghi nhận Bond.
+            các gate độc lập trước khi mở tính năng rủi ro hoặc ghi nhận quỹ đảm
+            bảo.
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -121,8 +121,12 @@ const ProviderApplicationFacts = ({
             value={displayValue(officialChannels.facebookUrl)}
           />
           <DetailField
-            label="Hotline / Zalo"
-            value={`${displayValue(officialChannels.hotline)} · ${displayValue(officialChannels.zalo)}`}
+            label="Số điện thoại"
+            value={displayValue(officialChannels.hotline)}
+          />
+          <DetailField
+            label="Zalo"
+            value={displayValue(officialChannels.zalo)}
           />
           <DetailField
             label="Nhóm Telegram"

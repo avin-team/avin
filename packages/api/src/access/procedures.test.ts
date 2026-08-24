@@ -11,7 +11,6 @@ import {
   auditedAdminProcedure,
   buyerProcedure,
   providerProcedure,
-  providerSensitiveProcedure,
   protectedProcedure,
 } from "./procedures";
 
@@ -119,22 +118,13 @@ describe("Provider procedure authorization", () => {
     }
   );
 
-  it("requires two-factor authentication for sensitive Provider actions", async () => {
-    const procedure = providerSensitiveProcedure.handler(
-      () => "provider-sensitive"
-    );
-
+  it("allows Provider actions without two-factor authentication", async () => {
+    const procedure = providerProcedure.handler(() => "provider-private");
     await expect(
       call(procedure, undefined, {
         context: createContext(ACCOUNT_ROLE.BUYER, false),
       })
-    ).rejects.toMatchObject({ code: "FORBIDDEN" });
-
-    await expect(
-      call(procedure, undefined, {
-        context: createContext(ACCOUNT_ROLE.SELLER),
-      })
-    ).resolves.toBe("provider-sensitive");
+    ).resolves.toBe("provider-private");
   });
 
   it("rejects a locked Buyer or Seller from the Provider workspace", async () => {
