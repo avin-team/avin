@@ -1,17 +1,11 @@
 import { Alert, AlertDescription, AlertTitle } from "@avin/ui/components/alert";
 import { Badge } from "@avin/ui/components/badge";
 import { buttonVariants } from "@avin/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@avin/ui/components/card";
 import { Input } from "@avin/ui/components/input";
 import { cn } from "@avin/ui/lib/utils";
 import {
   ArrowRightIcon,
+  BookOpenIcon,
   CheckCircleIcon,
   CheckIcon,
   ClipboardTextIcon,
@@ -19,12 +13,14 @@ import {
   FileTextIcon,
   FlagIcon,
   InfoIcon,
+  LightningIcon,
   MagnifyingGlassIcon,
   PhoneCallIcon,
   ShieldCheckIcon,
   ShieldWarningIcon,
   WarningCircleIcon,
   WarningDiamondIcon,
+  XCircleIcon,
 } from "@phosphor-icons/react";
 import { Link, useSearch } from "@tanstack/react-router";
 import { useEffect, useId, useMemo, useState } from "react";
@@ -281,34 +277,80 @@ export const AvinCheckGuidePage = () => {
 
   return (
     <Shell as="div" className="gap-8" variant="default">
+      <section
+        aria-labelledby="guide-policy-heading"
+        className="grid gap-6 border-b pb-8"
+      >
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="grid gap-2">
+            <Badge className="w-fit gap-1.5" variant="outline">
+              <BookOpenIcon aria-hidden="true" />
+              Avin Hướng dẫn
+            </Badge>
+            <h1
+              className="font-black text-4xl tracking-tight sm:text-5xl"
+              id="guide-policy-heading"
+            >
+              Hướng dẫn và chính sách
+            </h1>
+          </div>
+          <Link
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-4xl border border-input px-3 font-medium text-sm transition hover:bg-accent hover:text-accent-foreground"
+            to="/avin-check/partner-policy"
+          >
+            Quy chế đối tác
+            <ArrowRightIcon aria-hidden="true" data-icon="inline-end" />
+          </Link>
+        </div>
+
+        <form
+          className="grid gap-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+          }}
+        >
+          <label className="font-medium text-sm" htmlFor={searchInputId}>
+            Nhập từ khóa tìm kiếm điều khoản, quy định hoặc cẩm nang phòng chống
+            scam
+          </label>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="relative flex-1">
+              <MagnifyingGlassIcon
+                aria-hidden="true"
+                className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
+              />
+              <Input
+                autoComplete="off"
+                className="h-12 rounded-2xl pr-10 pl-10"
+                id={searchInputId}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Tìm kiếm nhanh điều khoản, quy định (ví dụ: Zalo, cọc tiền, bồi hoàn...)..."
+                value={searchQuery}
+              />
+              {searchQuery ? (
+                <button
+                  aria-label="Xóa từ khóa tìm kiếm"
+                  className="absolute top-1/2 right-3 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition hover:bg-accent hover:text-foreground"
+                  onClick={() => setSearchQuery("")}
+                  type="button"
+                >
+                  <XCircleIcon aria-hidden="true" className="size-4" />
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </form>
+      </section>
+
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
         <aside className="lg:col-span-3">
           <div className="sticky top-20 flex flex-col gap-4">
-            <div className="relative">
-              <label className="sr-only" htmlFor={searchInputId}>
-                Tìm kiếm điều khoản hoặc quy định
-              </label>
-              <MagnifyingGlassIcon
-                aria-hidden="true"
-                className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-              />
-              <Input
-                className="rounded-2xl pl-9"
-                id={searchInputId}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Tìm kiếm nhanh điều khoản, quy định..."
-                value={searchQuery}
-              />
-            </div>
-
             {searchResults ? (
-              <Card className="max-h-96 overflow-y-auto border-primary/20 shadow-md">
-                <CardHeader className="p-3 pb-2">
-                  <CardDescription className="text-xs">
-                    Tìm thấy {searchResults.length} kết quả phù hợp
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-1.5 p-3 pt-0">
+              <div className="max-h-96 overflow-y-auto rounded-3xl border border-primary/20 bg-card p-3 shadow-md backdrop-blur-sm">
+                <div className="p-2 pb-1.5 font-medium text-muted-foreground text-xs">
+                  Tìm thấy {searchResults.length} kết quả phù hợp
+                </div>
+                <div className="flex flex-col gap-1.5">
                   {searchResults.length === 0 ? (
                     <p className="py-4 text-center text-muted-foreground text-xs">
                       Không tìm thấy quy định phù hợp với từ khóa.
@@ -338,26 +380,32 @@ export const AvinCheckGuidePage = () => {
                       </button>
                     ))
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             ) : null}
 
             <nav
               aria-label="Cây danh mục quy chế"
-              className="flex flex-col gap-1.5 rounded-3xl border bg-card/60 p-2 shadow-xs backdrop-blur-sm"
+              className="flex flex-col gap-1.5 rounded-3xl border border-border/70 bg-card/60 p-2.5 shadow-xs backdrop-blur-sm"
             >
-              <p className="px-3 pt-2 pb-1 font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Mục lục chuyên đề
-              </p>
+              <div className="flex items-center gap-2 px-3 pt-2 pb-1 text-muted-foreground">
+                <BookOpenIcon
+                  aria-hidden="true"
+                  className="size-3.5 text-primary"
+                />
+                <span className="font-semibold text-xs uppercase tracking-wider">
+                  Mục lục chuyên đề
+                </span>
+              </div>
               {GUIDE_POLICY_DATA.map((section) => {
                 const isActive = section.id === activeSectionId;
                 return (
                   <button
                     aria-current={isActive ? "page" : undefined}
                     className={cn(
-                      "flex w-full items-center justify-between rounded-2xl px-3.5 py-3 text-left font-medium text-sm transition",
+                      "flex w-full items-center justify-between rounded-2xl px-3.5 py-2.5 text-left font-medium text-sm transition-all",
                       isActive
-                        ? "bg-primary text-primary-foreground shadow-xs"
+                        ? "bg-primary font-semibold text-primary-foreground shadow-xs"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground"
                     )}
                     key={section.id}
@@ -372,7 +420,7 @@ export const AvinCheckGuidePage = () => {
                       className={cn(
                         "shrink-0 font-normal text-[0.625rem]",
                         isActive
-                          ? "bg-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/25"
+                          ? "border-transparent bg-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/25"
                           : ""
                       )}
                       variant={isActive ? "secondary" : "outline"}
@@ -386,45 +434,42 @@ export const AvinCheckGuidePage = () => {
               })}
             </nav>
 
-            <Card className="border-border/60 bg-muted/20">
-              <CardHeader className="p-4 pb-2">
-                <CardTitle className="flex items-center gap-2 text-xs">
-                  <PhoneCallIcon
-                    aria-hidden="true"
-                    className="size-4 text-primary"
-                  />
-                  Kênh Hỗ Trợ Khẩn Cấp
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-3 p-4 pt-0 text-muted-foreground text-xs leading-5">
-                <p>
-                  Khi có tranh chấp hoặc nghi vấn lừa đảo, vui lòng liên hệ trực
-                  tiếp Ban quản trị Avin Check qua Zalo/FB chính thức trên danh
-                  bạ hoặc các kênh mạng xã hội chính thống.
-                </p>
-
-                <div className="flex flex-wrap items-center gap-3 pt-2 border-border/50 border-t">
-                  {siteConfig.socialLinks.map((link) => {
-                    const Icon = socialIconMap[link.label];
-                    if (!Icon) {
-                      return null;
-                    }
-                    return (
-                      <a
-                        aria-label={link.label}
-                        className="text-muted-foreground transition-colors hover:text-foreground"
-                        href={link.href}
-                        key={link.label}
-                        rel="noopener noreferrer"
-                        target="_blank"
-                      >
-                        <Icon className="size-4" />
-                      </a>
-                    );
-                  })}
+            <div className="flex flex-col gap-3 rounded-3xl border border-border/70 bg-card/60 p-4 shadow-xs backdrop-blur-sm">
+              <div className="flex items-center gap-2.5">
+                <div className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <PhoneCallIcon aria-hidden="true" className="size-4" />
                 </div>
-              </CardContent>
-            </Card>
+                <span className="font-semibold text-foreground text-sm">
+                  Kênh Hỗ Trợ Khẩn Cấp
+                </span>
+              </div>
+              <p className="text-muted-foreground text-xs leading-relaxed">
+                Khi có tranh chấp hoặc nghi vấn lừa đảo, vui lòng liên hệ trực
+                tiếp Ban quản trị Avin Check qua Zalo/FB chính thức trên danh bạ
+                hoặc các kênh mạng xã hội chính thống.
+              </p>
+
+              <div className="flex flex-wrap items-center gap-2 border-border/50 border-t pt-3">
+                {siteConfig.socialLinks.map((link) => {
+                  const Icon = socialIconMap[link.label];
+                  if (!Icon) {
+                    return null;
+                  }
+                  return (
+                    <a
+                      aria-label={link.label}
+                      className="flex size-8 items-center justify-center rounded-xl border border-border/60 bg-background/60 text-muted-foreground transition-all hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
+                      href={link.href}
+                      key={link.label}
+                      rel="noopener noreferrer"
+                      target="_blank"
+                    >
+                      <Icon className="size-3.5" />
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </aside>
 
@@ -758,36 +803,36 @@ export const AvinCheckGuidePage = () => {
 
         <aside className="lg:col-span-3">
           <div className="sticky top-20 flex flex-col gap-4">
-            <Card className="rounded-3xl shadow-xs">
-              <CardHeader className="p-4 pb-2">
-                <CardTitle className="flex items-center gap-2 text-xs uppercase tracking-wider">
-                  <ClipboardTextIcon
-                    aria-hidden="true"
-                    className="size-4 text-primary"
-                  />
+            <div className="flex flex-col gap-3 rounded-3xl border border-border/70 bg-card/60 p-4 shadow-xs backdrop-blur-sm">
+              <div className="flex items-center gap-2.5">
+                <div className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <ClipboardTextIcon aria-hidden="true" className="size-4" />
+                </div>
+                <span className="font-semibold text-foreground text-sm">
                   Trên trang này
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-1 p-4 pt-1">
+                </span>
+              </div>
+              <div className="flex flex-col gap-1">
                 {activeSection.items?.map((item) => (
                   <a
-                    className="truncate rounded-xl px-2.5 py-1.5 text-muted-foreground text-xs transition hover:bg-muted hover:text-foreground"
+                    className="flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-muted-foreground text-xs transition-colors hover:bg-muted hover:text-foreground"
                     href={`#${item.id}`}
                     key={item.id}
                   >
-                    {item.title}
+                    <span className="size-1.5 shrink-0 rounded-full bg-primary/40" />
+                    <span className="truncate">{item.title}</span>
                   </a>
                 ))}
                 {activeSection.clauses ? (
-                  <div className="mt-1 flex flex-col gap-1 border-border/60 border-t pt-2">
-                    <span className="px-2 font-medium text-[0.6875rem] text-muted-foreground uppercase">
+                  <div className="mt-1 flex flex-col gap-1 border-border/60 border-t pt-2.5">
+                    <span className="px-2 font-semibold text-[0.6875rem] text-muted-foreground uppercase tracking-wider">
                       27 Điều khoản chi tiết
                     </span>
-                    <div className="max-h-60 overflow-y-auto pr-1">
+                    <div className="max-h-60 space-y-0.5 overflow-y-auto pr-1">
                       {activeSection.clauses.map((clause) => (
                         <a
                           aria-label={clause.title}
-                          className="block truncate rounded-xl px-2 py-1 text-muted-foreground text-xs transition hover:bg-muted hover:text-foreground"
+                          className="block truncate rounded-xl px-2.5 py-1.5 text-muted-foreground text-xs transition-colors hover:bg-muted hover:text-foreground"
                           href={`#${clause.id}`}
                           key={clause.id}
                         >
@@ -797,57 +842,72 @@ export const AvinCheckGuidePage = () => {
                     </div>
                   </div>
                 ) : null}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
-            <Card className="rounded-3xl border-primary/20 bg-primary/5 shadow-xs">
-              <CardHeader className="p-4 pb-2">
-                <CardTitle className="text-xs uppercase tracking-wider">
+            <div className="flex flex-col gap-3 rounded-3xl border border-primary/20 bg-primary/5 p-4 shadow-xs backdrop-blur-sm">
+              <div className="flex items-center gap-2.5">
+                <div className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-primary/20 text-primary">
+                  <LightningIcon aria-hidden="true" className="size-4" />
+                </div>
+                <span className="font-semibold text-foreground text-sm">
                   Thao tác nhanh
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-2 p-4 pt-1">
+                </span>
+              </div>
+              <div className="flex flex-col gap-2">
                 <Link
-                  className="flex items-center justify-between rounded-xl border bg-card p-2.5 text-xs font-medium transition hover:border-primary/40 hover:bg-muted/50"
+                  className="group flex items-center justify-between rounded-2xl border border-border/70 bg-card/80 p-2.5 text-xs font-medium transition-all hover:border-primary/50 hover:bg-card hover:shadow-xs"
                   to="/avin-check"
                 >
-                  <span className="flex items-center gap-2">
-                    <ShieldWarningIcon
-                      aria-hidden="true"
-                      className="size-4 text-primary"
-                    />
-                    Tra cứu rủi ro
+                  <span className="flex items-center gap-2.5">
+                    <div className="flex size-6 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                      <ShieldWarningIcon
+                        aria-hidden="true"
+                        className="size-3.5"
+                      />
+                    </div>
+                    <span className="text-foreground">Tra cứu rủi ro</span>
                   </span>
-                  <ArrowRightIcon aria-hidden="true" className="size-3.5" />
+                  <ArrowRightIcon
+                    aria-hidden="true"
+                    className="size-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground"
+                  />
                 </Link>
                 <Link
-                  className="flex items-center justify-between rounded-xl border bg-card p-2.5 text-xs font-medium transition hover:border-primary/40 hover:bg-muted/50"
+                  className="group flex items-center justify-between rounded-2xl border border-border/70 bg-card/80 p-2.5 text-xs font-medium transition-all hover:border-red-500/50 hover:bg-card hover:shadow-xs"
                   to="/avin-check/report"
                 >
-                  <span className="flex items-center gap-2">
-                    <FlagIcon
-                      aria-hidden="true"
-                      className="size-4 text-red-500"
-                    />
-                    Gửi báo cáo lừa đảo
+                  <span className="flex items-center gap-2.5">
+                    <div className="flex size-6 shrink-0 items-center justify-center rounded-lg bg-red-500/10 text-red-500 transition-colors group-hover:bg-red-500 group-hover:text-white">
+                      <FlagIcon aria-hidden="true" className="size-3.5" />
+                    </div>
+                    <span className="text-foreground">Gửi báo cáo lừa đảo</span>
                   </span>
-                  <ArrowRightIcon aria-hidden="true" className="size-3.5" />
+                  <ArrowRightIcon
+                    aria-hidden="true"
+                    className="size-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground"
+                  />
                 </Link>
                 <Link
-                  className="flex items-center justify-between rounded-xl border bg-card p-2.5 text-xs font-medium transition hover:border-primary/40 hover:bg-muted/50"
+                  className="group flex items-center justify-between rounded-2xl border border-border/70 bg-card/80 p-2.5 text-xs font-medium transition-all hover:border-emerald-500/50 hover:bg-card hover:shadow-xs"
                   to="/avin-check/apply"
                 >
-                  <span className="flex items-center gap-2">
-                    <ShieldCheckIcon
-                      aria-hidden="true"
-                      className="size-4 text-emerald-500"
-                    />
-                    Đăng ký Đối tác
+                  <span className="flex items-center gap-2.5">
+                    <div className="flex size-6 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500 transition-colors group-hover:bg-emerald-500 group-hover:text-white">
+                      <ShieldCheckIcon
+                        aria-hidden="true"
+                        className="size-3.5"
+                      />
+                    </div>
+                    <span className="text-foreground">Đăng ký Đối tác</span>
                   </span>
-                  <ArrowRightIcon aria-hidden="true" className="size-3.5" />
+                  <ArrowRightIcon
+                    aria-hidden="true"
+                    className="size-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground"
+                  />
                 </Link>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
         </aside>
       </div>

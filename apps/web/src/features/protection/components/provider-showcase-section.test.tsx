@@ -1,7 +1,7 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { MockProvider } from "../data/mock-providers";
+import type { ShowcaseProvider } from "./provider-showcase-section";
 import { ProviderShowcaseSection } from "./provider-showcase-section";
 
 vi.mock("@tanstack/react-router", () => ({
@@ -25,7 +25,7 @@ vi.mock("@tanstack/react-router", () => ({
   },
 }));
 
-const sampleProviders: MockProvider[] = [
+const sampleProviders: ShowcaseProvider[] = [
   {
     avatarUrl: "https://example.com/avatar1.jpg",
     displayName: "Nguyễn Minh Khang",
@@ -96,7 +96,7 @@ describe("ProviderShowcaseSection", () => {
     expect(screen.getByText("Chưa có đối tác đã xác minh")).toBeInTheDocument();
   });
 
-  it("renders heading, total partner count and providers when provided", () => {
+  it("renders heading, total partner count, and providers sorted by newest join time by default", () => {
     render(<ProviderShowcaseSection initialProviders={sampleProviders} />);
 
     expect(
@@ -104,33 +104,31 @@ describe("ProviderShowcaseSection", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/3\/3 đối tác/u)).toBeInTheDocument();
 
+    // All 3 providers are rendered
     expect(screen.getByText("1. Nguyễn Minh Khang")).toBeInTheDocument();
     expect(screen.getByText("4. Hoàng Anh Tú")).toBeInTheDocument();
     expect(screen.getByText("11. Lê Kim Linh")).toBeInTheDocument();
+
+    // Select triggers are rendered
+    expect(
+      screen.getByRole("combobox", { name: "Lọc theo hạng đối tác" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("combobox", { name: "Sắp xếp danh sách đối tác" })
+    ).toBeInTheDocument();
   });
 
-  it("filters providers when clicking tier buttons", () => {
+  it("renders rank select and sort select with default values", () => {
     render(<ProviderShowcaseSection initialProviders={sampleProviders} />);
 
-    const diamondButton = screen.getByRole("button", { name: /Kim cương/u });
-    fireEvent.click(diamondButton);
+    const rankTrigger = screen.getByRole("combobox", {
+      name: "Lọc theo hạng đối tác",
+    });
+    expect(rankTrigger).toHaveTextContent("Tất cả hạng");
 
-    // Diamond tier provider
-    expect(screen.getByText("4. Hoàng Anh Tú")).toBeInTheDocument();
-    expect(screen.queryByText("1. Nguyễn Minh Khang")).not.toBeInTheDocument();
-
-    // Click VIP button
-    const vipButton = screen.getByRole("button", { name: /VIP/u });
-    fireEvent.click(vipButton);
-
-    expect(screen.getByText("11. Lê Kim Linh")).toBeInTheDocument();
-    expect(screen.queryByText("4. Hoàng Anh Tú")).not.toBeInTheDocument();
-
-    // Click "Tất cả" to reset
-    const allButton = screen.getByRole("button", { name: "Tất cả" });
-    fireEvent.click(allButton);
-
-    expect(screen.getByText(/3\/3 đối tác/u)).toBeInTheDocument();
-    expect(screen.getByText("1. Nguyễn Minh Khang")).toBeInTheDocument();
+    const sortTrigger = screen.getByRole("combobox", {
+      name: "Sắp xếp danh sách đối tác",
+    });
+    expect(sortTrigger).toHaveTextContent("Thời gian: Mới nhất");
   });
 });

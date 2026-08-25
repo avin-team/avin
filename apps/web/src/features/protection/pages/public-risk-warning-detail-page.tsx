@@ -552,7 +552,7 @@ const WarningQuickActionBar = ({ reportId }: { reportId: string }) => {
           to="/avin-check/correction"
         >
           <WarningCircleIcon className="size-4" />
-          Yêu cầu đính chính / gỡ
+          Yêu cầu gỡ
         </Link>
         <Link
           className="inline-flex items-center gap-1.5 font-medium text-primary underline underline-offset-4"

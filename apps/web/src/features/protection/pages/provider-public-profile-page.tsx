@@ -1,5 +1,12 @@
 import { Button, buttonVariants } from "@avin/ui/components/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@avin/ui/components/dialog";
+import {
   Empty,
   EmptyContent,
   EmptyDescription,
@@ -16,11 +23,12 @@ import {
   CheckCircle,
   Copy,
   CurrencyCircleDollar,
-  Diamond,
+  Export,
   FacebookLogo,
   Flag,
   Globe,
   Phone,
+  QrCode,
   SealCheck,
   ShieldCheck,
   ShieldWarning,
@@ -32,10 +40,86 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "@tanstack/react-router";
 import { useState } from "react";
 
+import type { client } from "@/utils/orpc";
 import { orpc } from "@/utils/orpc";
 
 import { ProviderTierFrame } from "../components/provider-tier-frame";
-import type { ProviderDetailData } from "../prototypes/mock-detail-data";
+import type { ProviderTier } from "../data/provider-tier-constants";
+import { TIER_ICON_IMAGES } from "../data/provider-tier-constants";
+
+export interface ProviderDetailData {
+  bio?: string;
+  displayName: string;
+  history: {
+    publishedAt: string;
+    recognizedBondAmount: number;
+    tier: ProviderTier;
+    versionNumber: number;
+  }[];
+  id: string;
+  location: string;
+  officialChannels: {
+    additionalZalos?: string[];
+    avatarUrl?: string;
+    bioShopId?: string;
+    bioShopUrl?: string;
+    facebookId?: string;
+    facebookSecondaryId?: string;
+    facebookSecondaryUrl?: string;
+    facebookUrl?: string;
+    facebooks?: {
+      id?: string;
+      isPrimary?: boolean;
+      label?: string;
+      url: string;
+    }[];
+    hotline?: string;
+    qrCodeUrl?: string;
+    telegramCommunityUrl?: string;
+    tiktokUrl?: string;
+    websiteUrl?: string;
+    youtubeUrl?: string;
+    zalo?: string;
+    zaloSecondary?: string;
+    zalos?: {
+      isPrimary?: boolean;
+      label?: string;
+      phone: string;
+    }[];
+  };
+  profileSlug: string;
+  publicUrl: string;
+  publishedAt: string;
+  recognizedBondAmount: number;
+  recommendedTransactionLimit: number;
+  registeredBankAccounts: {
+    accountName: string;
+    accountNumber: string;
+    bankCode: string;
+    isPrimary: boolean;
+  }[];
+  relatedWarnings: {
+    publicPath: string;
+    publicSlug: string;
+    publishedAt: string;
+    status: string;
+    type: string;
+  }[];
+  services: string;
+  source?: string;
+  status:
+    | "ACTIVE"
+    | "SUSPENDED_PENDING_REVIEW"
+    | "WITHDRAWAL_PENDING"
+    | "WITHDRAWN"
+    | "REMOVED_FOR_FRAUD";
+  tier: ProviderTier;
+  verifiedAt: string;
+}
+
+type PublicProfileApiData = NonNullable<
+  Awaited<ReturnType<typeof client.protection.publicProfile>>
+>;
 
 const vndFormatter = new Intl.NumberFormat("vi-VN");
 
@@ -65,7 +149,15 @@ const formatMonthYear = (verifiedAt?: string) => {
   return `${m}.${y}`;
 };
 
-const ProviderHeroCard = ({ provider }: { provider: ProviderDetailData }) => {
+const ProviderHeroCard = ({
+  onShare,
+  provider,
+  shareCopied,
+}: {
+  onShare: () => void;
+  provider: ProviderDetailData;
+  shareCopied: boolean;
+}) => {
   const isVerified = provider.status === "ACTIVE";
   const isCheckscam = provider.source === "CHECKSCAM";
 
@@ -101,7 +193,7 @@ const ProviderHeroCard = ({ provider }: { provider: ProviderDetailData }) => {
               </p>
             ) : null}
 
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-0.5">
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-0.5 sm:justify-start">
               <div className="inline-flex items-center gap-1.5 font-semibold text-primary text-sm">
                 <SealCheck className="size-4" weight="fill" />
                 <span>
@@ -118,9 +210,7 @@ const ProviderHeroCard = ({ provider }: { provider: ProviderDetailData }) => {
               ) : null}
             </div>
 
-            <p className="text-muted-foreground text-sm">
-              Giao dịch viên • Đối tác bảo chứng
-            </p>
+            <p className="text-muted-foreground text-sm">Đối tác bảo chứng</p>
 
             <p className="text-muted-foreground text-xs">
               {provider.location} • Hoạt động từ{" "}
@@ -129,15 +219,15 @@ const ProviderHeroCard = ({ provider }: { provider: ProviderDetailData }) => {
           </div>
         </div>
 
-        {/* Right: Action Button */}
-        <div className="flex w-full sm:w-auto">
+        {/* Right: Action Buttons */}
+        <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:min-w-44">
           {(() => {
             const mainZalo =
               provider.officialChannels.zalos?.find((z) => z.isPrimary)
                 ?.phone ?? provider.officialChannels.zalo;
             return (
               <a
-                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[#84cc16] px-6 font-bold text-black text-sm shadow-xs transition-all hover:bg-[#65a30d] sm:w-auto"
+                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[#84cc16] px-6 font-bold text-black text-sm shadow-xs transition-all hover:bg-[#65a30d]"
                 href={
                   mainZalo
                     ? `https://zalo.me/${mainZalo.replaceAll(/\s+/gu, "")}`
@@ -151,6 +241,24 @@ const ProviderHeroCard = ({ provider }: { provider: ProviderDetailData }) => {
               </a>
             );
           })()}
+
+          <button
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-border/80 bg-background/50 px-5 font-semibold text-foreground text-sm transition-colors hover:bg-muted"
+            onClick={onShare}
+            type="button"
+          >
+            {shareCopied ? (
+              <>
+                <CheckCircle className="size-4 text-[#84cc16]" weight="fill" />
+                <span className="text-[#84cc16]">Đã chép link</span>
+              </>
+            ) : (
+              <>
+                <Export className="size-4" />
+                <span>Chia sẻ hồ sơ</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
 
@@ -172,7 +280,11 @@ const ProviderHeroCard = ({ provider }: { provider: ProviderDetailData }) => {
         {/* Stat 2: Hạng thành viên */}
         <div className="flex items-center gap-3">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted/40 text-foreground">
-            <Diamond className="size-6" weight="regular" />
+            <img
+              alt={TIER_NAMES[provider.tier] ?? provider.tier}
+              className="size-7.5 object-contain drop-shadow-xs"
+              src={TIER_ICON_IMAGES[provider.tier] ?? TIER_ICON_IMAGES.BRONZE}
+            />
           </div>
           <div>
             <p className="text-muted-foreground text-xs">Hạng thành viên</p>
@@ -512,15 +624,27 @@ const getDisplayAccounts = (
   return [];
 };
 
+const isMomoAccount = (bankCode?: string) => {
+  if (!bankCode) {
+    return false;
+  }
+  const normalized = bankCode.trim().toUpperCase();
+  return normalized === "MOMO" || normalized.includes("MOMO");
+};
+
 const ProviderBankCard = ({
   accounts,
   handleCopy,
   isCopied,
+  onOpenQr,
   primaryAccount,
 }: {
   accounts?: ProviderDetailData["registeredBankAccounts"];
   handleCopy: (text: string) => void;
-  isCopied: boolean;
+  isCopied: (accountNumber: string) => boolean;
+  onOpenQr?: (
+    account: ProviderDetailData["registeredBankAccounts"][number]
+  ) => void;
   primaryAccount?: ProviderDetailData["registeredBankAccounts"][number];
 }) => {
   const displayAccounts = getDisplayAccounts(accounts, primaryAccount);
@@ -546,7 +670,7 @@ const ProviderBankCard = ({
 
           return (
             <div
-              className="relative grid grid-cols-[7.5rem_1fr_auto] items-center gap-3 overflow-hidden rounded-2xl border border-border/60 bg-muted/20 p-4 pl-6 sm:grid-cols-[9.5rem_1fr_auto] sm:gap-4 sm:p-5 sm:pl-7 md:grid-cols-[10.5rem_1fr_auto]"
+              className="relative grid grid-cols-[6.5rem_1fr_auto] items-center gap-2.5 overflow-hidden rounded-2xl border border-border/60 bg-muted/20 p-3.5 pl-5 sm:grid-cols-[9.5rem_1fr_auto] sm:gap-4 sm:p-5 sm:pl-7 md:grid-cols-[10.5rem_1fr_auto]"
               key={`${account.bankCode}-${account.accountNumber}`}
             >
               {/* Left vertical accent bar */}
@@ -555,7 +679,7 @@ const ProviderBankCard = ({
               ) : null}
 
               {/* Left: Bank logo & name */}
-              <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
+              <div className="flex min-w-0 items-center gap-2 sm:gap-3">
                 <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-[#84cc16]">
                   <Bank className="size-5" weight="fill" />
                 </div>
@@ -581,24 +705,36 @@ const ProviderBankCard = ({
                 </p>
               </div>
 
-              {/* Right: Copy button */}
-              <Button
-                aria-label="Sao chép số tài khoản"
-                className="ml-auto size-10 shrink-0 rounded-xl border-border/80 hover:bg-muted"
-                onClick={() => handleCopy(account.accountNumber)}
-                size="icon"
-                variant="outline"
-              >
-                {isCopied &&
-                primaryAccount?.accountNumber === account.accountNumber ? (
-                  <CheckCircle
-                    className="size-5 text-[#84cc16]"
-                    weight="fill"
-                  />
-                ) : (
-                  <Copy className="size-5 text-muted-foreground" />
+              {/* Right: Actions (VietQR & Copy) */}
+              <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+                {!isMomoAccount(account.bankCode) && (
+                  <Button
+                    aria-label="Mở mã QR ngân hàng"
+                    className="size-9 shrink-0 rounded-xl border-border/80 p-0 hover:bg-muted sm:size-10"
+                    onClick={() => onOpenQr?.(account)}
+                    size="icon"
+                    variant="outline"
+                  >
+                    <QrCode className="size-4.5 text-muted-foreground sm:size-5" />
+                  </Button>
                 )}
-              </Button>
+                <Button
+                  aria-label="Sao chép số tài khoản"
+                  className="size-9 shrink-0 rounded-xl border-border/80 p-0 hover:bg-muted sm:size-10"
+                  onClick={() => handleCopy(account.accountNumber)}
+                  size="icon"
+                  variant="outline"
+                >
+                  {isCopied(account.accountNumber) ? (
+                    <CheckCircle
+                      className="size-4.5 text-[#84cc16] sm:size-5"
+                      weight="fill"
+                    />
+                  ) : (
+                    <Copy className="size-4.5 text-muted-foreground sm:size-5" />
+                  )}
+                </Button>
+              </div>
             </div>
           );
         })}
@@ -772,6 +908,64 @@ const ProviderSafetySidebar = () => (
   </div>
 );
 
+const VietQrModal = ({
+  account,
+  handleCopy,
+  isCopied,
+  onClose,
+  open,
+}: {
+  account: ProviderDetailData["registeredBankAccounts"][number];
+  handleCopy: (text: string) => void;
+  isCopied: boolean;
+  onClose: () => void;
+  open: boolean;
+}) => (
+  <Dialog onOpenChange={(isOpen) => !isOpen && onClose()} open={open}>
+    <DialogContent className="max-w-sm rounded-3xl p-6 text-center sm:max-w-sm">
+      <DialogHeader className="text-center sm:text-center">
+        <DialogTitle className="text-center font-bold text-lg text-foreground">
+          Mã VietQR Chuyển Khoản
+        </DialogTitle>
+        <DialogDescription className="text-center font-medium text-xs text-muted-foreground">
+          {account.bankCode} • {account.accountNumber}
+        </DialogDescription>
+      </DialogHeader>
+
+      <div className="mx-auto flex w-full max-w-70 items-center justify-center overflow-hidden rounded-2xl border border-border/50 bg-white p-2.5 shadow-xs">
+        <img
+          alt="VietQR Code"
+          className="aspect-square w-full rounded-xl object-contain"
+          src={`https://api.vietqr.io/image/${account.bankCode}-${account.accountNumber}-compact2.jpg?accountName=${encodeURIComponent(account.accountName)}`}
+        />
+      </div>
+
+      <p className="font-bold text-xs uppercase tracking-wider text-foreground">
+        Chủ tài khoản: {account.accountName}
+      </p>
+
+      <Button
+        className="w-full gap-1.5 rounded-xl text-xs"
+        onClick={() => handleCopy(account.accountNumber)}
+        size="sm"
+        variant="outline"
+      >
+        {isCopied ? (
+          <>
+            <CheckCircle className="size-3.5 text-[#84cc16]" weight="fill" />
+            <span>Đã sao chép</span>
+          </>
+        ) : (
+          <>
+            <Copy className="size-3.5 text-muted-foreground" />
+            <span>Sao chép STK</span>
+          </>
+        )}
+      </Button>
+    </DialogContent>
+  </Dialog>
+);
+
 export const ProviderPublicProfileSkeleton = ({ slug }: { slug?: string }) => (
   <div
     aria-busy="true"
@@ -788,7 +982,7 @@ export const ProviderPublicProfileSkeleton = ({ slug }: { slug?: string }) => (
       </Link>
       <span className="font-mono text-muted-foreground text-xs">
         {slug ? (
-          `Mã GDV: ${slug}`
+          `Mã đối tác: ${slug}`
         ) : (
           <Skeleton className="h-3.5 w-28 rounded-md" />
         )}
@@ -923,9 +1117,53 @@ export const ProviderPublicProfileSkeleton = ({ slug }: { slug?: string }) => (
   </div>
 );
 
+const buildFromApiData = (
+  apiData: PublicProfileApiData
+): ProviderDetailData => ({
+  bio: apiData.bio ?? undefined,
+  displayName: apiData.displayName,
+  history: (apiData.history ?? []).map((h) => ({
+    publishedAt: h.publishedAt,
+    recognizedBondAmount: h.recognizedBondAmount,
+    tier: h.tier as ProviderDetailData["tier"],
+    versionNumber: h.versionNumber,
+  })),
+  id: apiData.profileSlug,
+  location: apiData.location ?? "Hà Nội",
+  officialChannels: apiData.officialChannels ?? {},
+  profileSlug: apiData.profileSlug,
+  publicUrl: `/avin-check/provider/${apiData.profileSlug}`,
+  publishedAt: apiData.publishedAt ?? new Date().toISOString(),
+  recognizedBondAmount: apiData.recognizedBondAmount ?? 50_000_000,
+  recommendedTransactionLimit:
+    apiData.recommendedTransactionLimit ?? 20_000_000,
+  registeredBankAccounts: (apiData.registeredBankAccounts ?? []).map((acc) => ({
+    accountName: acc.accountName,
+    accountNumber: acc.accountNumber,
+    bankCode: acc.bankCode,
+    isPrimary: acc.isPrimary,
+  })),
+  relatedWarnings: (apiData.relatedWarnings ?? []).map((w) => ({
+    publicPath: w.publicPath,
+    publicSlug: w.publicSlug,
+    publishedAt: w.publishedAt ?? new Date().toISOString(),
+    status: w.status,
+    type: w.type,
+  })),
+  services: apiData.services ?? "",
+  source: apiData.source ?? undefined,
+  status: apiData.status,
+  tier: apiData.tier as ProviderDetailData["tier"],
+  verifiedAt: apiData.verifiedAt ?? new Date().toISOString(),
+});
+
 export const ProviderPublicProfilePage = () => {
   const { slug } = useParams({ from: "/(public)/avin-check/provider/$slug" });
   const [copiedAccount, setCopiedAccount] = useState<string | null>(null);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [qrModalAccount, setQrModalAccount] = useState<
+    ProviderDetailData["registeredBankAccounts"][number] | null
+  >(null);
 
   const profileQuery = useQuery(
     orpc.protection.publicProfile.queryOptions({ input: { slug } })
@@ -935,6 +1173,12 @@ export const ProviderPublicProfilePage = () => {
     navigator.clipboard.writeText(text);
     setCopiedAccount(text);
     setTimeout(() => setCopiedAccount(null), 2000);
+  };
+
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setShareCopied(true);
+    setTimeout(() => setShareCopied(false), 2500);
   };
 
   if (profileQuery.isPending) {
@@ -978,46 +1222,7 @@ export const ProviderPublicProfilePage = () => {
     );
   }
 
-  const apiData = profileQuery.data;
-  const provider: ProviderDetailData = {
-    bio: apiData.bio ?? undefined,
-    displayName: apiData.displayName,
-    history: (apiData.history ?? []).map((h) => ({
-      publishedAt: h.publishedAt,
-      recognizedBondAmount: h.recognizedBondAmount,
-      tier: h.tier as ProviderDetailData["tier"],
-      versionNumber: h.versionNumber,
-    })),
-    id: apiData.profileSlug,
-    location: apiData.location ?? "Hà Nội",
-    officialChannels: apiData.officialChannels ?? {},
-    profileSlug: apiData.profileSlug,
-    publicUrl: `/avin-check/provider/${apiData.profileSlug}`,
-    publishedAt: apiData.publishedAt ?? new Date().toISOString(),
-    recognizedBondAmount: apiData.recognizedBondAmount ?? 50_000_000,
-    recommendedTransactionLimit:
-      apiData.recommendedTransactionLimit ?? 20_000_000,
-    registeredBankAccounts: (apiData.registeredBankAccounts ?? []).map(
-      (acc) => ({
-        accountName: acc.accountName,
-        accountNumber: acc.accountNumber,
-        bankCode: acc.bankCode,
-        isPrimary: acc.isPrimary,
-      })
-    ),
-    relatedWarnings: (apiData.relatedWarnings ?? []).map((w) => ({
-      publicPath: w.publicPath,
-      publicSlug: w.publicSlug,
-      publishedAt: w.publishedAt ?? new Date().toISOString(),
-      status: w.status,
-      type: w.type,
-    })),
-    services: apiData.services ?? "",
-    source: apiData.source ?? undefined,
-    status: apiData.status,
-    tier: apiData.tier as ProviderDetailData["tier"],
-    verifiedAt: apiData.verifiedAt ?? new Date().toISOString(),
-  };
+  const provider = buildFromApiData(profileQuery.data);
 
   const primaryAccount =
     provider.registeredBankAccounts.find((a) => a.isPrimary) ??
@@ -1028,18 +1233,22 @@ export const ProviderPublicProfilePage = () => {
       {/* Top Back Navigation */}
       <div className="flex items-center justify-between">
         <Link
-          className="inline-flex items-center gap-1.5 font-medium text-muted-foreground text-sm hover:text-foreground transition-colors"
+          className="inline-flex items-center gap-1.5 font-medium text-muted-foreground text-sm transition-colors hover:text-foreground"
           to="/avin-check/directory"
         >
           <ArrowLeft aria-hidden="true" className="size-4" />
           Quay lại
         </Link>
         <span className="font-mono text-muted-foreground text-xs">
-          Mã GDV: {provider.profileSlug}
+          Mã đối tác: {provider.profileSlug}
         </span>
       </div>
 
-      <ProviderHeroCard provider={provider} />
+      <ProviderHeroCard
+        onShare={handleShare}
+        provider={provider}
+        shareCopied={shareCopied}
+      />
 
       {/* Main Grid 2-Column Section */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
@@ -1050,7 +1259,8 @@ export const ProviderPublicProfilePage = () => {
           <ProviderBankCard
             accounts={provider.registeredBankAccounts}
             handleCopy={handleCopy}
-            isCopied={copiedAccount === primaryAccount?.accountNumber}
+            isCopied={(num) => copiedAccount === num}
+            onOpenQr={(acc) => setQrModalAccount(acc)}
             primaryAccount={primaryAccount}
           />
 
@@ -1062,6 +1272,17 @@ export const ProviderPublicProfilePage = () => {
           <ProviderSafetySidebar />
         </div>
       </div>
+
+      {/* VietQR Modal */}
+      {qrModalAccount && (
+        <VietQrModal
+          account={qrModalAccount}
+          handleCopy={handleCopy}
+          isCopied={copiedAccount === qrModalAccount.accountNumber}
+          onClose={() => setQrModalAccount(null)}
+          open={Boolean(qrModalAccount)}
+        />
+      )}
     </div>
   );
 };

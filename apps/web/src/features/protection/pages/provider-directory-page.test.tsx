@@ -1,36 +1,19 @@
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ProviderDirectoryPage } from "./provider-directory-page";
-
-const mocks = vi.hoisted(() => ({
-  mutateAsync: vi.fn(),
-}));
 
 vi.mock("@/utils/orpc", () => ({
   orpc: {
     protection: {
       providerDirectory: {
         list: { queryOptions: () => ({ queryKey: ["provider-directory"] }) },
-        search: { mutationOptions: () => ({}) },
       },
     },
   },
 }));
 
 vi.mock("@tanstack/react-query", () => ({
-  useMutation: () => ({
-    data: undefined,
-    isError: false,
-    isPending: false,
-    mutateAsync: mocks.mutateAsync,
-  }),
   useQuery: () => ({
     data: {
       providers: [
@@ -72,10 +55,7 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 describe("ProviderDirectoryPage", () => {
-  afterEach(() => {
-    cleanup();
-    mocks.mutateAsync.mockReset();
-  });
+  afterEach(cleanup);
 
   it("renders active profiles and keeps the search field out of autocomplete", () => {
     render(<ProviderDirectoryPage />);
@@ -96,20 +76,34 @@ describe("ProviderDirectoryPage", () => {
     expect(screen.getByRole("textbox")).toHaveAttribute("autocomplete", "off");
   });
 
-  it("searches by partner name without putting it in navigation", async () => {
+  it("searches by partner name instantly on the frontend", () => {
     render(<ProviderDirectoryPage />);
 
     const searchInput = screen.getByRole("textbox");
     fireEvent.change(searchInput, { target: { value: "Provider" } });
-    fireEvent.click(screen.getByRole("button", { name: "Tìm đối tác" }));
 
-    await waitFor(() => {
-      expect(mocks.mutateAsync).toHaveBeenCalledWith({ query: "Provider" });
-    });
+    expect(screen.getByText("Provider One")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Xem hồ sơ" })).toHaveAttribute(
       "href",
       "/avin-check/provider/provider-one"
     );
     expect(document.title).not.toContain("Provider");
+  });
+
+  it("clears search keyword and resets state when clear button is clicked", () => {
+    render(<ProviderDirectoryPage />);
+
+    const searchInput = screen.getByRole("textbox") as HTMLInputElement;
+    fireEvent.change(searchInput, { target: { value: "Nonexistent" } });
+    expect(searchInput.value).toBe("Nonexistent");
+    expect(screen.queryByText("Provider One")).not.toBeInTheDocument();
+
+    const clearButton = screen.getByRole("button", {
+      name: "Xóa từ khóa tìm kiếm",
+    });
+    fireEvent.click(clearButton);
+
+    expect(searchInput.value).toBe("");
+    expect(screen.getByText("Provider One")).toBeInTheDocument();
   });
 });

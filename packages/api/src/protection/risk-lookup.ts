@@ -416,6 +416,7 @@ const loadCurrentRiskReports = (
 
   return database
     .select({
+      affectedVictimCount: protectionRiskReport.affectedVictimCount,
       claimedLoss: protectionRiskReport.claimedLoss,
       id: protectionRiskReport.id,
       publicSlug: protectionRiskReport.publicSlug,
@@ -730,7 +731,46 @@ export const searchPublicRiskIdentifiers = async (
   };
 };
 
-const toPeriod = (date: Date): string => date.toISOString().slice(0, 7);
+const toDayPeriod = (date: Date): string => date.toISOString().slice(0, 10);
+
+const toMonthPeriod = (date: Date): string => date.toISOString().slice(0, 7);
+
+const toYearPeriod = (date: Date): string => date.toISOString().slice(0, 4);
+
+export interface PublicRiskActivityPeriod {
+  affectedVictims: number;
+  claimedLoss: number;
+  period: string;
+  reports: number;
+}
+
+const addReportToActivityPeriod = (
+  periods: Map<string, PublicRiskActivityPeriod>,
+  period: string,
+  report: {
+    affectedVictimCount: number;
+    claimedLoss: number | null;
+  }
+): void => {
+  const current = periods.get(period) ?? {
+    affectedVictims: 0,
+    claimedLoss: 0,
+    period,
+    reports: 0,
+  };
+
+  current.affectedVictims += report.affectedVictimCount ?? 0;
+  current.claimedLoss += report.claimedLoss ?? 0;
+  current.reports += 1;
+  periods.set(period, current);
+};
+
+const sortActivityPeriods = (
+  periods: Map<string, PublicRiskActivityPeriod>
+): PublicRiskActivityPeriod[] =>
+  [...periods.values()].toSorted((left, right) =>
+    right.period.localeCompare(left.period)
+  );
 
 const getLatestDate = (dates: readonly Date[]): Date | null => {
   if (dates.length === 0) {
@@ -778,13 +818,28 @@ export const getPublicRiskStatistics = async (
       (identifier) => `${identifier.type}:${identifier.normalizedValue}`
     )
   );
-  const reportsByPeriod = new Map<string, number>();
+  const activityByDay = new Map<string, PublicRiskActivityPeriod>();
+  const activityByMonth = new Map<string, PublicRiskActivityPeriod>();
+  const activityByYear = new Map<string, PublicRiskActivityPeriod>();
   for (const report of reports) {
     if (!report.publishedAt) {
       continue;
     }
-    const period = toPeriod(report.publishedAt);
-    reportsByPeriod.set(period, (reportsByPeriod.get(period) ?? 0) + 1);
+    addReportToActivityPeriod(
+      activityByDay,
+      toDayPeriod(report.publishedAt),
+      report
+    );
+    addReportToActivityPeriod(
+      activityByMonth,
+      toMonthPeriod(report.publishedAt),
+      report
+    );
+    addReportToActivityPeriod(
+      activityByYear,
+      toYearPeriod(report.publishedAt),
+      report
+    );
   }
 
   const lastUpdatedAt = getLatestDate(
@@ -792,12 +847,21 @@ export const getPublicRiskStatistics = async (
   );
 
   return {
+    activity: {
+      day: sortActivityPeriods(activityByDay),
+      month: sortActivityPeriods(activityByMonth),
+      year: sortActivityPeriods(activityByYear),
+    },
+    affectedVictims: reports.reduce(
+      (total, report) => total + (report.affectedVictimCount ?? 0),
+      0
+    ),
     currentReports: reports.length,
     lastUpdatedAt: lastUpdatedAt?.toISOString() ?? null,
     publishedRiskIdentifiers: publishedIdentifierKeys.size,
-    reportsByPeriod: [...reportsByPeriod.entries()]
-      .toSorted(([left], [right]) => left.localeCompare(right))
-      .map(([period, count]) => ({ count, period })),
+    reportsByPeriod: sortActivityPeriods(activityByMonth)
+      .toReversed()
+      .map(({ period, reports: count }) => ({ count, period })),
     verifiedClaimedLoss: reports.reduce(
       (total, report) => total + (report.claimedLoss ?? 0),
       0

@@ -145,6 +145,7 @@ const createReport = (): ReportRow => ({
   underVerificationApproved: false,
   updatedAt: timestamp,
   urgency: "NORMAL",
+  viewCount: 0,
   violationType: null,
   withdrawalReason: null,
   withdrawalRequestedAt: null,

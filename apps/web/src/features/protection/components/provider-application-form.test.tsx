@@ -71,9 +71,7 @@ describe("ProviderApplicationForm", () => {
     expect(
       screen.getByRole("heading", { name: "Đăng ký đối tác" })
     ).toBeInTheDocument();
-    expect(
-      screen.getByLabelText("Địa điểm (Tỉnh/Thành Phố) *")
-    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Địa điểm *")).toBeInTheDocument();
   });
 
   it("updates live preview when user types their name", () => {
@@ -117,11 +115,13 @@ describe("ProviderApplicationForm", () => {
     expect(screen.getByLabelText(/Căn cước công dân/iu)).toHaveValue(
       "079123456789"
     );
-    expect(screen.getByLabelText("Địa điểm (Tỉnh/Thành Phố) *")).toHaveValue(
+    expect(screen.getByLabelText("Địa điểm *")).toHaveValue(
       "Quận 1, Thành phố Hồ Chí Minh"
     );
-    expect(screen.getByLabelText(/Zalo/iu)).toHaveValue("0900000000");
-    expect(screen.getByLabelText("Facebook")).toHaveValue(
+    expect(screen.getByLabelText(/Số điện thoại Zalo/iu)).toHaveValue(
+      "0900000000"
+    );
+    expect(screen.getByLabelText(/Link Facebook/iu)).toHaveValue(
       "https://www.facebook.com/vuduyhoanavin05"
     );
 
@@ -139,6 +139,68 @@ describe("ProviderApplicationForm", () => {
     expect(
       screen.getByRole("checkbox", { name: /quy chế hoạt động đối tác/iu })
     ).toBeChecked();
+  });
+
+  it("allows adding and removing multiple Zalo accounts", () => {
+    render(<ProviderApplicationForm application={null} />);
+
+    const addZaloButton = screen.getByRole("button", {
+      name: /Thêm tài khoản Zalo/iu,
+    });
+    fireEvent.click(addZaloButton);
+
+    const zaloPhoneInputs = screen.getAllByLabelText(/Số điện thoại Zalo/iu);
+    expect(zaloPhoneInputs).toHaveLength(2);
+
+    const [firstZaloInput, secondZaloInput] = zaloPhoneInputs;
+    if (!firstZaloInput || !secondZaloInput) {
+      throw new Error("Expected 2 Zalo phone inputs");
+    }
+
+    fireEvent.change(firstZaloInput, { target: { value: "0901111111" } });
+    fireEvent.change(secondZaloInput, { target: { value: "0902222222" } });
+
+    // Remove secondary account
+    const deleteButton = screen.getByRole("button", { name: "Xóa Zalo" });
+    fireEvent.click(deleteButton);
+
+    const remainingZaloInputs = screen.getAllByLabelText(
+      /Số điện thoại Zalo/iu
+    );
+    expect(remainingZaloInputs).toHaveLength(1);
+    expect(remainingZaloInputs[0]).toHaveValue("0901111111");
+  });
+
+  it("allows adding and removing multiple Facebook accounts", () => {
+    render(<ProviderApplicationForm application={null} />);
+
+    const addFacebookButton = screen.getByRole("button", {
+      name: /Thêm tài khoản Facebook/iu,
+    });
+    fireEvent.click(addFacebookButton);
+
+    const fbUrlInputs = screen.getAllByLabelText(/Link Facebook/iu);
+    expect(fbUrlInputs).toHaveLength(2);
+
+    const [firstFbInput, secondFbInput] = fbUrlInputs;
+    if (!firstFbInput || !secondFbInput) {
+      throw new Error("Expected 2 Facebook URL inputs");
+    }
+
+    fireEvent.change(firstFbInput, {
+      target: { value: "https://facebook.com/fb1" },
+    });
+    fireEvent.change(secondFbInput, {
+      target: { value: "https://facebook.com/fb2" },
+    });
+
+    // Remove secondary account
+    const deleteButton = screen.getByRole("button", { name: "Xóa Facebook" });
+    fireEvent.click(deleteButton);
+
+    const remainingFbInputs = screen.getAllByLabelText(/Link Facebook/iu);
+    expect(remainingFbInputs).toHaveLength(1);
+    expect(remainingFbInputs[0]).toHaveValue("https://facebook.com/fb1");
   });
 
   it("links the policy commitment to the published partner policy", () => {
@@ -180,9 +242,7 @@ describe("ProviderApplicationForm", () => {
     expect(
       screen.queryByRole("tab", { name: "2. Quỹ đảm bảo & cam kết" })
     ).not.toBeInTheDocument();
-    expect(
-      screen.queryByLabelText("Địa điểm (Tỉnh/Thành Phố) *")
-    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Địa điểm *")).not.toBeInTheDocument();
     expect(
       screen.getByAltText("Mã QR chuyển khoản vào quỹ đảm bảo của Đối tác")
     ).toBeInTheDocument();

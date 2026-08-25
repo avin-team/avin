@@ -54,7 +54,7 @@ describe("ProviderPolicyPage", () => {
       screen.getByText("Điều 1. Duy trì thông tin chính xác.")
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Tiếp tục đăng ký" })
+      screen.getByRole("link", { name: "Đăng ký đối tác" })
     ).toHaveAttribute("href", "/avin-check/apply");
   });
 });

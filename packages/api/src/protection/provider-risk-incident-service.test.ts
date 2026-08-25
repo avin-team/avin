@@ -111,6 +111,7 @@ const createReport = (overrides: Partial<ReportRow> = {}): ReportRow => ({
   id: "report-1",
   narrative: "A moderated report",
   platform: null,
+  policyVersionId: null,
   possibleDuplicateOfReportId: null,
   publicSlug: "warning-1",
   publicSummary: "Public warning summary",
@@ -130,12 +131,12 @@ const createReport = (overrides: Partial<ReportRow> = {}): ReportRow => ({
   underVerificationApproved: false,
   updatedAt: timestamp,
   urgency: "NORMAL",
+  viewCount: 0,
   violationType: null,
   withdrawalReason: null,
   withdrawalRequestedAt: null,
   withdrawalStatus: "NONE",
   ...overrides,
-  policyVersionId: overrides.policyVersionId ?? null,
 });
 
 const createIncident = (overrides: Partial<IncidentRow> = {}): IncidentRow => ({

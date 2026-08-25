@@ -11,7 +11,7 @@ import {
 } from "@avin/db/schema/protection";
 import { env } from "@avin/env/server";
 import { ORPCError } from "@orpc/server";
-import { and, desc, eq, inArray, ne } from "drizzle-orm";
+import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 
 import {
   createNotificationEvent,
@@ -1798,6 +1798,7 @@ const toPublicWarningView = (
     identifiers: isRemoved
       ? []
       : identifiers.map((item) => ({
+          isPrimary: item.isPrimary,
           maskedValue: item.maskedValue,
           publicValue: getRiskIdentifierPublicValue(
             item.type,
@@ -1818,6 +1819,7 @@ const toPublicWarningView = (
     status: report.status,
     supportOutcome: isRemoved ? null : supportOutcome,
     type: report.type,
+    viewCount: report.viewCount,
     violationType: isRemoved ? null : report.violationType,
   };
 };
@@ -1917,12 +1919,16 @@ export const getPublicRiskWarning = async (
       message: "Public risk warning not found",
     });
   }
+  await database
+    .update(protectionRiskReport)
+    .set({ viewCount: sql`${protectionRiskReport.viewCount} + 1` })
+    .where(eq(protectionRiskReport.id, report.id));
   const [materials, supportOutcome] = await Promise.all([
     loadReportMaterials(database, report.id),
     getPublicSupportOutcome(database, report.id),
   ]);
   return toPublicWarningView(
-    report,
+    { ...report, viewCount: report.viewCount + 1 },
     materials.identifiers,
     materials.evidence,
     materials.derivatives,

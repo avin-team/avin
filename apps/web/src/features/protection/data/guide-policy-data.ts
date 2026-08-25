@@ -155,37 +155,38 @@ export const GUIDE_POLICY_DATA: PolicySection[] = [
       {
         id: "rules-scam-tactics",
         points: [
-          "Giả mạo tên miền (Typosquatting): Kẻ gian đăng ký tên miền gần giống tên miền chính thức (Ví dụ: thêm bớt ký tự 's', 'c', 'r', thay dấu chấm bằng dấu gạch ngang '-', đổi vị trí ký tự).",
+          "Giả mạo tên miền website: Kẻ gian đăng ký tên miền gần giống tên miền chính thức (Ví dụ: thêm bớt ký tự 's', 'c', 'r', thay dấu chấm bằng dấu gạch ngang '-', đổi vị trí ký tự).",
           "Ký tự đánh lừa thị giác: Dấu chấm (.) vs gạch (-), chữ I hoa vs l thường, số 0 vs chữ O, số 8 vs chữ B, chữ rn vs chữ m.",
-          "Tích xanh Facebook ảo: Tích xanh hiện có thể mua với giá rẻ trên mạng, không đồng nghĩa với việc tài khoản đó uy tín hoặc là chính chủ.",
+          "Mua tích xanh ảo trên mạng xã hội: Tích xanh hiện có thể mua với giá rẻ trên mạng, không đồng nghĩa với việc tài khoản đó uy tín hoặc là chính chủ.",
           "Báo sai nội dung để ép nạp thêm: Tuyệt đối không nạp thêm tiền khi đối tượng báo sai cú pháp hoặc yêu cầu đóng phí mở khóa. Đây 100% là kịch bản lừa đảo liên hoàn.",
-          "Server Discord Fake & Bot Fake: Kẻ lừa đảo tạo server ít thành viên, bot clone để gửi thông báo biến động giả mạo.",
-          "Chiêu trò tráo Tag trong nhóm: Gửi link Facebook chính chủ nhưng khi add nhóm lại tag tài khoản giả mạo, hoặc sau đó kích tài khoản thật ra rồi spam tin nhắn làm trôi.",
-          "Nhận tiền bằng mã QR lạ hoặc STK dạng chữ + số: Cảnh giác với STK có tiền tố ảo như '99zp...', '99MM...' dùng để ẩn danh tài khoản thụ hưởng thực tế.",
-          "Lừa Live màn hình / Trộm mã OTP: Kẻ gian yêu cầu chia sẻ màn hình để đọc mã OTP hoặc gửi link độc chiếm quyền điều khiển Facebook/Zalo rồi vào nhóm tự xưng hoàn tất.",
-          "Tráo STK bằng cách sửa tin nhắn: Kẻ gian copy tin nhắn STK của Admin trung gian, sửa lại 1-2 số tài khoản rồi spam tin nhắn và gửi lại để người mua chuyển nhầm.",
-          "Lợi dụng Bill chuyển khoản nhặt được: Nhặt bill gửi lên nhóm chat riêng để giả vờ báo hoàn tất nhằm gài bẫy người trung gian.",
+          "Máy chủ Discord và Bot giả mạo: Kẻ lừa đảo tạo máy chủ ít thành viên, lập trình bot giả để gửi thông báo biến động số dư giả mạo.",
+          "Chiêu trò gắn thẻ (tag) tài khoản giả mạo vào nhóm chat: Gửi liên kết Facebook chính chủ nhưng khi thêm vào nhóm lại gắn thẻ tài khoản giả mạo, hoặc sau đó xóa tài khoản thật ra rồi gửi tin nhắn liên tục để làm trôi tin nhắn cũ.",
+          "Nhận tiền bằng mã QR lạ hoặc số tài khoản dạng chữ + số: Cảnh giác với số tài khoản có tiền tố ảo như '99zp...', '99MM...' dùng để ẩn danh tài khoản thụ hưởng thực tế.",
+          "Lừa chia sẻ màn hình trực tiếp / Chiếm đoạt mã xác thực OTP: Kẻ gian yêu cầu chia sẻ màn hình để đọc trộm mã OTP hoặc gửi liên kết độc hại nhằm chiếm quyền điều khiển Facebook/Zalo rồi vào nhóm mạo danh xác nhận hoàn tất.",
+          "Tráo số tài khoản bằng cách sửa tin nhắn: Kẻ gian sao chép tin nhắn số tài khoản của Quản trị viên trung gian, sửa lại 1-2 chữ số rồi gửi lại vào nhóm để người mua chuyển nhầm.",
+          "Lợi dụng biên lai chuyển tiền nhặt được: Sử dụng biên lai chuyển khoản nhặt được trên mạng gửi vào nhóm chat riêng để giả vờ báo hoàn tất nhằm gài bẫy người trung gian.",
         ],
-        title: "Nhận diện các chiêu trò Lừa đảo (Scam) tinh vi cần cảnh giác",
+        title:
+          "Nhận diện các thủ đoạn lừa đảo và gian lận tinh vi cần cảnh giác",
       },
       {
         id: "rules-scam-response-steps",
         points: [
-          "Bước 1 - Khóa chiều chuyển tiền tại Ngân hàng: Gọi ngay Hotline tổng đài ngân hàng của bạn, thông báo vừa bị lừa chuyển tiền vào STK đối tượng, cung cấp bằng chứng để yêu cầu hỗ trợ phong tỏa hoặc đánh dấu tài khoản gian lận.",
+          "Bước 1 - Khóa chiều chuyển tiền tại Ngân hàng: Gọi ngay Hotline tổng đài ngân hàng của bạn, thông báo vừa bị lừa chuyển tiền vào số tài khoản đối tượng, cung cấp bằng chứng để yêu cầu hỗ trợ phong tỏa hoặc đánh dấu tài khoản gian lận.",
           "Bước 2 - Gửi đơn kiến nghị lên Cổng VNeID: Chụp lại toàn bộ lịch sử trò chuyện, sao kê giao dịch ngân hàng. Mở ứng dụng VNeID -> Tìm kiếm 'Kiến nghị, phản ánh về ANTT' -> 'Tạo mới yêu cầu' -> Điền thông tin và đính kèm bằng chứng.",
           "Bước 3 - Gửi báo cáo tố cáo lên Avin Check: Truy cập chuyên mục 'Gửi báo cáo rủi ro' trên Avin Check, đăng tải thông tin tài khoản lừa đảo để hệ thống kiểm duyệt, lưu trữ vết vi phạm và cảnh báo cho toàn bộ cộng đồng.",
         ],
         title: "Quy trình 3 bước xử lý khẩn cấp khi bạn phát hiện bị lừa đảo",
       },
     ],
-    shortTitle: "Nội quy giao dịch & Chống Scam",
+    shortTitle: "Nội quy giao dịch & Phòng chống lừa đảo",
     summaryCard: {
       content:
         "Chỉ giao dịch với đúng thông tin, số tài khoản niêm yết trên hồ sơ chính thức của Đối tác. Tuyệt đối không giao dịch với tài khoản mạo danh, không chuyển tiền khi chưa xác nhận video kiểm tra.",
       title: "Nguyên tắc cốt lõi: Tiền trao - Dịch vụ chuẩn",
       type: "warning",
     },
-    title: "2. Nội Quy Giao Dịch & Phòng Chống Scam",
+    title: "2. Nội Quy Giao Dịch & Phòng Chống Lừa Đảo",
   },
   {
     badge: "Quy chuẩn nghiệp vụ",
@@ -200,7 +201,7 @@ export const GUIDE_POLICY_DATA: PolicySection[] = [
           "Bước 1: Kiểm tra chính xác số điện thoại Zalo của Đối tác trước khi bắt đầu.",
           "Bước 2: Tạo nhóm chat và gửi lời mời tài khoản Zalo chính chủ của Đối tác vào nhóm.",
           "Bước 3: Chỉ giao dịch khi Đối tác đã phản hồi xác nhận trực tiếp trong nhóm: 'Đã nhận lời mời vào nhóm'.",
-          "Cảnh báo: Đối tượng lừa đảo thường tranh thủ mời tài khoản Fake vào trước trong lúc bạn đang chờ. Nếu Đối tác chưa xác nhận lời mời mà bạn đã chuyển tiền, hệ thống sẽ không thể hỗ trợ xử lý đền bù.",
+          "Cảnh báo: Đối tượng lừa đảo thường tranh thủ mời tài khoản giả mạo vào trước trong lúc bạn đang chờ. Nếu Đối tác chưa xác nhận lời mời mà bạn đã chuyển tiền, hệ thống sẽ không thể hỗ trợ xử lý đền bù.",
         ],
         number: 27,
         tags: ["Zalo", "Quy trình", "Bắt buộc"],
@@ -210,16 +211,16 @@ export const GUIDE_POLICY_DATA: PolicySection[] = [
         category: "security",
         date: "09/06/2026",
         description:
-          "Giải pháp kỹ thuật tạo tài khoản phụ (Clone ẩn danh) ngồi sẵn trong nhóm giao dịch để không bao giờ bị gián đoạn dữ liệu.",
+          "Giải pháp kỹ thuật tạo tài khoản phụ dự phòng ngồi sẵn trong nhóm giao dịch để không bao giờ bị gián đoạn dữ liệu.",
         id: "dieu-26",
         keyPoints: [
           "Tạo tài khoản FB phụ chỉ kết bạn duy nhất với FB chính của Đối tác.",
           "Khóa toàn bộ trang cá nhân, không đăng bài, chặn tin nhắn từ người lạ, vô hiệu hóa trang cá nhân (chỉ giữ Messenger).",
-          "Mỗi khi tạo nhóm giao dịch trên FB chính, lập tức add thêm tài khoản FB phụ này vào nhóm.",
+          "Mỗi khi tạo nhóm giao dịch trên FB chính, lập tức thêm tài khoản FB phụ này vào nhóm.",
           "Khi tài khoản chính gặp sự cố khóa tạm thời, tài khoản phụ vẫn kiểm soát 100% dữ liệu và xử lý tranh chấp bình thường.",
         ],
         number: 26,
-        tags: ["Facebook", "Backup", "Nghiệp vụ"],
+        tags: ["Facebook", "Dự phòng", "Nghiệp vụ"],
         title:
           "Điều 26: Phương án dự phòng chống mất dữ liệu khi Facebook bị khóa",
       },
@@ -231,7 +232,7 @@ export const GUIDE_POLICY_DATA: PolicySection[] = [
         id: "dieu-25",
         keyPoints: [
           "Cài đặt quy định cấm thu hồi tin nhắn trong toàn bộ các nhóm giao dịch.",
-          "Sau khi hoàn tất giao dịch, quay video màn hình 15 giây gồm: Link FB/Zalo 2 bên, biến động số dư chuyển đến, STK chuyển đi.",
+          "Sau khi hoàn tất giao dịch, quay video màn hình 15 giây gồm: Đường liên kết FB/Zalo 2 bên, biến động số dư chuyển đến, số tài khoản chuyển đi.",
           "Lưu trữ video theo thư mục ngày/tháng để làm bằng chứng cung cấp cho cơ quan chức năng khi cần thiết.",
         ],
         number: 25,
@@ -243,16 +244,16 @@ export const GUIDE_POLICY_DATA: PolicySection[] = [
         category: "legal",
         date: "18/05/2026",
         description:
-          "Bảo vệ môi trường cạnh tranh lành mạnh trong nội bộ cộng đồng Đối tác Avin Check.",
+          "Bảo vệ môi trường cạnh tranh lành mạnh và văn minh trong nội bộ cộng đồng Đối tác Avin Check.",
         id: "dieu-24",
         keyPoints: [
-          "Nghiêm cấm hành vi tự tay hoặc thuê bên thứ ba dame, report tài khoản Facebook/Zalo của các Đối tác khác.",
-          "Mọi trường hợp bị phát hiện cạnh tranh bẩn sẽ bị hủy hồ sơ bảo lãnh vĩnh viễn và không hoàn trả quỹ đảm bảo.",
+          "Nghiêm cấm hành vi tự ý hoặc thuê bên thứ ba báo cáo xấu (report), phá hoại tài khoản Facebook/Zalo của các Đối tác khác.",
+          "Mọi trường hợp bị phát hiện cạnh tranh không lành mạnh sẽ bị hủy hồ sơ bảo lãnh vĩnh viễn và không hoàn trả quỹ đảm bảo.",
         ],
         number: 24,
-        tags: ["Cạnh tranh bẩn", "Nghiêm cấm", "Hủy hồ sơ"],
+        tags: ["Cạnh tranh lành mạnh", "Nghiêm cấm", "Hủy hồ sơ"],
         title:
-          "Điều 24: Nghiêm cấm hành vi Dame, tấn công tài khoản của Đối tác lẫn nhau",
+          "Điều 24: Nghiêm cấm hành vi báo cáo xấu, phá hoại hoặc tấn công tài khoản Đối tác lẫn nhau",
       },
       {
         category: "workflow",
@@ -264,7 +265,7 @@ export const GUIDE_POLICY_DATA: PolicySection[] = [
           "Thang điểm tối đa 100 điểm, tự động cộng +5 điểm vào đầu mỗi tháng.",
           "Bị khiếu nại do quá 48h không phản hồi: Trừ -2 điểm.",
           "Xử lý tranh chấp tắc trách dẫn đến khiếu nại: Trừ -5 điểm.",
-          "Hành vi lùa khách, ép giá vô căn cứ: Trừ -8 điểm.",
+          "Hành vi lôi kéo khách, ép giá vô căn cứ: Trừ -8 điểm.",
         ],
         number: 23,
         tags: ["Điểm tín nhiệm", "Đánh giá"],
@@ -279,24 +280,25 @@ export const GUIDE_POLICY_DATA: PolicySection[] = [
         keyPoints: [
           "Giao dịch dưới 20.000đ: Thu phí dưới 5.000đ.",
           "Giao dịch trên 20.000đ: Mức phí tối thiểu bắt buộc là 5.000đ.",
-          "Đối tác có thể tổ chức mini-game, sự kiện để tri ân thay vì trung gian miễn phí.",
+          "Đối tác có thể tổ chức chương trình, sự kiện để tri ân thay vì trung gian miễn phí.",
         ],
         number: 22,
         tags: ["Phí dịch vụ", "Nghiêm cấm", "Trách nhiệm"],
-        title: "Điều 22: Nghiêm cấm Giao Dịch Trung Gian Miễn Phí (GDTG Free)",
+        title:
+          "Điều 22: Quy định mức phí sàn và nghiêm cấm Giao Dịch Trung Gian Miễn Phí",
       },
       {
         category: "security",
         date: "29/10/2025",
         description:
-          "Các bước phối hợp đưa các đường link tài khoản giả mạo vào cơ sở dữ liệu cảnh báo tự động.",
+          "Các bước phối hợp đưa các đường liên kết tài khoản giả mạo vào cơ sở dữ liệu cảnh báo tự động.",
         id: "dieu-21",
         keyPoints: [
-          "Tìm kiếm và sao chép toàn bộ đường link (UID) của các tài khoản Facebook mạo danh tên tuổi Đối tác.",
-          "Gửi danh sách UID về Ban quản trị Avin Check để đưa vào Bot cảnh báo tự động trên Telegram và Discord.",
+          "Tìm kiếm và sao chép toàn bộ đường liên kết (định danh ID) của các tài khoản Facebook mạo danh tên tuổi Đối tác.",
+          "Gửi danh sách định danh về Ban quản trị Avin Check để đưa vào hệ thống cảnh báo tự động trên Telegram và Discord.",
         ],
         number: 21,
-        tags: ["Fake tài khoản", "Bảo vệ thương hiệu"],
+        tags: ["Tài khoản giả mạo", "Bảo vệ thương hiệu"],
         title:
           "Điều 21: Quy trình xử lý khi Đối tác bị kẻ xấu tạo tài khoản giả mạo",
       },
@@ -304,16 +306,16 @@ export const GUIDE_POLICY_DATA: PolicySection[] = [
         category: "security",
         date: "16/10/2025",
         description:
-          "Phòng chống nguy cơ bị cài cắm mã độc Botnet chiếm đoạt dữ liệu qua các file kiểm tra giả mạo.",
+          "Phòng chống nguy cơ bị cài cắm mã độc chiếm đoạt dữ liệu qua các tệp tin kiểm tra giả mạo.",
         id: "dieu-20",
         keyPoints: [
-          "Tuyệt đối không tải về, không mở và không click vào bất kỳ file hoặc đường link lạ nào do người mua/bán gửi.",
-          "Nguyên tắc sống còn: Không nhận - Không mở - Không click link lạ trong bất kỳ giao dịch nào.",
+          "Tuyệt đối không tải về, không mở và không bấm vào bất kỳ tệp tin hoặc đường liên kết lạ nào do người mua/bán gửi.",
+          "Nguyên tắc sống còn: Không nhận - Không mở - Không bấm liên kết lạ trong bất kỳ giao dịch nào.",
         ],
         number: 20,
-        tags: ["Mã độc", "Botnet", "Cảnh báo"],
+        tags: ["Mã độc", "Cảnh báo bảo mật"],
         title:
-          "Điều 20: Tuyệt đối không nhận trung gian mua bán Tệp Tin (File lạ)",
+          "Điều 20: Tuyệt đối không nhận trung gian mua bán Tệp Tin hoặc liên kết lạ",
       },
       {
         category: "finance",
@@ -328,7 +330,7 @@ export const GUIDE_POLICY_DATA: PolicySection[] = [
         number: 19,
         tags: ["Số dư", "Kiểm tra ngân hàng"],
         title:
-          "Điều 19: Cảnh giác với chiêu trò Fake tin nhắn thông báo nhận tiền",
+          "Điều 19: Cảnh giác với thủ đoạn làm giả tin nhắn thông báo nhận tiền",
       },
       {
         category: "workflow",
@@ -352,11 +354,11 @@ export const GUIDE_POLICY_DATA: PolicySection[] = [
           "Ngăn chặn nguy cơ Đối tác bị lợi dụng làm cổng nạp tiền cho các trang web cờ bạc, vi phạm pháp luật.",
         id: "dieu-17",
         keyPoints: [
-          "Kiểm tra kỹ nội dung quét mã QR; nếu phát hiện mã nạp tiền game bài, cờ bạc thì tuyệt đối từ chối chuyển.",
+          "Kiểm tra kỹ nội dung quét mã QR; nếu phát hiện mã nạp tiền cờ bạc thì tuyệt đối từ chối chuyển.",
           "Yêu cầu khách hàng cung cấp số tài khoản ngân hàng chính chủ thay thế hoặc tạm giữ giao dịch để xác minh.",
         ],
         number: 17,
-        tags: ["QR Game bài", "Rủi ro pháp luật"],
+        tags: ["Mã QR cờ bạc", "Rủi ro pháp luật"],
         title:
           "Điều 17: Lưu ý khi khách yêu cầu chuyển tiền qua mã QR hoặc nội dung bất thường",
       },
@@ -364,17 +366,17 @@ export const GUIDE_POLICY_DATA: PolicySection[] = [
         category: "box",
         date: "21/08/2025",
         description:
-          "Mỗi box trung gian chỉ được phép có đúng 3 thành viên: Người Mua, Người Bán và Đối Tác Trung Gian.",
+          "Mỗi nhóm giao dịch trung gian chỉ được phép có đúng 3 thành viên: Người Mua, Người Bán và Đối Tác Trung Gian.",
         id: "dieu-16",
         keyPoints: [
           "Xuất hiện người thứ 4: Yêu cầu tự rời nhóm hoặc lập tức hủy/treo giao dịch.",
-          "Xuất hiện box thứ 2 trùng lặp: Ngay lập tức hủy giao dịch và khóa tài khoản có dấu hiệu khả nghi.",
-          "Cảnh giác cao độ với các hành vi spam icon, thoát ra vào lại liên tục nhằm làm Đối tác nhầm lẫn.",
+          "Xuất hiện nhóm thứ 2 trùng lặp: Ngay lập tức hủy giao dịch và khóa tài khoản có dấu hiệu khả nghi.",
+          "Cảnh giác cao độ với các hành vi gửi biểu tượng liên tục, thoát ra vào lại nhằm làm Đối tác nhầm lẫn.",
         ],
         number: 16,
-        tags: ["Nguyên tắc 3:1", "An toàn box"],
+        tags: ["Nguyên tắc 3:1", "An toàn nhóm chat"],
         title:
-          "Điều 16: Tuân thủ nghiêm ngặt Nguyên Tắc 3:1 trong Box trung gian",
+          "Điều 16: Tuân thủ nghiêm ngặt Nguyên Tắc 3:1 trong Nhóm chat trung gian",
       },
       {
         category: "security",
@@ -383,12 +385,12 @@ export const GUIDE_POLICY_DATA: PolicySection[] = [
           "Quy trình xác minh chính chủ khi tài khoản mạng xã hội của khách hàng bị kẻ gian xâm nhập.",
         id: "dieu-15",
         keyPoints: [
-          "Tạm giữ tiền và đóng băng box giao dịch.",
-          "Yêu cầu người nộp tiền quay 2 video: Video 1 quay mặt cầm CCCD sau khi đăng xuất các thiết bị; Video 2 vào ứng dụng ngân hàng đối chiếu đúng STK chuyển tiền.",
+          "Tạm giữ tiền và đóng băng nhóm giao dịch.",
+          "Yêu cầu người nộp tiền quay 2 video: Video 1 quay mặt cầm CCCD sau khi đăng xuất các thiết bị; Video 2 vào ứng dụng ngân hàng đối chiếu đúng số tài khoản chuyển tiền.",
           "Sau khi xác minh hợp lệ, thực hiện hoàn trả tiền về đúng số tài khoản nguồn ban đầu.",
         ],
         number: 15,
-        tags: ["Chiếm quyền FB", "Xử lý tranh chấp"],
+        tags: ["Chiếm quyền tài khoản", "Xử lý tranh chấp"],
         title:
           "Điều 15: Xử lý trường hợp tài khoản người mua bị kẻ gian chiếm quyền vào báo hoàn tất",
       },
@@ -396,14 +398,14 @@ export const GUIDE_POLICY_DATA: PolicySection[] = [
         category: "security",
         date: "19/08/2025",
         description:
-          "Kẻ gian copy tin nhắn STK của Đối tác, sửa đổi 1 vài chữ số rồi gửi lại vào nhóm chat để đánh lừa khách hàng.",
+          "Kẻ gian sao chép tin nhắn số tài khoản của Đối tác, sửa đổi 1 vài chữ số rồi gửi lại vào nhóm chat để đánh lừa khách hàng.",
         id: "dieu-14",
         keyPoints: [
-          "Đối tác cần thường xuyên nhắc nhở khách hàng chỉ sao chép đúng tin nhắn do chính nick Đối tác gửi.",
+          "Đối tác cần thường xuyên nhắc nhở khách hàng chỉ sao chép đúng tin nhắn do chính tài khoản Đối tác gửi.",
           "Kiểm tra kỹ tên chủ tài khoản thụ hưởng trước khi xác nhận đã nhận được tiền.",
         ],
         number: 14,
-        tags: ["Tráo STK", "Cảnh giác"],
+        tags: ["Tráo số tài khoản", "Cảnh giác"],
         title:
           "Điều 14: Cảnh báo thủ đoạn tráo số tài khoản giả mạo trong nhóm chat",
       },
@@ -414,7 +416,7 @@ export const GUIDE_POLICY_DATA: PolicySection[] = [
           "Kẻ gian lợi dụng Đối tác mới chưa có nhiều kinh nghiệm để tạo nhiều nhóm chat giả mạo dùng chung 1 biên lai chuyển tiền.",
         id: "dieu-13",
         keyPoints: [
-          "Khi phát hiện 2 box chat xuất hiện cùng thời điểm với nội dung tương tự: Lập tức hủy giao dịch và đối chiếu kỹ lưỡng.",
+          "Khi phát hiện 2 nhóm chat xuất hiện cùng thời điểm với nội dung tương tự: Lập tức hủy giao dịch và đối chiếu kỹ lưỡng.",
           "Không vội vàng chuyển tiền khi chưa kiểm tra chính xác từng mã giao dịch tương ứng với từng nhóm chat.",
         ],
         number: 13,
@@ -433,7 +435,7 @@ export const GUIDE_POLICY_DATA: PolicySection[] = [
           "Yêu cầu đối tác giao dịch cung cấp số tài khoản ngân hàng chính thống để kiểm tra.",
         ],
         number: 12,
-        tags: ["STK ảo", "zp", "mm"],
+        tags: ["Số tài khoản ảo", "Tiền tố ảo"],
         title:
           "Điều 12: Ngưng giao dịch ngay lập tức nếu gặp số tài khoản tiền tố ảo",
       },
@@ -444,9 +446,9 @@ export const GUIDE_POLICY_DATA: PolicySection[] = [
           "Quy chuẩn giải quyết đối với khách hàng đổi tiền nhưng ghi sai cú pháp nội dung chuyển khoản.",
         id: "dieu-11",
         keyPoints: [
-          "Khách hàng cần cung cấp Video quay rõ mặt cầm CCCD và Video màn hình vào app ngân hàng xác nhận đúng giao dịch.",
-          "Sau khi nhận đủ video hợp lệ, Đối tác hoàn lại 80% số tiền về đúng STK nguồn với nội dung: 'Hoàn tiền GD sai nội dung'.",
-          "Nếu chưa có video: Tiếp tục tạm giữ và đổi tên box thành: 'Sai nội dung - Chờ xác minh'.",
+          "Khách hàng cần cung cấp Video quay rõ mặt cầm CCCD và Video màn hình vào ứng dụng ngân hàng xác nhận đúng giao dịch.",
+          "Sau khi nhận đủ video hợp lệ, Đối tác hoàn lại 80% số tiền về đúng số tài khoản nguồn với nội dung: 'Hoàn tiền GD sai nội dung'.",
+          "Nếu chưa có video: Tiếp tục tạm giữ và đổi tên nhóm thành: 'Sai nội dung - Chờ xác minh'.",
         ],
         number: 11,
         tags: ["Sai nội dung", "Đổi tiền", "Hoàn 80%"],
@@ -476,7 +478,7 @@ export const GUIDE_POLICY_DATA: PolicySection[] = [
           "Hỗ trợ người dùng và Đối tác kết nối lại nhanh chóng khi tài khoản mạng xã hội gặp sự cố khóa tạm thời.",
         id: "dieu-9",
         keyPoints: [
-          "Người dùng có thể tra cứu thông tin Đối tác qua SĐT hoặc Zalo trực tiếp trên các kênh Bot của Avin Check.",
+          "Người dùng có thể tra cứu thông tin Đối tác qua số điện thoại hoặc Zalo trực tiếp trên các kênh Bot của Avin Check.",
         ],
         number: 9,
         tags: ["Bot tra cứu", "Tự động"],
@@ -504,13 +506,13 @@ export const GUIDE_POLICY_DATA: PolicySection[] = [
           "Điều kiện bắt buộc khi Đối tác tuyển cộng tác viên / giao dịch viên dưới quyền để bảo vệ người dùng.",
         id: "dieu-7",
         keyPoints: [
-          "GDV cấp dưới phải đặt cọc tối thiểu 1.000.000đ kèm video xác minh danh tính qua VNeID.",
+          "Giao dịch viên cấp dưới phải đặt cọc tối thiểu 1.000.000đ kèm video xác minh danh tính qua VNeID.",
           "Thời gian hoàn cọc tối thiểu 7 - 15 ngày sau khi đăng bài công khai trên mạng xã hội.",
-          "Số tiền bảo đảm của Đối tác tại Avin Check luôn phải chiếm tối thiểu 35% - 50% tổng số tiền nhận cọc từ các GDV.",
-          "Avin Check không bảo lãnh bắc cầu; khách hàng làm việc với GDV của Đối tác nào sẽ chịu sự quản lý của Đối tác đó.",
+          "Số tiền bảo đảm của Đối tác tại Avin Check luôn phải chiếm tối thiểu 35% - 50% tổng số tiền nhận cọc từ các giao dịch viên.",
+          "Avin Check không bảo lãnh bắc cầu; khách hàng làm việc với giao dịch viên của Đối tác nào sẽ chịu sự quản lý của Đối tác đó.",
         ],
         number: 7,
-        tags: ["Cọc GDV", "Web check GDV", "Quỹ đảm bảo"],
+        tags: ["Cọc giao dịch viên", "Xác minh GDV", "Quỹ đảm bảo"],
         title:
           "Điều 7: Quy định dành cho Đối tác khi nhận cọc Giao Dịch Viên (GDV)",
       },
@@ -524,7 +526,7 @@ export const GUIDE_POLICY_DATA: PolicySection[] = [
           "Mọi hành vi cố tình thu mua tài sản từ nguồn lừa đảo sẽ bị hủy hồ sơ bảo lãnh vĩnh viễn.",
         ],
         number: 5,
-        tags: ["Nguồn scam", "Nghiêm cấm", "Hủy hồ sơ"],
+        tags: ["Nguồn lừa đảo", "Nghiêm cấm", "Hủy hồ sơ"],
         title:
           "Điều 5: Nghiêm cấm thu mua tài khoản từ nguồn lừa đảo, giả mạo Đối tác",
       },
@@ -535,7 +537,7 @@ export const GUIDE_POLICY_DATA: PolicySection[] = [
           "Quy định hoàn trả đối với các giao dịch mua bán trung gian chuyển sai cú pháp yêu cầu.",
         id: "dieu-4",
         keyPoints: [
-          "Khách hàng cung cấp video quay app ngân hàng đối chiếu đúng số tài khoản và biên lai.",
+          "Khách hàng cung cấp video quay ứng dụng ngân hàng đối chiếu đúng số tài khoản và biên lai.",
           "Sau khi xác minh hợp lệ, Đối tác hoàn lại 100% số tiền về đúng tài khoản đã chuyển với cú pháp: 'Hoàn tiền GD sai nội dung'.",
         ],
         number: 4,
@@ -584,9 +586,9 @@ export const GUIDE_POLICY_DATA: PolicySection[] = [
           "Lưu trữ toàn bộ video và sao kê giao dịch để bảo đảm tính minh bạch tuyệt đối.",
         ],
         number: 1,
-        tags: ["Xích scam", "Quỹ từ thiện", "Quy trình"],
+        tags: ["Xử lý lừa đảo", "Quỹ từ thiện", "Quy trình"],
         title:
-          "Điều 1: Quy định trường hợp 'Xích Scam' hợp lệ và chuyển Quỹ từ thiện",
+          "Điều 1: Quy định xử lý khi phát hiện và phong tỏa dòng tiền lừa đảo",
       },
     ],
     description:
@@ -618,13 +620,13 @@ export const GUIDE_POLICY_DATA: PolicySection[] = [
       {
         id: "partner-obligations-credit",
         points: [
-          "Nghĩa vụ trực box: Bắt buộc phải kiểm tra và phản hồi tin nhắn trong box giao dịch tối thiểu 01 lần trong vòng 24 giờ.",
+          "Nghĩa vụ trực nhóm: Bắt buộc phải kiểm tra và phản hồi tin nhắn trong nhóm giao dịch tối thiểu 01 lần trong vòng 24 giờ.",
           "Thời hạn giải trình: Phải phản hồi, phối hợp với Ban quản trị Avin Check trong vòng 24 giờ. Quá 48 giờ không xử lý, hồ sơ sẽ bị tạm gỡ bỏ khỏi danh bạ.",
           "Cơ chế thang điểm tín nhiệm: Mỗi Đối tác có hạn mức tối đa 100 điểm tín nhiệm.",
           "Điểm thưởng định kỳ: Mặc định đầu mỗi tháng tự động cộng +5 điểm cho Đối tác hoạt động chuẩn mực.",
           "Phản hồi chậm: Quá 48h không phản hồi hỗ trợ để khách khiếu nại bị trừ -2 điểm.",
           "Xử lý tranh chấp kém: Để xảy ra tranh chấp do xử lý nghiệp vụ kém bị khiếu nại bị trừ -5 điểm.",
-          "Phục vụ thiếu trách nhiệm: Có hành vi ép giá, lùa khách hoặc phục vụ thiếu trách nhiệm bị trừ -8 điểm.",
+          "Phục vụ thiếu trách nhiệm: Có hành vi ép giá, lôi kéo khách hoặc phục vụ thiếu trách nhiệm bị trừ -8 điểm.",
           "Phân loại xếp hạng: 95 - 100 điểm (Xuất sắc), 85 - 94 điểm (Tốt), Dưới 84 điểm (Trung bình / Cảnh báo).",
         ],
         title: "III. Nghĩa vụ & Hệ thống Điểm tín nhiệm (Thang điểm 100)",
@@ -632,12 +634,12 @@ export const GUIDE_POLICY_DATA: PolicySection[] = [
       {
         id: "partner-rights-prohibitions",
         points: [
-          "Quyền lợi: Được niêm yết công khai trên Danh bạ Đối tác Avin Check, tiếp cận lưu lượng người dùng lớn, cấp huy hiệu tín nhiệm, hỗ trợ quảng bá tự động và tham gia mạng lưới chuyên môn.",
+          "Quyền lợi: Được niêm yết công khai trên Danh bạ Đối tác Avin Check, tiếp cận lượng người dùng lớn, cấp huy hiệu tín nhiệm, hỗ trợ quảng bá tự động và tham gia mạng lưới chuyên môn.",
           "NGHIÊM CẤM: Sử dụng hồ sơ uy tín để quảng cáo các dịch vụ vi phạm pháp luật.",
           "NGHIÊM CẤM: Lập trình, buôn bán hoặc hỗ trợ triển khai các giao diện mạo danh Avin Check.",
           "NGHIÊM CẤM: Mua bán hoặc nhận trung gian mua bán tài khoản Zalo dưới mọi hình thức.",
           "NGHIÊM CẤM: Tiêu thụ hoặc thu mua tài khoản, tài sản từ nguồn lừa đảo, giả mạo Đối tác.",
-          "NGHIÊM CẤM: Tấn công, dame hoặc thuê người vô hiệu hóa tài khoản Facebook/Zalo của các Đối tác khác.",
+          "NGHIÊM CẤM: Tấn công, báo cáo xấu (report) hoặc thuê người vô hiệu hóa tài khoản Facebook/Zalo của các Đối tác khác.",
           "NGHIÊM CẤM: Lập website có giao diện hoặc tên miền gây nhầm lẫn để thu cọc trái phép.",
         ],
         title: "IV. Quyền lợi & Những điều nghiêm cấm tuyệt đối",

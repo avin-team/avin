@@ -27,7 +27,7 @@ describe("AvinCheckGuidePage", () => {
 
     expect(screen.getByText("Điều khoản sử dụng")).toBeInTheDocument();
     expect(
-      screen.getByText("Nội quy giao dịch & Chống Scam")
+      screen.getByText("Nội quy giao dịch & Phòng chống lừa đảo")
     ).toBeInTheDocument();
     expect(
       screen.getByText("Quy chế Đối tác & 27 Điều khoản")

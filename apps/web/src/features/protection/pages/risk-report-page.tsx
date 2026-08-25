@@ -112,6 +112,11 @@ const evidenceTypeOptions = {
 
 type EvidenceKind = (typeof evidenceTypeOptions)[ReportType][number]["value"];
 
+interface SelectedRiskEvidence {
+  file: File;
+  kind: EvidenceKind;
+}
+
 const reporterRelationshipOptions = [
   {
     label: "Tôi không có quan hệ Provider",
@@ -313,19 +318,6 @@ const getInitialRiskReportFields = (
   });
 };
 
-const getRiskDraftSaveLabel = (
-  isPending: boolean,
-  reportId: string | undefined
-): string => {
-  if (isPending) {
-    return "Đang lưu…";
-  }
-  if (reportId) {
-    return "Cập nhật bản nháp";
-  }
-  return "Lưu bản nháp riêng tư";
-};
-
 const getRiskSubmitErrorMessage = (reportType: ReportType): string => {
   if (reportType === "BANK_WALLET_PHONE") {
     return "Báo cáo chưa đủ điều kiện gửi. Cần số định danh, tổn thất, tường trình, bằng chứng thanh toán và hội thoại đã được kiểm tra.";
@@ -397,10 +389,7 @@ const RiskReportTypeFields = ({
           }
           value={violationType}
         >
-          <SelectTrigger
-            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-            id="risk-website-violation"
-          >
+          <SelectTrigger className="w-full" id="risk-website-violation">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -446,10 +435,7 @@ const RiskReportTypeFields = ({
           }
           value={identifierType}
         >
-          <SelectTrigger
-            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-            id="risk-identifier-type"
-          >
+          <SelectTrigger className="w-full" id="risk-identifier-type">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -503,7 +489,6 @@ export const RiskReportPage = () => {
     select: (location) => getRiskLookupHandoff(location.state),
   });
   const [step, setStep] = useState<Step>("details");
-  const [reportId, setReportId] = useState<string>();
   const [reporterPhone, setReporterPhone] = useState("");
   const [reporterZalo, setReporterZalo] = useState("");
   const [reporterRelationship, setReporterRelationship] =
@@ -534,7 +519,9 @@ export const RiskReportPage = () => {
   const [urgency, setUrgency] = useState<"NORMAL" | "URGENT">("NORMAL");
   const [affectedVictimCount, setAffectedVictimCount] = useState("1");
   const [narrative, setNarrative] = useState("");
-  const [evidenceCount, setEvidenceCount] = useState(0);
+  const [selectedEvidenceFiles, setSelectedEvidenceFiles] = useState<
+    SelectedRiskEvidence[]
+  >([]);
   const [errorMessage, setErrorMessage] = useState<string>();
 
   const setReportType = (value: ReportType): void => {
@@ -562,7 +549,7 @@ export const RiskReportPage = () => {
   const launchStatusQuery = useQuery(
     orpc.protection.launchStatus.queryOptions()
   );
-  const saveDraft = useMutation(
+  const prepareSubmission = useMutation(
     orpc.protection.riskReport.saveDraft.mutationOptions()
   );
   const addEvidence = useMutation(
@@ -583,7 +570,26 @@ export const RiskReportPage = () => {
     setReportType(nextType);
   };
 
-  const handleSaveDraft = async (event: FormEvent<HTMLFormElement>) => {
+  const handleFilesSelected = (files: File[]): void => {
+    const availableSlots =
+      RISK_REPORT_EVIDENCE_MAX_COUNT - selectedEvidenceFiles.length;
+    if (availableSlots <= 0) {
+      setErrorMessage(
+        `Mỗi báo cáo tối đa ${RISK_REPORT_EVIDENCE_MAX_COUNT} tệp bằng chứng.`
+      );
+      return;
+    }
+    setErrorMessage(undefined);
+    setSelectedEvidenceFiles((currentFiles) => [
+      ...currentFiles,
+      ...files.slice(0, availableSlots).map((file) => ({
+        file,
+        kind: evidenceKind,
+      })),
+    ]);
+  };
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorMessage(undefined);
     try {
@@ -593,126 +599,106 @@ export const RiskReportPage = () => {
         reportType,
         violationType,
       });
-      const draft = await saveDraft.mutateAsync({
+      const report = await prepareSubmission.mutateAsync({
         affectedVictimCount: Number(affectedVictimCount) || 1,
         ...typeFields,
         identifiers: identifierValue.trim()
           ? [{ type: identifierType, value: identifierValue.trim() }]
           : [],
         narrative: narrative.trim() || undefined,
-        ...(reportId ? { reportId } : {}),
         reporterPhone: reporterPhone.trim() || undefined,
         reporterRelationship,
         reporterZalo: reporterZalo.trim() || undefined,
         type: reportType,
         urgency,
       });
-      setReportId(draft.id);
-      setEvidenceCount(draft.evidence.length);
-    } catch {
-      setErrorMessage(
-        "Không thể lưu bản nháp. Kiểm tra lại thông tin và thử lại."
-      );
-    }
-  };
-
-  const handleFilesSelected = async (files: File[]): Promise<void> => {
-    if (!reportId) {
-      setErrorMessage("Hãy lưu bản nháp trước khi tải bằng chứng.");
-      return;
-    }
-    const availableSlots = RISK_REPORT_EVIDENCE_MAX_COUNT - evidenceCount;
-    if (availableSlots <= 0) {
-      setErrorMessage(
-        `Mỗi báo cáo tối đa ${RISK_REPORT_EVIDENCE_MAX_COUNT} tệp bằng chứng.`
-      );
-      return;
-    }
-
-    setErrorMessage(undefined);
-    try {
-      const result = await upload.uploadAsync(files.slice(0, availableSlots), {
-        metadata: {
-          kind: evidenceKind,
-          reportId,
-        },
-      });
-      let registeredCount = 0;
-      for (const uploadedFile of result.files) {
-        if (
-          !RISK_REPORT_EVIDENCE_CONTENT_TYPES.includes(
-            uploadedFile.raw
-              .type as (typeof RISK_REPORT_EVIDENCE_CONTENT_TYPES)[number]
-          )
-        ) {
-          continue;
+      if (selectedEvidenceFiles.length > 0) {
+        const filesByKind = new Map<EvidenceKind, File[]>();
+        for (const selectedEvidence of selectedEvidenceFiles) {
+          const files = filesByKind.get(selectedEvidence.kind) ?? [];
+          files.push(selectedEvidence.file);
+          filesByKind.set(selectedEvidence.kind, files);
         }
-        await addEvidence.mutateAsync({
-          contentType: uploadedFile.raw.type,
-          fileName: uploadedFile.raw.name,
-          kind: evidenceKind,
-          originalStorageKey: uploadedFile.objectInfo.key,
-          reportId,
-          sizeBytes: uploadedFile.raw.size,
-        });
-        registeredCount += 1;
+        for (const [kind, files] of filesByKind) {
+          const result = await upload.uploadAsync(files, {
+            metadata: {
+              kind,
+              reportId: report.id,
+            },
+          });
+          for (const uploadedFile of result.files) {
+            if (
+              !RISK_REPORT_EVIDENCE_CONTENT_TYPES.includes(
+                uploadedFile.raw
+                  .type as (typeof RISK_REPORT_EVIDENCE_CONTENT_TYPES)[number]
+              )
+            ) {
+              continue;
+            }
+            await addEvidence.mutateAsync({
+              contentType: uploadedFile.raw.type,
+              fileName: uploadedFile.raw.name,
+              kind,
+              originalStorageKey: uploadedFile.objectInfo.key,
+              reportId: report.id,
+              sizeBytes: uploadedFile.raw.size,
+            });
+          }
+          if (result.failedFiles.length > 0) {
+            throw new Error("Một số tệp chưa tải lên được. Hãy thử lại.");
+          }
+        }
       }
-      setEvidenceCount((count) => count + registeredCount);
-      if (result.failedFiles.length > 0) {
-        setErrorMessage("Một số tệp chưa tải lên được. Hãy thử lại.");
-      }
-    } catch {
-      setErrorMessage("Không thể đăng ký bằng chứng. Vui lòng thử lại.");
-    }
-  };
-
-  const handleSubmit = async () => {
-    if (!reportId) {
-      return;
-    }
-    setErrorMessage(undefined);
-    try {
       await submitReport.mutateAsync({
-        reportId,
+        reportId: report.id,
       });
       setStep("submitted");
-    } catch {
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("tải lên")) {
+        setErrorMessage(error.message);
+        return;
+      }
       setErrorMessage(getRiskSubmitErrorMessage(reportType));
     }
   };
 
   const publicationEnabled =
     launchStatusQuery.data?.riskReportPublication.enabled ?? false;
-  const saveDraftLabel = getRiskDraftSaveLabel(saveDraft.isPending, reportId);
+  const isSubmitting =
+    prepareSubmission.isPending ||
+    upload.isPending ||
+    addEvidence.isPending ||
+    submitReport.isPending;
 
   return (
     <Shell as="div" className="gap-8" variant="default">
       <section
         aria-labelledby="risk-report-heading"
-        className="rounded-[2rem] border border-primary/20 bg-linear-to-br from-primary/10 via-card to-card px-6 py-10 shadow-sm sm:px-10"
+        className="flex w-full flex-wrap items-start justify-between gap-2 text-left"
       >
-        <Link
-          className="mb-6 inline-flex items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
-          to="/avin-check"
-        >
-          <ArrowLeftIcon aria-hidden="true" className="size-4" />
-          Quay lại Avin Check
-        </Link>
-        <Badge className="mb-4 gap-1.5" variant="outline">
-          <ShieldCheckIcon aria-hidden="true" />
-          Avin Check · Risk report
-        </Badge>
-        <h1
-          className="font-black text-4xl tracking-tight sm:text-5xl"
-          id="risk-report-heading"
-        >
-          Gửi cảnh báo rủi ro bằng account Avin.
-        </h1>
-        <p className="mt-4 max-w-3xl text-muted-foreground leading-7">
-          Bạn đang gửi với tư cách người dùng Avin đã đăng nhập. Lưu bằng chứng
-          riêng tư và gửi cho Risk Moderator; chỉ bản tóm tắt và derivative đã
-          che dữ liệu mới có thể xuất hiện công khai.
-        </p>
+        <div className="grid gap-2">
+          <Link
+            className="inline-flex w-fit items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
+            to="/avin-check"
+          >
+            <ArrowLeftIcon aria-hidden="true" className="size-4" />
+            Quay lại Avin Check
+          </Link>
+          <Badge className="w-fit gap-1.5" variant="outline">
+            <ShieldCheckIcon aria-hidden="true" />
+            Avin Check
+          </Badge>
+          <h1
+            className="font-bold text-3xl tracking-tight text-foreground"
+            id="risk-report-heading"
+          >
+            Gửi tố cáo
+          </h1>
+          <p className="max-w-3xl text-muted-foreground">
+            Thông tin và bằng chứng chỉ được dùng để Risk Moderator xem xét. Dữ
+            liệu nhạy cảm không xuất hiện trong cảnh báo công khai.
+          </p>
+        </div>
       </section>
 
       {errorMessage ? (
@@ -723,153 +709,111 @@ export const RiskReportPage = () => {
       ) : null}
 
       {step === "details" ? (
-        <form className="grid gap-6" onSubmit={handleSaveDraft}>
-          <Card>
-            <CardHeader>
-              <CardTitle>1. Thông tin liên hệ riêng tư</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-2">
-              <p className="text-muted-foreground text-sm sm:col-span-2">
-                Tên và email được lấy từ account Avin đang đăng nhập và lưu
-                riêng cho việc xử lý báo cáo.
+        <form onSubmit={handleSubmit}>
+          <section className="grid gap-6 rounded-3xl border bg-card p-6 sm:p-8">
+            <div>
+              <h2 className="font-bold text-lg">Thông tin tố cáo</h2>
+              <p className="text-muted-foreground text-sm">
+                Điền thông tin sự việc, đính kèm bằng chứng và gửi xét duyệt
+                trong một lần.
               </p>
-              <label
-                className="grid gap-1.5 text-sm font-medium sm:col-span-2"
-                htmlFor="risk-reporter-relationship"
-              >
-                Quan hệ với Provider (nếu có)
-                <Select
-                  items={reporterRelationshipOptions}
-                  onValueChange={(value) =>
-                    setReporterRelationship(value as ReporterRelationship)
-                  }
-                  value={reporterRelationship}
-                >
-                  <SelectTrigger
-                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                    id="risk-reporter-relationship"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {reporterRelationshipOptions.map((item) => (
-                        <SelectItem key={item.value} value={item.value}>
-                          {item.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                <span className="font-normal text-muted-foreground text-xs">
-                  Chỉ Risk Moderator nhìn thấy tín hiệu xung đột này; cảnh báo
-                  công khai không tiết lộ người gửi hay quan hệ Provider.
-                </span>
-              </label>
-              <label
-                className="grid gap-1.5 text-sm font-medium"
-                htmlFor="risk-reporter-phone"
-              >
-                Số điện thoại riêng tư (tuỳ chọn)
-                <Input
-                  autoComplete="tel"
-                  id="risk-reporter-phone"
-                  onChange={(event) => setReporterPhone(event.target.value)}
-                  value={reporterPhone}
-                />
-              </label>
-              <label
-                className="grid gap-1.5 text-sm font-medium"
-                htmlFor="risk-reporter-zalo"
-              >
-                Zalo riêng tư (tuỳ chọn)
-                <Input
-                  autoComplete="off"
-                  id="risk-reporter-zalo"
-                  onChange={(event) => setReporterZalo(event.target.value)}
-                  value={reporterZalo}
-                />
-              </label>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Thông tin sự việc</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              <label
-                className="grid gap-1.5 text-sm font-medium"
-                htmlFor="risk-report-type"
-              >
-                Loại cảnh báo
-                <Select
-                  items={reportTypeOptions}
-                  onValueChange={(value) =>
-                    handleReportTypeChange(value as ReportType)
-                  }
-                  value={reportType}
-                >
-                  <SelectTrigger
-                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                    disabled={Boolean(reportId)}
-                    id="risk-report-type"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {reportTypeOptions.map((item) => (
-                        <SelectItem key={item.value} value={item.value}>
-                          {item.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                {reportId ? (
-                  <span className="font-normal text-muted-foreground text-xs">
-                    Không thể đổi loại sau khi đã lưu bản nháp.
-                  </span>
-                ) : null}
-              </label>
-
-              <RiskReportTypeFields
-                claimedLoss={claimedLoss}
-                identifierType={identifierType}
-                identifierValue={identifierValue}
-                onClaimedLossChange={setClaimedLoss}
-                onIdentifierTypeChange={setIdentifierType}
-                onIdentifierValueChange={setIdentifierValue}
-                onPlatformChange={setPlatform}
-                onViolationTypeChange={setViolationType}
-                platform={platform}
-                reportType={reportType}
-                violationType={violationType}
-              />
-
-              <div className="grid gap-4 sm:grid-cols-2">
+            </div>
+            <Card className="border-0 bg-transparent shadow-none">
+              <CardHeader>
+                <CardTitle>Thông tin liên hệ riêng tư</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4 sm:grid-cols-2">
+                <p className="text-muted-foreground text-sm sm:col-span-2">
+                  Tên và email được lấy từ account Avin đang đăng nhập và lưu
+                  riêng cho việc xử lý báo cáo.
+                </p>
                 <label
-                  className="grid gap-1.5 text-sm font-medium"
-                  htmlFor="risk-urgency"
+                  className="grid gap-1.5 text-sm font-medium sm:col-span-2"
+                  htmlFor="risk-reporter-relationship"
                 >
-                  Mức độ khẩn cấp
+                  Quan hệ với Provider (nếu có)
                   <Select
-                    items={urgencyOptions}
+                    items={reporterRelationshipOptions}
                     onValueChange={(value) =>
-                      setUrgency(value as "NORMAL" | "URGENT")
+                      setReporterRelationship(value as ReporterRelationship)
                     }
-                    value={urgency}
+                    value={reporterRelationship}
                   >
                     <SelectTrigger
-                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                      id="risk-urgency"
+                      className="w-full"
+                      id="risk-reporter-relationship"
                     >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
-                        {urgencyOptions.map((item) => (
+                        {reporterRelationshipOptions.map((item) => (
+                          <SelectItem key={item.value} value={item.value}>
+                            {item.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  <span className="font-normal text-muted-foreground text-xs">
+                    Chỉ Risk Moderator nhìn thấy tín hiệu xung đột này; cảnh báo
+                    công khai không tiết lộ người gửi hay quan hệ Provider.
+                  </span>
+                </label>
+                <label
+                  className="grid gap-1.5 text-sm font-medium"
+                  htmlFor="risk-reporter-phone"
+                >
+                  Số điện thoại riêng tư (tuỳ chọn)
+                  <Input
+                    autoComplete="tel"
+                    id="risk-reporter-phone"
+                    onChange={(event) => setReporterPhone(event.target.value)}
+                    value={reporterPhone}
+                  />
+                </label>
+                <label
+                  className="grid gap-1.5 text-sm font-medium"
+                  htmlFor="risk-reporter-zalo"
+                >
+                  Zalo riêng tư (tuỳ chọn)
+                  <Input
+                    autoComplete="off"
+                    id="risk-reporter-zalo"
+                    onChange={(event) => setReporterZalo(event.target.value)}
+                    value={reporterZalo}
+                  />
+                </label>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 bg-transparent shadow-none">
+              <CardHeader>
+                <CardTitle>Thông tin sự việc</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                <label
+                  className="grid gap-1.5 text-sm font-medium"
+                  htmlFor="risk-report-type"
+                >
+                  Loại cảnh báo
+                  <Select
+                    items={reportTypeOptions}
+                    onValueChange={(value) =>
+                      handleReportTypeChange(value as ReportType)
+                    }
+                    value={reportType}
+                  >
+                    <SelectTrigger
+                      className="w-full"
+                      disabled={isSubmitting}
+                      id="risk-report-type"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {reportTypeOptions.map((item) => (
                           <SelectItem key={item.value} value={item.value}>
                             {item.label}
                           </SelectItem>
@@ -878,131 +822,161 @@ export const RiskReportPage = () => {
                     </SelectContent>
                   </Select>
                 </label>
+
+                <RiskReportTypeFields
+                  claimedLoss={claimedLoss}
+                  identifierType={identifierType}
+                  identifierValue={identifierValue}
+                  onClaimedLossChange={setClaimedLoss}
+                  onIdentifierTypeChange={setIdentifierType}
+                  onIdentifierValueChange={setIdentifierValue}
+                  onPlatformChange={setPlatform}
+                  onViolationTypeChange={setViolationType}
+                  platform={platform}
+                  reportType={reportType}
+                  violationType={violationType}
+                />
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label
+                    className="grid gap-1.5 text-sm font-medium"
+                    htmlFor="risk-urgency"
+                  >
+                    Mức độ khẩn cấp
+                    <Select
+                      items={urgencyOptions}
+                      onValueChange={(value) =>
+                        setUrgency(value as "NORMAL" | "URGENT")
+                      }
+                      value={urgency}
+                    >
+                      <SelectTrigger className="w-full" id="risk-urgency">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {urgencyOptions.map((item) => (
+                            <SelectItem key={item.value} value={item.value}>
+                              {item.label}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </label>
+                  <label
+                    className="grid gap-1.5 text-sm font-medium"
+                    htmlFor="risk-affected-victim-count"
+                  >
+                    Số nạn nhân bị ảnh hưởng
+                    <Input
+                      id="risk-affected-victim-count"
+                      inputMode="numeric"
+                      min={1}
+                      onChange={(event) =>
+                        setAffectedVictimCount(event.target.value)
+                      }
+                      required
+                      type="number"
+                      value={affectedVictimCount}
+                    />
+                  </label>
+                </div>
                 <label
                   className="grid gap-1.5 text-sm font-medium"
-                  htmlFor="risk-affected-victim-count"
+                  htmlFor="risk-narrative"
                 >
-                  Số nạn nhân bị ảnh hưởng
-                  <Input
-                    id="risk-affected-victim-count"
-                    inputMode="numeric"
-                    min={1}
-                    onChange={(event) =>
-                      setAffectedVictimCount(event.target.value)
-                    }
+                  Tường trình sự việc
+                  <Textarea
+                    id="risk-narrative"
+                    maxLength={10_000}
+                    minLength={20}
+                    onChange={(event) => setNarrative(event.target.value)}
                     required
-                    type="number"
-                    value={affectedVictimCount}
+                    rows={7}
+                    value={narrative}
                   />
                 </label>
-              </div>
-              <label
-                className="grid gap-1.5 text-sm font-medium"
-                htmlFor="risk-narrative"
-              >
-                Tường trình sự việc
-                <Textarea
-                  id="risk-narrative"
-                  maxLength={10_000}
-                  minLength={20}
-                  onChange={(event) => setNarrative(event.target.value)}
-                  required
-                  rows={7}
-                  value={narrative}
-                />
-              </label>
-              <Button disabled={saveDraft.isPending} type="submit">
-                {saveDraftLabel}
-              </Button>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>2. Bằng chứng riêng tư</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              <p className="text-muted-foreground text-sm">
-                Tối đa {RISK_REPORT_EVIDENCE_MAX_COUNT} tệp, mỗi tệp tối đa 20
-                MB. Bản gốc chỉ Risk Moderator có thể mở bằng signed URL.
-              </p>
-              <label
-                className="grid gap-1.5 text-sm font-medium"
-                htmlFor="risk-evidence-kind"
-              >
-                Loại bằng chứng đang tải
-                <Select
-                  items={evidenceTypeOptions[reportType]}
-                  onValueChange={(value) =>
-                    setEvidenceKind(value as EvidenceKind)
-                  }
-                  value={evidenceKind}
+            <Card className="border-0 bg-transparent shadow-none">
+              <CardHeader>
+                <CardTitle>Bằng chứng riêng tư</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                <p className="text-muted-foreground text-sm">
+                  Tối đa {RISK_REPORT_EVIDENCE_MAX_COUNT} tệp, mỗi tệp tối đa 20
+                  MB. Bản gốc chỉ Risk Moderator có thể mở bằng signed URL.
+                </p>
+                <label
+                  className="grid gap-1.5 text-sm font-medium"
+                  htmlFor="risk-evidence-kind"
                 >
-                  <SelectTrigger
-                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                    id="risk-evidence-kind"
+                  Loại bằng chứng đang tải
+                  <Select
+                    items={evidenceTypeOptions[reportType]}
+                    onValueChange={(value) =>
+                      setEvidenceKind(value as EvidenceKind)
+                    }
+                    value={evidenceKind}
                   >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {evidenceTypeOptions[reportType].map((item) => (
-                        <SelectItem key={item.value} value={item.value}>
-                          {item.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </label>
-              <FileDropzone
-                accept={ACCEPTED_CONTENT_TYPES}
-                disabled={
-                  !reportId ||
-                  upload.isPending ||
-                  evidenceCount >= RISK_REPORT_EVIDENCE_MAX_COUNT
-                }
-                helperText="PDF, TXT, JPEG, PNG, WebP, MP4 hoặc WebM · tối đa 20 MB mỗi tệp"
-                inputLabel="Chọn tệp bằng chứng"
-                isUploading={upload.isPending || addEvidence.isPending}
-                label="Thêm bằng chứng"
-                maxFiles={Math.max(
-                  1,
-                  RISK_REPORT_EVIDENCE_MAX_COUNT - evidenceCount
-                )}
-                maxSize={RISK_REPORT_EVIDENCE_MAX_BYTES}
-                multiple
-                onFilesSelected={(files) => void handleFilesSelected(files)}
-                progress={upload.averageProgress}
-                uploadingLabel="Đang tải bằng chứng…"
-              />
-              <p aria-live="polite" className="text-muted-foreground text-sm">
-                Đã đăng ký {evidenceCount}/{RISK_REPORT_EVIDENCE_MAX_COUNT} tệp.
-              </p>
-            </CardContent>
-          </Card>
+                    <SelectTrigger className="w-full" id="risk-evidence-kind">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {evidenceTypeOptions[reportType].map((item) => (
+                          <SelectItem key={item.value} value={item.value}>
+                            {item.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </label>
+                <FileDropzone
+                  accept={ACCEPTED_CONTENT_TYPES}
+                  disabled={
+                    isSubmitting ||
+                    selectedEvidenceFiles.length >=
+                      RISK_REPORT_EVIDENCE_MAX_COUNT
+                  }
+                  helperText="PDF, TXT, JPEG, PNG, WebP, MP4 hoặc WebM · tối đa 20 MB mỗi tệp"
+                  inputLabel="Chọn tệp bằng chứng"
+                  isUploading={upload.isPending || addEvidence.isPending}
+                  label="Thêm bằng chứng"
+                  maxFiles={Math.max(
+                    1,
+                    RISK_REPORT_EVIDENCE_MAX_COUNT -
+                      selectedEvidenceFiles.length
+                  )}
+                  maxSize={RISK_REPORT_EVIDENCE_MAX_BYTES}
+                  multiple
+                  onFilesSelected={handleFilesSelected}
+                  progress={upload.averageProgress}
+                  uploadingLabel="Đang tải bằng chứng…"
+                />
+                <p aria-live="polite" className="text-muted-foreground text-sm">
+                  Đã chọn {selectedEvidenceFiles.length}/
+                  {RISK_REPORT_EVIDENCE_MAX_COUNT} tệp.
+                </p>
+              </CardContent>
+            </Card>
 
-          <Card className="border-primary/20">
-            <CardContent className="grid gap-4 pt-6">
-              <p className="text-muted-foreground text-sm">
-                {publicationEnabled
-                  ? "Launch gates cho publication đang mở; Moderator vẫn phải duyệt evidence và derivative."
-                  : "Publication hiện đang bị khóa bởi launch gates pháp lý/data governance. Báo cáo vẫn có thể gửi để xếp hàng review."}
-              </p>
-              <Button
-                disabled={
-                  !reportId ||
-                  submitReport.isPending ||
-                  saveDraft.isPending ||
-                  upload.isPending
-                }
-                onClick={() => void handleSubmit()}
-                type="button"
-              >
-                {submitReport.isPending ? "Đang gửi…" : "Gửi Risk Moderator"}
-              </Button>
-            </CardContent>
-          </Card>
+            <Card className="border-0 border-t border-primary/20 bg-transparent shadow-none">
+              <CardContent className="grid gap-4 pt-6">
+                <p className="text-muted-foreground text-sm">
+                  {publicationEnabled
+                    ? "Launch gates cho publication đang mở; Moderator vẫn phải duyệt evidence và derivative."
+                    : "Publication hiện đang bị khóa bởi launch gates pháp lý/data governance. Báo cáo vẫn có thể gửi để xếp hàng review."}
+                </p>
+                <Button disabled={isSubmitting} type="submit">
+                  {isSubmitting ? "Đang gửi…" : "Gửi tố cáo"}
+                </Button>
+              </CardContent>
+            </Card>
+          </section>
         </form>
       ) : null}
 

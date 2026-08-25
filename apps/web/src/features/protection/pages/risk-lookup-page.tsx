@@ -9,10 +9,12 @@ import {
   CardTitle,
 } from "@avin/ui/components/card";
 import { Input } from "@avin/ui/components/input";
+import { Skeleton } from "@avin/ui/components/skeleton";
 import {
   FlagIcon,
   MagnifyingGlassIcon,
   ShieldWarningIcon,
+  XIcon,
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
@@ -30,58 +32,20 @@ import type {
 } from "../api/risk-lookup-api";
 import { PublicRiskWarningCatalogue } from "../components/public-risk-warning-catalogue";
 import { rememberRiskLookupHandoff } from "../risk-lookup-handoff";
-import type { RiskLookupKind } from "../risk-lookup-handoff";
 
-const lookupKindOptions = [
-  { label: "Tự nhận diện", value: "AUTO" },
-  { label: "SĐT hoặc tài khoản ngân hàng", value: "PHONE_OR_BANK" },
-  { label: "Số điện thoại", value: "PHONE" },
-  { label: "Số tài khoản ngân hàng", value: "BANK_ACCOUNT" },
-  { label: "Website", value: "WEBSITE" },
-  { label: "Link Facebook", value: "FACEBOOK" },
-  { label: "Link TikTok", value: "TIKTOK" },
-  { label: "Link Telegram", value: "TELEGRAM" },
-] as const satisfies readonly { label: string; value: RiskLookupKind }[];
-
-const identifierTypeLabels: Record<string, string> = {
-  BANK_ACCOUNT: "Số tài khoản ngân hàng",
-  PHONE: "Số điện thoại",
-  PLATFORM_ACCOUNT: "Tài khoản trên nền tảng",
+const identifierFilterLabels: Record<string, string> = {
+  BANK_ACCOUNT: "STK",
+  PHONE: "SĐT",
+  PLATFORM_ACCOUNT: "Tài khoản nền tảng",
   SOCIAL_ACCOUNT: "Tài khoản social",
-  WALLET_ACCOUNT: "Tài khoản ví điện tử",
+  WALLET_ACCOUNT: "Ví điện tử",
   WEBSITE: "Website",
 };
 
-const lookupKindLabels = Object.fromEntries(
-  lookupKindOptions.map(({ label, value }) => [value, label])
-) as Record<RiskLookupKind, string>;
-
-const lookupDateFormatter = new Intl.DateTimeFormat("vi-VN", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
 const lookupNumberFormatter = new Intl.NumberFormat("vi-VN");
-
-const formatDate = (value: string | null): string =>
-  value ? lookupDateFormatter.format(new Date(value)) : "Chưa có dữ liệu";
 
 const formatMoney = (value: number): string =>
   `${lookupNumberFormatter.format(value)} VND`;
-
-const getInputMode = (type: RiskLookupKind): "numeric" | "url" | "text" => {
-  if (type === "PHONE" || type === "BANK_ACCOUNT" || type === "PHONE_OR_BANK") {
-    return "numeric";
-  }
-  if (
-    type === "WEBSITE" ||
-    type === "FACEBOOK" ||
-    type === "TIKTOK" ||
-    type === "TELEGRAM"
-  ) {
-    return "url";
-  }
-  return "text";
-};
 
 type PublicRiskLookupGroup = PublicRiskIdentifierLookup["groups"][number];
 
@@ -153,133 +117,53 @@ const mergeLookupResults = (
   };
 };
 
-const statusLabels = {
-  CORRECTED: "Đã cập nhật",
-  PUBLISHED: "Đã công khai",
-  UNDER_VERIFICATION: "Đang xác minh",
-} as const;
+const getFilteredLookupResult = (
+  result: PublicRiskIdentifierLookup | null,
+  groupId: string | null
+): PublicRiskIdentifierLookup | null => {
+  if (!result || !groupId) {
+    return result;
+  }
 
-const PublicRiskLookupGroupResult = ({
-  group,
+  const groups = result.groups.filter((group) => group.groupId === groupId);
+  const warnings = groups.flatMap((group) => group.warnings);
+  return {
+    ...result,
+    groups,
+    hasMore: false,
+    nextCursor: null,
+    totalReports: warnings.length,
+    warnings,
+  };
+};
+
+const getLookupFilterLabel = (group: PublicRiskLookupGroup): string => {
+  const identifier =
+    group.identifier.publicValue ?? group.identifier.maskedValue;
+  const type = identifierFilterLabels[group.identifier.type] ?? "Định danh";
+  return `${type}: ${identifier}`;
+};
+
+const ActivityMetric = ({
+  isLoading = false,
+  label,
+  value,
 }: {
-  group: PublicRiskLookupGroup;
+  isLoading?: boolean;
+  label: string;
+  value?: number;
 }) => (
-  <Card>
-    <CardHeader>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <CardTitle>{identifierTypeLabels[group.identifier.type]}</CardTitle>
-          <CardDescription>
-            {group.hasPublicWarning
-              ? "Có cảnh báo công khai"
-              : "Có tố cáo đang xác minh"}
-          </CardDescription>
-        </div>
-        <Badge variant={group.hasPublicWarning ? "default" : "outline"}>
-          {group.reportCount} báo cáo
-        </Badge>
-      </div>
-      <p className="rounded-lg bg-muted/40 px-3 py-2 font-medium text-sm break-all">
-        {group.identifier.publicValue ?? group.identifier.maskedValue}
-      </p>
-      <p className="text-muted-foreground text-xs">
-        {group.sourceCount} nguồn · cập nhật{" "}
-        {formatDate(group.latestPublishedAt)}
-      </p>
-    </CardHeader>
-    <CardContent className="grid gap-3">
-      {group.warnings.map((warning) => (
-        <article
-          className="grid gap-2 rounded-xl border border-border/60 p-3"
-          key={warning.publicSlug}
-        >
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <Badge variant="outline">{statusLabels[warning.status]}</Badge>
-            <span className="text-muted-foreground text-xs">
-              {formatDate(warning.publishedAt)}
-            </span>
-          </div>
-          <div className="text-sm">
-            <span className="text-muted-foreground">Nguồn: </span>
-            {warning.externalSource.url ? (
-              <a
-                className="font-medium text-primary underline underline-offset-4"
-                href={warning.externalSource.url}
-                rel="noopener noreferrer"
-                target="_blank"
-              >
-                {warning.externalSource.title ?? warning.externalSource.name}
-              </a>
-            ) : (
-              <span className="font-medium">{warning.externalSource.name}</span>
-            )}
-          </div>
-          {warning.publicSummary ? (
-            <p className="text-muted-foreground text-sm leading-6">
-              {warning.publicSummary}
-            </p>
-          ) : null}
-          <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
-            <span className="text-muted-foreground">
-              {warning.affectedVictimCount} người bị ảnh hưởng
-              {warning.claimedLoss === null
-                ? ""
-                : ` · ${formatMoney(warning.claimedLoss)}`}
-            </span>
-            <Link
-              className="font-medium text-primary underline underline-offset-4"
-              params={{ slug: warning.publicSlug }}
-              to="/avin-check/warning/$slug"
-            >
-              Xem chi tiết
-            </Link>
-          </div>
-        </article>
-      ))}
-    </CardContent>
-  </Card>
-);
-
-const ActivityMetric = ({ label, value }: { label: string; value: number }) => (
   <div className="rounded-xl border bg-muted/20 p-4">
     <p className="text-muted-foreground text-sm">{label}</p>
-    <p className="mt-1 font-bold text-2xl text-primary">
-      {lookupNumberFormatter.format(value)}
-    </p>
+    {isLoading ? (
+      <Skeleton className="mt-2 h-7 w-24 rounded-md" />
+    ) : (
+      <p className="mt-1 font-bold text-2xl text-primary">
+        {value === undefined ? "—" : lookupNumberFormatter.format(value)}
+      </p>
+    )}
   </div>
 );
-
-const activityByRange = {
-  day: [
-    { date: "24/08/2026", loss: 50_465_222, reports: 58, responses: 6 },
-    { date: "23/08/2026", loss: 0, reports: 0, responses: 9 },
-    { date: "22/08/2026", loss: 83_685_494, reports: 33, responses: 14 },
-    { date: "21/08/2026", loss: 35_043_999, reports: 35, responses: 15 },
-    { date: "20/08/2026", loss: 35_939_850, reports: 38, responses: 14 },
-    { date: "19/08/2026", loss: 23_552_999, reports: 39, responses: 11 },
-  ],
-  month: [
-    { date: "Tháng 8/2026", loss: 835_200_000, reports: 924, responses: 282 },
-    { date: "Tháng 7/2026", loss: 769_650_000, reports: 811, responses: 241 },
-    { date: "Tháng 6/2026", loss: 692_430_000, reports: 764, responses: 226 },
-  ],
-  year: [
-    {
-      date: "Năm 2026",
-      loss: 6_620_770_682,
-      reports: 29_131,
-      responses: 6046,
-    },
-    { date: "Năm 2025", loss: 36_170_997, reports: 10_262, responses: 2711 },
-    { date: "Năm 2024", loss: 2_580_000, reports: 12_551, responses: 3279 },
-    { date: "Năm 2023", loss: 2_499_999, reports: 14_502, responses: 3789 },
-    { date: "Năm 2022", loss: 0, reports: 12_463, responses: 270 },
-    { date: "Năm 2021", loss: 0, reports: 10_812, responses: 0 },
-    { date: "Năm 2020", loss: 0, reports: 92, responses: 0 },
-    { date: "Năm 2019", loss: 0, reports: 0, responses: 0 },
-    { date: "Năm 2018", loss: 0, reports: 0, responses: 0 },
-  ],
-} as const;
 
 const activityRangeOptions = [
   { label: "Theo ngày", value: "day" },
@@ -289,15 +173,27 @@ const activityRangeOptions = [
 
 type ActivityRange = (typeof activityRangeOptions)[number]["value"];
 
+const formatActivityPeriod = (period: string, range: ActivityRange): string => {
+  if (range === "year") {
+    return `Năm ${period}`;
+  }
+  if (range === "month") {
+    const [year, month] = period.split("-");
+    return `Tháng ${Number(month)}/${year}`;
+  }
+  const [year, month, day] = period.split("-");
+  return `${day}/${month}/${year}`;
+};
+
 const PublicRiskStatisticsSection = ({
+  isLoading = false,
   statistics,
 }: {
+  isLoading?: boolean;
   statistics?: PublicRiskStatisticsData;
 }) => {
   const [activityRange, setActivityRange] = useState<ActivityRange>("year");
-  const reportedIdentifiers = statistics?.publishedRiskIdentifiers || 89_813;
-  const publicWarnings = statistics?.currentReports || 25_415;
-  const activityByDate = activityByRange[activityRange];
+  const activityByDate = statistics?.activity[activityRange] ?? [];
 
   return (
     <section
@@ -322,11 +218,20 @@ const PublicRiskStatisticsSection = ({
         </CardHeader>
         <CardContent className="grid gap-3 pt-4 sm:grid-cols-3">
           <ActivityMetric
+            isLoading={isLoading}
             label="Số điện thoại, số tài khoản"
-            value={reportedIdentifiers}
+            value={statistics?.publishedRiskIdentifiers}
           />
-          <ActivityMetric label="Cảnh báo công khai" value={publicWarnings} />
-          <ActivityMetric label="Phản hồi từ cộng đồng" value={9943} />
+          <ActivityMetric
+            isLoading={isLoading}
+            label="Cảnh báo công khai"
+            value={statistics?.currentReports}
+          />
+          <ActivityMetric
+            isLoading={isLoading}
+            label="Nạn nhân bị ảnh hưởng"
+            value={statistics?.affectedVictims}
+          />
         </CardContent>
       </Card>
 
@@ -341,6 +246,7 @@ const PublicRiskStatisticsSection = ({
               {activityRangeOptions.map((option) => (
                 <Button
                   className="h-7 px-3 text-xs"
+                  disabled={isLoading}
                   key={option.value}
                   onClick={() => setActivityRange(option.value)}
                   type="button"
@@ -353,29 +259,66 @@ const PublicRiskStatisticsSection = ({
           </div>
         </CardHeader>
         <CardContent className="grid gap-3 pt-4 sm:grid-cols-2 lg:grid-cols-3">
-          {activityByDate.map((day) => (
-            <article className="rounded-xl border p-4" key={day.date}>
-              <h3 className="font-semibold text-sm">{day.date}</h3>
-              <dl className="mt-3 grid gap-1 text-sm">
-                <div className="flex justify-between gap-3">
-                  <dt className="text-muted-foreground">Cảnh báo đã duyệt</dt>
-                  <dd className="font-medium text-primary">{day.reports}</dd>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <dt className="text-muted-foreground">Số tiền bị lừa</dt>
-                  <dd className="font-medium text-destructive">
-                    {formatMoney(day.loss)}
-                  </dd>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <dt className="text-muted-foreground">
-                    Phản hồi từ cộng đồng
-                  </dt>
-                  <dd className="font-medium text-primary">{day.responses}</dd>
-                </div>
-              </dl>
-            </article>
-          ))}
+          {isLoading ? (
+            Array.from({ length: 3 }).map((_, index) => (
+              <article className="rounded-xl border p-4" key={index}>
+                <Skeleton className="h-4 w-28 rounded-md" />
+                <dl className="mt-3 grid gap-2">
+                  <div className="flex justify-between gap-3">
+                    <Skeleton className="h-4 w-28 rounded-md" />
+                    <Skeleton className="h-4 w-12 rounded-md" />
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <Skeleton className="h-4 w-24 rounded-md" />
+                    <Skeleton className="h-4 w-20 rounded-md" />
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <Skeleton className="h-4 w-32 rounded-md" />
+                    <Skeleton className="h-4 w-12 rounded-md" />
+                  </div>
+                </dl>
+              </article>
+            ))
+          ) : (
+            <>
+              {activityByDate.map((period) => (
+                <article className="rounded-xl border p-4" key={period.period}>
+                  <h3 className="font-semibold text-sm">
+                    {formatActivityPeriod(period.period, activityRange)}
+                  </h3>
+                  <dl className="mt-3 grid gap-1 text-sm">
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-muted-foreground">
+                        Cảnh báo đã duyệt
+                      </dt>
+                      <dd className="font-medium text-primary">
+                        {lookupNumberFormatter.format(period.reports)}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-muted-foreground">Số tiền bị lừa</dt>
+                      <dd className="font-medium text-destructive">
+                        {formatMoney(period.claimedLoss)}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-muted-foreground">
+                        Nạn nhân bị ảnh hưởng
+                      </dt>
+                      <dd className="font-medium text-primary">
+                        {lookupNumberFormatter.format(period.affectedVictims)}
+                      </dd>
+                    </div>
+                  </dl>
+                </article>
+              ))}
+              {activityByDate.length === 0 ? (
+                <p className="text-muted-foreground text-sm">
+                  Chưa có dữ liệu báo cáo công khai.
+                </p>
+              ) : null}
+            </>
+          )}
         </CardContent>
       </Card>
     </section>
@@ -384,15 +327,19 @@ const PublicRiskStatisticsSection = ({
 
 export const RiskLookupPage = () => {
   const [value, setValue] = useState("");
-  const [selectedKind, setSelectedKind] = useState<RiskLookupKind>("AUTO");
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [clientError, setClientError] = useState<string | null>(null);
   const searchMutation = usePublicRiskIdentifierSearch();
   const statisticsQuery = usePublicRiskStatistics();
   const [result, setResult] = useState<PublicRiskIdentifierLookup | null>(
     () => searchMutation.data ?? null
   );
+  const filteredResult = getFilteredLookupResult(result, selectedGroupId);
   const statisticsContent = (
-    <PublicRiskStatisticsSection statistics={statisticsQuery.data} />
+    <PublicRiskStatisticsSection
+      isLoading={statisticsQuery.isPending}
+      statistics={statisticsQuery.data}
+    />
   );
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -405,9 +352,10 @@ export const RiskLookupPage = () => {
 
     setClientError(null);
     setResult(null);
+    setSelectedGroupId(null);
     try {
       const nextResult = await searchMutation.mutateAsync({
-        kind: selectedKind,
+        kind: "AUTO",
         value: trimmedValue,
       });
       setResult(nextResult);
@@ -424,7 +372,7 @@ export const RiskLookupPage = () => {
     try {
       const nextResult = await searchMutation.mutateAsync({
         cursor: result.nextCursor,
-        kind: selectedKind,
+        kind: "AUTO",
         value: value.trim(),
       });
       setResult((currentResult) =>
@@ -435,6 +383,13 @@ export const RiskLookupPage = () => {
     } catch {
       setClientError("Không thể tải thêm kết quả. Vui lòng thử lại.");
     }
+  };
+
+  const handleClear = (): void => {
+    setClientError(null);
+    setResult(null);
+    setSelectedGroupId(null);
+    setValue("");
   };
 
   return (
@@ -470,41 +425,33 @@ export const RiskLookupPage = () => {
             TikTok, Telegram
           </label>
           <div className="flex flex-col gap-3 sm:flex-row">
-            <div className="flex h-12 shrink-0 items-center rounded-xl border border-input bg-background px-3 sm:w-64">
-              <label className="sr-only" htmlFor="risk-lookup-kind">
-                Loại định danh
-              </label>
-              <select
-                aria-label={`Loại định danh: ${lookupKindLabels[selectedKind]}`}
-                className="w-full bg-transparent font-medium text-sm outline-none"
-                id="risk-lookup-kind"
+            <div className="relative flex-1">
+              <Input
+                autoComplete="off"
+                className="h-12 pr-11"
+                id="risk-lookup-value"
+                inputMode="text"
+                maxLength={300}
                 onChange={(event) => {
-                  setSelectedKind(event.target.value as RiskLookupKind);
+                  setValue(event.target.value);
                   setResult(null);
+                  setSelectedGroupId(null);
                 }}
-                value={selectedKind}
-              >
-                {lookupKindOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                placeholder="SĐT, số tài khoản, website hoặc link mạng xã hội"
+                spellCheck="false"
+                value={value}
+              />
+              {value ? (
+                <button
+                  aria-label="Xóa nội dung tra cứu"
+                  className="absolute top-1/2 right-2 inline-flex size-8 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  onClick={handleClear}
+                  type="button"
+                >
+                  <XIcon aria-hidden="true" className="size-4" />
+                </button>
+              ) : null}
             </div>
-            <Input
-              autoComplete="off"
-              className="h-12 flex-1"
-              id="risk-lookup-value"
-              inputMode={getInputMode(selectedKind)}
-              maxLength={300}
-              onChange={(event) => {
-                setValue(event.target.value);
-                setResult(null);
-              }}
-              placeholder="Ví dụ: 0912345678, example.com hoặc @tiktok_user"
-              spellCheck="false"
-              value={value}
-            />
             <Button
               className="h-12 sm:px-6"
               disabled={searchMutation.isPending || !value.trim()}
@@ -519,6 +466,30 @@ export const RiskLookupPage = () => {
           Chúng tôi chỉ đối chiếu với các cảnh báo đã công khai. Thông tin nhạy
           cảm luôn được che một phần; tra cứu số chỉ cần nhập một lần.
         </p>
+        {result?.exactMatch ? (
+          <fieldset className="flex flex-wrap gap-2">
+            <legend className="sr-only">Lọc kết quả theo định danh</legend>
+            <button
+              aria-pressed={selectedGroupId === null}
+              className="rounded-full border border-border px-3 py-1.5 font-medium text-sm transition aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+              onClick={() => setSelectedGroupId(null)}
+              type="button"
+            >
+              Tất cả ({result.totalReports})
+            </button>
+            {result.groups.map((group) => (
+              <button
+                aria-pressed={selectedGroupId === group.groupId}
+                className="rounded-full border border-border px-3 py-1.5 font-medium text-sm transition aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                key={group.groupId}
+                onClick={() => setSelectedGroupId(group.groupId)}
+                type="button"
+              >
+                {getLookupFilterLabel(group)} ({group.reportCount})
+              </button>
+            ))}
+          </fieldset>
+        ) : null}
       </section>
 
       {clientError || searchMutation.isError ? (
@@ -531,79 +502,36 @@ export const RiskLookupPage = () => {
         </Alert>
       ) : null}
 
-      {result ? (
-        <section aria-labelledby="risk-lookup-results-heading">
-          <div className="flex items-end justify-between gap-3">
-            <div>
-              <p className="font-medium text-primary text-sm">
-                Kết quả tra cứu
-              </p>
-              <h2
-                className="font-bold text-3xl tracking-tight"
-                id="risk-lookup-results-heading"
-              >
-                {result.exactMatch
-                  ? "Đã tìm thấy cảnh báo liên quan."
-                  : "Chưa có cảnh báo công khai trùng khớp."}
-              </h2>
-            </div>
-            <p aria-live="polite" className="text-muted-foreground text-sm">
-              {result.totalReports} báo cáo
-            </p>
-          </div>
-          {result.exactMatch ? (
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              {result.groups.map((group) => (
-                <PublicRiskLookupGroupResult
-                  group={group}
-                  key={getGroupKey(group)}
-                />
-              ))}
-              {result.hasMore ? (
-                <div className="flex justify-center md:col-span-2">
-                  <Button
-                    disabled={searchMutation.isPending}
-                    onClick={() => void handleLoadMore()}
-                    type="button"
-                    variant="outline"
-                  >
-                    {searchMutation.isPending ? "Đang tải..." : "Xem thêm"}
-                  </Button>
-                </div>
-              ) : null}
-            </div>
-          ) : (
-            <div className="mt-6 grid gap-4 rounded-2xl border border-border/60 p-5">
-              <p className="text-muted-foreground text-sm">
-                Chưa tìm thấy cảnh báo công khai trùng khớp. Điều này không có
-                nghĩa đối tượng hoặc giao dịch an toàn.
-              </p>
-              <Link
-                className="inline-flex h-9 w-fit items-center justify-center gap-1.5 rounded-4xl border border-input px-3 font-medium text-sm transition hover:bg-accent hover:text-accent-foreground"
-                state={(previous) => ({
-                  ...previous,
-                  riskLookup: {
-                    kind: selectedKind,
-                    value: value.trim(),
-                  },
-                })}
-                onClick={() =>
-                  rememberRiskLookupHandoff({
-                    kind: selectedKind,
-                    value: value.trim(),
-                  })
-                }
-                to="/avin-check/report"
-              >
-                <FlagIcon data-icon="inline-start" />
-                Gửi tố cáo về định danh này
-              </Link>
-            </div>
-          )}
-        </section>
-      ) : null}
-
-      <PublicRiskWarningCatalogue />
+      <PublicRiskWarningCatalogue
+        emptyLookupContent={
+          result ? (
+            <Link
+              className="inline-flex h-9 w-fit items-center justify-center gap-1.5 rounded-4xl border border-input px-3 font-medium text-sm transition hover:bg-accent hover:text-accent-foreground"
+              onClick={() =>
+                rememberRiskLookupHandoff({
+                  kind: "AUTO",
+                  value: value.trim(),
+                })
+              }
+              state={(previous) => ({
+                ...previous,
+                riskLookup: {
+                  kind: "AUTO",
+                  value: value.trim(),
+                },
+              })}
+              to="/avin-check/report"
+            >
+              <FlagIcon data-icon="inline-start" />
+              Gửi tố cáo về định danh này
+            </Link>
+          ) : null
+        }
+        isLoading={searchMutation.isPending}
+        isLoadingMore={searchMutation.isPending && Boolean(result?.nextCursor)}
+        lookupResult={filteredResult}
+        onLoadMore={() => void handleLoadMore()}
+      />
 
       {statisticsContent}
     </Shell>

@@ -7,79 +7,207 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@avin/ui/components/empty";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@avin/ui/components/select";
 import { Skeleton } from "@avin/ui/components/skeleton";
 import { cn } from "@avin/ui/lib/utils";
 import {
+  Clock,
   CrownIcon,
+  Funnel,
+  MagnifyingGlass,
   SealCheck,
-  ShieldCheckIcon,
-  StarIcon,
+  ShieldCheck,
+  SortAscending,
+  TrendUp,
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 
-import type { MockProvider } from "../data/mock-providers";
+import type { ProviderTier } from "../data/provider-tier-constants";
+import { TIER_ICON_IMAGES } from "../data/provider-tier-constants";
 import { ProviderTierFrame } from "./provider-tier-frame";
-import type { ProviderTier } from "./provider-tier-frame";
 
-const DiamondBadgeIcon = () => (
-  <svg aria-hidden="true" className="size-3.5 text-sky-500" viewBox="0 0 24 24">
-    <polygon fill="currentColor" points="3,8 8,2 16,2 21,8 12,22" />
-  </svg>
-);
+export interface ShowcaseProvider {
+  avatarUrl: string;
+  bio?: string;
+  displayName: string;
+  id: string;
+  isVerified: boolean;
+  location: string;
+  officialChannels: {
+    additionalZalos?: string[];
+    facebookId?: string;
+    facebookSecondaryId?: string;
+    facebookSecondaryUrl?: string;
+    facebookUrl?: string;
+    facebooks?: {
+      id?: string;
+      isPrimary?: boolean;
+      label?: string;
+      url: string;
+    }[];
+    hotline?: string;
+    qrCodeUrl?: string;
+    telegramCommunityUrl?: string;
+    tiktokUrl?: string;
+    websiteUrl?: string;
+    youtubeUrl?: string;
+    zalo?: string;
+    zaloSecondary?: string;
+    zalos?: {
+      isPrimary?: boolean;
+      label?: string;
+      phone: string;
+    }[];
+  };
+  rank?: number;
+  recognizedBondAmount: number;
+  recommendedTransactionLimit: number;
+  services: string;
+  slug: string;
+  source?: string;
+  tier: ProviderTier;
+  verifiedAt: string;
+}
 
-const TIER_FILTERS: {
-  customClass?: string;
+type ProviderSortOption =
+  | "joined_desc"
+  | "joined_asc"
+  | "tier_desc"
+  | "tier_asc"
+  | "rank_asc"
+  | "bond_desc"
+  | "name_asc";
+
+const TIER_OPTIONS: {
   icon: React.ReactNode;
   label: string;
-  tier: ProviderTier | "ALL";
+  value: ProviderTier | "ALL";
 }[] = [
   {
-    icon: (
-      <span className="size-2.5 rounded-full bg-linear-to-tr from-amber-700 to-amber-400 shadow-xs" />
-    ),
-    label: "Đồng",
-    tier: "BRONZE",
+    icon: <Funnel className="size-3.5 text-muted-foreground" />,
+    label: "Tất cả hạng",
+    value: "ALL",
   },
   {
     icon: (
-      <span className="size-2.5 rounded-full bg-linear-to-tr from-slate-500 to-slate-200 shadow-xs" />
-    ),
-    label: "Bạc",
-    tier: "SILVER",
-  },
-  {
-    icon: (
-      <StarIcon
+      <img
+        alt=""
         aria-hidden="true"
-        className="size-3.5 text-amber-500"
-        weight="fill"
+        className="size-4 object-contain drop-shadow-xs"
+        src={TIER_ICON_IMAGES.VIP}
       />
     ),
-    label: "Vàng",
-    tier: "GOLD",
+    label: "Hạng VIP",
+    value: "VIP",
   },
   {
-    customClass:
-      "border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100/80 dark:border-sky-800/60 dark:bg-sky-950/40 dark:text-sky-200 dark:hover:bg-sky-900/50",
-    icon: <DiamondBadgeIcon />,
-    label: "Kim cương",
-    tier: "DIAMOND",
-  },
-  {
-    customClass:
-      "border-emerald-300 bg-emerald-50 text-emerald-950 hover:bg-emerald-100/80 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-200 dark:hover:bg-emerald-900/50",
     icon: (
-      <CrownIcon
+      <img
+        alt=""
         aria-hidden="true"
-        className="size-3.5 text-emerald-600 dark:text-emerald-400"
-        weight="fill"
+        className="size-4 object-contain drop-shadow-xs"
+        src={TIER_ICON_IMAGES.DIAMOND}
       />
     ),
-    label: "VIP",
-    tier: "VIP",
+    label: "Hạng Kim cương",
+    value: "DIAMOND",
+  },
+  {
+    icon: (
+      <img
+        alt=""
+        aria-hidden="true"
+        className="size-4 object-contain drop-shadow-xs"
+        src={TIER_ICON_IMAGES.GOLD}
+      />
+    ),
+    label: "Hạng Vàng",
+    value: "GOLD",
+  },
+  {
+    icon: (
+      <img
+        alt=""
+        aria-hidden="true"
+        className="size-4 object-contain drop-shadow-xs"
+        src={TIER_ICON_IMAGES.SILVER}
+      />
+    ),
+    label: "Hạng Bạc",
+    value: "SILVER",
+  },
+  {
+    icon: (
+      <img
+        alt=""
+        aria-hidden="true"
+        className="size-4 object-contain drop-shadow-xs"
+        src={TIER_ICON_IMAGES.BRONZE}
+      />
+    ),
+    label: "Hạng Đồng",
+    value: "BRONZE",
   },
 ];
+
+const SORT_OPTIONS: {
+  icon: React.ReactNode;
+  label: string;
+  value: ProviderSortOption;
+}[] = [
+  {
+    icon: <Clock className="size-3.5 text-primary" />,
+    label: "Thời gian: Mới nhất",
+    value: "joined_desc",
+  },
+  {
+    icon: <Clock className="size-3.5 text-muted-foreground" />,
+    label: "Thời gian: Cũ nhất",
+    value: "joined_asc",
+  },
+  {
+    icon: <CrownIcon className="size-3.5 text-amber-500" weight="fill" />,
+    label: "Hạng: Cao đến thấp",
+    value: "tier_desc",
+  },
+  {
+    icon: <CrownIcon className="size-3.5 text-muted-foreground" />,
+    label: "Hạng: Thấp đến cao",
+    value: "tier_asc",
+  },
+  {
+    icon: <TrendUp className="size-3.5 text-blue-500" />,
+    label: "Thứ hạng (Rank): 1 → N",
+    value: "rank_asc",
+  },
+  {
+    icon: <ShieldCheck className="size-3.5 text-emerald-500" weight="fill" />,
+    label: "Quỹ bảo chứng: Cao đến thấp",
+    value: "bond_desc",
+  },
+  {
+    icon: <SortAscending className="size-3.5 text-muted-foreground" />,
+    label: "Tên đối tác: A → Z",
+    value: "name_asc",
+  },
+];
+
+const TIER_ORDER: Record<string, number> = {
+  BRONZE: 1,
+  DIAMOND: 5,
+  GOLD: 3,
+  NORMAL: 0,
+  PLATINUM: 4,
+  SILVER: 2,
+  VIP: 6,
+};
 
 export const ProviderGridItemSkeleton = () => (
   <div className="flex flex-col items-center p-1 text-center">
@@ -95,8 +223,8 @@ export const ProviderGridItemSkeleton = () => (
 );
 
 interface ProviderGridItemProps {
-  onSelect?: (provider: MockProvider) => void;
-  provider: MockProvider;
+  onSelect?: (provider: ShowcaseProvider) => void;
+  provider: ShowcaseProvider;
 }
 
 const ProviderGridItem = ({ onSelect, provider }: ProviderGridItemProps) => {
@@ -162,13 +290,123 @@ const ProviderGridItem = ({ onSelect, provider }: ProviderGridItemProps) => {
   );
 };
 
-const EMPTY_PROVIDERS: MockProvider[] = [];
+const EMPTY_PROVIDERS: ShowcaseProvider[] = [];
+
+const compareByJoinDate = (
+  a: ShowcaseProvider,
+  b: ShowcaseProvider,
+  ascending: boolean
+): number => {
+  const timeA = a.verifiedAt ? new Date(a.verifiedAt).getTime() : 0;
+  const timeB = b.verifiedAt ? new Date(b.verifiedAt).getTime() : 0;
+  const diff = ascending ? timeA - timeB : timeB - timeA;
+  if (diff !== 0) {
+    return diff;
+  }
+  return (a.rank ?? 999) - (b.rank ?? 999);
+};
+
+const compareByTier = (
+  a: ShowcaseProvider,
+  b: ShowcaseProvider,
+  ascending: boolean
+): number => {
+  const orderA = TIER_ORDER[a.tier] ?? 0;
+  const orderB = TIER_ORDER[b.tier] ?? 0;
+  const diff = ascending ? orderA - orderB : orderB - orderA;
+  if (diff !== 0) {
+    return diff;
+  }
+  return (a.rank ?? 999) - (b.rank ?? 999);
+};
+
+const compareProviders = (
+  a: ShowcaseProvider,
+  b: ShowcaseProvider,
+  sortBy: ProviderSortOption
+): number => {
+  switch (sortBy) {
+    case "joined_desc": {
+      return compareByJoinDate(a, b, false);
+    }
+    case "joined_asc": {
+      return compareByJoinDate(a, b, true);
+    }
+    case "tier_desc": {
+      return compareByTier(a, b, false);
+    }
+    case "tier_asc": {
+      return compareByTier(a, b, true);
+    }
+    case "rank_asc": {
+      const rankA = a.rank ?? 9999;
+      const rankB = b.rank ?? 9999;
+      if (rankA !== rankB) {
+        return rankA - rankB;
+      }
+      return (TIER_ORDER[b.tier] ?? 0) - (TIER_ORDER[a.tier] ?? 0);
+    }
+    case "bond_desc": {
+      const bondDiff =
+        (b.recognizedBondAmount ?? 0) - (a.recognizedBondAmount ?? 0);
+      if (bondDiff !== 0) {
+        return bondDiff;
+      }
+      return (a.rank ?? 999) - (b.rank ?? 999);
+    }
+    case "name_asc": {
+      return a.displayName.localeCompare(b.displayName, "vi");
+    }
+    default: {
+      return 0;
+    }
+  }
+};
+
+const getEmptyTitle = (
+  isSearching: boolean,
+  selectedTier: ProviderTier | "ALL"
+): string => {
+  if (isSearching) {
+    if (selectedTier === "ALL") {
+      return "Chưa tìm thấy đối tác";
+    }
+    return "Không có đối tác phù hợp trong hạng này";
+  }
+  if (selectedTier === "ALL") {
+    return "Chưa có đối tác đã xác minh";
+  }
+  return "Không tìm thấy đối tác";
+};
+
+const getEmptyDescription = (
+  isSearching: boolean,
+  selectedTier: ProviderTier | "ALL",
+  searchQuery?: string
+): string => {
+  if (isSearching) {
+    if (selectedTier === "ALL") {
+      if (searchQuery) {
+        return `Không có kết quả nào khớp với "${searchQuery}". Hãy kiểm tra lại từ khóa hoặc thử tên ngắn hơn.`;
+      }
+      return "Không tìm thấy đối tác nào phù hợp với thông tin đã nhập.";
+    }
+    return "Không có đối tác nào thuộc hạng đã chọn khớp với tìm kiếm.";
+  }
+  if (selectedTier === "ALL") {
+    return "Danh sách đối tác sẽ được cập nhật khi có đối tác mới tham gia.";
+  }
+  return "Chưa có đối tác nào thuộc hạng đã chọn.";
+};
 
 interface ProviderShowcaseSectionProps {
   className?: string;
-  initialProviders?: MockProvider[];
+  initialProviders?: ShowcaseProvider[];
   isLoading?: boolean;
-  onSelectProvider?: (provider: MockProvider) => void;
+  isSearching?: boolean;
+  onClearSearch?: () => void;
+  onSelectProvider?: (provider: ShowcaseProvider) => void;
+  searchQuery?: string;
   title?: string;
 }
 
@@ -176,18 +414,28 @@ export const ProviderShowcaseSection = ({
   className,
   initialProviders = EMPTY_PROVIDERS,
   isLoading = false,
+  isSearching = false,
+  onClearSearch,
   onSelectProvider,
+  searchQuery,
   title = "Đối tác đã xác minh",
 }: ProviderShowcaseSectionProps) => {
   const [selectedTier, setSelectedTier] = useState<ProviderTier | "ALL">("ALL");
+  const [sortBy, setSortBy] = useState<ProviderSortOption>("joined_desc");
 
-  const filteredProviders =
-    selectedTier === "ALL"
-      ? initialProviders
-      : initialProviders.filter((p) => p.tier === selectedTier);
+  const sortedAndFilteredProviders = (() => {
+    const list =
+      selectedTier === "ALL"
+        ? [...initialProviders]
+        : initialProviders.filter((p) => p.tier === selectedTier);
+
+    list.sort((a, b) => compareProviders(a, b, sortBy));
+
+    return list;
+  })();
 
   const totalCount = initialProviders.length;
-  const currentCount = filteredProviders.length;
+  const currentCount = sortedAndFilteredProviders.length;
 
   const renderContent = () => {
     if (isLoading) {
@@ -203,10 +451,10 @@ export const ProviderShowcaseSection = ({
       );
     }
 
-    if (filteredProviders.length > 0) {
+    if (sortedAndFilteredProviders.length > 0) {
       return (
         <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 sm:gap-x-6 sm:gap-y-10 md:grid-cols-4 lg:grid-cols-6 lg:gap-x-6 xl:gap-x-8">
-          {filteredProviders.map((provider) => (
+          {sortedAndFilteredProviders.map((provider) => (
             <ProviderGridItem
               key={provider.id}
               onSelect={onSelectProvider}
@@ -217,40 +465,58 @@ export const ProviderShowcaseSection = ({
       );
     }
 
+    const emptyTitle = getEmptyTitle(isSearching, selectedTier);
+    const emptyDescription = getEmptyDescription(
+      isSearching,
+      selectedTier,
+      searchQuery
+    );
+
     return (
       <Empty className="border-none py-8">
         <EmptyHeader>
           <EmptyMedia variant="icon">
-            <ShieldCheckIcon
-              aria-hidden="true"
-              className="size-8 text-muted-foreground"
-            />
+            {isSearching ? (
+              <MagnifyingGlass
+                aria-hidden="true"
+                className="size-8 text-muted-foreground"
+              />
+            ) : (
+              <ShieldCheck
+                aria-hidden="true"
+                className="size-8 text-muted-foreground"
+              />
+            )}
           </EmptyMedia>
-          <EmptyTitle>
-            {selectedTier === "ALL"
-              ? "Chưa có đối tác đã xác minh"
-              : "Không tìm thấy đối tác"}
-          </EmptyTitle>
-          <EmptyDescription>
-            {selectedTier === "ALL"
-              ? "Danh sách đối tác sẽ được cập nhật khi có đối tác mới tham gia."
-              : "Chưa có đối tác nào thuộc hạng đã chọn."}
-          </EmptyDescription>
+          <EmptyTitle>{emptyTitle}</EmptyTitle>
+          <EmptyDescription>{emptyDescription}</EmptyDescription>
         </EmptyHeader>
-        {selectedTier !== "ALL" && (
-          <EmptyContent>
+        <EmptyContent className="flex flex-wrap items-center justify-center gap-2">
+          {selectedTier === "ALL" ? null : (
             <Button
               onClick={() => setSelectedTier("ALL")}
               size="sm"
               variant="outline"
             >
-              Xem tất cả đối tác
+              Xem tất cả hạng
             </Button>
-          </EmptyContent>
-        )}
+          )}
+          {isSearching && onClearSearch && (
+            <Button
+              onClick={onClearSearch}
+              size="sm"
+              variant={selectedTier === "ALL" ? "outline" : "ghost"}
+            >
+              Xóa tìm kiếm
+            </Button>
+          )}
+        </EmptyContent>
       </Empty>
     );
   };
+
+  const displayedCountSuffix =
+    selectedTier === "ALL" ? "" : ` (hiển thị ${currentCount})`;
 
   return (
     <section
@@ -258,7 +524,7 @@ export const ProviderShowcaseSection = ({
       className={cn("flex flex-col gap-6", className)}
     >
       {/* Section Header Aligned with Page Structure */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h2
             className="flex items-center gap-2 font-bold text-2xl tracking-tight text-foreground sm:text-3xl"
@@ -277,56 +543,107 @@ export const ProviderShowcaseSection = ({
             </div>
           ) : (
             <p className="mt-1 text-muted-foreground text-sm">
-              Danh sách đang hoạt động theo trang hiện tại · {currentCount}/
-              {totalCount} đối tác
+              {isSearching
+                ? `Tìm thấy ${totalCount} đối tác${displayedCountSuffix}`
+                : `Danh sách đang hoạt động theo trang hiện tại · ${currentCount}/${totalCount} đối tác`}
             </p>
           )}
         </div>
 
-        {/* Tier Legend & Interactive Filter Pills */}
+        {/* Filter by Rank (Select) & Sort by (Select) Controls */}
         <div
-          aria-label="Lọc theo hạng đối tác"
-          className="flex flex-wrap items-center gap-2"
+          aria-label="Tùy chọn lọc và sắp xếp"
+          className="flex flex-wrap items-center gap-2.5 sm:gap-3"
           role="toolbar"
         >
-          {selectedTier !== "ALL" && !isLoading && (
-            <button
-              className="inline-flex h-9 items-center rounded-xl border border-border/70 bg-muted/60 px-3 font-medium text-muted-foreground text-xs transition-colors hover:bg-muted hover:text-foreground"
-              onClick={() => setSelectedTier("ALL")}
-              type="button"
-            >
-              Tất cả
-            </button>
-          )}
-
-          {TIER_FILTERS.map((item) => {
-            const isSelected = selectedTier === item.tier;
-
-            return (
-              <button
-                aria-pressed={isSelected}
-                className={cn(
-                  "inline-flex h-9 items-center gap-1.5 rounded-xl border px-3.5 font-medium text-xs sm:text-sm transition-all outline-none",
-                  item.customClass ??
-                    "border-border/80 bg-background text-foreground hover:bg-muted/60",
-                  isSelected &&
-                    "ring-2 ring-primary ring-offset-2 ring-offset-background font-semibold",
-                  isLoading && "cursor-not-allowed opacity-60"
-                )}
-                disabled={isLoading}
-                key={item.tier}
-                onClick={() =>
-                  setSelectedTier((prev) =>
-                    prev === item.tier ? "ALL" : item.tier
-                  )
+          {/* Rank Select Filter */}
+          <div className="flex items-center gap-1.5">
+            <span className="hidden text-xs font-medium text-muted-foreground sm:inline">
+              Hạng:
+            </span>
+            <Select
+              disabled={isLoading}
+              items={TIER_OPTIONS}
+              onValueChange={(val) => {
+                if (val) {
+                  setSelectedTier(val as ProviderTier | "ALL");
                 }
+              }}
+              value={selectedTier}
+            >
+              <SelectTrigger
+                aria-label="Lọc theo hạng đối tác"
+                className="h-10 min-w-36 rounded-2xl border-border/80 bg-background/80 px-3.5 text-xs font-medium shadow-xs transition-colors hover:border-border sm:min-w-40 sm:text-sm"
+              >
+                <SelectValue placeholder="Lọc theo hạng" />
+              </SelectTrigger>
+              <SelectContent align="end" className="w-auto min-w-48 p-1.5">
+                {TIER_OPTIONS.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    <span className="flex items-center gap-2">
+                      {item.icon}
+                      <span>{item.label}</span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Sort Select */}
+          <div className="flex items-center gap-1.5">
+            <span className="hidden text-xs font-medium text-muted-foreground sm:inline">
+              Sắp xếp:
+            </span>
+            <Select
+              disabled={isLoading}
+              items={SORT_OPTIONS}
+              onValueChange={(val) => {
+                if (val) {
+                  setSortBy(val as ProviderSortOption);
+                }
+              }}
+              value={sortBy}
+            >
+              <SelectTrigger
+                aria-label="Sắp xếp danh sách đối tác"
+                className="h-10 min-w-44 rounded-2xl border-border/80 bg-background/80 px-3.5 text-xs font-medium shadow-xs transition-colors hover:border-border sm:min-w-48 sm:text-sm"
+              >
+                <SelectValue placeholder="Sắp xếp theo" />
+              </SelectTrigger>
+              <SelectContent align="end" className="w-auto min-w-64 p-1.5">
+                {SORT_OPTIONS.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    <span className="flex items-center gap-2">
+                      {item.icon}
+                      <span>{item.label}</span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Reset Filters button if modified */}
+          {(selectedTier !== "ALL" ||
+            sortBy !== "joined_desc" ||
+            isSearching) &&
+            !isLoading && (
+              <button
+                aria-label="Reset bộ lọc"
+                className="inline-flex h-10 items-center rounded-2xl border border-border/70 bg-muted/60 px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                onClick={() => {
+                  setSelectedTier("ALL");
+                  setSortBy("joined_desc");
+                  if (isSearching && onClearSearch) {
+                    onClearSearch();
+                  }
+                }}
                 type="button"
               >
-                {item.icon}
-                <span>{item.label}</span>
+                Reset
               </button>
-            );
-          })}
+            )}
         </div>
       </div>
 

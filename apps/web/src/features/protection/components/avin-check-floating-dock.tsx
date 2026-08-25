@@ -36,7 +36,10 @@ const dockItems: DockItem[] = [
     isActive: (pathname) =>
       pathname === "/avin-check" ||
       pathname === "/avin-check/" ||
-      pathname.startsWith("/avin-check/check"),
+      pathname.startsWith("/avin-check/check") ||
+      pathname.startsWith("/avin-check/report") ||
+      pathname.startsWith("/avin-check/warning") ||
+      pathname.startsWith("/avin-check/correction"),
     label: "Check scam",
     shortLabel: "Tra cứu",
   },
@@ -45,7 +48,9 @@ const dockItems: DockItem[] = [
     icon: AddressBookIcon,
     isActive: (pathname) =>
       pathname.startsWith("/avin-check/directory") ||
-      pathname.startsWith("/avin-check/provider/"),
+      pathname.startsWith("/avin-check/provider") ||
+      pathname.startsWith("/avin-check/apply") ||
+      pathname.startsWith("/avin-check/workspace"),
     label: "Đối tác",
     shortLabel: "Đối tác",
   },

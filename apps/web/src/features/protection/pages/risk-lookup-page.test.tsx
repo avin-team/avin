@@ -103,6 +103,33 @@ vi.mock("../api/risk-lookup-api", () => ({
   }),
   usePublicRiskStatistics: () => ({
     data: {
+      activity: {
+        day: [
+          {
+            affectedVictims: 1,
+            claimedLoss: 50_000,
+            period: "2026-08-03",
+            reports: 1,
+          },
+        ],
+        month: [
+          {
+            affectedVictims: 4,
+            claimedLoss: 200_000,
+            period: "2026-08",
+            reports: 2,
+          },
+        ],
+        year: [
+          {
+            affectedVictims: 4,
+            claimedLoss: 200_000,
+            period: "2026",
+            reports: 2,
+          },
+        ],
+      },
+      affectedVictims: 4,
       currentReports: 2,
       lastUpdatedAt: "2026-08-03T10:00:00.000Z",
       publishedRiskIdentifiers: 3,
@@ -142,6 +169,19 @@ describe("RiskLookupPage", () => {
     expect(screen.getByRole("textbox")).toHaveAttribute("autocomplete", "off");
   });
 
+  it("renders each periodic range from statistics API data", () => {
+    render(<RiskLookupPage />);
+
+    expect(screen.getByText("Năm 2026")).toBeInTheDocument();
+    expect(screen.getByText("200.000 VND")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Theo tháng" }));
+    expect(screen.getByText("Tháng 8/2026")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Theo ngày" }));
+    expect(screen.getByText("03/08/2026")).toBeInTheDocument();
+  });
+
   it("submits exact lookup through a mutation without putting the value in navigation", async () => {
     render(<RiskLookupPage />);
 
@@ -160,12 +200,9 @@ describe("RiskLookupPage", () => {
     expect(document.title).not.toContain("0123-456.789");
   });
 
-  it("lets the user select a platform link lookup kind", async () => {
+  it("always uses automatic recognition without a lookup-type selector", async () => {
     render(<RiskLookupPage />);
 
-    fireEvent.change(screen.getByRole("combobox"), {
-      target: { value: "FACEBOOK" },
-    });
     fireEvent.change(screen.getByRole("textbox"), {
       target: { value: "facebook.com/acme" },
     });
@@ -173,10 +210,28 @@ describe("RiskLookupPage", () => {
 
     await waitFor(() => {
       expect(mocks.mutateAsync).toHaveBeenCalledWith({
-        kind: "FACEBOOK",
+        kind: "AUTO",
         value: "facebook.com/acme",
       });
     });
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+  });
+
+  it("lets the user clear a lookup and select a matching identifier filter", () => {
+    render(<RiskLookupPage />);
+
+    const identifierFilter = screen.getByRole("button", {
+      name: "STK: **** 6789 (1)",
+    });
+    fireEvent.click(identifierFilter);
+    expect(identifierFilter).toHaveAttribute("aria-pressed", "true");
+
+    const input = screen.getByRole("textbox");
+    fireEvent.change(input, { target: { value: "0123-456.789" } });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Xóa nội dung tra cứu" })
+    );
+    expect(input).toHaveValue("");
   });
 
   it("shows the approved safe no-result wording and report action", async () => {

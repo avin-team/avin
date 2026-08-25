@@ -116,13 +116,28 @@ const RevisionFacts = ({ detail }: { detail: RevisionDetail }) => {
           />
           <DetailField
             label="Facebook"
-            value={displayValue(channels.facebookUrl)}
+            value={
+              channels.facebooks && channels.facebooks.length > 0
+                ? channels.facebooks
+                    .map((fb) => `${fb.url}${fb.isPrimary ? " [Chính]" : ""}`)
+                    .join(" | ")
+                : displayValue(channels.facebookUrl)
+            }
           />
           <DetailField
             label="Số điện thoại"
             value={displayValue(channels.hotline)}
           />
-          <DetailField label="Zalo" value={displayValue(channels.zalo)} />
+          <DetailField
+            label="Zalo"
+            value={
+              channels.zalos && channels.zalos.length > 0
+                ? channels.zalos
+                    .map((z) => `${z.phone}${z.isPrimary ? " [Chính]" : ""}`)
+                    .join(" | ")
+                : displayValue(channels.zalo)
+            }
+          />
           <DetailField
             label="Nhóm Telegram"
             value={displayValue(channels.telegramCommunityUrl)}

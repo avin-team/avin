@@ -57,7 +57,7 @@ describe("ProviderPublicProfilePage", () => {
     expect(container.querySelector('[aria-busy="true"]')).toBeInTheDocument();
     expect(screen.getByText(/Quay lại/u)).toBeInTheDocument();
     expect(
-      screen.getByText("Mã GDV: nguyen-hoang-duong-gdtg")
+      screen.getByText("Mã đối tác: nguyen-hoang-duong-gdtg")
     ).toBeInTheDocument();
   });
 

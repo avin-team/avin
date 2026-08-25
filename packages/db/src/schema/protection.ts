@@ -830,6 +830,7 @@ export const protectionRiskReport = pgTable(
       .$onUpdate(() => new Date())
       .notNull(),
     urgency: protectionRiskReportUrgency("urgency").default("NORMAL").notNull(),
+    viewCount: integer("view_count").default(0).notNull(),
     violationType: protectionRiskReportWebsiteViolation("violation_type"),
     withdrawalReason: text("withdrawal_reason"),
     withdrawalRequestedAt: timestamp("withdrawal_requested_at"),

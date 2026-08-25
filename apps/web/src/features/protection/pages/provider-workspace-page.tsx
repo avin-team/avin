@@ -15,7 +15,10 @@ import {
   useProviderWorkspace,
 } from "../api/provider-api";
 import type { ProviderWorkspace } from "../api/provider-api";
-import { ProviderApplicationForm } from "../components/provider-application-form";
+import {
+  ProviderApplicationForm,
+  ProviderApplicationFormSkeleton,
+} from "../components/provider-application-form";
 import { ProviderRiskIncidentPanel } from "../components/provider-risk-incident-panel";
 
 const PROFILE_STATUS_LABELS = {
@@ -456,15 +459,13 @@ export const ProviderWorkspacePage = () => {
     >
       <Link
         className="inline-flex items-center gap-1.5 font-medium text-muted-foreground text-sm transition-colors hover:text-foreground"
-        to="/avin-check"
+        to="/avin-check/directory"
       >
         <ArrowLeftIcon aria-hidden="true" className="size-4" />
         Quay lại
       </Link>
 
-      {workspace.isPending ? (
-        <output aria-live="polite">Đang tải hồ sơ đối tác...</output>
-      ) : null}
+      {workspace.isPending ? <ProviderApplicationFormSkeleton /> : null}
 
       {workspace.isError ? (
         <p className="text-destructive" role="alert">

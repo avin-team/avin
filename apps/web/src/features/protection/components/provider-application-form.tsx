@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@avin/ui/components/select";
 import { Textarea } from "@avin/ui/components/textarea";
-import { Bank, Copy, QrCode } from "@phosphor-icons/react";
+import { Bank, Copy, Plus, QrCode, Trash } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
@@ -62,7 +62,6 @@ const BOND_PRESETS = [
 const ACCOUNT_NUMBER_PATTERN = /^\d{4,30}$/u;
 const CITIZEN_ID_PATTERN = /^\d{12}$/u;
 const OPTIONAL_CHANNEL_LABELS = {
-  facebookUrl: "Facebook",
   telegramCommunityUrl: "Telegram",
   tiktokUrl: "TikTok",
   websiteUrl: "Website",
@@ -79,13 +78,21 @@ const providerTierLabel = Object.assign(
 
 interface OfficialChannelsState {
   avatarUrl: string;
-  facebookUrl: string;
   hotline: string;
   telegramCommunityUrl: string;
   tiktokUrl: string;
   websiteUrl: string;
   youtubeUrl: string;
-  zalo: string;
+}
+
+interface ZaloAccountState {
+  id: string;
+  phone: string;
+}
+
+interface FacebookAccountState {
+  id: string;
+  url: string;
 }
 
 interface BankAccountState {
@@ -100,6 +107,7 @@ export interface ProviderApplicationFormState {
   bio: string;
   bondAmount: number;
   citizenIdNumber: string;
+  facebooks: FacebookAccountState[];
   fullName: string;
   location: string;
   officialChannels: OfficialChannelsState;
@@ -107,6 +115,7 @@ export interface ProviderApplicationFormState {
   publicDataConsent: boolean;
   registeredBankAccounts: BankAccountState[];
   services: string;
+  zalos: ZaloAccountState[];
 }
 
 const emptyBankAccount = (isPrimary = true): BankAccountState => ({
@@ -117,43 +126,57 @@ const emptyBankAccount = (isPrimary = true): BankAccountState => ({
   isPrimary,
 });
 
+const emptyZaloAccount = (): ZaloAccountState => ({
+  id: globalThis.crypto.randomUUID(),
+  phone: "",
+});
+
+const emptyFacebookAccount = (): FacebookAccountState => ({
+  id: globalThis.crypto.randomUUID(),
+  url: "",
+});
+
 const emptyFormState = (): ProviderApplicationFormState => ({
   bio: "",
   bondAmount: DEFAULT_BOND_AMOUNT,
   citizenIdNumber: "",
+  facebooks: [emptyFacebookAccount()],
   fullName: "",
   location: "",
   officialChannels: {
     avatarUrl: "",
-    facebookUrl: "",
     hotline: "",
     telegramCommunityUrl: "",
     tiktokUrl: "",
     websiteUrl: "",
     youtubeUrl: "",
-    zalo: "",
   },
   policyAccepted: false,
   publicDataConsent: false,
   registeredBankAccounts: [emptyBankAccount()],
   services: DEFAULT_SERVICES_DRAFT,
+  zalos: [emptyZaloAccount()],
 });
 
 const createDevelopmentFormState = (): ProviderApplicationFormState => ({
   bio: "Giao dịch trung gian uy tín 24/7",
   bondAmount: DEFAULT_BOND_AMOUNT,
   citizenIdNumber: "079123456789",
+  facebooks: [
+    {
+      id: globalThis.crypto.randomUUID(),
+      url: "https://www.facebook.com/vuduyhoanavin05",
+    },
+  ],
   fullName: "Nguyễn Văn Dev",
   location: "Quận 1, Thành phố Hồ Chí Minh",
   officialChannels: {
     avatarUrl: "",
-    facebookUrl: "https://www.facebook.com/vuduyhoanavin05",
     hotline: "0900000000",
     telegramCommunityUrl: "https://t.me/avin_check_dev",
     tiktokUrl: "https://www.tiktok.com/@todun2710",
     websiteUrl: "https://avin.dev",
     youtubeUrl: "https://www.youtube.com/@vuduyhoan_avin05",
-    zalo: "0900000000",
   },
   policyAccepted: true,
   publicDataConsent: true,
@@ -168,10 +191,104 @@ const createDevelopmentFormState = (): ProviderApplicationFormState => ({
   ],
   services:
     "Cung cấp dịch vụ tư vấn, thiết kế và hỗ trợ kỹ thuật cho mục đích kiểm thử Provider.",
+  zalos: [
+    {
+      id: globalThis.crypto.randomUUID(),
+      phone: "0900000000",
+    },
+  ],
 });
 
 const readText = (value: unknown): string =>
   typeof value === "string" ? value : "";
+
+const getZaloAccountsFromApplication = (
+  channels: Record<string, unknown> | null | undefined
+): ZaloAccountState[] => {
+  if (!channels) {
+    return [emptyZaloAccount()];
+  }
+  const zalosArray = Array.isArray(channels.zalos) ? channels.zalos : [];
+  if (zalosArray.length > 0) {
+    return zalosArray.map((item: unknown) => {
+      const z = item as Record<string, unknown>;
+      return {
+        id: globalThis.crypto.randomUUID(),
+        phone: readText(z?.phone),
+      };
+    });
+  }
+  const result: ZaloAccountState[] = [];
+  if (typeof channels.zalo === "string" && channels.zalo.trim()) {
+    result.push({
+      id: globalThis.crypto.randomUUID(),
+      phone: channels.zalo.trim(),
+    });
+  }
+  if (
+    typeof channels.zaloSecondary === "string" &&
+    channels.zaloSecondary.trim()
+  ) {
+    result.push({
+      id: globalThis.crypto.randomUUID(),
+      phone: channels.zaloSecondary.trim(),
+    });
+  }
+  if (Array.isArray(channels.additionalZalos)) {
+    for (const item of channels.additionalZalos) {
+      if (typeof item === "string" && item.trim()) {
+        result.push({
+          id: globalThis.crypto.randomUUID(),
+          phone: item.trim(),
+        });
+      }
+    }
+  }
+  if (result.length === 0) {
+    return [emptyZaloAccount()];
+  }
+  return result;
+};
+
+const getFacebookAccountsFromApplication = (
+  channels: Record<string, unknown> | null | undefined
+): FacebookAccountState[] => {
+  if (!channels) {
+    return [emptyFacebookAccount()];
+  }
+  const facebooksArray = Array.isArray(channels.facebooks)
+    ? channels.facebooks
+    : [];
+  if (facebooksArray.length > 0) {
+    return facebooksArray.map((item: unknown) => {
+      const fb = item as Record<string, unknown>;
+      return {
+        id: globalThis.crypto.randomUUID(),
+        url: readText(fb?.url),
+      };
+    });
+  }
+  const result: FacebookAccountState[] = [];
+  if (typeof channels.facebookUrl === "string" && channels.facebookUrl.trim()) {
+    result.push({
+      id: globalThis.crypto.randomUUID(),
+      url: channels.facebookUrl.trim(),
+    });
+  }
+  if (
+    typeof channels.facebookSecondaryUrl === "string" &&
+    channels.facebookSecondaryUrl.trim()
+  ) {
+    result.push({
+      id: globalThis.crypto.randomUUID(),
+      url: channels.facebookSecondaryUrl.trim(),
+    });
+  }
+  if (result.length === 0) {
+    return [emptyFacebookAccount()];
+  }
+  return result;
+};
 
 const getFormState = (
   application: ProviderApplication | ProviderProfileRevision | null,
@@ -180,7 +297,10 @@ const getFormState = (
   if (!application) {
     return emptyFormState();
   }
-  const channels = application.officialChannels ?? {};
+  const channels = (application.officialChannels ?? {}) as Record<
+    string,
+    unknown
+  >;
   const applicationBondAmount =
     "bondAmount" in application ? application.bondAmount : null;
   const accounts = (application.registeredBankAccounts ?? []).map(
@@ -200,17 +320,16 @@ const getFormState = (
         ? applicationBondAmount
         : DEFAULT_BOND_AMOUNT,
     citizenIdNumber: "",
+    facebooks: getFacebookAccountsFromApplication(channels),
     fullName: readText(application.fullName),
     location: readText(application.location),
     officialChannels: {
       avatarUrl: readText(channels.avatarUrl),
-      facebookUrl: readText(channels.facebookUrl),
       hotline: readText(channels.hotline),
       telegramCommunityUrl: readText(channels.telegramCommunityUrl),
       tiktokUrl: readText(channels.tiktokUrl),
       websiteUrl: readText(channels.websiteUrl),
       youtubeUrl: readText(channels.youtubeUrl),
-      zalo: readText(channels.zalo),
     },
     policyAccepted:
       Boolean(application.policyAcceptedAt) &&
@@ -219,6 +338,7 @@ const getFormState = (
     registeredBankAccounts:
       accounts.length > 0 ? accounts : [emptyBankAccount()],
     services: readText(application.services) || DEFAULT_SERVICES_DRAFT,
+    zalos: getZaloAccountsFromApplication(channels),
   };
 };
 
@@ -230,26 +350,48 @@ const optionalText = (value: string): string | undefined => {
 const toBankAccountPayload = (accounts: BankAccountState[]) =>
   accounts.map(({ id: _id, ...account }) => account);
 
-const buildOfficialChannelsPayload = (channels: OfficialChannelsState) => {
+const buildOfficialChannelsPayload = (
+  channels: OfficialChannelsState,
+  zalos: ZaloAccountState[],
+  facebooks: FacebookAccountState[]
+) => {
   const baseChannels = Object.fromEntries(
     Object.entries(channels).map(([key, value]) => [key, optionalText(value)])
   );
-  const zalos = channels.zalo.trim()
-    ? [{ isPrimary: true, label: "Zalo Chính", phone: channels.zalo.trim() }]
-    : [];
-  const facebooks = channels.facebookUrl.trim()
-    ? [
-        {
-          isPrimary: true,
-          label: "Facebook Chính",
-          url: channels.facebookUrl.trim(),
-        },
-      ]
-    : [];
+
+  const normalizedZalos = [];
+  for (const [index, item] of zalos.entries()) {
+    const phone = item.phone.trim();
+    if (phone.length > 0) {
+      normalizedZalos.push({
+        isPrimary: index === 0,
+        phone,
+      });
+    }
+  }
+
+  const normalizedFacebooks = [];
+  for (const [index, item] of facebooks.entries()) {
+    const url = item.url.trim();
+    if (url.length > 0) {
+      normalizedFacebooks.push({
+        isPrimary: index === 0,
+        url,
+      });
+    }
+  }
+
+  const primaryZalo = normalizedZalos[0]?.phone;
+  const primaryFacebook = normalizedFacebooks[0]?.url;
+
   return {
     ...baseChannels,
-    ...(zalos.length > 0 ? { zalos } : {}),
-    ...(facebooks.length > 0 ? { facebooks } : {}),
+    facebookUrl: primaryFacebook,
+    ...(normalizedFacebooks.length > 0
+      ? { facebooks: normalizedFacebooks }
+      : {}),
+    zalo: primaryZalo,
+    ...(normalizedZalos.length > 0 ? { zalos: normalizedZalos } : {}),
   };
 };
 
@@ -262,7 +404,11 @@ const toDraft = (
   citizenIdNumber: optionalText(form.citizenIdNumber),
   fullName: optionalText(form.fullName),
   location: optionalText(form.location),
-  officialChannels: buildOfficialChannelsPayload(form.officialChannels),
+  officialChannels: buildOfficialChannelsPayload(
+    form.officialChannels,
+    form.zalos,
+    form.facebooks
+  ),
   policyAccepted: form.policyAccepted,
   policyVersion,
   publicDataConsent: form.publicDataConsent,
@@ -279,7 +425,11 @@ const toSubmission = (
   citizenIdNumber: form.citizenIdNumber.trim(),
   fullName: form.fullName.trim(),
   location: form.location.trim(),
-  officialChannels: buildOfficialChannelsPayload(form.officialChannels),
+  officialChannels: buildOfficialChannelsPayload(
+    form.officialChannels,
+    form.zalos,
+    form.facebooks
+  ),
   policyAccepted: form.policyAccepted,
   policyVersion,
   publicDataConsent: true,
@@ -433,6 +583,56 @@ const ProviderApplicationFormContent = ({
       officialChannels: { ...previous.officialChannels, [field]: value },
     }));
   };
+  const updateZalo = (index: number, value: string) => {
+    setForm((previous) => ({
+      ...previous,
+      zalos: previous.zalos.map((account, accountIndex) =>
+        accountIndex === index ? { ...account, phone: value } : account
+      ),
+    }));
+  };
+  const addZalo = () => {
+    setForm((previous) => ({
+      ...previous,
+      zalos: [...previous.zalos, emptyZaloAccount()],
+    }));
+  };
+  const removeZalo = (index: number) => {
+    setForm((previous) => {
+      const next = previous.zalos.filter(
+        (_, accountIndex) => accountIndex !== index
+      );
+      return {
+        ...previous,
+        zalos: next.length > 0 ? next : [emptyZaloAccount()],
+      };
+    });
+  };
+  const updateFacebook = (index: number, value: string) => {
+    setForm((previous) => ({
+      ...previous,
+      facebooks: previous.facebooks.map((account, accountIndex) =>
+        accountIndex === index ? { ...account, url: value } : account
+      ),
+    }));
+  };
+  const addFacebook = () => {
+    setForm((previous) => ({
+      ...previous,
+      facebooks: [...previous.facebooks, emptyFacebookAccount()],
+    }));
+  };
+  const removeFacebook = (index: number) => {
+    setForm((previous) => {
+      const next = previous.facebooks.filter(
+        (_, accountIndex) => accountIndex !== index
+      );
+      return {
+        ...previous,
+        facebooks: next.length > 0 ? next : [emptyFacebookAccount()],
+      };
+    });
+  };
   const updateBank = (
     index: number,
     field: keyof BankAccountState,
@@ -489,6 +689,14 @@ const ProviderApplicationFormContent = ({
     () => getProviderTier(form.bondAmount),
     [form.bondAmount]
   );
+  const validZalos =
+    form.zalos.length > 0 && form.zalos.every((z) => z.phone.trim().length > 0);
+
+  const validFacebooks =
+    form.facebooks.length === 1 && !form.facebooks[0]?.url.trim()
+      ? true
+      : form.facebooks.every((fb) => fb.url.trim().length > 0);
+
   const validBankAccounts = form.registeredBankAccounts.every(
     (account) =>
       account.accountName.trim() &&
@@ -503,7 +711,8 @@ const ProviderApplicationFormContent = ({
     form.fullName.trim() &&
     form.location.trim() &&
     CITIZEN_ID_PATTERN.test(form.citizenIdNumber.trim()) &&
-    form.officialChannels.zalo.trim() &&
+    validZalos &&
+    validFacebooks &&
     form.services.trim() &&
     form.policyAccepted &&
     form.publicDataConsent &&
@@ -577,7 +786,7 @@ const ProviderApplicationFormContent = ({
 
   return (
     <form className="space-y-6" onSubmit={handleSubmit}>
-      <header className="flex w-full max-w-3xl flex-wrap items-start justify-between gap-2 text-left">
+      <header className="flex w-full flex-wrap items-start justify-between gap-2 text-left">
         <div>
           <p className="font-medium text-primary text-sm">Avin Check</p>
           <h1
@@ -664,9 +873,7 @@ const ProviderApplicationFormContent = ({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="app-bio">
-                Dòng giới thiệu ngắn / Tagline dưới tên
-              </Label>
+              <Label htmlFor="app-bio">Dòng giới thiệu ngắn</Label>
               <Input
                 disabled={isBusy}
                 id="app-bio"
@@ -695,15 +902,14 @@ const ProviderApplicationFormContent = ({
                 value={form.citizenIdNumber}
               />
             </div>
-            <div className="space-y-2 sm:col-span-2">
+            <div className="space-y-2">
               <Label htmlFor="app-location">
-                Địa điểm (Tỉnh/Thành Phố){" "}
-                <span className="text-destructive">*</span>
+                Địa điểm <span className="text-destructive">*</span>
               </Label>
               <Input
                 disabled={isBusy}
                 id="app-location"
-                placeholder="Quận/huyện, tỉnh/thành phố"
+                placeholder="Tỉnh/Thành Phố"
                 onChange={(event) =>
                   updateField("location", event.target.value)
                 }
@@ -711,25 +917,160 @@ const ProviderApplicationFormContent = ({
               />
             </div>
           </div>
-          <div className="rounded-2xl border bg-muted/20 p-4">
-            <h4 className="mb-3 font-semibold text-sm">Kênh liên hệ</h4>
+          <div className="space-y-4 rounded-2xl border bg-muted/20 p-4 sm:p-5">
+            <div>
+              <h4 className="font-semibold text-sm">Kênh liên hệ</h4>
+              <p className="text-muted-foreground text-xs">
+                Khai báo các kênh liên hệ chính thức; tài khoản đầu tiên là tài
+                khoản chính.
+              </p>
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-2">
+              {/* Zalo column */}
               <div className="space-y-2">
-                <Label htmlFor="app-zalo">
-                  Zalo <span className="text-destructive">*</span>
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="zalo-phone-0">
+                    Số điện thoại Zalo{" "}
+                    <span className="text-destructive">*</span>
+                  </Label>
+                  <Button
+                    className="size-7 rounded-lg"
+                    disabled={isBusy || form.zalos.length >= 10}
+                    onClick={addZalo}
+                    size="icon"
+                    title="Thêm tài khoản Zalo"
+                    type="button"
+                    variant="outline"
+                  >
+                    <Plus className="size-3.5" />
+                    <span className="sr-only">Thêm tài khoản Zalo</span>
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  {form.zalos.map((zalo, index) => (
+                    <div className="flex items-center gap-1.5" key={zalo.id}>
+                      <div className="flex-1">
+                        <Label
+                          className="sr-only"
+                          htmlFor={`zalo-phone-${index}`}
+                        >
+                          {index === 0
+                            ? "Số điện thoại Zalo chính"
+                            : `Số điện thoại Zalo phụ ${index}`}
+                        </Label>
+                        <Input
+                          disabled={isBusy}
+                          id={`zalo-phone-${index}`}
+                          inputMode="tel"
+                          onChange={(event) =>
+                            updateZalo(index, event.target.value)
+                          }
+                          placeholder={
+                            index === 0
+                              ? "Số điện thoại Zalo chính (VD: 0901234567)"
+                              : `Zalo phụ #${index} (VD: 0901234567)`
+                          }
+                          value={zalo.phone}
+                        />
+                      </div>
+                      {form.zalos.length > 1 && index > 0 ? (
+                        <Button
+                          className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
+                          onClick={() => removeZalo(index)}
+                          size="icon"
+                          title="Xóa"
+                          type="button"
+                          variant="ghost"
+                        >
+                          <Trash className="size-4" />
+                          <span className="sr-only">Xóa Zalo</span>
+                        </Button>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Facebook column */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="fb-url-0">Link Facebook</Label>
+                  <Button
+                    className="size-7 rounded-lg"
+                    disabled={isBusy || form.facebooks.length >= 10}
+                    onClick={addFacebook}
+                    size="icon"
+                    title="Thêm tài khoản Facebook"
+                    type="button"
+                    variant="outline"
+                  >
+                    <Plus className="size-3.5" />
+                    <span className="sr-only">Thêm tài khoản Facebook</span>
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  {form.facebooks.map((facebook, index) => (
+                    <div
+                      className="flex items-center gap-1.5"
+                      key={facebook.id}
+                    >
+                      <div className="flex-1">
+                        <Label className="sr-only" htmlFor={`fb-url-${index}`}>
+                          {index === 0
+                            ? "Link Facebook chính"
+                            : `Link Facebook phụ ${index}`}
+                        </Label>
+                        <Input
+                          disabled={isBusy}
+                          id={`fb-url-${index}`}
+                          onChange={(event) =>
+                            updateFacebook(index, event.target.value)
+                          }
+                          placeholder={
+                            index === 0
+                              ? "Link Facebook chính (https://facebook.com/...)"
+                              : `Facebook phụ #${index} (https://facebook.com/...)`
+                          }
+                          type="url"
+                          value={facebook.url}
+                        />
+                      </div>
+                      {form.facebooks.length > 1 && index > 0 ? (
+                        <Button
+                          className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
+                          onClick={() => removeFacebook(index)}
+                          size="icon"
+                          title="Xóa"
+                          type="button"
+                          variant="ghost"
+                        >
+                          <Trash className="size-4" />
+                          <span className="sr-only">Xóa Facebook</span>
+                        </Button>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Other channels */}
+              <div className="space-y-2">
+                <Label htmlFor="app-hotline">Số điện thoại / Hotline</Label>
                 <Input
                   disabled={isBusy}
-                  id="app-zalo"
+                  id="app-hotline"
+                  inputMode="tel"
                   onChange={(event) =>
-                    updateChannel("zalo", event.target.value)
+                    updateChannel("hotline", event.target.value)
                   }
-                  value={form.officialChannels.zalo}
+                  placeholder="VD: 0901234567"
+                  type="tel"
+                  value={form.officialChannels.hotline}
                 />
               </div>
               {(
                 [
-                  "facebookUrl",
                   "telegramCommunityUrl",
                   "tiktokUrl",
                   "youtubeUrl",
@@ -751,19 +1092,6 @@ const ProviderApplicationFormContent = ({
                   />
                 </div>
               ))}
-              <div className="space-y-2">
-                <Label htmlFor="app-hotline">Số điện thoại</Label>
-                <Input
-                  disabled={isBusy}
-                  id="app-hotline"
-                  inputMode="tel"
-                  onChange={(event) =>
-                    updateChannel("hotline", event.target.value)
-                  }
-                  type="tel"
-                  value={form.officialChannels.hotline}
-                />
-              </div>
             </div>
           </div>
           <div className="space-y-2">
@@ -904,7 +1232,7 @@ const ProviderApplicationFormContent = ({
                     value={account.bankCode || null}
                   >
                     <SelectTrigger
-                      className="h-9 w-full rounded-xl border bg-background px-3 text-sm"
+                      className="w-full"
                       disabled={isBusy}
                       id={`bank-code-${index}`}
                     >
@@ -1032,3 +1360,5 @@ export const ProviderApplicationForm = (
   const formKey = `${props.mode ?? "application"}:${props.application?.id ?? "empty"}`;
   return <ProviderApplicationFormContent key={formKey} {...props} />;
 };
+
+export { ProviderApplicationFormSkeleton } from "./provider-application-form-skeleton";

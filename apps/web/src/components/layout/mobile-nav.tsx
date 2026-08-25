@@ -8,11 +8,12 @@ import {
   XIcon,
 } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { AnimatePresence } from "motion/react";
 import * as m from "motion/react-m";
 import { toast } from "sonner";
 
+import { isNavItemActive } from "@/components/layout/nav-active";
 import { useTheme } from "@/components/theme-provider";
 import type { MainNavItem } from "@/config/site";
 import { authClient } from "@/features/auth/api/auth-client";
@@ -73,6 +74,7 @@ export const MobileNav = ({ isOpen, items, onToggle }: MobileNavProps) => {
   const queryClient = useQueryClient();
   const { data: session } = useSession();
   const { theme, setTheme } = useTheme();
+  const pathname = useLocation({ select: (location) => location.pathname });
 
   return (
     <AnimatePresence>
@@ -94,20 +96,27 @@ export const MobileNav = ({ isOpen, items, onToggle }: MobileNavProps) => {
           >
             <div className="space-y-6 p-6">
               <div className="space-y-1">
-                {items?.map((item) => (
-                  <m.div key={item.title} variants={mobileItemVariants}>
-                    <Link
-                      activeProps={{
-                        className: "bg-muted text-foreground font-semibold",
-                      }}
-                      className="block rounded-lg px-4 py-3 font-medium text-foreground transition-colors duration-200 hover:bg-muted"
-                      onClick={onToggle}
-                      to={item.href as string}
-                    >
-                      {item.title}
-                    </Link>
-                  </m.div>
-                ))}
+                {items?.map((item) => {
+                  const isActive = isNavItemActive(item.href, pathname);
+
+                  return (
+                    <m.div key={item.title} variants={mobileItemVariants}>
+                      <Link
+                        aria-current={isActive ? "page" : undefined}
+                        className={cn(
+                          "block rounded-lg px-4 py-3 font-medium transition-colors duration-200",
+                          isActive
+                            ? "bg-muted font-semibold text-foreground"
+                            : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                        )}
+                        onClick={onToggle}
+                        to={item.href as string}
+                      >
+                        {item.title}
+                      </Link>
+                    </m.div>
+                  );
+                })}
               </div>
 
               <m.div

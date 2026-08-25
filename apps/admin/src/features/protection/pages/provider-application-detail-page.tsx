@@ -118,7 +118,14 @@ const ProviderApplicationFacts = ({
           />
           <DetailField
             label="Facebook"
-            value={displayValue(officialChannels.facebookUrl)}
+            value={
+              officialChannels.facebooks &&
+              officialChannels.facebooks.length > 0
+                ? officialChannels.facebooks
+                    .map((fb) => `${fb.url}${fb.isPrimary ? " [Chính]" : ""}`)
+                    .join(" | ")
+                : displayValue(officialChannels.facebookUrl)
+            }
           />
           <DetailField
             label="Số điện thoại"
@@ -126,7 +133,13 @@ const ProviderApplicationFacts = ({
           />
           <DetailField
             label="Zalo"
-            value={displayValue(officialChannels.zalo)}
+            value={
+              officialChannels.zalos && officialChannels.zalos.length > 0
+                ? officialChannels.zalos
+                    .map((z) => `${z.phone}${z.isPrimary ? " [Chính]" : ""}`)
+                    .join(" | ")
+                : displayValue(officialChannels.zalo)
+            }
           />
           <DetailField
             label="Nhóm Telegram"

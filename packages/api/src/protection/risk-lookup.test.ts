@@ -98,6 +98,7 @@ const createStatisticsDatabase = (
   }) as never;
 
 const createReport = (overrides: Record<string, unknown> = {}) => ({
+  affectedVictimCount: 1,
   claimedLoss: 125_000,
   id: "report-1",
   publicSlug: "warning-report-1",
@@ -492,12 +493,51 @@ describe("public risk statistics", () => {
     const result = await getPublicRiskStatistics(database, "203.0.113.20");
 
     expect(result.currentReports).toBe(2);
+    expect(result.affectedVictims).toBe(2);
     expect(result.publishedRiskIdentifiers).toBe(2);
     expect(result.verifiedClaimedLoss).toBe(200_000);
     expect(result.reportsByPeriod).toEqual([
       { count: 1, period: "2026-07" },
       { count: 1, period: "2026-08" },
     ]);
+    expect(result.activity).toEqual({
+      day: [
+        {
+          affectedVictims: 1,
+          claimedLoss: 125_000,
+          period: "2026-08-01",
+          reports: 1,
+        },
+        {
+          affectedVictims: 1,
+          claimedLoss: 75_000,
+          period: "2026-07-15",
+          reports: 1,
+        },
+      ],
+      month: [
+        {
+          affectedVictims: 1,
+          claimedLoss: 125_000,
+          period: "2026-08",
+          reports: 1,
+        },
+        {
+          affectedVictims: 1,
+          claimedLoss: 75_000,
+          period: "2026-07",
+          reports: 1,
+        },
+      ],
+      year: [
+        {
+          affectedVictims: 2,
+          claimedLoss: 200_000,
+          period: "2026",
+          reports: 2,
+        },
+      ],
+    });
     expect(result.lastUpdatedAt).toBe("2026-08-02T10:00:00.000Z");
     expect(publicRiskReportStatuses).not.toContain("REMOVED");
   });

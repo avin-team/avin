@@ -145,9 +145,10 @@ describe("PublicRiskWarningDetailPage", () => {
       "https://cdn.example.com/public-evidence.png"
     );
 
-    expect(
-      screen.getByRole("link", { name: /Yêu cầu đính chính \/ gỡ/iu })
-    ).toHaveAttribute("href", "/avin-check/correction?reportId=report-123");
+    expect(screen.getByRole("link", { name: /Yêu cầu gỡ/iu })).toHaveAttribute(
+      "href",
+      "/avin-check/correction?reportId=report-123"
+    );
     expect(
       screen.getByRole("link", { name: /Gửi report mới/iu })
     ).toHaveAttribute("href", "/avin-check/report");
