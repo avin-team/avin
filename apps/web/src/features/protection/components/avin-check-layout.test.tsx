@@ -48,8 +48,8 @@ describe("AvinCheckLayout", () => {
       "/avin-check/directory"
     );
     expect(
-      screen.getAllByRole("link", { name: "Gửi báo cáo rủi ro" })[0]
-    ).toHaveAttribute("href", "/avin-check/report");
+      screen.queryByRole("link", { name: "Gửi báo cáo rủi ro" })
+    ).not.toBeInTheDocument();
     expect(
       screen.getAllByRole("link", { name: "Hướng dẫn và chính sách" })[0]
     ).toHaveAttribute("href", "/avin-check/guide");

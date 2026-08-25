@@ -42,6 +42,7 @@ const registeredBankAccountsDraftSchema = z
   .max(10);
 
 const providerApplicationFieldsSchema = z.object({
+  bio: z.string().trim().max(150).optional(),
   bondAmount,
   citizenIdNumber,
   fullName: z.string().trim().min(2).max(200),
@@ -55,6 +56,7 @@ const providerApplicationFieldsSchema = z.object({
 });
 
 export const providerApplicationDraftInputSchema = z.object({
+  bio: z.string().trim().max(150).optional(),
   bondAmount: bondAmount.optional(),
   citizenIdNumber: citizenIdNumber.optional(),
   fullName: providerApplicationFieldsSchema.shape.fullName.optional(),
@@ -71,10 +73,20 @@ export type ProviderApplicationDraft = z.infer<
   typeof providerApplicationDraftInputSchema
 >;
 
+const hasChannelValue = (value: unknown): boolean => {
+  if (typeof value === "string") {
+    return Boolean(value.trim());
+  }
+  if (Array.isArray(value)) {
+    return value.length > 0;
+  }
+  return Boolean(value);
+};
+
 export const providerApplicationSubmissionInputSchema =
   providerApplicationFieldsSchema.superRefine((input, context) => {
     const hasOfficialChannel = Object.values(input.officialChannels).some(
-      (value) => Boolean(value?.trim())
+      hasChannelValue
     );
     if (!hasOfficialChannel) {
       context.addIssue({
@@ -84,7 +96,14 @@ export const providerApplicationSubmissionInputSchema =
       });
     }
 
-    if (!input.officialChannels.zalo?.trim()) {
+    const hasZalo =
+      Boolean(input.officialChannels.zalo?.trim()) ||
+      Boolean(
+        input.officialChannels.zalos?.some((item) =>
+          Boolean(item.phone?.trim())
+        )
+      );
+    if (!hasZalo) {
       context.addIssue({
         code: "custom",
         message: "Zalo is required",

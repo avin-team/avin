@@ -129,6 +129,36 @@ export const protectionProviderRiskIncidentStatus = pgEnum(
   ]
 );
 
+export const protectionExternalImportRun = pgTable(
+  "protection_external_import_run",
+  {
+    actorUserId: text("actor_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    completedAt: timestamp("completed_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    createdCount: integer("created_count").default(0).notNull(),
+    error: text("error"),
+    evidenceDownloadedCount: integer("evidence_downloaded_count")
+      .default(0)
+      .notNull(),
+    failedCount: integer("failed_count").default(0).notNull(),
+    fetchedCount: integer("fetched_count").default(0).notNull(),
+    fullReconcile: boolean("full_reconcile").default(false).notNull(),
+    hiddenCount: integer("hidden_count").default(0).notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    mode: text("mode").notNull(),
+    source: text("source").notNull(),
+    startedAt: timestamp("started_at").defaultNow().notNull(),
+    status: text("status").notNull(),
+    updatedCount: integer("updated_count").default(0).notNull(),
+  },
+  (table) => [
+    index("protection_external_import_run_created_idx").on(table.createdAt),
+    index("protection_external_import_run_status_idx").on(table.status),
+  ]
+);
+
 export const protectionProviderBondAdjustmentKind = pgEnum(
   "protection_provider_bond_adjustment_kind",
   ["DEPOSIT", "WITHDRAWAL", "SUPPORT_ALLOCATION", "CORRECTION"]
@@ -222,15 +252,43 @@ export const protectionSupportTransactionScope = pgEnum(
 
 const providerChannelUrl = z.string().trim().url().max(2000);
 
+export const providerZaloChannelSchema = z.object({
+  isPrimary: z.boolean().optional(),
+  label: z.string().trim().max(100).optional(),
+  phone: z.string().trim().min(1).max(100),
+});
+
+export const providerFacebookChannelSchema = z.object({
+  id: z.string().trim().max(100).optional(),
+  isPrimary: z.boolean().optional(),
+  label: z.string().trim().max(100).optional(),
+  url: providerChannelUrl,
+});
+
+export type ProviderZaloChannel = z.infer<typeof providerZaloChannelSchema>;
+export type ProviderFacebookChannel = z.infer<
+  typeof providerFacebookChannelSchema
+>;
+
 export const providerOfficialChannelsSchema = z.object({
+  additionalZalos: z.array(z.string().trim().max(100)).optional(),
   avatarUrl: providerChannelUrl.optional(),
+  bioShopId: z.string().trim().max(100).optional(),
+  bioShopUrl: providerChannelUrl.optional(),
+  facebookId: z.string().trim().max(100).optional(),
+  facebookSecondaryId: z.string().trim().max(100).optional(),
+  facebookSecondaryUrl: providerChannelUrl.optional(),
   facebookUrl: providerChannelUrl.optional(),
+  facebooks: z.array(providerFacebookChannelSchema).optional(),
   hotline: z.string().trim().max(100).optional(),
+  qrCodeUrl: providerChannelUrl.optional(),
   telegramCommunityUrl: providerChannelUrl.optional(),
   tiktokUrl: providerChannelUrl.optional(),
   websiteUrl: providerChannelUrl.optional(),
   youtubeUrl: providerChannelUrl.optional(),
   zalo: z.string().trim().max(100).optional(),
+  zaloSecondary: z.string().trim().max(100).optional(),
+  zalos: z.array(providerZaloChannelSchema).optional(),
 });
 
 export type ProviderOfficialChannels = z.infer<
@@ -358,6 +416,7 @@ export const protectionPilotInvitation = pgTable(
 export const protectionProviderApplication = pgTable(
   "protection_provider_application",
   {
+    bio: text("bio"),
     bondAmount: integer("bond_amount"),
     citizenIdCiphertext: text("citizen_id_ciphertext"),
     citizenIdHash: text("citizen_id_hash"),
@@ -394,6 +453,7 @@ export const protectionProviderApplication = pgTable(
     }),
     revisionCount: integer("revision_count").default(0).notNull(),
     services: text("services"),
+    source: text("source").default("AVIN_NATIVE").notNull(),
     status: protectionProviderApplicationStatus("status")
       .default("DRAFT")
       .notNull(),
@@ -427,6 +487,7 @@ export const protectionProviderProfile = pgTable(
       .references(() => protectionProviderApplication.id, {
         onDelete: "restrict",
       }),
+    bio: text("bio"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     displayName: text("display_name").notNull(),
     id: uuid("id").defaultRandom().primaryKey(),
@@ -441,6 +502,7 @@ export const protectionProviderProfile = pgTable(
       .references(() => user.id, { onDelete: "cascade" }),
     publishedAt: timestamp("published_at").defaultNow().notNull(),
     services: text("services").notNull(),
+    source: text("source").default("AVIN_NATIVE").notNull(),
     status: protectionProviderProfileStatus("status")
       .default("ACTIVE")
       .notNull(),
@@ -460,6 +522,7 @@ export const protectionProviderProfile = pgTable(
 export const protectionProviderProfileVersion = pgTable(
   "protection_provider_profile_version",
   {
+    bio: text("bio"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     displayName: text("display_name").notNull(),
     id: uuid("id").defaultRandom().primaryKey(),
@@ -492,6 +555,7 @@ export const protectionProviderProfileVersion = pgTable(
       .default([])
       .notNull(),
     services: text("services").notNull(),
+    source: text("source").default("AVIN_NATIVE").notNull(),
     sourceApplicationId: uuid("source_application_id").references(
       () => protectionProviderApplication.id,
       { onDelete: "set null" }
@@ -519,6 +583,7 @@ export const protectionProviderProfileRevision = pgTable(
       .references(() => protectionProviderProfileVersion.id, {
         onDelete: "restrict",
       }),
+    bio: text("bio"),
     citizenIdCiphertext: text("citizen_id_ciphertext"),
     citizenIdHash: text("citizen_id_hash"),
     citizenIdLast4: text("citizen_id_last4"),
@@ -554,6 +619,7 @@ export const protectionProviderProfileRevision = pgTable(
     }),
     revisionNumber: integer("revision_number").notNull(),
     services: text("services"),
+    source: text("source").default("AVIN_NATIVE").notNull(),
     status: protectionProviderApplicationStatus("status")
       .default("DRAFT")
       .notNull(),
@@ -708,6 +774,25 @@ export const protectionRiskReport = pgTable(
     affectedVictimCount: integer("affected_victim_count").default(1).notNull(),
     claimedLoss: integer("claimed_loss"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
+    externalAdminHidden: boolean("external_admin_hidden")
+      .default(false)
+      .notNull(),
+    externalBankName: text("external_bank_name"),
+    externalImportRunId: uuid("external_import_run_id").references(
+      () => protectionExternalImportRun.id,
+      { onDelete: "set null" }
+    ),
+    externalLastSyncedAt: timestamp("external_last_synced_at"),
+    externalPayloadHash: text("external_payload_hash"),
+    externalPlatformUrl: text("external_platform_url"),
+    externalRawPayload: jsonb("external_raw_payload"),
+    externalSource: text("external_source"),
+    externalSourceCreatedAt: timestamp("external_source_created_at"),
+    externalSourceId: text("external_source_id"),
+    externalSourceStatus: text("external_source_status"),
+    externalSourceUrl: text("external_source_url"),
+    externalSuspectName: text("external_suspect_name"),
+    externalTitle: text("external_title"),
     id: uuid("id").defaultRandom().primaryKey(),
     narrative: text("narrative"),
     platform: text("platform"),
@@ -753,8 +838,16 @@ export const protectionRiskReport = pgTable(
       .notNull(),
   },
   (table) => [
+    uniqueIndex("protection_risk_report_external_source_idx").on(
+      table.externalSource,
+      table.externalSourceId
+    ),
     uniqueIndex("protection_risk_report_public_slug_idx").on(table.publicSlug),
     index("protection_risk_report_status_idx").on(table.status),
+    index("protection_risk_report_external_hidden_idx").on(
+      table.externalAdminHidden,
+      table.externalSource
+    ),
     index("protection_risk_report_submitted_idx").on(table.submittedAt),
     index("protection_risk_report_reporter_user_idx").on(table.reporterUserId),
     index("protection_risk_report_duplicate_idx").on(
@@ -796,6 +889,7 @@ export const protectionRiskEvidence = pgTable(
   {
     contentType: text("content_type").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
+    externalEvidenceId: text("external_evidence_id"),
     fileName: text("file_name").notNull(),
     id: uuid("id").defaultRandom().primaryKey(),
     immutableAt: timestamp("immutable_at").defaultNow().notNull(),
@@ -816,6 +910,10 @@ export const protectionRiskEvidence = pgTable(
       table.originalStorageKey
     ),
     index("protection_risk_evidence_report_idx").on(table.reportId),
+    index("protection_risk_evidence_external_idx").on(
+      table.reportId,
+      table.externalEvidenceId
+    ),
   ]
 );
 

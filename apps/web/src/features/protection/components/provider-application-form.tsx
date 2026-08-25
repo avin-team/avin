@@ -97,6 +97,7 @@ interface BankAccountState {
 }
 
 export interface ProviderApplicationFormState {
+  bio: string;
   bondAmount: number;
   citizenIdNumber: string;
   fullName: string;
@@ -117,6 +118,7 @@ const emptyBankAccount = (isPrimary = true): BankAccountState => ({
 });
 
 const emptyFormState = (): ProviderApplicationFormState => ({
+  bio: "",
   bondAmount: DEFAULT_BOND_AMOUNT,
   citizenIdNumber: "",
   fullName: "",
@@ -138,6 +140,7 @@ const emptyFormState = (): ProviderApplicationFormState => ({
 });
 
 const createDevelopmentFormState = (): ProviderApplicationFormState => ({
+  bio: "Giao dịch trung gian uy tín 24/7",
   bondAmount: DEFAULT_BOND_AMOUNT,
   citizenIdNumber: "079123456789",
   fullName: "Nguyễn Văn Dev",
@@ -190,6 +193,7 @@ const getFormState = (
     })
   );
   return {
+    bio: readText(application.bio),
     bondAmount:
       typeof applicationBondAmount === "number" &&
       applicationBondAmount >= DEFAULT_BOND_AMOUNT
@@ -226,20 +230,39 @@ const optionalText = (value: string): string | undefined => {
 const toBankAccountPayload = (accounts: BankAccountState[]) =>
   accounts.map(({ id: _id, ...account }) => account);
 
+const buildOfficialChannelsPayload = (channels: OfficialChannelsState) => {
+  const baseChannels = Object.fromEntries(
+    Object.entries(channels).map(([key, value]) => [key, optionalText(value)])
+  );
+  const zalos = channels.zalo.trim()
+    ? [{ isPrimary: true, label: "Zalo Chính", phone: channels.zalo.trim() }]
+    : [];
+  const facebooks = channels.facebookUrl.trim()
+    ? [
+        {
+          isPrimary: true,
+          label: "Facebook Chính",
+          url: channels.facebookUrl.trim(),
+        },
+      ]
+    : [];
+  return {
+    ...baseChannels,
+    ...(zalos.length > 0 ? { zalos } : {}),
+    ...(facebooks.length > 0 ? { facebooks } : {}),
+  };
+};
+
 const toDraft = (
   form: ProviderApplicationFormState,
   policyVersion: string
 ): ProviderApplicationDraft => ({
+  bio: optionalText(form.bio),
   bondAmount: form.bondAmount,
   citizenIdNumber: optionalText(form.citizenIdNumber),
   fullName: optionalText(form.fullName),
   location: optionalText(form.location),
-  officialChannels: Object.fromEntries(
-    Object.entries(form.officialChannels).map(([key, value]) => [
-      key,
-      optionalText(value),
-    ])
-  ),
+  officialChannels: buildOfficialChannelsPayload(form.officialChannels),
   policyAccepted: form.policyAccepted,
   policyVersion,
   publicDataConsent: form.publicDataConsent,
@@ -251,16 +274,12 @@ const toSubmission = (
   form: ProviderApplicationFormState,
   policyVersion: string
 ): ProviderApplicationSubmission => ({
+  bio: optionalText(form.bio),
   bondAmount: form.bondAmount,
   citizenIdNumber: form.citizenIdNumber.trim(),
   fullName: form.fullName.trim(),
   location: form.location.trim(),
-  officialChannels: Object.fromEntries(
-    Object.entries(form.officialChannels).map(([key, value]) => [
-      key,
-      optionalText(value),
-    ])
-  ),
+  officialChannels: buildOfficialChannelsPayload(form.officialChannels),
   policyAccepted: form.policyAccepted,
   policyVersion,
   publicDataConsent: true,
@@ -642,6 +661,19 @@ const ProviderApplicationFormContent = ({
                   updateField("fullName", event.target.value)
                 }
                 value={form.fullName}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="app-bio">
+                Dòng giới thiệu ngắn / Tagline dưới tên
+              </Label>
+              <Input
+                disabled={isBusy}
+                id="app-bio"
+                maxLength={150}
+                onChange={(event) => updateField("bio", event.target.value)}
+                placeholder="VD: Giao dịch qua Zalo nhé mọi người"
+                value={form.bio}
               />
             </div>
             <div className="space-y-2">

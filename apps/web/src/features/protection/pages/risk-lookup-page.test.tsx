@@ -72,6 +72,14 @@ vi.mock("../api/risk-lookup-api", () => ({
   }),
 }));
 
+vi.mock("../api/risk-warning-api", () => ({
+  usePublicRiskWarnings: () => ({
+    data: [],
+    isError: false,
+    isPending: false,
+  }),
+}));
+
 describe("RiskLookupPage", () => {
   afterEach(() => {
     cleanup();
@@ -83,13 +91,11 @@ describe("RiskLookupPage", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: "Kiểm tra định danh rủi ro chính xác.",
+        name: "Kiểm tra dấu hiệu lừa đảo.",
       })
     ).toBeInTheDocument();
-    expect(screen.getByText("**** 6789")).toBeInTheDocument();
-    expect(
-      screen.getByText("Risk Identifier đã phát hành")
-    ).toBeInTheDocument();
+    expect(screen.getAllByText("**** 6789")[0]).toBeInTheDocument();
+    expect(screen.getByText("Số điện thoại, số tài khoản")).toBeInTheDocument();
     expect(screen.getByText("3")).toBeInTheDocument();
     expect(screen.getByRole("textbox")).toHaveAttribute("autocomplete", "off");
   });

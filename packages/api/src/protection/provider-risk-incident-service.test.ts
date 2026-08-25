@@ -44,6 +44,7 @@ const timestamp = new Date("2026-08-21T00:00:00.000Z");
 
 const createProfile = (overrides: Partial<ProfileRow> = {}): ProfileRow => ({
   applicationId: "application-1",
+  bio: null,
   createdAt: timestamp,
   displayName: "Provider One",
   id: "profile-1",
@@ -53,6 +54,7 @@ const createProfile = (overrides: Partial<ProfileRow> = {}): ProfileRow => ({
   providerUserId: "provider-1",
   publishedAt: timestamp,
   services: "Game account support",
+  source: "AVIN_NATIVE",
   status: "ACTIVE",
   updatedAt: timestamp,
   verifiedAt: timestamp,
@@ -63,6 +65,7 @@ const createProfile = (overrides: Partial<ProfileRow> = {}): ProfileRow => ({
 const createVersion = (
   overrides: Partial<ProfileVersionRow> = {}
 ): ProfileVersionRow => ({
+  bio: null,
   createdAt: timestamp,
   displayName: "Provider One",
   id: "profile-version-1",
@@ -77,6 +80,7 @@ const createVersion = (
   recommendedTransactionLimit: 0,
   registeredBankAccounts: [],
   services: "Game account support",
+  source: "AVIN_NATIVE",
   sourceApplicationId: "application-1",
   status: "ACTIVE",
   statusReason: null,
@@ -90,6 +94,20 @@ const createReport = (overrides: Partial<ReportRow> = {}): ReportRow => ({
   affectedVictimCount: 1,
   claimedLoss: 100,
   createdAt: timestamp,
+  externalAdminHidden: false,
+  externalBankName: null,
+  externalImportRunId: null,
+  externalLastSyncedAt: null,
+  externalPayloadHash: null,
+  externalPlatformUrl: null,
+  externalRawPayload: null,
+  externalSource: null,
+  externalSourceCreatedAt: null,
+  externalSourceId: null,
+  externalSourceStatus: null,
+  externalSourceUrl: null,
+  externalSuspectName: null,
+  externalTitle: null,
   id: "report-1",
   narrative: "A moderated report",
   platform: null,

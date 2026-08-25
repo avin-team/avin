@@ -16,15 +16,11 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@avin/ui/components/empty";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@avin/ui/components/input-group";
+import { Input } from "@avin/ui/components/input";
+import { Skeleton } from "@avin/ui/components/skeleton";
 import { Spinner } from "@avin/ui/components/spinner";
 import {
   ArrowRightIcon,
-  BuildingsIcon,
   MagnifyingGlassIcon,
   ShieldCheckIcon,
 } from "@phosphor-icons/react";
@@ -36,6 +32,9 @@ import type { FormEvent } from "react";
 import { Shell } from "@/components/shell";
 import { orpc } from "@/utils/orpc";
 
+import { ProviderShowcaseSection } from "../components/provider-showcase-section";
+import type { MockProvider } from "../data/mock-providers";
+
 const providerDateFormatter = new Intl.DateTimeFormat("vi-VN", {
   dateStyle: "medium",
 });
@@ -43,6 +42,68 @@ const providerMoneyFormatter = new Intl.NumberFormat("vi-VN");
 
 const formatDate = (value: string): string =>
   providerDateFormatter.format(new Date(value));
+
+const mapApiToMockProvider = (
+  p: {
+    bio?: string | null;
+    displayName: string;
+    id: string;
+    location?: string | null;
+    officialChannels?: {
+      additionalZalos?: string[];
+      avatarUrl?: string;
+      facebookId?: string;
+      facebookSecondaryId?: string;
+      facebookSecondaryUrl?: string;
+      facebookUrl?: string;
+      facebooks?: {
+        id?: string;
+        isPrimary?: boolean;
+        label?: string;
+        url: string;
+      }[];
+      hotline?: string;
+      qrCodeUrl?: string;
+      telegramCommunityUrl?: string;
+      tiktokUrl?: string;
+      websiteUrl?: string;
+      youtubeUrl?: string;
+      zalo?: string;
+      zaloSecondary?: string;
+      zalos?: {
+        isPrimary?: boolean;
+        label?: string;
+        phone: string;
+      }[];
+    } | null;
+    profileSlug: string;
+    publicUrl: string;
+    publishedAt?: string | null;
+    recommendedTransactionLimit?: number | null;
+    recognizedBondAmount?: number | null;
+    services?: string | null;
+    source?: string | null;
+    tier?: string | null;
+    verifiedAt?: string | null;
+  },
+  _index: number
+): MockProvider => ({
+  avatarUrl: p.officialChannels?.avatarUrl ?? "",
+  bio: p.bio ?? undefined,
+  displayName: p.displayName,
+  id: p.id,
+  isVerified: true,
+  location: p.location ?? "",
+  officialChannels: p.officialChannels ?? {},
+  rank: undefined,
+  recognizedBondAmount: p.recognizedBondAmount ?? 50_000_000,
+  recommendedTransactionLimit: p.recommendedTransactionLimit ?? 20_000_000,
+  services: p.services ?? "",
+  slug: p.profileSlug,
+  source: p.source ?? undefined,
+  tier: (p.tier as MockProvider["tier"]) ?? "BRONZE",
+  verifiedAt: p.verifiedAt ?? "",
+});
 
 const TIER_LABELS = {
   BRONZE: "Đồng",
@@ -57,16 +118,35 @@ const ProviderDirectoryCard = ({
   provider,
 }: {
   provider: {
+    bio?: string | null;
     displayName: string;
     location: string;
     officialChannels: {
+      additionalZalos?: string[];
+      avatarUrl?: string;
+      facebookId?: string;
+      facebookSecondaryId?: string;
+      facebookSecondaryUrl?: string;
       facebookUrl?: string;
+      facebooks?: {
+        id?: string;
+        isPrimary?: boolean;
+        label?: string;
+        url: string;
+      }[];
       hotline?: string;
+      qrCodeUrl?: string;
       telegramCommunityUrl?: string;
       tiktokUrl?: string;
       websiteUrl?: string;
       youtubeUrl?: string;
       zalo?: string;
+      zaloSecondary?: string;
+      zalos?: {
+        isPrimary?: boolean;
+        label?: string;
+        phone: string;
+      }[];
     };
     profileSlug: string;
     publicUrl: string;
@@ -74,6 +154,7 @@ const ProviderDirectoryCard = ({
     recommendedTransactionLimit: number;
     recognizedBondAmount: number;
     services: string;
+    source?: string | null;
     tier: string;
     verifiedAt: string;
   };
@@ -82,7 +163,19 @@ const ProviderDirectoryCard = ({
     <CardHeader>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <CardTitle>{provider.displayName}</CardTitle>
+          <div className="flex flex-wrap items-center gap-2">
+            <CardTitle>{provider.displayName}</CardTitle>
+            {provider.source === "CHECKSCAM" ? (
+              <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 font-semibold text-[0.65rem] text-amber-600 dark:text-amber-400">
+                Nguồn: CheckScam
+              </span>
+            ) : null}
+          </div>
+          {provider.bio ? (
+            <p className="mt-1 font-medium text-muted-foreground text-xs italic">
+              {provider.bio}
+            </p>
+          ) : null}
           <CardDescription className="mt-1">
             {provider.location || "Địa điểm chưa cập nhật"} · Đã xác minh{" "}
             {formatDate(provider.verifiedAt)}
@@ -198,30 +291,92 @@ export const ProviderDirectoryPage = () => {
     await searchMutation.mutateAsync({ query: trimmedQuery });
   };
 
+  const initialProviders =
+    directoryQuery.data?.providers?.map(mapApiToMockProvider) ?? [];
+
+  const renderSearchResults = () => {
+    if (searchMutation.isPending) {
+      return (
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Card className="h-full" key={index}>
+              <CardHeader>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-2">
+                    <Skeleton className="h-5 w-36" />
+                    <Skeleton className="h-4 w-48" />
+                  </div>
+                  <Skeleton className="h-6 w-24 rounded-full" />
+                </div>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4">
+                <Skeleton className="h-12 w-full" />
+                <div className="flex gap-2">
+                  <Skeleton className="h-5 w-20 rounded-md" />
+                  <Skeleton className="h-5 w-28 rounded-md" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      );
+    }
+
+    if (providers.length === 0) {
+      return (
+        <Empty className="mt-6 border">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <MagnifyingGlassIcon aria-hidden="true" />
+            </EmptyMedia>
+            <EmptyTitle>Chưa tìm thấy đối tác</EmptyTitle>
+            <EmptyDescription>
+              Hãy kiểm tra lại tên hoặc thử với một phần tên ngắn hơn.
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Link
+              className={buttonVariants({ variant: "outline" })}
+              to="/avin-check/apply"
+            >
+              Đăng ký đối tác
+              <ArrowRightIcon aria-hidden="true" data-icon="inline-end" />
+            </Link>
+          </EmptyContent>
+        </Empty>
+      );
+    }
+
+    return (
+      <div className="mt-6 grid gap-4 md:grid-cols-2">
+        {providers.map((provider) => (
+          <ProviderDirectoryCard key={provider.id} provider={provider} />
+        ))}
+      </div>
+    );
+  };
+
   return (
-    <Shell as="div" className="gap-6" variant="default">
+    <Shell as="div" className="gap-8" variant="default">
       <section
         aria-labelledby="provider-directory-heading"
-        className="rounded-3xl border border-primary/20 bg-linear-to-r from-primary/8 via-card to-card px-5 py-5 shadow-sm sm:px-6"
+        className="grid gap-6 border-b pb-8"
       >
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <Badge className="mb-2 gap-1.5" variant="outline">
-              <ShieldCheckIcon aria-hidden="true" /> Đối tác Avin
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="grid gap-2">
+            <Badge className="w-fit gap-1.5" variant="outline">
+              <ShieldCheckIcon aria-hidden="true" />
+              Avin Đối tác
             </Badge>
             <h1
-              className="font-bold text-2xl tracking-tight sm:text-3xl"
+              className="font-black text-4xl tracking-tight sm:text-5xl"
               id="provider-directory-heading"
             >
               Tìm đối tác đã xác minh
             </h1>
-            <p className="mt-1 text-muted-foreground text-sm">
-              Tìm theo tên, dịch vụ, địa điểm, số tài khoản, số điện thoại hoặc
-              kênh mạng xã hội.
-            </p>
           </div>
           <Link
-            className={buttonVariants({ size: "sm", variant: "outline" })}
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-4xl border border-input px-3 font-medium text-sm transition hover:bg-accent hover:text-accent-foreground"
             to="/avin-check/apply"
           >
             Đăng ký đối tác
@@ -229,41 +384,47 @@ export const ProviderDirectoryPage = () => {
           </Link>
         </div>
 
-        <form
-          className="mt-4 flex max-w-3xl flex-col gap-2 sm:flex-row"
-          onSubmit={handleSearch}
-        >
-          <label className="sr-only" htmlFor="provider-directory-search">
-            Tên, STK hoặc kênh liên hệ
+        <form className="grid gap-3" onSubmit={handleSearch}>
+          <label
+            className="font-medium text-sm"
+            htmlFor="provider-directory-search"
+          >
+            Nhập tên đối tác, dịch vụ hoặc thông tin liên hệ
           </label>
-          <InputGroup className="h-10 flex-1 bg-background/80">
-            <InputGroupInput
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Input
               autoComplete="off"
+              className="h-12 flex-1"
               id="provider-directory-search"
               maxLength={200}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Nhập tên, STK, số điện thoại, Zalo..."
+              placeholder="Ví dụ: Tên đối tác, số điện thoại hoặc website"
+              spellCheck="false"
               value={query}
             />
-            <InputGroupAddon>
-              <MagnifyingGlassIcon aria-hidden="true" />
-            </InputGroupAddon>
-          </InputGroup>
-          <Button
-            className="h-10 sm:px-5"
-            disabled={searchMutation.isPending || !query.trim()}
-            type="submit"
-          >
-            {searchMutation.isPending ? (
-              <>
-                <Spinner data-icon="inline-start" />
-                Đang tìm...
-              </>
-            ) : (
-              "Tìm đối tác"
-            )}
-          </Button>
+            <Button
+              className="h-12 sm:px-6"
+              disabled={searchMutation.isPending || !query.trim()}
+              type="submit"
+            >
+              {searchMutation.isPending ? (
+                <>
+                  <Spinner data-icon="inline-start" />
+                  Đang tìm...
+                </>
+              ) : (
+                <>
+                  <MagnifyingGlassIcon data-icon="inline-start" />
+                  Tìm đối tác
+                </>
+              )}
+            </Button>
+          </div>
         </form>
+        <p className="text-muted-foreground text-sm">
+          Tra cứu đối tác đã xác minh theo tên, dịch vụ, địa điểm, số tài khoản,
+          số điện thoại hoặc kênh mạng xã hội.
+        </p>
       </section>
 
       {searchMutation.isError ? (
@@ -275,69 +436,30 @@ export const ProviderDirectoryPage = () => {
         </Alert>
       ) : null}
 
-      <section aria-labelledby="provider-directory-results-heading">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <h2
-            className="font-bold text-2xl tracking-tight sm:text-3xl"
-            id="provider-directory-results-heading"
-          >
-            {isSearchActive ? "Kết quả tìm kiếm" : "Đối tác đã xác minh"}
-          </h2>
-          <p aria-live="polite" className="text-muted-foreground text-sm">
-            {directoryQuery.isPending || searchMutation.isPending
-              ? "Đang tải..."
-              : `${providers.length} đối tác`}
-          </p>
-        </div>
+      {isSearchActive ? (
+        <section aria-labelledby="provider-directory-results-heading">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <h2
+              className="font-bold text-2xl tracking-tight sm:text-3xl"
+              id="provider-directory-results-heading"
+            >
+              Kết quả tìm kiếm
+            </h2>
+            <p aria-live="polite" className="text-muted-foreground text-sm">
+              {searchMutation.isPending
+                ? "Đang tải..."
+                : `${providers.length} đối tác`}
+            </p>
+          </div>
 
-        {directoryQuery.isError && !isSearchActive ? (
-          <Alert className="mt-6" role="alert">
-            <AlertTitle>Chưa thể tải danh sách đối tác</AlertTitle>
-            <AlertDescription>Vui lòng thử lại sau ít phút.</AlertDescription>
-          </Alert>
-        ) : null}
-
-        {!directoryQuery.isPending &&
-        !searchMutation.isPending &&
-        providers.length === 0 ? (
-          <Empty className="mt-6 border">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                {isSearchActive ? (
-                  <MagnifyingGlassIcon aria-hidden="true" />
-                ) : (
-                  <BuildingsIcon aria-hidden="true" />
-                )}
-              </EmptyMedia>
-              <EmptyTitle>
-                {isSearchActive
-                  ? "Chưa tìm thấy đối tác"
-                  : "Chưa có đối tác công khai"}
-              </EmptyTitle>
-              <EmptyDescription>
-                {isSearchActive
-                  ? "Hãy kiểm tra lại tên hoặc thử với một phần tên ngắn hơn."
-                  : "Bạn có thể đăng ký để trở thành đối tác đầu tiên xuất hiện tại đây."}
-              </EmptyDescription>
-            </EmptyHeader>
-            <EmptyContent>
-              <Link
-                className={buttonVariants({ variant: "outline" })}
-                to="/avin-check/apply"
-              >
-                Đăng ký đối tác
-                <ArrowRightIcon aria-hidden="true" data-icon="inline-end" />
-              </Link>
-            </EmptyContent>
-          </Empty>
-        ) : null}
-
-        <div className="mt-6 grid gap-4 md:grid-cols-2">
-          {providers.map((provider) => (
-            <ProviderDirectoryCard key={provider.id} provider={provider} />
-          ))}
-        </div>
-      </section>
+          {renderSearchResults()}
+        </section>
+      ) : (
+        <ProviderShowcaseSection
+          initialProviders={initialProviders}
+          isLoading={directoryQuery.isPending}
+        />
+      )}
     </Shell>
   );
 };

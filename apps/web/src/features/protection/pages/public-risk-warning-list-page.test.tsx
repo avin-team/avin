@@ -88,10 +88,9 @@ describe("PublicRiskWarningListPage", () => {
     expect(
       screen.getByText("Nội dung đã được kiểm chứng và che dữ liệu cá nhân.")
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Xem warning/iu })).toHaveAttribute(
-      "href",
-      "/avin-check/warning/warning-report-1"
-    );
+    expect(
+      screen.getByRole("link", { name: /Xem chi tiết/iu })
+    ).toHaveAttribute("href", "/avin-check/warning/warning-report-1");
     expect(screen.queryByText("reporter@example.com")).not.toBeInTheDocument();
     expect(
       screen.queryByText(/risk-reports\/private/iu)

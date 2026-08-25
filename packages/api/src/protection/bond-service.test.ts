@@ -34,6 +34,7 @@ const timestamp = new Date("2026-08-21T00:00:00.000Z");
 
 const createProfile = (): ProfileRow => ({
   applicationId: "application-1",
+  bio: null,
   createdAt: timestamp,
   displayName: "Provider One",
   id: "profile-1",
@@ -43,6 +44,7 @@ const createProfile = (): ProfileRow => ({
   providerUserId: "provider-1",
   publishedAt: timestamp,
   services: "Game account support",
+  source: "AVIN_NATIVE",
   status: "ACTIVE",
   statusReason: null,
   updatedAt: timestamp,
@@ -53,6 +55,7 @@ const createVersion = (
   recommendedTransactionLimit = 0,
   versionNumber = 1
 ): ProfileVersionRow => ({
+  bio: null,
   createdAt: timestamp,
   displayName: "Provider One",
   id: `profile-version-${versionNumber}`,
@@ -67,6 +70,7 @@ const createVersion = (
   recommendedTransactionLimit,
   registeredBankAccounts: [],
   services: "Game account support",
+  source: "AVIN_NATIVE",
   sourceApplicationId: "application-1",
   status: "ACTIVE",
   statusReason: null,

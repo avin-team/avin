@@ -153,6 +153,7 @@ const createApplication = (
   status: ApplicationRow["status"] = "DRAFT",
   overrides: Partial<ApplicationRow> = {}
 ): ApplicationRow => ({
+  bio: null,
   bondAmount: validSubmission.bondAmount,
   citizenIdCiphertext: protectedCitizenId.citizenIdCiphertext,
   citizenIdHash: protectedCitizenId.citizenIdHash,
@@ -176,6 +177,7 @@ const createApplication = (
   reviewedByUserId: null,
   revisionCount: 0,
   services: validSubmission.services,
+  source: "AVIN_NATIVE",
   status,
   submittedAt: null,
   updatedAt: timestamp,
@@ -184,6 +186,7 @@ const createApplication = (
 
 const createProfile = (): ProfileRow => ({
   applicationId: "application-1",
+  bio: null,
   createdAt: timestamp,
   displayName: validSubmission.fullName,
   id: "profile-1",
@@ -193,6 +196,7 @@ const createProfile = (): ProfileRow => ({
   providerUserId: "provider-1",
   publishedAt: timestamp,
   services: validSubmission.services,
+  source: "AVIN_NATIVE",
   status: "ACTIVE",
   statusReason: null,
   updatedAt: timestamp,
@@ -203,6 +207,7 @@ const createProfileVersion = (
   versionNumber = 1,
   overrides: Partial<ProfileVersionRow> = {}
 ): ProfileVersionRow => ({
+  bio: null,
   createdAt: timestamp,
   displayName: validSubmission.fullName,
   id: `profile-version-${versionNumber}`,
@@ -217,6 +222,7 @@ const createProfileVersion = (
   recommendedTransactionLimit: 0,
   registeredBankAccounts: validSubmission.registeredBankAccounts,
   services: validSubmission.services,
+  source: "AVIN_NATIVE",
   sourceApplicationId: "application-1",
   status: "ACTIVE",
   statusReason: null,
@@ -231,6 +237,7 @@ const createProfileRevision = (
   overrides: Partial<ProfileRevisionRow> = {}
 ): ProfileRevisionRow => ({
   baseVersionId: "profile-version-1",
+  bio: null,
   citizenIdCiphertext: protectedCitizenId.citizenIdCiphertext,
   citizenIdHash: protectedCitizenId.citizenIdHash,
   citizenIdLast4: protectedCitizenId.citizenIdLast4,
@@ -252,6 +259,7 @@ const createProfileRevision = (
   reviewedByUserId: null,
   revisionNumber: 1,
   services: validSubmission.services,
+  source: "AVIN_NATIVE",
   status,
   submittedAt: null,
   updatedAt: timestamp,

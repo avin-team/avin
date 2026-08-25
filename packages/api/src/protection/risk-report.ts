@@ -241,7 +241,11 @@ export const riskReportDerivativeInputSchema = z.object({
 });
 
 export const publicRiskWarningListInputSchema = z
-  .object({ limit: z.number().int().min(1).max(50).optional() })
+  .object({
+    limit: z.number().int().min(1).max(50).optional(),
+    source: z.literal("chongscam").optional(),
+    sourceReportIds: z.array(z.uuid()).min(1).max(50).optional(),
+  })
   .optional();
 
 export const publicRiskWarningIdInputSchema = z.object({

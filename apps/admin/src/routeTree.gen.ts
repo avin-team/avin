@@ -37,6 +37,7 @@ import { Route as AuthenticatedSellerApplicationsApplicationIdRouteImport } from
 import { Route as AuthenticatedSellersIndexRouteImport } from './routes/_authenticated/sellers/index'
 import { Route as AuthenticatedSellersSellerIdRouteImport } from './routes/_authenticated/sellers/$sellerId'
 import { Route as AuthenticatedWithdrawalsIndexRouteImport } from './routes/_authenticated/withdrawals/index'
+import { Route as AuthenticatedAvinCheckExternalImportsIndexRouteImport } from './routes/_authenticated/avin-check/external-imports/index'
 import { Route as AuthenticatedAvinCheckProviderRevisionsIndexRouteImport } from './routes/_authenticated/avin-check/provider-revisions/index'
 import { Route as AuthenticatedAvinCheckProviderRevisionsRevisionIdRouteImport } from './routes/_authenticated/avin-check/provider-revisions/$revisionId'
 import { Route as AuthenticatedAvinCheckProvidersIndexRouteImport } from './routes/_authenticated/avin-check/providers/index'
@@ -200,6 +201,12 @@ const AuthenticatedWithdrawalsIndexRoute =
     path: '/withdrawals/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAvinCheckExternalImportsIndexRoute =
+  AuthenticatedAvinCheckExternalImportsIndexRouteImport.update({
+    id: '/external-imports/',
+    path: '/external-imports/',
+    getParentRoute: () => AuthenticatedAvinCheckRoute,
+  } as any)
 const AuthenticatedAvinCheckProviderRevisionsIndexRoute =
   AuthenticatedAvinCheckProviderRevisionsIndexRouteImport.update({
     id: '/provider-revisions/',
@@ -268,6 +275,7 @@ export interface FileRoutesByFullPath {
   '/avin-check/provider-revisions/$revisionId': typeof AuthenticatedAvinCheckProviderRevisionsRevisionIdRoute
   '/avin-check/providers/$applicationId': typeof AuthenticatedAvinCheckProvidersApplicationIdRoute
   '/avin-check/risk-reports/$reportId': typeof AuthenticatedAvinCheckRiskReportsReportIdRoute
+  '/avin-check/external-imports/': typeof AuthenticatedAvinCheckExternalImportsIndexRoute
   '/avin-check/provider-revisions/': typeof AuthenticatedAvinCheckProviderRevisionsIndexRoute
   '/avin-check/providers/': typeof AuthenticatedAvinCheckProvidersIndexRoute
   '/avin-check/risk-reports/': typeof AuthenticatedAvinCheckRiskReportsIndexRoute
@@ -302,6 +310,7 @@ export interface FileRoutesByTo {
   '/avin-check/provider-revisions/$revisionId': typeof AuthenticatedAvinCheckProviderRevisionsRevisionIdRoute
   '/avin-check/providers/$applicationId': typeof AuthenticatedAvinCheckProvidersApplicationIdRoute
   '/avin-check/risk-reports/$reportId': typeof AuthenticatedAvinCheckRiskReportsReportIdRoute
+  '/avin-check/external-imports': typeof AuthenticatedAvinCheckExternalImportsIndexRoute
   '/avin-check/provider-revisions': typeof AuthenticatedAvinCheckProviderRevisionsIndexRoute
   '/avin-check/providers': typeof AuthenticatedAvinCheckProvidersIndexRoute
   '/avin-check/risk-reports': typeof AuthenticatedAvinCheckRiskReportsIndexRoute
@@ -339,6 +348,7 @@ export interface FileRoutesById {
   '/_authenticated/avin-check/provider-revisions/$revisionId': typeof AuthenticatedAvinCheckProviderRevisionsRevisionIdRoute
   '/_authenticated/avin-check/providers/$applicationId': typeof AuthenticatedAvinCheckProvidersApplicationIdRoute
   '/_authenticated/avin-check/risk-reports/$reportId': typeof AuthenticatedAvinCheckRiskReportsReportIdRoute
+  '/_authenticated/avin-check/external-imports/': typeof AuthenticatedAvinCheckExternalImportsIndexRoute
   '/_authenticated/avin-check/provider-revisions/': typeof AuthenticatedAvinCheckProviderRevisionsIndexRoute
   '/_authenticated/avin-check/providers/': typeof AuthenticatedAvinCheckProvidersIndexRoute
   '/_authenticated/avin-check/risk-reports/': typeof AuthenticatedAvinCheckRiskReportsIndexRoute
@@ -376,6 +386,7 @@ export interface FileRouteTypes {
     | '/avin-check/provider-revisions/$revisionId'
     | '/avin-check/providers/$applicationId'
     | '/avin-check/risk-reports/$reportId'
+    | '/avin-check/external-imports/'
     | '/avin-check/provider-revisions/'
     | '/avin-check/providers/'
     | '/avin-check/risk-reports/'
@@ -410,6 +421,7 @@ export interface FileRouteTypes {
     | '/avin-check/provider-revisions/$revisionId'
     | '/avin-check/providers/$applicationId'
     | '/avin-check/risk-reports/$reportId'
+    | '/avin-check/external-imports'
     | '/avin-check/provider-revisions'
     | '/avin-check/providers'
     | '/avin-check/risk-reports'
@@ -446,6 +458,7 @@ export interface FileRouteTypes {
     | '/_authenticated/avin-check/provider-revisions/$revisionId'
     | '/_authenticated/avin-check/providers/$applicationId'
     | '/_authenticated/avin-check/risk-reports/$reportId'
+    | '/_authenticated/avin-check/external-imports/'
     | '/_authenticated/avin-check/provider-revisions/'
     | '/_authenticated/avin-check/providers/'
     | '/_authenticated/avin-check/risk-reports/'
@@ -660,6 +673,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedWithdrawalsIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/avin-check/external-imports/': {
+      id: '/_authenticated/avin-check/external-imports/'
+      path: '/external-imports'
+      fullPath: '/avin-check/external-imports/'
+      preLoaderRoute: typeof AuthenticatedAvinCheckExternalImportsIndexRouteImport
+      parentRoute: typeof AuthenticatedAvinCheckRoute
+    }
     '/_authenticated/avin-check/provider-revisions/': {
       id: '/_authenticated/avin-check/provider-revisions/'
       path: '/provider-revisions'
@@ -715,6 +735,7 @@ interface AuthenticatedAvinCheckRouteChildren {
   AuthenticatedAvinCheckProviderRevisionsRevisionIdRoute: typeof AuthenticatedAvinCheckProviderRevisionsRevisionIdRoute
   AuthenticatedAvinCheckProvidersApplicationIdRoute: typeof AuthenticatedAvinCheckProvidersApplicationIdRoute
   AuthenticatedAvinCheckRiskReportsReportIdRoute: typeof AuthenticatedAvinCheckRiskReportsReportIdRoute
+  AuthenticatedAvinCheckExternalImportsIndexRoute: typeof AuthenticatedAvinCheckExternalImportsIndexRoute
   AuthenticatedAvinCheckProviderRevisionsIndexRoute: typeof AuthenticatedAvinCheckProviderRevisionsIndexRoute
   AuthenticatedAvinCheckProvidersIndexRoute: typeof AuthenticatedAvinCheckProvidersIndexRoute
   AuthenticatedAvinCheckRiskReportsIndexRoute: typeof AuthenticatedAvinCheckRiskReportsIndexRoute
@@ -736,6 +757,8 @@ const AuthenticatedAvinCheckRouteChildren: AuthenticatedAvinCheckRouteChildren =
       AuthenticatedAvinCheckProvidersApplicationIdRoute,
     AuthenticatedAvinCheckRiskReportsReportIdRoute:
       AuthenticatedAvinCheckRiskReportsReportIdRoute,
+    AuthenticatedAvinCheckExternalImportsIndexRoute:
+      AuthenticatedAvinCheckExternalImportsIndexRoute,
     AuthenticatedAvinCheckProviderRevisionsIndexRoute:
       AuthenticatedAvinCheckProviderRevisionsIndexRoute,
     AuthenticatedAvinCheckProvidersIndexRoute:

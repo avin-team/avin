@@ -30,6 +30,7 @@ import {
   RISK_REPORT_EVIDENCE_MAX_COUNT,
 } from "../runtime/storage";
 import { getProtectionLaunchConfiguration } from "./configuration";
+import { publicExternalRiskFilter } from "./external-risk-import";
 import { assertProtectionOperationAllowed } from "./launch-gates";
 import type { ProtectionLaunchConfiguration } from "./launch-gates";
 import {
@@ -1781,6 +1782,18 @@ const toPublicWarningView = (
             },
           ];
         }),
+    externalSource: report.externalSource
+      ? {
+          bankName: report.externalBankName,
+          name: report.externalSource,
+          platformUrl: report.externalPlatformUrl,
+          sourceCreatedAt: toIso(report.externalSourceCreatedAt),
+          sourceStatus: report.externalSourceStatus,
+          sourceUrl: report.externalSourceUrl,
+          suspectName: report.externalSuspectName,
+          title: report.externalTitle,
+        }
+      : null,
     history: publicHistory,
     identifiers: isRemoved
       ? []
@@ -1824,19 +1837,37 @@ const getPublicSupportOutcome = async (
 
 export const listPublicRiskWarnings = async (
   database: Database,
-  input: { limit?: number } | undefined,
+  input:
+    | {
+        limit?: number;
+        source?: "chongscam";
+        sourceReportIds?: string[];
+      }
+    | undefined,
   supabaseUrl = env.SUPABASE_URL
 ) => {
   const reports = await database
     .select()
     .from(protectionRiskReport)
     .where(
-      inArray(protectionRiskReport.status, [
-        "PUBLISHED",
-        "CORRECTED",
-        "UNDER_VERIFICATION",
-        "REMOVED",
-      ])
+      and(
+        inArray(protectionRiskReport.status, [
+          "PUBLISHED",
+          "CORRECTED",
+          "UNDER_VERIFICATION",
+          "REMOVED",
+        ]),
+        input?.source
+          ? eq(protectionRiskReport.externalSource, input.source)
+          : undefined,
+        input?.sourceReportIds?.length
+          ? inArray(
+              protectionRiskReport.externalSourceId,
+              input.sourceReportIds
+            )
+          : undefined,
+        publicExternalRiskFilter
+      )
     )
     .orderBy(desc(protectionRiskReport.publishedAt))
     .limit(input?.limit ?? 20);
@@ -1876,7 +1907,8 @@ export const getPublicRiskWarning = async (
           "CORRECTED",
           "UNDER_VERIFICATION",
           "REMOVED",
-        ])
+        ]),
+        publicExternalRiskFilter
       )
     )
     .limit(1);

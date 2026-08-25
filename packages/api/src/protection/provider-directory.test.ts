@@ -153,7 +153,8 @@ describe("provider directory matching", () => {
     const entry = toProviderDirectoryEntry(createCandidate());
 
     expect(entry).not.toHaveProperty("paymentAccount");
-    expect(entry.officialChannels).not.toHaveProperty("facebookId");
+    expect(entry).not.toHaveProperty("citizenIdCiphertext");
+    expect(entry.officialChannels).toHaveProperty("facebookId", "facebook-123");
     expect(entry).not.toHaveProperty("query");
     expect(entry.publicUrl).toBe("/avin-check/provider/provider-one");
   });

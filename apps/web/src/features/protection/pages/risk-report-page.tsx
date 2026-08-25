@@ -25,7 +25,7 @@ import {
 } from "@avin/ui/components/select";
 import { Textarea } from "@avin/ui/components/textarea";
 import { useUploadFiles } from "@better-upload/client";
-import { ShieldCheckIcon } from "@phosphor-icons/react";
+import { ArrowLeftIcon, ShieldCheckIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useReducer, useState } from "react";
@@ -563,6 +563,13 @@ export const RiskReportPage = () => {
         aria-labelledby="risk-report-heading"
         className="rounded-[2rem] border border-primary/20 bg-linear-to-br from-primary/10 via-card to-card px-6 py-10 shadow-sm sm:px-10"
       >
+        <Link
+          className="mb-6 inline-flex items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
+          to="/avin-check"
+        >
+          <ArrowLeftIcon aria-hidden="true" className="size-4" />
+          Quay lại Avin Check
+        </Link>
         <Badge className="mb-4 gap-1.5" variant="outline">
           <ShieldCheckIcon aria-hidden="true" />
           Avin Check · Risk report

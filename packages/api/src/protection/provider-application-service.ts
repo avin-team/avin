@@ -58,14 +58,24 @@ const providerProfilePath = (profileSlug: string): string =>
 const toPublicProviderOfficialChannels = (
   channels: ProviderOfficialChannels | null | undefined
 ) => ({
+  additionalZalos: channels?.additionalZalos,
   avatarUrl: channels?.avatarUrl,
+  bioShopId: channels?.bioShopId,
+  bioShopUrl: channels?.bioShopUrl,
+  facebookId: channels?.facebookId,
+  facebookSecondaryId: channels?.facebookSecondaryId,
+  facebookSecondaryUrl: channels?.facebookSecondaryUrl,
   facebookUrl: channels?.facebookUrl,
+  facebooks: channels?.facebooks,
   hotline: channels?.hotline,
+  qrCodeUrl: channels?.qrCodeUrl,
   telegramCommunityUrl: channels?.telegramCommunityUrl,
   tiktokUrl: channels?.tiktokUrl,
   websiteUrl: channels?.websiteUrl,
   youtubeUrl: channels?.youtubeUrl,
   zalo: channels?.zalo,
+  zaloSecondary: channels?.zaloSecondary,
+  zalos: channels?.zalos,
 });
 
 const toIso = (value: Date | null): string | null =>
@@ -176,6 +186,7 @@ const assertNoDuplicateProviderIdentity = async (
 export const toProviderApplicationView = (
   application: ProviderApplication
 ) => ({
+  bio: application.bio,
   bondAmount: application.bondAmount,
   createdAt: application.createdAt.toISOString(),
   depositIntentId: application.depositIntentId,
@@ -199,6 +210,7 @@ export const toProviderApplicationView = (
   reviewedAt: toIso(application.reviewedAt),
   revisionCount: application.revisionCount,
   services: application.services,
+  source: application.source,
   status: application.status,
   submittedAt: toIso(application.submittedAt),
   tier: getProviderTier(application.recognizedBondAmount),
@@ -222,6 +234,7 @@ export const toProviderProfileView = (
   relatedWarnings: ProviderRelatedWarning[] = []
 ) => {
   const currentVersion = version ?? {
+    bio: profile.bio,
     displayName: profile.displayName,
     id: profile.id,
     location: profile.location,
@@ -231,6 +244,7 @@ export const toProviderProfileView = (
     recommendedTransactionLimit: 0,
     registeredBankAccounts: [],
     services: profile.services,
+    source: profile.source,
     status: profile.status,
     statusReason: null,
     tier: "NORMAL" as const,
@@ -239,6 +253,7 @@ export const toProviderProfileView = (
   };
 
   return {
+    bio: currentVersion.bio ?? profile.bio,
     displayName: currentVersion.displayName,
     history: history.map(toProviderProfileHistoryView),
     id: profile.id,
@@ -254,6 +269,7 @@ export const toProviderProfileView = (
     registeredBankAccounts: currentVersion.registeredBankAccounts,
     relatedWarnings,
     services: currentVersion.services,
+    source: currentVersion.source ?? profile.source,
     status:
       profile.status === "ACTIVE" ? currentVersion.status : profile.status,
     statusReason: profile.statusReason ?? currentVersion.statusReason,
@@ -276,6 +292,7 @@ export const toProviderProfileRevisionView = (
   revision: ProviderProfileRevision
 ) => ({
   baseVersionId: revision.baseVersionId,
+  bio: revision.bio,
   createdAt: revision.createdAt.toISOString(),
   fullName: revision.fullName,
   id: revision.id,
@@ -293,6 +310,7 @@ export const toProviderProfileRevisionView = (
   reviewedByUserId: revision.reviewedByUserId,
   revisionNumber: revision.revisionNumber,
   services: revision.services,
+  source: revision.source,
   status: revision.status,
   submittedAt: toIso(revision.submittedAt),
   updatedAt: revision.updatedAt.toISOString(),
@@ -304,6 +322,7 @@ const toAdminApplicationView = (
 ) => ({
   applicantEmail: applicant.email,
   applicantName: applicant.name,
+  bio: application.bio,
   bondAmount: application.bondAmount,
   id: application.id,
   location: application.location,
@@ -317,6 +336,7 @@ const toAdminApplicationView = (
   reviewReason: application.reviewReason,
   revisionCount: application.revisionCount,
   services: application.services,
+  source: application.source,
   status: application.status,
   submittedAt: toIso(application.submittedAt),
   tier: getProviderTier(application.recognizedBondAmount),
@@ -1647,6 +1667,7 @@ export const decideProviderProfileRevision = async ({
       const [createdVersion] = await transaction
         .insert(protectionProviderProfileVersion)
         .values({
+          bio: updated.bio ?? currentVersion.bio,
           displayName: updated.fullName,
           location: updated.location ?? currentVersion.location,
           officialChannels: updated.officialChannels ?? {},
@@ -1662,6 +1683,7 @@ export const decideProviderProfileRevision = async ({
             updated.registeredBankAccounts ??
             currentVersion.registeredBankAccounts,
           services: updated.services,
+          source: updated.source ?? currentVersion.source ?? profile.source,
           sourceApplicationId: profile.applicationId,
           status: profile.status,
           tier: currentVersion.tier,
@@ -1679,11 +1701,13 @@ export const decideProviderProfileRevision = async ({
       const [updatedProfile] = await transaction
         .update(protectionProviderProfile)
         .set({
+          bio: updated.bio ?? profile.bio,
           displayName: updated.fullName,
           location: updated.location ?? profile.location,
           officialChannels: updated.officialChannels ?? {},
           publishedAt: now,
           services: updated.services,
+          source: updated.source ?? profile.source,
           updatedAt: now,
           verifiedAt: now,
         })
@@ -2050,6 +2074,7 @@ export const decideProviderApplication = ({
         .insert(protectionProviderProfile)
         .values({
           applicationId: updated.id,
+          bio: updated.bio,
           displayName,
           location: updated.location ?? "Chưa cập nhật",
           officialChannels: updated.officialChannels ?? {},
@@ -2059,6 +2084,7 @@ export const decideProviderApplication = ({
           ),
           providerUserId: updated.providerUserId,
           services,
+          source: updated.source ?? "AVIN_NATIVE",
           status: "ACTIVE",
           verifiedAt: now,
         })
@@ -2073,6 +2099,7 @@ export const decideProviderApplication = ({
       const [createdVersion] = await transaction
         .insert(protectionProviderProfileVersion)
         .values({
+          bio: updated.bio,
           displayName,
           location: updated.location ?? "Chưa cập nhật",
           officialChannels: updated.officialChannels ?? {},
@@ -2085,6 +2112,7 @@ export const decideProviderApplication = ({
           recommendedTransactionLimit,
           registeredBankAccounts: updated.registeredBankAccounts ?? [],
           services,
+          source: updated.source ?? "AVIN_NATIVE",
           sourceApplicationId: updated.id,
           status: "ACTIVE",
           tier,

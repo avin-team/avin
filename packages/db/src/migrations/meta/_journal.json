@@ -372,6 +372,20 @@
       "when": 1787569803813,
       "tag": "0052_remove_provider_hotline",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1787583857226,
+      "tag": "0053_workable_purple_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1787615878257,
+      "tag": "0054_hot_blizzard",
+      "breakpoints": true
     }
   ]
 }

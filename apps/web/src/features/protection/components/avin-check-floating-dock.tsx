@@ -7,9 +7,7 @@ import { cn } from "@avin/ui/lib/utils";
 import {
   AddressBookIcon,
   BookOpenIcon,
-  FlagIcon,
   MagnifyingGlassIcon,
-  ShieldWarningIcon,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import { Link, useLocation } from "@tanstack/react-router";
@@ -24,12 +22,7 @@ import { useRef } from "react";
 import type { MouseEvent } from "react";
 
 interface DockItem {
-  href:
-    | "/avin-check"
-    | "/avin-check/directory"
-    | "/avin-check/guide"
-    | "/avin-check/report"
-    | "/avin-check/warnings";
+  href: "/avin-check" | "/avin-check/directory" | "/avin-check/guide";
   icon: Icon;
   isActive: (pathname: string) => boolean;
   label: string;
@@ -55,22 +48,6 @@ const dockItems: DockItem[] = [
       pathname.startsWith("/avin-check/provider/"),
     label: "Đối tác",
     shortLabel: "Đối tác",
-  },
-  {
-    href: "/avin-check/warnings",
-    icon: ShieldWarningIcon,
-    isActive: (pathname) =>
-      pathname.startsWith("/avin-check/warnings") ||
-      pathname.startsWith("/avin-check/warning/"),
-    label: "Cảnh báo công khai",
-    shortLabel: "Cảnh báo",
-  },
-  {
-    href: "/avin-check/report",
-    icon: FlagIcon,
-    isActive: (pathname) => pathname.startsWith("/avin-check/report"),
-    label: "Gửi báo cáo rủi ro",
-    shortLabel: "Báo cáo",
   },
   {
     href: "/avin-check/guide",

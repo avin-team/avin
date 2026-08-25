@@ -63,13 +63,17 @@
     "db:backup": "bun run --cwd packages/db db:backup",
     "db:clear": "bun run --cwd packages/db db:clear",
     "db:seed-seller-listings": "bun run --cwd packages/db db:seed-seller-listings",
+    "db:import-checkscam": "bun --env-file=apps/server/.env run scripts/checkscam-import/import.ts",
+    "db:clean-checkscam": "bun --env-file=apps/server/.env run scripts/checkscam-import/import.ts --clean",
     "check": "ultracite check",
     "fix": "ultracite fix && bun run scripts/fix-tailwind-canonical.ts",
     "prepare": "lefthook install"
   },
   "dependencies": {
+    "@avin/db": "workspace:*",
     "@avin/env": "workspace:*",
     "dotenv": "catalog:",
+    "drizzle-orm": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

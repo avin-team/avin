@@ -20,6 +20,14 @@ export const PROVIDER_AVATAR_UPLOAD_ROUTE = "provider-avatar";
 
 export interface ManagedObjectStore {
   deleteObject: (key: string, bucket?: string) => Promise<void>;
+  putObject?: (input: {
+    body: Uint8Array;
+    bucket: string;
+    cacheControl?: string;
+    contentLength: number;
+    contentType: string;
+    key: string;
+  }) => Promise<void>;
   supabaseUrl: string;
 }
 

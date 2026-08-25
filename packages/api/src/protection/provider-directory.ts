@@ -78,11 +78,21 @@ export const getProviderDirectoryMatchScore = (
     candidate.version.location,
     candidate.version.officialChannels.hotline,
     candidate.version.officialChannels.zalo,
+    candidate.version.officialChannels.zaloSecondary,
     candidate.version.officialChannels.facebookUrl,
+    candidate.version.officialChannels.facebookSecondaryUrl,
+    candidate.version.officialChannels.bioShopUrl,
     candidate.version.officialChannels.telegramCommunityUrl,
     candidate.version.officialChannels.tiktokUrl,
     candidate.version.officialChannels.youtubeUrl,
     candidate.version.officialChannels.websiteUrl,
+    ...(candidate.version.officialChannels.zalos ?? []).flatMap((item) => [
+      item.phone,
+    ]),
+    ...(candidate.version.officialChannels.additionalZalos ?? []),
+    ...(candidate.version.officialChannels.facebooks ?? []).flatMap((fb) => [
+      fb.url,
+    ]),
     ...(candidate.version.registeredBankAccounts ?? []).flatMap((account) => [
       account.accountNumber,
       account.bankCode,
@@ -128,44 +138,70 @@ const sortByFreshness = (
   if (freshnessDifference !== 0) {
     return freshnessDifference;
   }
-  return left.profile.profileSlug.localeCompare(right.profile.profileSlug);
+  return (
+    left.profile.profileSlug.localeCompare(
+      right.profile.profileSlug,
+      "vi-VN"
+    ) || left.profile.id.localeCompare(right.profile.id)
+  );
 };
 
 export const rankProviderDirectoryCandidates = (
-  candidates: readonly ProviderDirectoryCandidate[],
+  candidates: ProviderDirectoryCandidate[],
   query: string,
   limit: number
-): ProviderDirectoryCandidate[] => {
-  const ranked = candidates.flatMap((candidate) => {
-    const score = getProviderDirectoryMatchScore(candidate, query);
-    return score === null ? [] : [{ candidate, score }];
-  });
-
-  return ranked
-    .toSorted(
-      (left, right) =>
-        right.score - left.score ||
-        sortByFreshness(left.candidate, right.candidate)
+): ProviderDirectoryCandidate[] =>
+  candidates
+    .map((candidate) => ({
+      candidate,
+      score: getProviderDirectoryMatchScore(candidate, query),
+    }))
+    .filter(
+      (
+        entry
+      ): entry is {
+        candidate: ProviderDirectoryCandidate;
+        score: number;
+      } => entry.score !== null
     )
+    .toSorted((left, right) => {
+      const scoreDifference = right.score - left.score;
+      if (scoreDifference !== 0) {
+        return scoreDifference;
+      }
+      return sortByFreshness(left.candidate, right.candidate);
+    })
     .slice(0, limit)
     .map(({ candidate }) => candidate);
-};
 
 export const toProviderDirectoryEntry = (
   candidate: ProviderDirectoryCandidate
 ) => ({
+  bio: candidate.version.bio ?? candidate.profile.bio,
   displayName: candidate.version.displayName,
   id: candidate.profile.id,
   location: candidate.version.location,
   officialChannels: {
+    additionalZalos: candidate.version.officialChannels.additionalZalos,
+    avatarUrl: candidate.version.officialChannels.avatarUrl,
+    bioShopId: candidate.version.officialChannels.bioShopId,
+    bioShopUrl: candidate.version.officialChannels.bioShopUrl,
+    facebookId: candidate.version.officialChannels.facebookId,
+    facebookSecondaryId: candidate.version.officialChannels.facebookSecondaryId,
+    facebookSecondaryUrl:
+      candidate.version.officialChannels.facebookSecondaryUrl,
     facebookUrl: candidate.version.officialChannels.facebookUrl,
+    facebooks: candidate.version.officialChannels.facebooks,
     hotline: candidate.version.officialChannels.hotline,
+    qrCodeUrl: candidate.version.officialChannels.qrCodeUrl,
     telegramCommunityUrl:
       candidate.version.officialChannels.telegramCommunityUrl,
     tiktokUrl: candidate.version.officialChannels.tiktokUrl,
     websiteUrl: candidate.version.officialChannels.websiteUrl,
     youtubeUrl: candidate.version.officialChannels.youtubeUrl,
     zalo: candidate.version.officialChannels.zalo,
+    zaloSecondary: candidate.version.officialChannels.zaloSecondary,
+    zalos: candidate.version.officialChannels.zalos,
   },
   profileSlug: candidate.profile.profileSlug,
   publicUrl: providerProfilePath(candidate.profile.profileSlug),
@@ -173,6 +209,7 @@ export const toProviderDirectoryEntry = (
   recognizedBondAmount: candidate.version.recognizedBondAmount,
   recommendedTransactionLimit: candidate.version.recommendedTransactionLimit,
   services: candidate.version.services,
+  source: candidate.version.source ?? candidate.profile.source,
   status: candidate.version.status,
   tier: candidate.version.tier,
   verifiedAt: candidate.version.verifiedAt.toISOString(),

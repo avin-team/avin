@@ -44,6 +44,17 @@ import {
   protectionOperationsExportInputSchema,
 } from "./export";
 import {
+  externalRiskApplyInputSchema,
+  externalRiskAdminIdInputSchema,
+  externalRiskAdminListInputSchema,
+  externalRiskImportInputSchema,
+  hideExternalRiskReport,
+  listExternalImportRuns,
+  listExternalRiskReports,
+  restoreExternalRiskReport,
+  runExternalRiskImport,
+} from "./external-risk-import";
+import {
   PROTECTION_MODULE_NAME,
   getProtectionLaunchStatus,
 } from "./launch-gates";
@@ -328,6 +339,17 @@ const riskModeratorProcedure = protectionAdminProcedure({
   },
 });
 
+const externalRiskImportProcedure = protectionAdminProcedure({
+  action: "protection.external_risk_import.manage",
+  capability: PROTECTION_ADMIN_CAPABILITY.RISK_MODERATOR,
+  purpose:
+    "Preview, import and remove authorized external risk reports from ChongScam",
+  target: {
+    id: "PROTECTION_EXTERNAL_RISK_IMPORT",
+    type: "PROTECTION_EXTERNAL_RISK_IMPORT",
+  },
+});
+
 const riskCorrectionModeratorProcedure = protectionAdminProcedure({
   action: "protection.risk_correction.review",
   capability: PROTECTION_ADMIN_CAPABILITY.RISK_MODERATOR,
@@ -458,6 +480,60 @@ const supportReviewManagerProcedure = protectionAdminProcedure({
 });
 
 export const protectionRouter = {
+  adminExternalRisk: {
+    apply: externalRiskImportProcedure
+      .input(externalRiskApplyInputSchema)
+      .handler(({ context, input }) =>
+        runExternalRiskImport({
+          actorUserId: context.session.user.id,
+          database: context.db,
+          mode: input.mode,
+          storage: context.storage,
+        })
+      ),
+
+    hide: externalRiskImportProcedure
+      .input(externalRiskAdminIdInputSchema)
+      .handler(({ context, input }) =>
+        hideExternalRiskReport({
+          database: context.db,
+          id: input.id,
+          reviewerUserId: context.session.user.id,
+        })
+      ),
+
+    listReports: externalRiskImportProcedure
+      .input(externalRiskAdminListInputSchema)
+      .handler(({ context, input }) =>
+        listExternalRiskReports(context.db, input)
+      ),
+
+    listRuns: externalRiskImportProcedure.handler(({ context }) =>
+      listExternalImportRuns(context.db)
+    ),
+
+    preview: externalRiskImportProcedure
+      .input(externalRiskImportInputSchema)
+      .handler(({ context }) =>
+        runExternalRiskImport({
+          actorUserId: context.session.user.id,
+          database: context.db,
+          mode: "PREVIEW",
+          storage: context.storage,
+        })
+      ),
+
+    restore: externalRiskImportProcedure
+      .input(externalRiskAdminIdInputSchema)
+      .handler(({ context, input }) =>
+        restoreExternalRiskReport({
+          database: context.db,
+          id: input.id,
+          reviewerUserId: context.session.user.id,
+        })
+      ),
+  },
+
   adminLaunchStatus: protectionAdminProcedure({
     action: "protection.launch_status.read",
     capability: PROTECTION_ADMIN_CAPABILITY.PROTECTION_MANAGER,
