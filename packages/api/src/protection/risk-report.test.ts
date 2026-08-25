@@ -17,9 +17,39 @@ describe("Risk report contracts", () => {
     expect(normalizeRiskIdentifier("PHONE", "+84 912-345-678")).toBe(
       "0912345678"
     );
+    expect(normalizeRiskIdentifier("PHONE", "+1 (212) 555-0199")).toBe(
+      "+12125550199"
+    );
+    expect(() => normalizeRiskIdentifier("PHONE", "84 912-345-678")).toThrow(
+      "country code"
+    );
     expect(normalizeRiskIdentifier("BANK_ACCOUNT", "  0123-456.789 ")).toBe(
       "0123456789"
     );
+    expect(
+      normalizeRiskIdentifier("WEBSITE", "Example.com/checkout?token=secret")
+    ).toBe("https://example.com");
+    expect(normalizeRiskIdentifier("WEBSITE", "http://www.example.com/")).toBe(
+      "https://example.com"
+    );
+    expect(normalizeRiskIdentifier("WEBSITE", "https://api.example.com/")).toBe(
+      "https://api.example.com"
+    );
+    expect(
+      normalizeRiskIdentifier(
+        "SOCIAL_ACCOUNT",
+        "https://www.facebook.com/profile.php?id=123&tracking=secret"
+      )
+    ).toBe("https://facebook.com/profile.php?id=123");
+    expect(
+      normalizeRiskIdentifier(
+        "SOCIAL_ACCOUNT",
+        "https://m.tiktok.com/@Acme_Store?lang=vi"
+      )
+    ).toBe("https://tiktok.com/@acme_store");
+    expect(
+      normalizeRiskIdentifier("SOCIAL_ACCOUNT", "telegram.me/AcmeStore/")
+    ).toBe("https://t.me/acmestore");
     expect(maskRiskIdentifier("BANK_ACCOUNT", "0123456789")).toBe("**** 6789");
     expect(
       maskRiskIdentifier("WEBSITE", "https://Example.com/path#secret")
@@ -45,6 +75,33 @@ describe("Risk report contracts", () => {
         "https://untrusted.example/provider-one"
       )
     ).toBeNull();
+  });
+
+  it("rejects social content links, short links, and private invitations", () => {
+    expect(() =>
+      normalizeRiskIdentifier(
+        "SOCIAL_ACCOUNT",
+        "https://facebook.com/share/p/secret"
+      )
+    ).toThrow("public profile");
+    expect(() =>
+      normalizeRiskIdentifier(
+        "SOCIAL_ACCOUNT",
+        "https://facebook.com/acme/posts/123"
+      )
+    ).toThrow("public profile");
+    expect(() =>
+      normalizeRiskIdentifier(
+        "SOCIAL_ACCOUNT",
+        "https://tiktok.com/@acme/video/123"
+      )
+    ).toThrow("public profile");
+    expect(() =>
+      normalizeRiskIdentifier("SOCIAL_ACCOUNT", "https://vm.tiktok.com/ZM123/")
+    ).toThrow("Short social profile links");
+    expect(() =>
+      normalizeRiskIdentifier("SOCIAL_ACCOUNT", "https://t.me/+private-invite")
+    ).toThrow("public username");
   });
 
   it("allows only the documented lifecycle transitions", () => {

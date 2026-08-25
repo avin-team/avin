@@ -123,6 +123,7 @@ const riskCorrectionRequesterRelationshipSchema = z.enum(
 const reportNarrativeSchema = z.string().trim().max(10_000);
 const reportPhoneSchema = z.string().trim().min(6).max(50);
 const reportIdentifierValueSchema = z.string().trim().min(1).max(300);
+const BANK_ACCOUNT_SEPARATOR_PATTERN = /[\s.-]/gu;
 
 export const riskReportIdentifierInputSchema = z.object({
   type: riskReportIdentifierTypeSchema,
@@ -292,16 +293,29 @@ export const isRiskReportUnderVerificationEligible = ({
 }): boolean => urgency === "URGENT" || affectedVictimCount >= 2;
 
 const normalizeWebsite = (value: string): string => {
-  const url = new URL(value.trim());
+  const url = new URL(
+    /^https?:\/\//iu.test(value.trim())
+      ? value.trim()
+      : `https://${value.trim()}`
+  );
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     throw new Error("Website identifier must use HTTP or HTTPS");
   }
-  url.hash = "";
-  url.hostname = url.hostname.toLowerCase();
-  if (url.pathname === "/") {
-    url.pathname = "";
+  if (url.username || url.password) {
+    throw new Error("Website identifier must not contain credentials");
   }
-  return url.toString().replace(/\/$/u, "");
+  url.hash = "";
+  url.search = "";
+  url.pathname = "";
+  url.hostname = url.hostname.toLowerCase();
+  url.hostname = url.hostname.replace(/^www\./u, "").replace(/\.$/u, "");
+  if (
+    (url.protocol === "http:" && url.port === "80") ||
+    (url.protocol === "https:" && url.port === "443")
+  ) {
+    url.port = "";
+  }
+  return `https://${url.host}`;
 };
 
 const PUBLIC_SOCIAL_PROFILE_HOSTS = new Set([
@@ -320,22 +334,169 @@ const PUBLIC_SOCIAL_PROFILE_HOSTS = new Set([
   "youtu.be",
 ]);
 
-const normalizeProfileIdentifier = (value: string): string => {
-  if (!/^https?:\/\//iu.test(value)) {
-    return value.replaceAll(/\s+/gu, " ").toLowerCase();
+const PUBLIC_SOCIAL_PROFILE_HOST_ALIASES = new Map([
+  ["fb.com", "facebook.com"],
+  ["m.facebook.com", "facebook.com"],
+  ["mbasic.facebook.com", "facebook.com"],
+  ["www.facebook.com", "facebook.com"],
+  ["m.tiktok.com", "tiktok.com"],
+  ["www.tiktok.com", "tiktok.com"],
+  ["telegram.me", "t.me"],
+  ["www.telegram.me", "t.me"],
+  ["www.t.me", "t.me"],
+]);
+
+const SHORT_SOCIAL_PROFILE_HOSTS = new Set([
+  "l.tiktok.com",
+  "vm.tiktok.com",
+  "vt.tiktok.com",
+]);
+
+const canonicalizeSocialHostname = (hostname: string): string => {
+  const normalizedHostname = hostname.toLowerCase().replace(/\.$/u, "");
+  return (
+    PUBLIC_SOCIAL_PROFILE_HOST_ALIASES.get(normalizedHostname) ??
+    normalizedHostname.replace(/^www\./u, "")
+  );
+};
+
+export const isSupportedRiskIdentifierPlatformUrl = (
+  value: string
+): boolean => {
+  const trimmedValue = value.trim();
+  let url: URL;
+  try {
+    url = new URL(
+      /^https?:\/\//iu.test(trimmedValue)
+        ? trimmedValue
+        : `https://${trimmedValue}`
+    );
+  } catch {
+    return false;
   }
 
-  const url = new URL(value);
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    return false;
+  }
+
+  const hostname = canonicalizeSocialHostname(url.hostname);
+  return (
+    hostname === "facebook.com" ||
+    hostname === "tiktok.com" ||
+    hostname === "t.me" ||
+    SHORT_SOCIAL_PROFILE_HOSTS.has(url.hostname.toLowerCase())
+  );
+};
+
+const assertKnownSocialProfilePath = (
+  hostname: string,
+  pathname: string,
+  searchParams: URLSearchParams
+): void => {
+  if (hostname === "facebook.com") {
+    if (pathname === "/profile.php") {
+      if (!searchParams.get("id")) {
+        throw new Error("Facebook profile URL must contain only a profile id");
+      }
+      return;
+    }
+    if (
+      !/^\/[^/]+$/u.test(pathname) ||
+      /^\/(?:events|groups|marketplace|permalink\.php|photo\.php|photos|reel|share|story\.php|stories|video\.php|videos|watch)(?:\/|$)/u.test(
+        pathname
+      )
+    ) {
+      throw new Error("Facebook identifier must point to a public profile");
+    }
+    return;
+  }
+
+  if (hostname === "tiktok.com") {
+    if (!/^\/@[a-z0-9._-]+$/iu.test(pathname)) {
+      throw new Error("TikTok identifier must point to a public profile");
+    }
+    return;
+  }
+
+  if (
+    hostname === "t.me" &&
+    (/\/(?:addlist|addstickers|c|joinchat|s)$/iu.test(pathname) ||
+      !/^\/[a-z0-9_]{5,32}$/iu.test(pathname))
+  ) {
+    throw new Error("Telegram identifier must point to a public username");
+  }
+};
+
+const normalizeProfileIdentifier = (value: string): string => {
+  const trimmedValue = value.trim();
+  if (
+    !/^https?:\/\//iu.test(trimmedValue) &&
+    !/[a-z0-9-]+\.[a-z]{2,}(?:\/|$)/iu.test(trimmedValue)
+  ) {
+    return trimmedValue.replaceAll(/\s+/gu, " ").toLowerCase();
+  }
+
+  const url = new URL(
+    /^https?:\/\//iu.test(trimmedValue)
+      ? trimmedValue
+      : `https://${trimmedValue}`
+  );
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     throw new Error("Profile identifier must use HTTP or HTTPS");
   }
+  if (url.username || url.password || url.port) {
+    throw new Error("Profile identifier must not contain credentials or ports");
+  }
+
+  const hostname = canonicalizeSocialHostname(url.hostname);
+  if (SHORT_SOCIAL_PROFILE_HOSTS.has(url.hostname.toLowerCase())) {
+    throw new Error("Short social profile links are not supported");
+  }
+  const pathname = url.pathname.toLowerCase().replace(/\/+$/u, "");
+  const searchParams = new URLSearchParams(url.searchParams);
   url.hash = "";
-  url.hostname = url.hostname.toLowerCase();
-  url.pathname = url.pathname.toLowerCase();
+  url.hostname = hostname;
+  url.pathname = pathname;
+  url.search = "";
+
+  if (PUBLIC_SOCIAL_PROFILE_HOSTS.has(hostname)) {
+    assertKnownSocialProfilePath(hostname, pathname, searchParams);
+    if (hostname === "facebook.com" && pathname === "/profile.php") {
+      url.searchParams.set("id", searchParams.get("id") ?? "");
+    }
+  }
+
   if (url.pathname === "/") {
     url.pathname = "";
   }
   return url.toString().replace(/\/$/u, "");
+};
+
+export const getRiskIdentifierPlatform = (
+  value: string
+): "FACEBOOK" | "TIKTOK" | "TELEGRAM" | null => {
+  let normalizedValue: string;
+  try {
+    normalizedValue = normalizeProfileIdentifier(value);
+  } catch {
+    return null;
+  }
+
+  if (!/^https?:\/\//iu.test(normalizedValue)) {
+    return null;
+  }
+
+  const { hostname } = new URL(normalizedValue);
+  if (hostname === "facebook.com") {
+    return "FACEBOOK";
+  }
+  if (hostname === "tiktok.com") {
+    return "TIKTOK";
+  }
+  if (hostname === "t.me") {
+    return "TELEGRAM";
+  }
+  return null;
 };
 
 export const normalizeRiskIdentifier = (
@@ -352,14 +513,34 @@ export const normalizeRiskIdentifier = (
   }
 
   if (type === "PHONE") {
-    const digits = normalized.replaceAll(/\D/gu, "");
-    if (digits.startsWith("84") && digits.length === 11) {
+    const compact = normalized.replaceAll(/[\s().-]/gu, "");
+    if (!/^\+?\d{6,15}$/u.test(compact)) {
+      throw new Error("Phone identifier must use a valid international format");
+    }
+    const digits = compact.replace(/^\+/u, "");
+    if (compact.startsWith("+84") && digits.length === 11) {
       return `0${digits.slice(2)}`;
+    }
+    if (compact.startsWith("+")) {
+      return `+${digits}`;
+    }
+    if (digits.startsWith("0")) {
+      return digits;
+    }
+    throw new Error(
+      "Phone identifier must include a country code or start with 0"
+    );
+  }
+
+  if (type === "BANK_ACCOUNT") {
+    const digits = normalized.replaceAll(BANK_ACCOUNT_SEPARATOR_PATTERN, "");
+    if (!/^\d{4,50}$/u.test(digits)) {
+      throw new Error("Bank account identifier must use digits");
     }
     return digits;
   }
 
-  if (type === "BANK_ACCOUNT" || type === "WALLET_ACCOUNT") {
+  if (type === "WALLET_ACCOUNT") {
     return normalized.replaceAll(/[\s.-]/gu, "").toLowerCase();
   }
 
@@ -376,7 +557,8 @@ export const getRiskIdentifierPublicValue = (
 ): string | null => {
   if (type === "WEBSITE") {
     try {
-      return new URL(normalizedValue).hostname;
+      const url = new URL(normalizedValue);
+      return url.host.replace(/^www\./u, "");
     } catch {
       return null;
     }
@@ -396,20 +578,32 @@ export const getRiskIdentifierPublicValue = (
   } catch {
     return null;
   }
-  const hostname = url.hostname.toLowerCase().replace(/^www\./u, "");
+  const hostname = canonicalizeSocialHostname(url.hostname);
+  const searchParams = new URLSearchParams(url.searchParams);
   if (
     !PUBLIC_SOCIAL_PROFILE_HOSTS.has(hostname) ||
     url.username ||
     url.password ||
     url.port ||
-    url.search ||
     !url.pathname ||
     url.pathname === "/"
   ) {
     return null;
   }
 
-  return url.toString().replace(/\/$/u, "");
+  if (
+    url.search &&
+    !(
+      hostname === "facebook.com" &&
+      url.pathname === "/profile.php" &&
+      [...searchParams.keys()].every((key) => key === "id") &&
+      Boolean(searchParams.get("id"))
+    )
+  ) {
+    return null;
+  }
+
+  return normalizeProfileIdentifier(normalizedValue);
 };
 
 export const maskRiskIdentifier = (
@@ -419,7 +613,7 @@ export const maskRiskIdentifier = (
   const normalized = normalizeRiskIdentifier(type, value);
   if (type === "WEBSITE") {
     const url = new URL(normalized);
-    return url.hostname;
+    return url.host.replace(/^www\./u, "");
   }
 
   if (

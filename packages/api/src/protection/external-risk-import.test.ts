@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   CHONGSCAM_API_URL,
   fetchChongScamReports,
+  inferExternalRiskIdentifierType,
 } from "./external-risk-import";
 
 const reportId = "00000000-0000-4000-8000-000000000001";
@@ -55,5 +56,31 @@ describe("fetchChongScamReports", () => {
         sleep: () => Promise.resolve(),
       })
     ).rejects.toThrow("HTTP 503");
+  });
+});
+
+describe("inferExternalRiskIdentifierType", () => {
+  it("keeps imported website identifiers searchable as websites", () => {
+    expect(
+      inferExternalRiskIdentifierType("https://example.com/checkout", {
+        bankAccount: null,
+        phone: null,
+        type: "website",
+      })
+    ).toBe("WEBSITE");
+    expect(
+      inferExternalRiskIdentifierType("https://example.com/checkout", {
+        bankAccount: null,
+        phone: null,
+        type: "social",
+      })
+    ).toBe("WEBSITE");
+    expect(
+      inferExternalRiskIdentifierType("https://facebook.com/acme", {
+        bankAccount: null,
+        phone: null,
+        type: "social",
+      })
+    ).toBe("SOCIAL_ACCOUNT");
   });
 });

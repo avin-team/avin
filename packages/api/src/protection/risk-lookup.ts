@@ -1,19 +1,20 @@
 import { createHash } from "node:crypto";
 
 import {
-  protectionProviderProfile,
   protectionRiskIdentifier,
   protectionRiskReport,
 } from "@avin/db/schema/protection";
 import { ORPCError } from "@orpc/server";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, countDistinct, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import type { Context } from "../runtime/context";
 import {
   createRiskReportPublicPath,
   createRiskReportPublicSlug,
+  getRiskIdentifierPlatform,
   getRiskIdentifierPublicValue,
+  isSupportedRiskIdentifierPlatformUrl,
   maskRiskIdentifier,
   normalizeRiskIdentifier,
   publicRiskReportStatuses,
@@ -31,8 +32,24 @@ export const PUBLIC_RISK_LOOKUP_MAX_RESULTS = 20;
 export const RISK_IDENTIFIER_LOOKUPS_PER_MINUTE = 20;
 export const RISK_IDENTIFIER_LOOKUP_MIN_LENGTH = 4;
 
+export const publicRiskLookupKinds = [
+  "AUTO",
+  "PHONE_OR_BANK",
+  "PHONE",
+  "BANK_ACCOUNT",
+  "WALLET_ACCOUNT",
+  "WEBSITE",
+  "FACEBOOK",
+  "TIKTOK",
+  "TELEGRAM",
+] as const;
+
+export type PublicRiskLookupKind = (typeof publicRiskLookupKinds)[number];
+
 export const publicRiskIdentifierLookupInputSchema = z.object({
-  type: z.enum(riskReportIdentifierTypes),
+  cursor: z.string().trim().min(1).max(512).optional(),
+  kind: z.enum(publicRiskLookupKinds).optional(),
+  type: z.enum(riskReportIdentifierTypes).optional(),
   value: z.string().trim().min(1).max(300),
 });
 
@@ -40,22 +57,13 @@ export type PublicRiskIdentifierLookupInput = z.infer<
   typeof publicRiskIdentifierLookupInputSchema
 >;
 
-const providerProfileStatuses = [
-  "ACTIVE",
-  "SUSPENDED_PENDING_REVIEW",
-  "WITHDRAWAL_PENDING",
-  "WITHDRAWN",
-  "REMOVED_FOR_FRAUD",
-] as const;
-
-type ProviderProfileStatus = (typeof providerProfileStatuses)[number];
-
 interface SearchRateLimitBucket {
   count: number;
   windowStartedAt: number;
 }
 
 const SEARCH_RATE_LIMIT_WINDOW_MS = 60_000;
+const MAX_SEARCH_RATE_LIMIT_BUCKETS = 10_000;
 const searchRateLimitBuckets = new Map<string, SearchRateLimitBucket>();
 
 const lookupRateLimitKey = (ipAddress?: string): string =>
@@ -63,16 +71,31 @@ const lookupRateLimitKey = (ipAddress?: string): string =>
     .update(ipAddress?.trim() || "unknown")
     .digest("hex");
 
+const pruneExpiredSearchRateLimitBuckets = (now: number): void => {
+  for (const [key, bucket] of searchRateLimitBuckets) {
+    if (now - bucket.windowStartedAt >= SEARCH_RATE_LIMIT_WINDOW_MS) {
+      searchRateLimitBuckets.delete(key);
+    }
+  }
+};
+
 export const assertRiskIdentifierLookupAllowed = (
   ipAddress: string | undefined,
   now = Date.now()
 ): void => {
+  pruneExpiredSearchRateLimitBuckets(now);
   const key = lookupRateLimitKey(ipAddress);
   const existing = searchRateLimitBuckets.get(key);
   if (
     !existing ||
     now - existing.windowStartedAt >= SEARCH_RATE_LIMIT_WINDOW_MS
   ) {
+    if (searchRateLimitBuckets.size >= MAX_SEARCH_RATE_LIMIT_BUCKETS) {
+      const oldestKey = searchRateLimitBuckets.keys().next().value;
+      if (oldestKey) {
+        searchRateLimitBuckets.delete(oldestKey);
+      }
+    }
     searchRateLimitBuckets.set(key, { count: 1, windowStartedAt: now });
     return;
   }
@@ -99,6 +122,13 @@ const normalizeLookupValue = (
   type: RiskReportIdentifierType,
   value: string
 ): string => {
+  const compactValue = value.trim().replaceAll(/[\s().+-]/gu, "");
+  if (compactValue.length < RISK_IDENTIFIER_LOOKUP_MIN_LENGTH) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Giá trị định danh quá ngắn.",
+    });
+  }
+
   let normalizedValue: string;
   try {
     normalizedValue = normalizeRiskIdentifier(type, value);
@@ -115,6 +145,239 @@ const normalizeLookupValue = (
   }
 
   return normalizedValue;
+};
+
+export interface PublicRiskLookupQuery {
+  normalizedValue: string;
+  type: RiskReportIdentifierType;
+}
+
+const platformProfilePrefixes = {
+  FACEBOOK: "https://facebook.com/",
+  TELEGRAM: "https://t.me/",
+  TIKTOK: "https://tiktok.com/@",
+} as const;
+
+const publicLookupPlatforms = ["FACEBOOK", "TIKTOK", "TELEGRAM"] as const;
+
+const publicSocialLookupTypes: readonly RiskReportIdentifierType[] = [
+  "SOCIAL_ACCOUNT",
+  "PLATFORM_ACCOUNT",
+];
+
+const invalidLookupValue = () =>
+  new ORPCError("BAD_REQUEST", {
+    message: "Giá trị định danh không hợp lệ.",
+  });
+
+const isNumericLookup = (value: string): boolean =>
+  /^[+0-9\s().-]+$/u.test(value) &&
+  value.replaceAll(/\D/gu, "").length >= RISK_IDENTIFIER_LOOKUP_MIN_LENGTH;
+
+const isUrlLikeLookup = (value: string): boolean =>
+  /^https?:\/\//iu.test(value) || /[a-z0-9-]+\.[a-z]{2,}(?:\/|$)/iu.test(value);
+
+const addLookupQuery = (
+  queries: PublicRiskLookupQuery[],
+  type: RiskReportIdentifierType,
+  value: string
+): void => {
+  const normalizedValue = normalizeLookupValue(type, value);
+  if (
+    queries.some(
+      (query) =>
+        query.type === type && query.normalizedValue === normalizedValue
+    )
+  ) {
+    return;
+  }
+  queries.push({ normalizedValue, type });
+};
+
+const tryAddLookupQuery = (
+  queries: PublicRiskLookupQuery[],
+  type: RiskReportIdentifierType,
+  value: string
+): boolean => {
+  try {
+    addLookupQuery(queries, type, value);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const getPlatformHandle = (value: string): string | null => {
+  const trimmedValue = value.trim();
+  if (!/^@[a-z0-9._-]+$/iu.test(trimmedValue)) {
+    return null;
+  }
+  return trimmedValue.slice(1).toLowerCase();
+};
+
+const addPlatformQueries = (
+  queries: PublicRiskLookupQuery[],
+  platform: keyof typeof platformProfilePrefixes,
+  value: string
+): void => {
+  const handle = getPlatformHandle(value);
+  const profileValue = handle
+    ? `${platformProfilePrefixes[platform]}${handle}`
+    : value;
+  const normalizedValue = normalizeLookupValue("SOCIAL_ACCOUNT", profileValue);
+  if (getRiskIdentifierPlatform(normalizedValue) !== platform) {
+    throw invalidLookupValue();
+  }
+
+  for (const type of publicSocialLookupTypes) {
+    addLookupQuery(queries, type, normalizedValue);
+  }
+};
+
+const tryAddPlatformQueries = (
+  queries: PublicRiskLookupQuery[],
+  platform: keyof typeof platformProfilePrefixes,
+  value: string
+): boolean => {
+  try {
+    addPlatformQueries(queries, platform, value);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+interface PublicRiskLookupCursor {
+  reportId: string;
+  sortAt: string;
+}
+
+const publicRiskLookupCursorSchema = z.object({
+  reportId: z.uuid(),
+  sortAt: z.iso.datetime(),
+});
+
+const decodePublicRiskLookupCursor = (
+  value: string | undefined
+): PublicRiskLookupCursor | undefined => {
+  if (!value) {
+    return undefined;
+  }
+
+  try {
+    const decoded = publicRiskLookupCursorSchema.parse(
+      JSON.parse(Buffer.from(value, "base64url").toString("utf-8"))
+    );
+    return decoded;
+  } catch {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Cursor tra cứu không hợp lệ.",
+    });
+  }
+};
+
+const encodePublicRiskLookupCursor = (cursor: PublicRiskLookupCursor): string =>
+  Buffer.from(JSON.stringify(cursor), "utf-8").toString("base64url");
+
+const buildNumericLookupQueries = (value: string): PublicRiskLookupQuery[] => {
+  const queries: PublicRiskLookupQuery[] = [];
+  tryAddLookupQuery(queries, "PHONE", value);
+  tryAddLookupQuery(queries, "BANK_ACCOUNT", value.replace(/^\+/u, ""));
+  if (queries.length === 0) {
+    throw invalidLookupValue();
+  }
+  return queries;
+};
+
+const buildAutoLookupQueries = (value: string): PublicRiskLookupQuery[] => {
+  const queries: PublicRiskLookupQuery[] = [];
+  if (getPlatformHandle(value)) {
+    for (const platform of publicLookupPlatforms) {
+      tryAddPlatformQueries(queries, platform, value);
+    }
+    for (const identifierType of publicSocialLookupTypes) {
+      addLookupQuery(queries, identifierType, value);
+    }
+    if (queries.length === 0) {
+      throw invalidLookupValue();
+    }
+    return queries;
+  }
+
+  if (!isUrlLikeLookup(value)) {
+    throw invalidLookupValue();
+  }
+
+  const platform = getRiskIdentifierPlatform(value);
+  if (platform) {
+    addPlatformQueries(queries, platform, value);
+  } else if (isSupportedRiskIdentifierPlatformUrl(value)) {
+    throw invalidLookupValue();
+  } else {
+    addLookupQuery(queries, "WEBSITE", value);
+  }
+  return queries;
+};
+
+export const buildPublicRiskLookupQueries = ({
+  kind,
+  type,
+  value,
+}: {
+  kind: PublicRiskLookupKind;
+  type?: RiskReportIdentifierType;
+  value: string;
+}): PublicRiskLookupQuery[] => {
+  const trimmedValue = value.trim();
+  const queries: PublicRiskLookupQuery[] = [];
+
+  if (type === "SOCIAL_ACCOUNT" || type === "PLATFORM_ACCOUNT") {
+    addLookupQuery(queries, type, trimmedValue);
+    return queries;
+  }
+
+  const selectedKind: PublicRiskLookupKind = type ?? kind;
+
+  if (selectedKind === "PHONE_OR_BANK" || selectedKind === "AUTO") {
+    if (isNumericLookup(trimmedValue)) {
+      return buildNumericLookupQueries(trimmedValue);
+    }
+    if (selectedKind === "PHONE_OR_BANK") {
+      throw invalidLookupValue();
+    }
+  }
+
+  if (selectedKind === "AUTO") {
+    return buildAutoLookupQueries(trimmedValue);
+  }
+
+  if (selectedKind === "PHONE") {
+    addLookupQuery(queries, "PHONE", trimmedValue);
+    return queries;
+  }
+  if (selectedKind === "BANK_ACCOUNT") {
+    addLookupQuery(queries, "BANK_ACCOUNT", trimmedValue);
+    return queries;
+  }
+  if (selectedKind === "WALLET_ACCOUNT") {
+    addLookupQuery(queries, "WALLET_ACCOUNT", trimmedValue);
+    return queries;
+  }
+  if (selectedKind === "WEBSITE") {
+    addLookupQuery(queries, "WEBSITE", trimmedValue);
+    return queries;
+  }
+
+  if (
+    selectedKind === "FACEBOOK" ||
+    selectedKind === "TIKTOK" ||
+    selectedKind === "TELEGRAM"
+  ) {
+    addPlatformQueries(queries, selectedKind, trimmedValue);
+    return queries;
+  }
+
+  throw invalidLookupValue();
 };
 
 const toSafeMaskedValue = (
@@ -165,54 +428,112 @@ const loadCurrentRiskReports = (
     .where(conditions);
 };
 
-export const searchPublicRiskIdentifiers = async (
-  database: Database,
-  input: PublicRiskIdentifierLookupInput,
-  ipAddress?: string
-) => {
-  assertRiskIdentifierLookupAllowed(ipAddress);
-  const normalizedValue = normalizeLookupValue(input.type, input.value);
-  const identifiers = await database
-    .select({
-      normalizedValue: protectionRiskIdentifier.normalizedValue,
-      reportId: protectionRiskIdentifier.reportId,
-      type: protectionRiskIdentifier.type,
-    })
-    .from(protectionRiskIdentifier)
-    .where(
-      and(
-        eq(protectionRiskIdentifier.type, input.type),
-        eq(protectionRiskIdentifier.normalizedValue, normalizedValue)
-      )
-    )
-    .orderBy(desc(protectionRiskIdentifier.createdAt))
-    .limit(PUBLIC_RISK_LOOKUP_MAX_RESULTS);
+interface PublicRiskLookupReportRow {
+  affectedVictimCount: number;
+  claimedLoss: number | null;
+  externalSource: string | null;
+  externalSourceUrl: string | null;
+  externalTitle: string | null;
+  id: string;
+  publicSlug: string | null;
+  publicSummary: string | null;
+  publishedAt: Date | null;
+  sortAt: unknown;
+  status: RiskReportStatus;
+  type: string;
+  updatedAt: Date;
+}
 
-  if (identifiers.length === 0) {
-    return { exactMatch: false, warnings: [] };
-  }
+interface PublicRiskLookupIdentifierRow {
+  normalizedValue: string;
+  reportId: string;
+  type: RiskReportIdentifierType;
+}
 
-  const reports = await loadCurrentRiskReports(database, [
-    ...new Set(identifiers.map((identifier) => identifier.reportId)),
-  ]);
-  const reportsById = new Map(reports.map((report) => [report.id, report]));
-  const returnedReportIds = new Set<string>();
-  const warnings = [];
+export interface PublicRiskLookupWarning {
+  affectedVictimCount: number;
+  claimedLoss: number | null;
+  externalSource: { name: string; title: string | null; url: string | null };
+  identifier: {
+    maskedValue: string;
+    publicValue: string | null;
+    type: RiskReportIdentifierType;
+  };
+  publicPath: string;
+  publicSlug: string;
+  publicSummary: string | null;
+  publishedAt: string | null;
+  status: PublicRiskReportStatus;
+  type: string;
+}
+
+export interface PublicRiskLookupGroup {
+  groupId: string;
+  hasPublicWarning: boolean;
+  identifier: PublicRiskLookupWarning["identifier"];
+  latestPublishedAt: string | null;
+  reportCount: number;
+  sourceCount: number;
+  status: PublicRiskReportStatus;
+  warnings: PublicRiskLookupWarning[];
+}
+
+const createPublicRiskLookupGroupId = (
+  type: RiskReportIdentifierType,
+  normalizedValue: string
+): string =>
+  createHash("sha256").update(`${type}:${normalizedValue}`).digest("hex");
+
+const sortPublicRiskLookupGroups = (
+  groups: PublicRiskLookupGroup[]
+): PublicRiskLookupGroup[] =>
+  groups.toSorted((left, right) => {
+    if (left.hasPublicWarning !== right.hasPublicWarning) {
+      return left.hasPublicWarning ? -1 : 1;
+    }
+    if (left.reportCount !== right.reportCount) {
+      return right.reportCount - left.reportCount;
+    }
+    return (right.latestPublishedAt ?? "").localeCompare(
+      left.latestPublishedAt ?? ""
+    );
+  });
+
+const buildPublicRiskLookupGroups = ({
+  identifiers,
+  reportRows,
+}: {
+  identifiers: readonly PublicRiskLookupIdentifierRow[];
+  reportRows: readonly PublicRiskLookupReportRow[];
+}): PublicRiskLookupGroup[] => {
+  const reportsById = new Map(reportRows.map((report) => [report.id, report]));
+  const groupsByIdentifier = new Map<
+    string,
+    {
+      groupId: string;
+      identifier: PublicRiskLookupWarning["identifier"];
+      warnings: PublicRiskLookupWarning[];
+    }
+  >();
+  const seenReportIdentifiers = new Set<string>();
 
   for (const identifier of identifiers) {
     const report = reportsById.get(identifier.reportId);
-    if (
-      !report ||
-      !isCurrentPublicRiskReportStatus(report.status) ||
-      returnedReportIds.has(report.id)
-    ) {
+    if (!report || !isCurrentPublicRiskReportStatus(report.status)) {
       continue;
     }
 
-    returnedReportIds.add(report.id);
-    const publicSlug =
-      report.publicSlug ?? createRiskReportPublicSlug(report.id);
-    warnings.push({
+    const identifierKey = `${identifier.type}:${identifier.normalizedValue}`;
+    const reportIdentifierKey = `${identifierKey}:${report.id}`;
+    if (seenReportIdentifiers.has(reportIdentifierKey)) {
+      continue;
+    }
+    seenReportIdentifiers.add(reportIdentifierKey);
+    const group = groupsByIdentifier.get(identifierKey) ?? {
+      groupId: createPublicRiskLookupGroupId(
+        identifier.type,
+        identifier.normalizedValue
+      ),
       identifier: {
         maskedValue: toSafeMaskedValue(
           identifier.type,
@@ -224,15 +545,189 @@ export const searchPublicRiskIdentifiers = async (
         ),
         type: identifier.type,
       },
+      warnings: [],
+    };
+    const publicSlug =
+      report.publicSlug ?? createRiskReportPublicSlug(report.id);
+    group.warnings.push({
+      affectedVictimCount: report.affectedVictimCount,
+      claimedLoss: report.claimedLoss,
+      externalSource: {
+        name: report.externalSource ?? "Avin",
+        title: report.externalTitle,
+        url: report.externalSourceUrl,
+      },
+      identifier: group.identifier,
       publicPath: createRiskReportPublicPath(publicSlug),
       publicSlug,
+      publicSummary: report.publicSummary,
       publishedAt: report.publishedAt?.toISOString() ?? null,
       status: report.status,
       type: report.type,
     });
+    groupsByIdentifier.set(identifierKey, group);
   }
 
-  return { exactMatch: warnings.length > 0, warnings };
+  const groups: PublicRiskLookupGroup[] = [];
+  for (const group of groupsByIdentifier.values()) {
+    const warnings = group.warnings.toSorted((left, right) =>
+      (right.publishedAt ?? "").localeCompare(left.publishedAt ?? "")
+    );
+    const sourceNames = new Set(
+      warnings.map((warning) => warning.externalSource.name)
+    );
+    const hasPublicWarning = warnings.some(
+      (warning) =>
+        warning.status === "PUBLISHED" || warning.status === "CORRECTED"
+    );
+    groups.push({
+      groupId: group.groupId,
+      hasPublicWarning,
+      identifier: group.identifier,
+      latestPublishedAt: warnings[0]?.publishedAt ?? null,
+      reportCount: warnings.length,
+      sourceCount: sourceNames.size,
+      status: warnings[0]?.status ?? "UNDER_VERIFICATION",
+      warnings,
+    });
+  }
+
+  return sortPublicRiskLookupGroups(groups);
+};
+
+export const searchPublicRiskIdentifiers = async (
+  database: Database,
+  input: PublicRiskIdentifierLookupInput,
+  ipAddress?: string
+) => {
+  assertRiskIdentifierLookupAllowed(ipAddress);
+  const queries = buildPublicRiskLookupQueries({
+    kind: input.kind ?? "AUTO",
+    type: input.type,
+    value: input.value,
+  });
+  const cursor = decodePublicRiskLookupCursor(input.cursor);
+  const lookupCondition = or(
+    ...queries.map((query) =>
+      and(
+        eq(protectionRiskIdentifier.type, query.type),
+        eq(protectionRiskIdentifier.normalizedValue, query.normalizedValue)
+      )
+    )
+  );
+  const publicStatusCondition = inArray(
+    protectionRiskReport.status,
+    publicRiskReportStatuses
+  );
+  const sortAtExpression = sql`coalesce(${protectionRiskReport.publishedAt}, ${protectionRiskReport.updatedAt})`;
+  const cursorCondition = cursor
+    ? sql`(
+        ${sortAtExpression} < ${new Date(cursor.sortAt)}
+        or (
+          ${sortAtExpression} = ${new Date(cursor.sortAt)}
+          and ${protectionRiskReport.id} < ${cursor.reportId}
+        )
+      )`
+    : undefined;
+  const whereCondition = and(
+    publicStatusCondition,
+    lookupCondition,
+    cursorCondition
+  );
+
+  const totalQueryPromise = database
+    .select({ totalMatches: countDistinct(protectionRiskReport.id) })
+    .from(protectionRiskReport)
+    .innerJoin(
+      protectionRiskIdentifier,
+      eq(protectionRiskIdentifier.reportId, protectionRiskReport.id)
+    )
+    .where(and(publicStatusCondition, lookupCondition));
+
+  const reportRows = await database
+    .selectDistinct({
+      affectedVictimCount: protectionRiskReport.affectedVictimCount,
+      claimedLoss: protectionRiskReport.claimedLoss,
+      externalSource: protectionRiskReport.externalSource,
+      externalSourceUrl: protectionRiskReport.externalSourceUrl,
+      externalTitle: protectionRiskReport.externalTitle,
+      id: protectionRiskReport.id,
+      publicSlug: protectionRiskReport.publicSlug,
+      publicSummary: protectionRiskReport.publicSummary,
+      publishedAt: protectionRiskReport.publishedAt,
+      sortAt: sortAtExpression,
+      status: protectionRiskReport.status,
+      type: protectionRiskReport.type,
+      updatedAt: protectionRiskReport.updatedAt,
+    })
+    .from(protectionRiskReport)
+    .innerJoin(
+      protectionRiskIdentifier,
+      eq(protectionRiskIdentifier.reportId, protectionRiskReport.id)
+    )
+    .where(whereCondition)
+    .orderBy(desc(sortAtExpression), desc(protectionRiskReport.id))
+    .limit(PUBLIC_RISK_LOOKUP_MAX_RESULTS + 1);
+
+  const hasMore = reportRows.length > PUBLIC_RISK_LOOKUP_MAX_RESULTS;
+  const visibleReportRows = reportRows.slice(0, PUBLIC_RISK_LOOKUP_MAX_RESULTS);
+  if (visibleReportRows.length === 0) {
+    const [totalResult] = await totalQueryPromise;
+    return {
+      exactMatch: false,
+      groups: [],
+      hasMore: false,
+      nextCursor: null,
+      totalReports: Number(totalResult?.totalMatches ?? 0),
+      warnings: [],
+    };
+  }
+
+  const reportIds = visibleReportRows.map((report) => report.id);
+  const [[totalResult], identifiers] = await Promise.all([
+    totalQueryPromise,
+    database
+      .select({
+        normalizedValue: protectionRiskIdentifier.normalizedValue,
+        reportId: protectionRiskIdentifier.reportId,
+        type: protectionRiskIdentifier.type,
+      })
+      .from(protectionRiskIdentifier)
+      .where(
+        and(
+          inArray(protectionRiskIdentifier.reportId, reportIds),
+          lookupCondition
+        )
+      )
+      .orderBy(desc(protectionRiskIdentifier.createdAt)),
+  ]);
+
+  const groups = buildPublicRiskLookupGroups({
+    identifiers,
+    reportRows: visibleReportRows,
+  });
+
+  const lastReport = visibleReportRows.at(-1);
+  const lastSortAt = lastReport?.sortAt;
+  const nextCursor =
+    hasMore && lastReport && lastSortAt
+      ? encodePublicRiskLookupCursor({
+          reportId: lastReport.id,
+          sortAt:
+            lastSortAt instanceof Date
+              ? lastSortAt.toISOString()
+              : new Date(String(lastSortAt)).toISOString(),
+        })
+      : null;
+
+  return {
+    exactMatch: groups.length > 0,
+    groups,
+    hasMore,
+    nextCursor,
+    totalReports: Number(totalResult?.totalMatches ?? 0),
+    warnings: groups.flatMap((group) => group.warnings),
+  };
 };
 
 const toPeriod = (date: Date): string => date.toISOString().slice(0, 7);
@@ -262,10 +757,10 @@ export const getPublicRiskStatistics = async (
 ) => {
   assertRiskIdentifierLookupAllowed(ipAddress);
   const reports = await loadCurrentRiskReports(database);
-  const [identifiers, providers] = await Promise.all([
+  const identifiers =
     reports.length === 0
-      ? Promise.resolve([])
-      : database
+      ? []
+      : await database
           .select({
             normalizedValue: protectionRiskIdentifier.normalizedValue,
             type: protectionRiskIdentifier.type,
@@ -276,14 +771,7 @@ export const getPublicRiskStatistics = async (
               protectionRiskIdentifier.reportId,
               reports.map((report) => report.id)
             )
-          ),
-    database
-      .select({
-        status: protectionProviderProfile.status,
-        updatedAt: protectionProviderProfile.updatedAt,
-      })
-      .from(protectionProviderProfile),
-  ]);
+          );
 
   const publishedIdentifierKeys = new Set(
     identifiers.map(
@@ -299,28 +787,13 @@ export const getPublicRiskStatistics = async (
     reportsByPeriod.set(period, (reportsByPeriod.get(period) ?? 0) + 1);
   }
 
-  const providerCounts = new Map<ProviderProfileStatus, number>(
-    providerProfileStatuses.map((status) => [status, 0])
+  const lastUpdatedAt = getLatestDate(
+    reports.map((report) => report.updatedAt)
   );
-  for (const provider of providers) {
-    const currentCount = providerCounts.get(provider.status);
-    if (currentCount !== undefined) {
-      providerCounts.set(provider.status, currentCount + 1);
-    }
-  }
-
-  const lastUpdatedAt = getLatestDate([
-    ...reports.map((report) => report.updatedAt),
-    ...providers.map((provider) => provider.updatedAt),
-  ]);
 
   return {
     currentReports: reports.length,
     lastUpdatedAt: lastUpdatedAt?.toISOString() ?? null,
-    providersByStatus: providerProfileStatuses.map((status) => ({
-      count: providerCounts.get(status) ?? 0,
-      status,
-    })),
     publishedRiskIdentifiers: publishedIdentifierKeys.size,
     reportsByPeriod: [...reportsByPeriod.entries()]
       .toSorted(([left], [right]) => left.localeCompare(right))

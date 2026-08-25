@@ -29,21 +29,32 @@ import type {
   PublicRiskStatistics as PublicRiskStatisticsData,
 } from "../api/risk-lookup-api";
 import { PublicRiskWarningCatalogue } from "../components/public-risk-warning-catalogue";
+import { rememberRiskLookupHandoff } from "../risk-lookup-handoff";
+import type { RiskLookupKind } from "../risk-lookup-handoff";
 
-const identifierTypeOptions = [
-  { label: "Số tài khoản ngân hàng", value: "BANK_ACCOUNT" },
-  { label: "Tài khoản ví điện tử", value: "WALLET_ACCOUNT" },
+const lookupKindOptions = [
+  { label: "Tự nhận diện", value: "AUTO" },
+  { label: "SĐT hoặc tài khoản ngân hàng", value: "PHONE_OR_BANK" },
   { label: "Số điện thoại", value: "PHONE" },
+  { label: "Số tài khoản ngân hàng", value: "BANK_ACCOUNT" },
   { label: "Website", value: "WEBSITE" },
-  { label: "Tài khoản social", value: "SOCIAL_ACCOUNT" },
-  { label: "Tài khoản trên nền tảng", value: "PLATFORM_ACCOUNT" },
-] as const;
+  { label: "Link Facebook", value: "FACEBOOK" },
+  { label: "Link TikTok", value: "TIKTOK" },
+  { label: "Link Telegram", value: "TELEGRAM" },
+] as const satisfies readonly { label: string; value: RiskLookupKind }[];
 
-type IdentifierType = (typeof identifierTypeOptions)[number]["value"];
+const identifierTypeLabels: Record<string, string> = {
+  BANK_ACCOUNT: "Số tài khoản ngân hàng",
+  PHONE: "Số điện thoại",
+  PLATFORM_ACCOUNT: "Tài khoản trên nền tảng",
+  SOCIAL_ACCOUNT: "Tài khoản social",
+  WALLET_ACCOUNT: "Tài khoản ví điện tử",
+  WEBSITE: "Website",
+};
 
-const identifierTypeLabels = Object.fromEntries(
-  identifierTypeOptions.map(({ label, value }) => [value, label])
-) as Record<IdentifierType, string>;
+const lookupKindLabels = Object.fromEntries(
+  lookupKindOptions.map(({ label, value }) => [value, label])
+) as Record<RiskLookupKind, string>;
 
 const lookupDateFormatter = new Intl.DateTimeFormat("vi-VN", {
   dateStyle: "medium",
@@ -57,58 +68,174 @@ const formatDate = (value: string | null): string =>
 const formatMoney = (value: number): string =>
   `${lookupNumberFormatter.format(value)} VND`;
 
-const getInputMode = (type: IdentifierType): "numeric" | "url" | "text" => {
-  if (
-    type === "PHONE" ||
-    type === "BANK_ACCOUNT" ||
-    type === "WALLET_ACCOUNT"
-  ) {
+const getInputMode = (type: RiskLookupKind): "numeric" | "url" | "text" => {
+  if (type === "PHONE" || type === "BANK_ACCOUNT" || type === "PHONE_OR_BANK") {
     return "numeric";
   }
-  if (type === "WEBSITE") {
+  if (
+    type === "WEBSITE" ||
+    type === "FACEBOOK" ||
+    type === "TIKTOK" ||
+    type === "TELEGRAM"
+  ) {
     return "url";
   }
   return "text";
 };
 
-const PublicRiskWarningResult = ({
-  warning,
+type PublicRiskLookupGroup = PublicRiskIdentifierLookup["groups"][number];
+
+const getGroupKey = (group: PublicRiskLookupGroup): string => group.groupId;
+
+const sortGroups = (groups: PublicRiskLookupGroup[]): PublicRiskLookupGroup[] =>
+  groups.toSorted((left, right) => {
+    if (left.hasPublicWarning !== right.hasPublicWarning) {
+      return left.hasPublicWarning ? -1 : 1;
+    }
+    if (left.reportCount !== right.reportCount) {
+      return right.reportCount - left.reportCount;
+    }
+    return (right.latestPublishedAt ?? "").localeCompare(
+      left.latestPublishedAt ?? ""
+    );
+  });
+
+const mergeLookupResults = (
+  current: PublicRiskIdentifierLookup,
+  next: PublicRiskIdentifierLookup
+): PublicRiskIdentifierLookup => {
+  const groupsByKey = new Map(
+    current.groups.map((group) => [getGroupKey(group), group])
+  );
+
+  for (const nextGroup of next.groups) {
+    const key = getGroupKey(nextGroup);
+    const currentGroup = groupsByKey.get(key);
+    if (!currentGroup) {
+      groupsByKey.set(key, nextGroup);
+      continue;
+    }
+
+    const warningsBySlug = new Map(
+      currentGroup.warnings.map((warning) => [warning.publicSlug, warning])
+    );
+    for (const warning of nextGroup.warnings) {
+      warningsBySlug.set(warning.publicSlug, warning);
+    }
+    const warnings = [...warningsBySlug.values()].toSorted((left, right) =>
+      (right.publishedAt ?? "").localeCompare(left.publishedAt ?? "")
+    );
+    const hasPublicWarning = warnings.some(
+      (warning) =>
+        warning.status === "PUBLISHED" || warning.status === "CORRECTED"
+    );
+
+    groupsByKey.set(key, {
+      ...nextGroup,
+      hasPublicWarning,
+      latestPublishedAt: warnings[0]?.publishedAt ?? null,
+      reportCount: warnings.length,
+      sourceCount: new Set(
+        warnings.map((warning) => warning.externalSource.name)
+      ).size,
+      status: warnings[0]?.status ?? "UNDER_VERIFICATION",
+      warnings,
+    });
+  }
+
+  const groups = sortGroups([...groupsByKey.values()]);
+  return {
+    ...next,
+    exactMatch: groups.length > 0,
+    groups,
+    totalReports: Math.max(current.totalReports, next.totalReports),
+    warnings: groups.flatMap((group) => group.warnings),
+  };
+};
+
+const statusLabels = {
+  CORRECTED: "Đã cập nhật",
+  PUBLISHED: "Đã công khai",
+  UNDER_VERIFICATION: "Đang xác minh",
+} as const;
+
+const PublicRiskLookupGroupResult = ({
+  group,
 }: {
-  warning: PublicRiskIdentifierLookup["warnings"][number];
+  group: PublicRiskLookupGroup;
 }) => (
   <Card>
     <CardHeader>
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <CardTitle>{identifierTypeLabels[warning.identifier.type]}</CardTitle>
+        <div className="min-w-0">
+          <CardTitle>{identifierTypeLabels[group.identifier.type]}</CardTitle>
           <CardDescription>
-            Cảnh báo{" "}
-            {warning.status === "UNDER_VERIFICATION"
-              ? "đang xác minh"
-              : "đã công khai"}
+            {group.hasPublicWarning
+              ? "Có cảnh báo công khai"
+              : "Có tố cáo đang xác minh"}
           </CardDescription>
         </div>
-        <Badge variant="outline">
-          {warning.status === "CORRECTED" ? "Đã cập nhật" : "Đã xem xét"}
+        <Badge variant={group.hasPublicWarning ? "default" : "outline"}>
+          {group.reportCount} báo cáo
         </Badge>
       </div>
+      <p className="rounded-lg bg-muted/40 px-3 py-2 font-medium text-sm break-all">
+        {group.identifier.publicValue ?? group.identifier.maskedValue}
+      </p>
+      <p className="text-muted-foreground text-xs">
+        {group.sourceCount} nguồn · cập nhật{" "}
+        {formatDate(group.latestPublishedAt)}
+      </p>
     </CardHeader>
-    <CardContent className="flex items-center justify-between gap-4">
-      <div className="min-w-0">
-        <p className="font-medium break-all">
-          {warning.identifier.publicValue ?? warning.identifier.maskedValue}
-        </p>
-        <p className="mt-1 text-muted-foreground text-xs">
-          Phát hành {formatDate(warning.publishedAt)}
-        </p>
-      </div>
-      <Link
-        className="shrink-0 font-medium text-primary text-sm underline underline-offset-4"
-        params={{ slug: warning.publicSlug }}
-        to="/avin-check/warning/$slug"
-      >
-        Xem chi tiết
-      </Link>
+    <CardContent className="grid gap-3">
+      {group.warnings.map((warning) => (
+        <article
+          className="grid gap-2 rounded-xl border border-border/60 p-3"
+          key={warning.publicSlug}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Badge variant="outline">{statusLabels[warning.status]}</Badge>
+            <span className="text-muted-foreground text-xs">
+              {formatDate(warning.publishedAt)}
+            </span>
+          </div>
+          <div className="text-sm">
+            <span className="text-muted-foreground">Nguồn: </span>
+            {warning.externalSource.url ? (
+              <a
+                className="font-medium text-primary underline underline-offset-4"
+                href={warning.externalSource.url}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                {warning.externalSource.title ?? warning.externalSource.name}
+              </a>
+            ) : (
+              <span className="font-medium">{warning.externalSource.name}</span>
+            )}
+          </div>
+          {warning.publicSummary ? (
+            <p className="text-muted-foreground text-sm leading-6">
+              {warning.publicSummary}
+            </p>
+          ) : null}
+          <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+            <span className="text-muted-foreground">
+              {warning.affectedVictimCount} người bị ảnh hưởng
+              {warning.claimedLoss === null
+                ? ""
+                : ` · ${formatMoney(warning.claimedLoss)}`}
+            </span>
+            <Link
+              className="font-medium text-primary underline underline-offset-4"
+              params={{ slug: warning.publicSlug }}
+              to="/avin-check/warning/$slug"
+            >
+              Xem chi tiết
+            </Link>
+          </div>
+        </article>
+      ))}
     </CardContent>
   </Card>
 );
@@ -198,10 +325,7 @@ const PublicRiskStatisticsSection = ({
             label="Số điện thoại, số tài khoản"
             value={reportedIdentifiers}
           />
-          <ActivityMetric
-            label="Tài khoản mạng xã hội"
-            value={publicWarnings}
-          />
+          <ActivityMetric label="Cảnh báo công khai" value={publicWarnings} />
           <ActivityMetric label="Phản hồi từ cộng đồng" value={9943} />
         </CardContent>
       </Card>
@@ -259,12 +383,14 @@ const PublicRiskStatisticsSection = ({
 };
 
 export const RiskLookupPage = () => {
-  const identifierType: IdentifierType = "BANK_ACCOUNT";
   const [value, setValue] = useState("");
+  const [selectedKind, setSelectedKind] = useState<RiskLookupKind>("AUTO");
   const [clientError, setClientError] = useState<string | null>(null);
   const searchMutation = usePublicRiskIdentifierSearch();
   const statisticsQuery = usePublicRiskStatistics();
-  const result = searchMutation.data;
+  const [result, setResult] = useState<PublicRiskIdentifierLookup | null>(
+    () => searchMutation.data ?? null
+  );
   const statisticsContent = (
     <PublicRiskStatisticsSection statistics={statisticsQuery.data} />
   );
@@ -278,10 +404,37 @@ export const RiskLookupPage = () => {
     }
 
     setClientError(null);
-    await searchMutation.mutateAsync({
-      type: identifierType,
-      value: trimmedValue,
-    });
+    setResult(null);
+    try {
+      const nextResult = await searchMutation.mutateAsync({
+        kind: selectedKind,
+        value: trimmedValue,
+      });
+      setResult(nextResult);
+    } catch {
+      setResult(null);
+    }
+  };
+
+  const handleLoadMore = async (): Promise<void> => {
+    if (!result?.nextCursor) {
+      return;
+    }
+
+    try {
+      const nextResult = await searchMutation.mutateAsync({
+        cursor: result.nextCursor,
+        kind: selectedKind,
+        value: value.trim(),
+      });
+      setResult((currentResult) =>
+        currentResult
+          ? mergeLookupResults(currentResult, nextResult)
+          : nextResult
+      );
+    } catch {
+      setClientError("Không thể tải thêm kết quả. Vui lòng thử lại.");
+    }
   };
 
   return (
@@ -313,17 +466,42 @@ export const RiskLookupPage = () => {
         </div>
         <form className="grid gap-3" onSubmit={handleSubmit}>
           <label className="font-medium text-sm" htmlFor="risk-lookup-value">
-            Nhập số tài khoản, số điện thoại hoặc website
+            Nhập số điện thoại, số tài khoản, website hoặc link Facebook,
+            TikTok, Telegram
           </label>
           <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="flex h-12 shrink-0 items-center rounded-xl border border-input bg-background px-3 sm:w-64">
+              <label className="sr-only" htmlFor="risk-lookup-kind">
+                Loại định danh
+              </label>
+              <select
+                aria-label={`Loại định danh: ${lookupKindLabels[selectedKind]}`}
+                className="w-full bg-transparent font-medium text-sm outline-none"
+                id="risk-lookup-kind"
+                onChange={(event) => {
+                  setSelectedKind(event.target.value as RiskLookupKind);
+                  setResult(null);
+                }}
+                value={selectedKind}
+              >
+                {lookupKindOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
             <Input
               autoComplete="off"
               className="h-12 flex-1"
               id="risk-lookup-value"
-              inputMode={getInputMode(identifierType)}
+              inputMode={getInputMode(selectedKind)}
               maxLength={300}
-              onChange={(event) => setValue(event.target.value)}
-              placeholder="Ví dụ: 123456789 hoặc example.com"
+              onChange={(event) => {
+                setValue(event.target.value);
+                setResult(null);
+              }}
+              placeholder="Ví dụ: 0912345678, example.com hoặc @tiktok_user"
               spellCheck="false"
               value={value}
             />
@@ -339,7 +517,7 @@ export const RiskLookupPage = () => {
         </form>
         <p className="text-muted-foreground text-sm">
           Chúng tôi chỉ đối chiếu với các cảnh báo đã công khai. Thông tin nhạy
-          cảm luôn được che một phần.
+          cảm luôn được che một phần; tra cứu số chỉ cần nhập một lần.
         </p>
       </section>
 
@@ -366,27 +544,61 @@ export const RiskLookupPage = () => {
               >
                 {result.exactMatch
                   ? "Đã tìm thấy cảnh báo liên quan."
-                  : "Chưa có xác nhận công khai."}
+                  : "Chưa có cảnh báo công khai trùng khớp."}
               </h2>
             </div>
             <p aria-live="polite" className="text-muted-foreground text-sm">
-              {result.warnings.length} kết quả
+              {result.totalReports} báo cáo
             </p>
           </div>
           {result.exactMatch ? (
             <div className="mt-6 grid gap-4 md:grid-cols-2">
-              {result.warnings.map((warning) => (
-                <PublicRiskWarningResult
-                  key={`${warning.publicSlug}-${warning.identifier.type}`}
-                  warning={warning}
+              {result.groups.map((group) => (
+                <PublicRiskLookupGroupResult
+                  group={group}
+                  key={getGroupKey(group)}
                 />
               ))}
+              {result.hasMore ? (
+                <div className="flex justify-center md:col-span-2">
+                  <Button
+                    disabled={searchMutation.isPending}
+                    onClick={() => void handleLoadMore()}
+                    type="button"
+                    variant="outline"
+                  >
+                    {searchMutation.isPending ? "Đang tải..." : "Xem thêm"}
+                  </Button>
+                </div>
+              ) : null}
             </div>
           ) : (
-            <p className="mt-6 rounded-2xl border border-border/60 p-5 text-muted-foreground text-sm">
-              Chưa tìm thấy cảnh báo công khai trùng khớp. Điều này không đồng
-              nghĩa giao dịch chắc chắn an toàn.
-            </p>
+            <div className="mt-6 grid gap-4 rounded-2xl border border-border/60 p-5">
+              <p className="text-muted-foreground text-sm">
+                Chưa tìm thấy cảnh báo công khai trùng khớp. Điều này không có
+                nghĩa đối tượng hoặc giao dịch an toàn.
+              </p>
+              <Link
+                className="inline-flex h-9 w-fit items-center justify-center gap-1.5 rounded-4xl border border-input px-3 font-medium text-sm transition hover:bg-accent hover:text-accent-foreground"
+                state={(previous) => ({
+                  ...previous,
+                  riskLookup: {
+                    kind: selectedKind,
+                    value: value.trim(),
+                  },
+                })}
+                onClick={() =>
+                  rememberRiskLookupHandoff({
+                    kind: selectedKind,
+                    value: value.trim(),
+                  })
+                }
+                to="/avin-check/report"
+              >
+                <FlagIcon data-icon="inline-start" />
+                Gửi tố cáo về định danh này
+              </Link>
+            </div>
           )}
         </section>
       ) : null}

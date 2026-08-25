@@ -1,4 +1,8 @@
 import {
+  getRiskIdentifierPlatform,
+  isSupportedRiskIdentifierPlatformUrl,
+} from "@avin/api/protection/risk-report";
+import {
   RISK_REPORT_EVIDENCE_CONTENT_TYPES,
   RISK_REPORT_EVIDENCE_MAX_BYTES,
   RISK_REPORT_EVIDENCE_MAX_COUNT,
@@ -27,13 +31,19 @@ import { Textarea } from "@avin/ui/components/textarea";
 import { useUploadFiles } from "@better-upload/client";
 import { ArrowLeftIcon, ShieldCheckIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { useReducer, useState } from "react";
+import { Link, useLocation } from "@tanstack/react-router";
+import { useEffect, useReducer, useState } from "react";
 import type { FormEvent } from "react";
 
 import { Shell } from "@/components/shell";
 import { orpc } from "@/utils/orpc";
 import { serverURL } from "@/utils/server-url";
+
+import {
+  getRiskLookupHandoff,
+  takeRememberedRiskLookupHandoff,
+} from "../risk-lookup-handoff";
+import type { RiskLookupHandoff } from "../risk-lookup-handoff";
 
 const ACCEPTED_CONTENT_TYPES = {
   "application/pdf": [".pdf"],
@@ -132,6 +142,12 @@ const urgencyOptions = [
 
 type Step = "details" | "submitted";
 
+const riskLookupPlatformLabels = {
+  FACEBOOK: "Facebook",
+  TELEGRAM: "Telegram",
+  TIKTOK: "TikTok",
+} as const;
+
 interface RiskReportFieldsState {
   claimedLoss: string;
   evidenceKind: EvidenceKind;
@@ -144,6 +160,13 @@ interface RiskReportFieldsState {
 
 type RiskReportFieldsAction =
   | { reportType: ReportType; type: "reportTypeChanged" }
+  | {
+      identifierType: IdentifierType;
+      identifierValue: string;
+      platform: string;
+      reportType: ReportType;
+      type: "prefillLookup";
+    }
   | { type: "setClaimedLoss"; value: string }
   | { type: "setEvidenceKind"; value: EvidenceKind }
   | { type: "setIdentifierType"; value: IdentifierType }
@@ -161,10 +184,89 @@ const initialRiskReportFields: RiskReportFieldsState = {
   violationType: "PHISHING",
 };
 
+const getRiskLookupPlatform = (handoff: RiskLookupHandoff): string => {
+  const platform =
+    handoff.kind === "FACEBOOK" ||
+    handoff.kind === "TIKTOK" ||
+    handoff.kind === "TELEGRAM"
+      ? handoff.kind
+      : getRiskIdentifierPlatform(handoff.value);
+  return platform ? riskLookupPlatformLabels[platform] : "";
+};
+
+const getRiskLookupPrefill = (
+  handoff: RiskLookupHandoff
+): Pick<
+  RiskReportFieldsState,
+  "identifierType" | "identifierValue" | "platform" | "reportType"
+> => {
+  const isSocialLookup =
+    handoff.kind === "FACEBOOK" ||
+    handoff.kind === "TIKTOK" ||
+    handoff.kind === "TELEGRAM" ||
+    (handoff.kind === "AUTO" &&
+      (handoff.value.trim().startsWith("@") ||
+        Boolean(getRiskIdentifierPlatform(handoff.value)) ||
+        isSupportedRiskIdentifierPlatformUrl(handoff.value)));
+  if (isSocialLookup) {
+    return {
+      identifierType: "SOCIAL_ACCOUNT",
+      identifierValue: handoff.value,
+      platform: getRiskLookupPlatform(handoff),
+      reportType: "SOCIAL_GAME_ACCOUNT",
+    };
+  }
+
+  const isWebsiteLookup =
+    handoff.kind === "WEBSITE" ||
+    (handoff.kind === "AUTO" &&
+      !isSupportedRiskIdentifierPlatformUrl(handoff.value) &&
+      /^(?:https?:\/\/)?[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:\/|$)/iu.test(
+        handoff.value.trim()
+      ));
+  if (isWebsiteLookup) {
+    return {
+      identifierType: "WEBSITE",
+      identifierValue: handoff.value,
+      platform: "",
+      reportType: "MALICIOUS_WEBSITE",
+    };
+  }
+
+  if (handoff.kind === "PHONE") {
+    return {
+      identifierType: "PHONE",
+      identifierValue: handoff.value,
+      platform: "",
+      reportType: "BANK_WALLET_PHONE",
+    };
+  }
+
+  return {
+    identifierType: "BANK_ACCOUNT",
+    identifierValue: handoff.value,
+    platform: "",
+    reportType: "BANK_WALLET_PHONE",
+  };
+};
+
 const riskReportFieldsReducer = (
   state: RiskReportFieldsState,
   action: RiskReportFieldsAction
 ): RiskReportFieldsState => {
+  if (action.type === "prefillLookup") {
+    return {
+      ...state,
+      claimedLoss:
+        action.reportType === "BANK_WALLET_PHONE" ? state.claimedLoss : "",
+      evidenceKind: evidenceTypeOptions[action.reportType][0]
+        .value as EvidenceKind,
+      identifierType: action.identifierType,
+      identifierValue: action.identifierValue,
+      platform: action.platform,
+      reportType: action.reportType,
+    };
+  }
   if (action.type === "reportTypeChanged") {
     return {
       ...state,
@@ -196,6 +298,19 @@ const riskReportFieldsReducer = (
     return { ...state, platform: action.value };
   }
   return { ...state, violationType: action.value };
+};
+
+const getInitialRiskReportFields = (
+  handoff: RiskLookupHandoff | null
+): RiskReportFieldsState => {
+  if (!handoff) {
+    return initialRiskReportFields;
+  }
+
+  return riskReportFieldsReducer(initialRiskReportFields, {
+    ...getRiskLookupPrefill(handoff),
+    type: "prefillLookup",
+  });
 };
 
 const getRiskDraftSaveLabel = (
@@ -384,6 +499,9 @@ const RiskReportTypeFields = ({
 );
 
 export const RiskReportPage = () => {
+  const lookupHandoff = useLocation({
+    select: (location) => getRiskLookupHandoff(location.state),
+  });
   const [step, setStep] = useState<Step>("details");
   const [reportId, setReportId] = useState<string>();
   const [reporterPhone, setReporterPhone] = useState("");
@@ -392,8 +510,18 @@ export const RiskReportPage = () => {
     useState<ReporterRelationship>("NO_PROVIDER_RELATIONSHIP");
   const [riskFields, dispatchRiskFields] = useReducer(
     riskReportFieldsReducer,
-    initialRiskReportFields
+    lookupHandoff,
+    getInitialRiskReportFields
   );
+  useEffect(() => {
+    const rememberedLookupHandoff = takeRememberedRiskLookupHandoff();
+    if (!lookupHandoff && rememberedLookupHandoff) {
+      dispatchRiskFields({
+        ...getRiskLookupPrefill(rememberedLookupHandoff),
+        type: "prefillLookup",
+      });
+    }
+  }, [lookupHandoff]);
   const {
     claimedLoss,
     evidenceKind,

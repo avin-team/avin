@@ -29,6 +29,7 @@
     "./protection/support-review": "./src/protection/support-review.ts",
     "./protection/support-review-service": "./src/protection/support-review-service.ts",
     "./protection/risk-lookup": "./src/protection/risk-lookup.ts",
+    "./protection/risk-identifier-backfill": "./src/protection/risk-identifier-backfill.ts",
     "./protection/risk-report": "./src/protection/risk-report.ts",
     "./protection/risk-report-email-delivery": "./src/protection/risk-report-email-delivery.ts",
     "./protection/risk-report-service": "./src/protection/risk-report-service.ts",

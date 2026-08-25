@@ -108,6 +108,10 @@ export const externalRiskAdminIdInputSchema = z.object({ id: z.uuid() });
 type Database = Context["db"];
 type ExternalStorage = NonNullable<Context["storage"]>;
 type ChongScamReport = z.infer<typeof chongScamReportSchema>;
+export type ExternalRiskIdentifierSource = Pick<
+  ChongScamReport,
+  "bankAccount" | "phone" | "type"
+>;
 type ChongScamEvidenceFile = z.infer<typeof chongScamEvidenceFileSchema>;
 type ExternalRiskReport = typeof protectionRiskReport.$inferSelect;
 type ExternalRiskIdentifier = typeof protectionRiskIdentifier.$inferSelect;
@@ -297,25 +301,6 @@ const mapSourceReportType = (
   return "SOCIAL_GAME_ACCOUNT";
 };
 
-const inferIdentifierType = (
-  value: string,
-  report: ChongScamReport
-): RiskIdentifierInsert["type"] => {
-  if (report.phone && value === report.phone) {
-    return "PHONE";
-  }
-  if (report.bankAccount && value === report.bankAccount) {
-    return "BANK_ACCOUNT";
-  }
-  if (isHttpUrl(value)) {
-    return "SOCIAL_ACCOUNT";
-  }
-  if (/^\+?[0-9 ()-]{6,}$/u.test(value)) {
-    return "PHONE";
-  }
-  return "PLATFORM_ACCOUNT";
-};
-
 const inferPlatformUrlType = (
   value: string
 ): RiskIdentifierInsert["type"] | null => {
@@ -333,6 +318,34 @@ const inferPlatformUrlType = (
     return null;
   }
 };
+
+export const inferExternalRiskIdentifierType = (
+  value: string,
+  report: ExternalRiskIdentifierSource
+): RiskIdentifierInsert["type"] => {
+  if (report.phone && value === report.phone) {
+    return "PHONE";
+  }
+  if (report.bankAccount && value === report.bankAccount) {
+    return "BANK_ACCOUNT";
+  }
+  if (isHttpUrl(value)) {
+    const sourceType = report.type.trim().toLowerCase();
+    return sourceType === "website" || sourceType === "malicious_website"
+      ? "WEBSITE"
+      : (inferPlatformUrlType(value) ?? "WEBSITE");
+  }
+  if (/^\+?[0-9 ()-]{6,}$/u.test(value)) {
+    return "PHONE";
+  }
+  return "PLATFORM_ACCOUNT";
+};
+
+const inferIdentifierType = (
+  value: string,
+  report: ChongScamReport
+): RiskIdentifierInsert["type"] =>
+  inferExternalRiskIdentifierType(value, report);
 
 const buildIdentifierRows = (
   reportId: string,
