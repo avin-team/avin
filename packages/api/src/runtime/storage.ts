@@ -401,7 +401,7 @@ const assertRiskReportStorageSegments = (segments: string[]): void => {
 export const createRiskReportEvidenceKey = (
   reportId: string,
   contentType: string,
-  objectId = crypto.randomUUID()
+  objectId: string = crypto.randomUUID()
 ): string => {
   const extension = getRiskReportEvidenceExtension(contentType);
   assertRiskReportStorageSegments([reportId, objectId]);

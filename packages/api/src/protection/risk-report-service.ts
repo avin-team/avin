@@ -40,6 +40,7 @@ import {
 } from "./launch-gates";
 import type { ProtectionLaunchConfiguration } from "./launch-gates";
 import {
+  assertRiskReportIntake,
   assertRiskReportSubmission,
   assertRiskReportTransition,
   buildRiskReportPublicNarrative,
@@ -406,7 +407,8 @@ const findPossibleDuplicateReportId = async (
             identifier.normalizedValue
           ),
           ne(protectionRiskReport.id, reportId),
-          inArray(protectionRiskReport.status, duplicateEligibleReportStatuses)
+          inArray(protectionRiskReport.status, duplicateEligibleReportStatuses),
+          publicNativeRiskFilter
         )
       )
       .orderBy(desc(protectionRiskReport.updatedAt))
@@ -693,6 +695,7 @@ const buildRiskReportDraftValues = (
   claimedLoss: input.claimedLoss,
   createdAt: now,
   handoverAt: input.handoverAt,
+  id: input.reportId,
   incidentAt: input.incidentAt,
   incidentDateApproximate: input.incidentDateApproximate ?? false,
   issues: input.issues ?? [],
@@ -720,8 +723,23 @@ const buildRiskReportDraftValues = (
   violationType: input.violationType,
 });
 
-// oxlint-disable-next-line complexity
-export const saveRiskReportDraft = async ({
+const assertRiskReportDraftEditable = (
+  report: RiskReport,
+  reportType: RiskReportDraftInput["type"]
+): void => {
+  if (report.type !== reportType) {
+    throwBadRequest(
+      "A report type cannot be changed after the draft is created"
+    );
+  }
+  if (report.status !== "DRAFT" && report.status !== "CHANGES_REQUESTED") {
+    throw new ORPCError("CONFLICT", {
+      message: "Only a draft or a report requesting changes can be edited.",
+    });
+  }
+};
+
+export const saveRiskReportDraft = ({
   database,
   input,
   now = new Date(),
@@ -735,177 +753,202 @@ export const saveRiskReportDraft = async ({
   reporterEmail: string;
   reporterName: string;
   reporterUserId: string;
-}) => {
-  let report: RiskReport | undefined;
+}) =>
+  // oxlint-disable-next-line complexity
+  database.transaction(async (transaction) => {
+    let report: RiskReport | undefined;
 
-  let existingReport: RiskReport | undefined;
-  if (input.reportId) {
-    [existingReport] = await database
-      .select()
-      .from(protectionRiskReport)
-      .where(
-        and(
-          eq(protectionRiskReport.id, input.reportId),
-          eq(protectionRiskReport.reporterUserId, reporterUserId)
+    if (input.reportId) {
+      const [existingReport] = await transaction
+        .select()
+        .from(protectionRiskReport)
+        .where(
+          and(
+            eq(protectionRiskReport.id, input.reportId),
+            eq(protectionRiskReport.reporterUserId, reporterUserId)
+          )
         )
-      )
-      .limit(1);
-  }
-  if (input.reportId) {
-    report = existingReport;
-    if (!report) {
-      throw new ORPCError("NOT_FOUND", { message: "Risk report not found" });
+        .for("update")
+        .limit(1);
+      if (existingReport) {
+        assertRiskReportDraftEditable(existingReport, input.type);
+        report = existingReport;
+      }
     }
-    if (report.type !== input.type) {
-      throwBadRequest(
-        "A report type cannot be changed after the draft is created"
-      );
-    }
-    if (report.status !== "DRAFT" && report.status !== "CHANGES_REQUESTED") {
-      throw new ORPCError("CONFLICT", {
-        message: "Only a draft or a report requesting changes can be edited.",
-      });
-    }
-  }
 
-  if (report) {
-    const updates = buildRiskReportDraftUpdates(input, now);
-    const [updatedReport] = await database
-      .update(protectionRiskReport)
-      .set(updates)
-      .where(eq(protectionRiskReport.id, report.id))
-      .returning();
-    if (!updatedReport) {
+    if (report) {
+      const updates = buildRiskReportDraftUpdates(input, now);
+      const [updatedReport] = await transaction
+        .update(protectionRiskReport)
+        .set(updates)
+        .where(eq(protectionRiskReport.id, report.id))
+        .returning();
+      if (!updatedReport) {
+        throw new ORPCError("CONFLICT", {
+          message: "Risk draft could not be saved",
+        });
+      }
+      report = updatedReport;
+    } else {
+      const [insertedReport] = await transaction
+        .insert(protectionRiskReport)
+        .values(
+          buildRiskReportDraftValues(
+            input,
+            now,
+            reporterUserId,
+            reporterEmail,
+            reporterName
+          )
+        )
+        .onConflictDoNothing({ target: protectionRiskReport.id })
+        .returning();
+      report = insertedReport;
+
+      if (!report && input.reportId) {
+        const [conflictingReport] = await transaction
+          .select()
+          .from(protectionRiskReport)
+          .where(
+            and(
+              eq(protectionRiskReport.id, input.reportId),
+              eq(protectionRiskReport.reporterUserId, reporterUserId)
+            )
+          )
+          .for("update")
+          .limit(1);
+        if (!conflictingReport) {
+          throw new ORPCError("NOT_FOUND", {
+            message: "Risk report not found",
+          });
+        }
+        assertRiskReportDraftEditable(conflictingReport, input.type);
+        const [updatedReport] = await transaction
+          .update(protectionRiskReport)
+          .set(buildRiskReportDraftUpdates(input, now))
+          .where(eq(protectionRiskReport.id, conflictingReport.id))
+          .returning();
+        if (!updatedReport) {
+          throw new ORPCError("CONFLICT", {
+            message: "Risk draft could not be saved",
+          });
+        }
+        report = updatedReport;
+      }
+    }
+
+    if (!report) {
       throw new ORPCError("CONFLICT", {
         message: "Risk draft could not be saved",
       });
     }
-    report = updatedReport;
-  } else {
-    [report] = await database
-      .insert(protectionRiskReport)
-      .values(
-        buildRiskReportDraftValues(
-          input,
-          now,
-          reporterUserId,
-          reporterEmail,
-          reporterName
-        )
-      )
-      .returning();
-  }
 
-  if (!report) {
-    throw new ORPCError("CONFLICT", {
-      message: "Risk draft could not be saved",
-    });
-  }
+    let currentReport = report;
 
-  let currentReport = report;
-
-  if (input.identifiers !== undefined) {
-    const allowedTypes = new Set(getRiskReportIdentifierTypes(input.type));
-    for (const identifier of input.identifiers) {
-      if (!allowedTypes.has(identifier.type)) {
-        throwBadRequest("The identifier does not match this report type");
+    if (input.identifiers !== undefined) {
+      const allowedTypes = new Set(getRiskReportIdentifierTypes(input.type));
+      for (const identifier of input.identifiers) {
+        if (!allowedTypes.has(identifier.type)) {
+          throwBadRequest("The identifier does not match this report type");
+        }
+      }
+      await transaction
+        .delete(protectionRiskIdentifier)
+        .where(eq(protectionRiskIdentifier.reportId, currentReport.id));
+      const rows = buildIdentifierRows(currentReport.id, input.identifiers);
+      if (rows.length > 0) {
+        await transaction.insert(protectionRiskIdentifier).values(rows);
       }
     }
-    await database
-      .delete(protectionRiskIdentifier)
-      .where(eq(protectionRiskIdentifier.reportId, currentReport.id));
-    const rows = buildIdentifierRows(currentReport.id, input.identifiers);
-    if (rows.length > 0) {
-      await database.insert(protectionRiskIdentifier).values(rows);
-    }
-  }
 
-  const materialsBeforeTransactions = await loadReportMaterials(
-    database,
-    currentReport.id
-  );
+    const materialsBeforeTransactions = await loadReportMaterials(
+      transaction,
+      currentReport.id
+    );
 
-  if (input.transactions !== undefined) {
-    const identifiersByIndex = materialsBeforeTransactions.identifiers;
-    const transactionRows = input.transactions.map((transaction) => {
-      const destinationIdentifier =
-        transaction.destinationIdentifierIndex === undefined
-          ? null
-          : identifiersByIndex[transaction.destinationIdentifierIndex];
-      if (
-        transaction.destinationIdentifierIndex !== undefined &&
-        !destinationIdentifier
-      ) {
-        throwBadRequest(
-          "Transaction destination must reference an identifier in this report"
-        );
-      }
-      return {
-        amount: transaction.amount,
-        currencyOrAsset: transaction.currencyOrAsset,
-        destinationIdentifierId: destinationIdentifier?.id ?? null,
-        occurredAt: transaction.occurredAt,
-        paymentMethod: transaction.paymentMethod,
-        reference: transaction.reference || null,
-        reportId: currentReport.id,
-        timeKnown: transaction.timeKnown,
-      };
-    });
-    await database
-      .delete(protectionRiskTransaction)
-      .where(eq(protectionRiskTransaction.reportId, currentReport.id));
-    if (transactionRows.length > 0) {
-      await database.insert(protectionRiskTransaction).values(transactionRows);
-    }
-  }
-
-  const materials = await loadReportMaterials(database, currentReport.id);
-  const shouldRefreshPublicNarrative =
-    input.narrative !== undefined ||
-    input.identifiers !== undefined ||
-    input.reporterPhone !== undefined ||
-    input.reporterZalo !== undefined;
-  if (shouldRefreshPublicNarrative) {
-    const privateValues = [
-      currentReport.reporterPhone,
-      currentReport.reporterZalo,
-      ...materials.identifiers.flatMap((identifier) => [
-        identifier.value,
-        identifier.displayName,
-        identifier.holderName,
-        identifier.institutionName,
-      ]),
-    ].filter((value): value is string => Boolean(value));
-    const [refreshedReport] = await database
-      .update(protectionRiskReport)
-      .set({
-        publicNarrative: currentReport.narrative
-          ? buildRiskReportPublicNarrative(
-              currentReport.narrative,
-              privateValues
-            )
-          : null,
-        publicPacketPreviewedAt: null,
-        updatedAt: now,
-      })
-      .where(eq(protectionRiskReport.id, currentReport.id))
-      .returning();
-    if (!refreshedReport) {
-      throw new ORPCError("CONFLICT", {
-        message: "Risk draft could not be refreshed",
+    if (input.transactions !== undefined) {
+      const identifiersByIndex = materialsBeforeTransactions.identifiers;
+      const transactionRows = input.transactions.map((transactionInput) => {
+        const destinationIdentifier =
+          transactionInput.destinationIdentifierIndex === undefined
+            ? null
+            : identifiersByIndex[transactionInput.destinationIdentifierIndex];
+        if (
+          transactionInput.destinationIdentifierIndex !== undefined &&
+          !destinationIdentifier
+        ) {
+          throwBadRequest(
+            "Transaction destination must reference an identifier in this report"
+          );
+        }
+        return {
+          amount: transactionInput.amount,
+          currencyOrAsset: transactionInput.currencyOrAsset,
+          destinationIdentifierId: destinationIdentifier?.id ?? null,
+          occurredAt: transactionInput.occurredAt,
+          paymentMethod: transactionInput.paymentMethod,
+          reference: transactionInput.reference || null,
+          reportId: currentReport.id,
+          timeKnown: transactionInput.timeKnown,
+        };
       });
+      await transaction
+        .delete(protectionRiskTransaction)
+        .where(eq(protectionRiskTransaction.reportId, currentReport.id));
+      if (transactionRows.length > 0) {
+        await transaction
+          .insert(protectionRiskTransaction)
+          .values(transactionRows);
+      }
     }
-    currentReport = refreshedReport;
-  }
 
-  return toDraftView(
-    currentReport,
-    materials.identifiers,
-    materials.evidence,
-    materials.derivatives,
-    materials.transactions
-  );
-};
+    const materials = await loadReportMaterials(transaction, currentReport.id);
+    const shouldRefreshPublicNarrative =
+      input.narrative !== undefined ||
+      input.identifiers !== undefined ||
+      input.reporterPhone !== undefined ||
+      input.reporterZalo !== undefined;
+    if (shouldRefreshPublicNarrative) {
+      const privateValues = [
+        currentReport.reporterPhone,
+        currentReport.reporterZalo,
+        ...materials.identifiers.flatMap((identifier) => [
+          identifier.value,
+          identifier.displayName,
+          identifier.holderName,
+          identifier.institutionName,
+        ]),
+      ].filter((value): value is string => Boolean(value));
+      const [refreshedReport] = await transaction
+        .update(protectionRiskReport)
+        .set({
+          publicNarrative: currentReport.narrative
+            ? buildRiskReportPublicNarrative(
+                currentReport.narrative,
+                privateValues
+              )
+            : null,
+          publicPacketPreviewedAt: null,
+          updatedAt: now,
+        })
+        .where(eq(protectionRiskReport.id, currentReport.id))
+        .returning();
+      if (!refreshedReport) {
+        throw new ORPCError("CONFLICT", {
+          message: "Risk draft could not be refreshed",
+        });
+      }
+      currentReport = refreshedReport;
+    }
+
+    return toDraftView(
+      currentReport,
+      materials.identifiers,
+      materials.evidence,
+      materials.derivatives,
+      materials.transactions
+    );
+  });
 
 export const previewRiskReport = async ({
   database,
@@ -927,7 +970,7 @@ export const previewRiskReport = async ({
   const materials = await loadReportMaterials(database, report.id);
   assertRiskReportTransactionDestinations(report, materials.transactions);
   try {
-    assertRiskReportSubmission({
+    assertRiskReportIntake({
       accessLostAt: report.accessLostAt,
       claimedLoss: report.claimedLoss,
       evidence: materials.evidence.map((evidence) => ({
@@ -1152,7 +1195,9 @@ export const requestRiskReportCorrection = async ({
       status: protectionRiskReport.status,
     })
     .from(protectionRiskReport)
-    .where(eq(protectionRiskReport.id, input.reportId))
+    .where(
+      and(eq(protectionRiskReport.id, input.reportId), publicNativeRiskFilter)
+    )
     .limit(1);
   if (!report || !isPublicRiskReportStatus(report.status)) {
     throw new ORPCError("NOT_FOUND", {
@@ -1362,92 +1407,151 @@ export const getRiskReportMine = async ({
   );
 };
 
-export const addRiskReportEvidence = async (
+const assertRiskEvidenceReplayMatches = (
+  evidence: RiskEvidence,
+  input: RiskReportEvidenceInput
+): void => {
+  const matches =
+    evidence.contentType === input.contentType &&
+    evidence.explanation === input.explanation &&
+    evidence.fileName === input.fileName &&
+    evidence.kind === input.kind &&
+    evidence.reportId === input.reportId &&
+    evidence.sha256 === (input.sha256 ?? null) &&
+    evidence.sizeBytes === input.sizeBytes;
+  if (!matches) {
+    throw new ORPCError("CONFLICT", {
+      message:
+        "The evidence upload key is already registered with different metadata",
+    });
+  }
+};
+
+export const addRiskReportEvidence = (
   database: Database,
   input: RiskReportEvidenceInput,
   reporterUserId: string,
   now = new Date()
-) => {
-  const { report } = await findOwnedReport(
-    database,
-    reporterUserId,
-    input.reportId
-  );
-  if (report.status !== "DRAFT" && report.status !== "CHANGES_REQUESTED") {
-    throw new ORPCError("CONFLICT", {
-      message: "Evidence can only be added to an editable report.",
-    });
-  }
-  if (!isRiskEvidenceContentType(input.contentType)) {
-    throwBadRequest("This evidence file type is not supported");
-  }
-  if (
-    input.sizeBytes > getNativeRiskReportEvidenceMaxBytes(input.contentType)
-  ) {
-    throwBadRequest("This evidence file is too large");
-  }
-  if (!isRiskReportEvidenceKey(input.originalStorageKey, input.reportId)) {
-    throwBadRequest("The evidence storage key is not valid for this report");
-  }
-  if (
-    !isNativeRiskReportEvidenceFileNameAllowed(
-      input.fileName,
-      input.contentType
-    )
-  ) {
-    throwBadRequest("The evidence file name does not match its content type");
-  }
+) =>
+  database.transaction(async (transaction) => {
+    const [report] = await transaction
+      .select()
+      .from(protectionRiskReport)
+      .where(
+        and(
+          eq(protectionRiskReport.id, input.reportId),
+          eq(protectionRiskReport.reporterUserId, reporterUserId)
+        )
+      )
+      .for("update")
+      .limit(1);
+    if (!report) {
+      throw new ORPCError("NOT_FOUND", { message: "Risk report not found" });
+    }
+    if (!isRiskEvidenceContentType(input.contentType)) {
+      throwBadRequest("This evidence file type is not supported");
+    }
+    if (
+      input.sizeBytes > getNativeRiskReportEvidenceMaxBytes(input.contentType)
+    ) {
+      throwBadRequest("This evidence file is too large");
+    }
+    if (!isRiskReportEvidenceKey(input.originalStorageKey, input.reportId)) {
+      throwBadRequest("The evidence storage key is not valid for this report");
+    }
+    if (
+      !isNativeRiskReportEvidenceFileNameAllowed(
+        input.fileName,
+        input.contentType
+      )
+    ) {
+      throwBadRequest("The evidence file name does not match its content type");
+    }
 
-  const existing = await database
-    .select({
-      contentType: protectionRiskEvidence.contentType,
-      id: protectionRiskEvidence.id,
-    })
-    .from(protectionRiskEvidence)
-    .where(eq(protectionRiskEvidence.reportId, input.reportId));
-  if (existing.length >= RISK_REPORT_EVIDENCE_MAX_COUNT) {
-    throwBadRequest(
-      `A report can contain at most ${RISK_REPORT_EVIDENCE_MAX_COUNT} evidence files`
-    );
-  }
-  if (
-    isRiskReportVideoContentType(input.contentType) &&
-    existing.filter((item) => isRiskReportVideoContentType(item.contentType))
-      .length >= RISK_REPORT_EVIDENCE_MAX_VIDEO_COUNT
-  ) {
-    throwBadRequest(
-      `A report can contain at most ${RISK_REPORT_EVIDENCE_MAX_VIDEO_COUNT} video evidence files`
-    );
-  }
+    const [existingByKey] = await transaction
+      .select()
+      .from(protectionRiskEvidence)
+      .where(
+        eq(protectionRiskEvidence.originalStorageKey, input.originalStorageKey)
+      )
+      .limit(1);
+    if (existingByKey) {
+      assertRiskEvidenceReplayMatches(existingByKey, input);
+      return toPrivateEvidenceView(existingByKey);
+    }
 
-  const [evidence] = await database
-    .insert(protectionRiskEvidence)
-    .values({
-      contentType: input.contentType,
-      createdAt: now,
-      explanation: input.explanation,
-      fileName: input.fileName,
-      immutableAt: now,
-      kind: input.kind,
-      originalStorageKey: input.originalStorageKey,
-      reportId: input.reportId,
-      scanReason: "Queued for malware scanning and public-copy processing",
-      scanStatus: "PENDING",
-      sha256: input.sha256,
-      sizeBytes: input.sizeBytes,
-    })
-    .returning();
-  if (!evidence) {
-    throw new ORPCError("CONFLICT", {
-      message: "Evidence could not be registered",
-    });
-  }
-  await database
-    .update(protectionRiskReport)
-    .set({ publicPacketPreviewedAt: null, updatedAt: now })
-    .where(eq(protectionRiskReport.id, input.reportId));
-  return toPrivateEvidenceView(evidence);
-};
+    if (report.status !== "DRAFT" && report.status !== "CHANGES_REQUESTED") {
+      throw new ORPCError("CONFLICT", {
+        message: "Evidence can only be added to an editable report.",
+      });
+    }
+
+    const existing = await transaction
+      .select({
+        contentType: protectionRiskEvidence.contentType,
+        id: protectionRiskEvidence.id,
+      })
+      .from(protectionRiskEvidence)
+      .where(eq(protectionRiskEvidence.reportId, input.reportId));
+    if (existing.length >= RISK_REPORT_EVIDENCE_MAX_COUNT) {
+      throwBadRequest(
+        `A report can contain at most ${RISK_REPORT_EVIDENCE_MAX_COUNT} evidence files`
+      );
+    }
+    if (
+      isRiskReportVideoContentType(input.contentType) &&
+      existing.filter((item) => isRiskReportVideoContentType(item.contentType))
+        .length >= RISK_REPORT_EVIDENCE_MAX_VIDEO_COUNT
+    ) {
+      throwBadRequest(
+        `A report can contain at most ${RISK_REPORT_EVIDENCE_MAX_VIDEO_COUNT} video evidence files`
+      );
+    }
+
+    const [evidence] = await transaction
+      .insert(protectionRiskEvidence)
+      .values({
+        contentType: input.contentType,
+        createdAt: now,
+        explanation: input.explanation,
+        fileName: input.fileName,
+        immutableAt: now,
+        kind: input.kind,
+        originalStorageKey: input.originalStorageKey,
+        reportId: input.reportId,
+        scanReason:
+          "Private evidence intake; publication processing is deferred",
+        scanStatus: "PENDING",
+        sha256: input.sha256,
+        sizeBytes: input.sizeBytes,
+      })
+      .onConflictDoNothing({
+        target: protectionRiskEvidence.originalStorageKey,
+      })
+      .returning();
+    if (evidence) {
+      await transaction
+        .update(protectionRiskReport)
+        .set({ publicPacketPreviewedAt: null, updatedAt: now })
+        .where(eq(protectionRiskReport.id, input.reportId));
+      return toPrivateEvidenceView(evidence);
+    }
+
+    const [registeredEvidence] = await transaction
+      .select()
+      .from(protectionRiskEvidence)
+      .where(
+        eq(protectionRiskEvidence.originalStorageKey, input.originalStorageKey)
+      )
+      .limit(1);
+    if (!registeredEvidence) {
+      throw new ORPCError("CONFLICT", {
+        message: "Evidence could not be registered",
+      });
+    }
+    assertRiskEvidenceReplayMatches(registeredEvidence, input);
+    return toPrivateEvidenceView(registeredEvidence);
+  });
 
 export const assertRiskReportEvidenceUploadAccess = async ({
   database,
@@ -1522,118 +1626,152 @@ export const submitRiskReport = async ({
   now?: Date;
   reporterUserId: string;
 }) => {
-  assertRiskReportSubmissionAllowed(reporterUserId, ipAddress);
-  const { report } = await findOwnedReport(
-    database,
-    reporterUserId,
-    input.reportId
-  );
-  const materials = await loadReportMaterials(database, report.id);
-  const submissionEvidence = materials.evidence.map((evidence) => ({
-    kind: evidence.kind,
-    publicCopyReady: materials.derivatives.some(
-      (derivative) => derivative.evidenceId === evidence.id
-    ),
-    scanStatus: evidence.scanStatus,
-  }));
-  assertRiskReportTransactionDestinations(report, materials.transactions);
-  try {
-    assertRiskReportSubmission({
-      accessLostAt: report.accessLostAt,
-      claimedLoss: report.claimedLoss,
-      evidence: submissionEvidence as RiskReportSubmissionEvidence[],
-      handoverAt: report.handoverAt,
-      identifiers: materials.identifiers,
-      incidentAt: report.incidentAt,
-      issues: report.issues as NonNullable<RiskReportDraftInput["issues"]>,
-      lossOccurred: report.lossOccurred,
-      narrative: report.narrative,
-      otherIssueDescription: report.otherIssueDescription,
-      platform: report.platform,
-      publicNarrative: report.publicNarrative,
-      publicPacketPreviewedAt: report.publicPacketPreviewedAt,
-      purchaseAt: report.purchaseAt,
-      reporterInvolvement: report.reporterInvolvement,
-      transactions: materials.transactions.map((transaction) => ({
-        amount: transaction.amount,
-        currencyOrAsset: transaction.currencyOrAsset,
-        occurredAt: transaction.occurredAt,
-        paymentMethod: transaction.paymentMethod,
-        reference: transaction.reference ?? undefined,
-        timeKnown: transaction.timeKnown,
-      })),
-      type: report.type,
-      violationType: report.violationType,
-    });
-    assertRiskReportTransition(report.status, "SUBMITTED");
-  } catch (error) {
-    throwBadRequest(
-      error instanceof Error ? error.message : "Report is incomplete"
+  const result = await database.transaction(async (transaction) => {
+    const [report] = await transaction
+      .select()
+      .from(protectionRiskReport)
+      .where(
+        and(
+          eq(protectionRiskReport.id, input.reportId),
+          eq(protectionRiskReport.reporterUserId, reporterUserId)
+        )
+      )
+      .for("update")
+      .limit(1);
+    if (!report) {
+      throw new ORPCError("NOT_FOUND", { message: "Risk report not found" });
+    }
+
+    const materials = await loadReportMaterials(transaction, report.id);
+    if (report.status === "SUBMITTED") {
+      return { materials, report };
+    }
+
+    assertRiskReportSubmissionAllowed(reporterUserId, ipAddress);
+    const submissionEvidence = materials.evidence.map((evidence) => ({
+      kind: evidence.kind,
+      publicCopyReady: materials.derivatives.some(
+        (derivative) => derivative.evidenceId === evidence.id
+      ),
+      scanStatus: evidence.scanStatus,
+    }));
+    assertRiskReportTransactionDestinations(report, materials.transactions);
+    try {
+      assertRiskReportIntake({
+        accessLostAt: report.accessLostAt,
+        claimedLoss: report.claimedLoss,
+        evidence: submissionEvidence as RiskReportSubmissionEvidence[],
+        handoverAt: report.handoverAt,
+        identifiers: materials.identifiers,
+        incidentAt: report.incidentAt,
+        issues: report.issues as NonNullable<RiskReportDraftInput["issues"]>,
+        lossOccurred: report.lossOccurred,
+        narrative: report.narrative,
+        otherIssueDescription: report.otherIssueDescription,
+        platform: report.platform,
+        publicNarrative: report.publicNarrative,
+        publicPacketPreviewedAt: report.publicPacketPreviewedAt,
+        purchaseAt: report.purchaseAt,
+        reporterInvolvement: report.reporterInvolvement,
+        transactions: materials.transactions.map((transactionRow) => ({
+          amount: transactionRow.amount,
+          currencyOrAsset: transactionRow.currencyOrAsset,
+          occurredAt: transactionRow.occurredAt,
+          paymentMethod: transactionRow.paymentMethod,
+          reference: transactionRow.reference ?? undefined,
+          timeKnown: transactionRow.timeKnown,
+        })),
+        type: report.type,
+        violationType: report.violationType,
+      });
+      assertRiskReportTransition(report.status, "SUBMITTED");
+    } catch (error) {
+      throwBadRequest(
+        error instanceof Error ? error.message : "Report is incomplete"
+      );
+    }
+
+    const possibleDuplicateOfReportId = await findPossibleDuplicateReportId(
+      transaction,
+      report.id,
+      materials.identifiers
     );
-  }
+    const [updated] = await transaction
+      .update(protectionRiskReport)
+      .set({
+        attestationVersion: input.attestationVersion,
+        attestedAt: now,
+        possibleDuplicateOfReportId,
+        status: "SUBMITTED",
+        submittedAt: now,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(protectionRiskReport.id, report.id),
+          eq(protectionRiskReport.status, report.status)
+        )
+      )
+      .returning();
+    if (!updated) {
+      throw new ORPCError("CONFLICT", {
+        message: "Risk report could not be submitted",
+      });
+    }
 
-  const possibleDuplicateOfReportId = await findPossibleDuplicateReportId(
-    database,
-    report.id,
-    materials.identifiers
-  );
-  const [updated] = await database
-    .update(protectionRiskReport)
-    .set({
-      attestationVersion: input.attestationVersion,
-      attestedAt: now,
-      possibleDuplicateOfReportId,
+    await transaction.insert(protectionRiskReportHistory).values({
+      createdAt: now,
+      reason: null,
+      reportId: report.id,
       status: "SUBMITTED",
-      submittedAt: now,
-      updatedAt: now,
-    })
-    .where(eq(protectionRiskReport.id, report.id))
-    .returning();
-  if (!updated) {
-    throw new ORPCError("CONFLICT", {
-      message: "Risk report could not be submitted",
     });
-  }
-
-  await database.insert(protectionRiskReportHistory).values({
-    createdAt: now,
-    reason: null,
-    reportId: report.id,
-    status: "SUBMITTED",
+    const [latestRevision] = await transaction
+      .select({ revisionNumber: protectionRiskReportRevision.revisionNumber })
+      .from(protectionRiskReportRevision)
+      .where(eq(protectionRiskReportRevision.reportId, report.id))
+      .orderBy(desc(protectionRiskReportRevision.revisionNumber))
+      .limit(1);
+    await transaction.insert(protectionRiskReportRevision).values({
+      reportId: report.id,
+      revisionNumber: (latestRevision?.revisionNumber ?? 0) + 1,
+      snapshot: {
+        evidenceIds: materials.evidence.map((evidence) => evidence.id),
+        identifiers: materials.identifiers.map((identifier) => ({
+          id: identifier.id,
+          role: identifier.role,
+          type: identifier.type,
+          value: identifier.value,
+        })),
+        issues: report.issues,
+        narrative: report.narrative,
+        publicNarrative: report.publicNarrative,
+        transactions: materials.transactions.map((transactionRow) => ({
+          amount: transactionRow.amount,
+          currencyOrAsset: transactionRow.currencyOrAsset,
+          destinationIdentifierId: transactionRow.destinationIdentifierId,
+          occurredAt: transactionRow.occurredAt.toISOString(),
+          paymentMethod: transactionRow.paymentMethod,
+        })),
+      },
+      submittedAt: now,
+    });
+    await notifyRiskModerators(transaction, updated, "SUBMITTED", now);
+    await notifyRiskReporter(transaction, updated, "SUBMITTED", now);
+    await enqueueRiskReportStatusEmail(
+      transaction,
+      updated,
+      "SUBMITTED",
+      null,
+      now
+    );
+    return { materials, report: updated };
   });
-  await database.insert(protectionRiskReportRevision).values({
-    reportId: report.id,
-    revisionNumber: 1,
-    snapshot: {
-      evidenceIds: materials.evidence.map((evidence) => evidence.id),
-      identifiers: materials.identifiers.map((identifier) => ({
-        id: identifier.id,
-        role: identifier.role,
-        type: identifier.type,
-        value: identifier.value,
-      })),
-      issues: report.issues,
-      narrative: report.narrative,
-      publicNarrative: report.publicNarrative,
-      transactions: materials.transactions.map((transaction) => ({
-        amount: transaction.amount,
-        currencyOrAsset: transaction.currencyOrAsset,
-        destinationIdentifierId: transaction.destinationIdentifierId,
-        occurredAt: transaction.occurredAt.toISOString(),
-        paymentMethod: transaction.paymentMethod,
-      })),
-    },
-    submittedAt: now,
-  });
-  await notifyRiskModerators(database, updated, "SUBMITTED", now);
-  await notifyRiskReporter(database, updated, "SUBMITTED", now);
-  await enqueueRiskReportStatusEmail(database, updated, "SUBMITTED", null, now);
   return toDraftView(
-    updated,
-    materials.identifiers,
-    materials.evidence,
-    materials.derivatives,
-    materials.transactions
+    result.report,
+    result.materials.identifiers,
+    result.materials.evidence,
+    result.materials.derivatives,
+    result.materials.transactions
   );
 };
 
@@ -1644,6 +1782,7 @@ export const listRiskReportsForAdmin = async (
   const reports = await database
     .select()
     .from(protectionRiskReport)
+    .where(publicNativeRiskFilter)
     .orderBy(desc(protectionRiskReport.updatedAt));
   const search = input?.search?.trim().toLowerCase();
   const filtered = input?.status
@@ -1697,7 +1836,7 @@ export const getRiskReportForAdmin = async (
   const [report] = await database
     .select()
     .from(protectionRiskReport)
-    .where(eq(protectionRiskReport.id, reportId))
+    .where(and(eq(protectionRiskReport.id, reportId), publicNativeRiskFilter))
     .limit(1);
   if (!report) {
     throw new ORPCError("NOT_FOUND", { message: "Risk report not found" });
@@ -1940,7 +2079,7 @@ export const decideRiskReport = async ({
   const [report] = await database
     .select()
     .from(protectionRiskReport)
-    .where(eq(protectionRiskReport.id, id))
+    .where(and(eq(protectionRiskReport.id, id), publicNativeRiskFilter))
     .limit(1);
   if (!report) {
     throw new ORPCError("NOT_FOUND", { message: "Risk report not found" });
@@ -2059,6 +2198,14 @@ export const registerRiskReportDerivative = async ({
   ) {
     throwBadRequest("The derivative file name does not match its content type");
   }
+  const [nativeReport] = await database
+    .select({ id: protectionRiskReport.id })
+    .from(protectionRiskReport)
+    .where(and(eq(protectionRiskReport.id, reportId), publicNativeRiskFilter))
+    .limit(1);
+  if (!nativeReport) {
+    throw new ORPCError("NOT_FOUND", { message: "Risk report not found" });
+  }
   const [evidence] = await database
     .select()
     .from(protectionRiskEvidence)
@@ -2136,6 +2283,14 @@ export const createRiskReportOriginalEvidenceUrl = async ({
     throw new ORPCError("SERVICE_UNAVAILABLE", {
       message: "Private evidence storage is not configured",
     });
+  }
+  const [nativeReport] = await database
+    .select({ id: protectionRiskReport.id })
+    .from(protectionRiskReport)
+    .where(and(eq(protectionRiskReport.id, reportId), publicNativeRiskFilter))
+    .limit(1);
+  if (!nativeReport) {
+    throw new ORPCError("NOT_FOUND", { message: "Risk report not found" });
   }
   const [evidence] = await database
     .select()

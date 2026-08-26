@@ -19,4 +19,6 @@ export const getProtectionLaunchConfiguration =
       privacyProjection: env.AVIN_CHECK_PRIVACY_PROJECTIONS_APPROVED,
       slaMeasurement: env.AVIN_CHECK_SLA_MEASURABLE,
     },
+    riskReportPublicationEnabled:
+      env.AVIN_CHECK_RISK_REPORT_PUBLICATION_ENABLED,
   });

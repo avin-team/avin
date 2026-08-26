@@ -912,18 +912,6 @@ type RiskReportSubmissionIdentifier = Pick<
   value?: string | null;
 };
 
-const assertEvidenceKinds = (
-  evidence: readonly RiskReportSubmissionEvidence[],
-  requiredKinds: readonly RiskReportEvidenceKind[],
-  message: string
-): void => {
-  if (
-    !requiredKinds.some((kind) => evidence.some((item) => item.kind === kind))
-  ) {
-    throw new Error(message);
-  }
-};
-
 const riskSubjectIdentifierRoles = new Set<RiskReportIdentifierRole>(
   riskReportPublicSubjectIdentifierRoles
 );
@@ -964,8 +952,7 @@ const assertReportIssues = (
 
 const assertBankWalletPhoneSubmission = (
   identifiers: readonly RiskReportSubmissionIdentifier[],
-  evidence: readonly RiskReportSubmissionEvidence[],
-  issues: readonly RiskReportIssueType[]
+  evidence: readonly RiskReportSubmissionEvidence[]
 ): void => {
   if (
     !hasRiskSubjectIdentifier(identifiers, [
@@ -978,27 +965,9 @@ const assertBankWalletPhoneSubmission = (
   ) {
     throw new Error("A transaction risk identifier is required");
   }
-  if (issues.includes("POST_DELIVERY_CHARGEBACK")) {
-    assertEvidenceKinds(
-      evidence,
-      ["DELIVERY_PROOF"],
-      "Delivery proof is required for a chargeback report"
-    );
-    assertEvidenceKinds(
-      evidence,
-      ["REVERSAL_NOTICE"],
-      "A reversal or chargeback notice is required"
-    );
-  } else {
-    assertEvidenceKinds(
-      evidence,
-      ["PAYMENT_PROOF"],
-      "Payment proof is required before submission"
-    );
-    assertEvidenceKinds(
-      evidence,
-      ["CONVERSATION"],
-      "Conversation, listing, order, or agreement evidence is required"
+  if (evidence.length === 0) {
+    throw new Error(
+      "Payment or conversation proof is required before submission"
     );
   }
 };
@@ -1006,8 +975,7 @@ const assertBankWalletPhoneSubmission = (
 const assertMaliciousWebsiteSubmission = (
   identifiers: readonly RiskReportSubmissionIdentifier[],
   evidence: readonly RiskReportSubmissionEvidence[],
-  issues: readonly RiskReportIssueType[],
-  lossOccurred: RiskLossOccurrence | null | undefined
+  issues: readonly RiskReportIssueType[]
 ): void => {
   if (
     !hasRiskSubjectIdentifier(identifiers, [
@@ -1018,31 +986,16 @@ const assertMaliciousWebsiteSubmission = (
   ) {
     throw new Error("The exact fake website, app, or profile is required");
   }
-  assertEvidenceKinds(
-    evidence,
-    ["SCREENSHOT", "VIDEO"],
-    "A screenshot or video is required before submission"
-  );
-  if (issues.includes("IMPERSONATION")) {
-    if (
-      !identifiers.some(
-        (identifier) => identifier.role === "IMPERSONATED_IDENTITY"
-      )
-    ) {
-      throw new Error("The genuine impersonated identity is required");
-    }
-    assertEvidenceKinds(
-      evidence,
-      ["GENUINE_REFERENCE"],
-      "A genuine-versus-fake reference is required for impersonation"
-    );
+  if (evidence.length === 0) {
+    throw new Error("A screenshot or video is required before submission");
   }
-  if (lossOccurred === "YES") {
-    assertEvidenceKinds(
-      evidence,
-      ["PAYMENT_PROOF"],
-      "Payment proof is required when the fake surface caused a loss"
-    );
+  if (
+    issues.includes("IMPERSONATION") &&
+    !identifiers.some(
+      (identifier) => identifier.role === "IMPERSONATED_IDENTITY"
+    )
+  ) {
+    throw new Error("The genuine impersonated identity is required");
   }
 };
 
@@ -1065,30 +1018,14 @@ const assertSocialGameAccountSubmission = (
   ) {
     throw new Error("The reclaimed account UID is required");
   }
-  if (!dates.purchaseAt) {
-    throw new Error("The account purchase date is required");
-  }
-  if (!dates.handoverAt) {
-    throw new Error("The account handover date is required");
-  }
-  if (!dates.accessLostAt) {
+  if (!dates.accessLostAt && !dates.purchaseAt && !dates.handoverAt) {
     throw new Error("The account access-loss date is required");
   }
-  assertEvidenceKinds(
-    evidence,
-    ["HANDOVER_PROOF", "PAYMENT_PROOF"],
-    "Purchase or handover proof is required before submission"
-  );
-  assertEvidenceKinds(
-    evidence,
-    ["OWNERSHIP_PROOF"],
-    "Proof of prior account control is required before submission"
-  );
-  assertEvidenceKinds(
-    evidence,
-    ["ACCESS_LOSS_PROOF"],
-    "Proof of access loss or recovery is required before submission"
-  );
+  if (evidence.length === 0) {
+    throw new Error(
+      "Evidence of ownership or handover is required before submission"
+    );
+  }
 };
 
 const assertSubmissionNarrativeAndInvolvement = ({
@@ -1096,6 +1033,7 @@ const assertSubmissionNarrativeAndInvolvement = ({
   narrative,
   publicNarrative,
   publicPacketPreviewedAt,
+  requirePublicProjection,
   reporterInvolvement,
   type,
 }: {
@@ -1103,6 +1041,7 @@ const assertSubmissionNarrativeAndInvolvement = ({
   narrative: string | null | undefined;
   publicNarrative: string | null | undefined;
   publicPacketPreviewedAt: Date | null | undefined;
+  requirePublicProjection: boolean;
   reporterInvolvement: RiskReporterInvolvement | null | undefined;
   type: RiskReportType;
 }): void => {
@@ -1112,10 +1051,10 @@ const assertSubmissionNarrativeAndInvolvement = ({
       "A report narrative between 50 and 10000 characters is required"
     );
   }
-  if (!publicNarrative?.trim()) {
+  if (requirePublicProjection && !publicNarrative?.trim()) {
     throw new Error("A safe public narrative is required before submission");
   }
-  if (!publicPacketPreviewedAt) {
+  if (requirePublicProjection && !publicPacketPreviewedAt) {
     throw new Error(
       "The public report packet must be previewed before submission"
     );
@@ -1166,12 +1105,14 @@ const assertSubmissionIdentifiersAndEvidence = ({
   evidence,
   identifiers,
   platform,
+  requirePublicProjection,
   type,
   violationType,
 }: {
   evidence: readonly RiskReportSubmissionEvidence[];
   identifiers: readonly RiskReportSubmissionIdentifier[];
   platform?: string | null;
+  requirePublicProjection: boolean;
   type: RiskReportType;
   violationType?: RiskReportWebsiteViolationType | null;
 }): void => {
@@ -1196,63 +1137,73 @@ const assertSubmissionIdentifiersAndEvidence = ({
     }
   }
 
-  if (evidence.some((item) => item.scanStatus !== "CLEAN")) {
+  if (
+    requirePublicProjection &&
+    evidence.some((item) => item.scanStatus !== "CLEAN")
+  ) {
     throw new Error(
       "All evidence must pass malware scanning before submission"
     );
   }
-  if (!evidence.some((item) => item.publicCopyReady)) {
+  if (
+    requirePublicProjection &&
+    !evidence.some((item) => item.publicCopyReady)
+  ) {
     throw new Error(
       "At least one safe public evidence copy is required before submission"
     );
   }
 };
 
-export const assertRiskReportSubmission = ({
-  accessLostAt,
-  claimedLoss,
-  evidence,
-  handoverAt,
-  identifiers,
-  incidentAt,
-  issues,
-  lossOccurred,
-  narrative,
-  otherIssueDescription,
-  platform,
-  publicNarrative,
-  publicPacketPreviewedAt,
-  purchaseAt,
-  reporterInvolvement,
-  transactions,
-  type,
-  violationType,
-}: {
-  accessLostAt?: Date | null;
-  claimedLoss: number | null | undefined;
-  evidence: readonly RiskReportSubmissionEvidence[];
-  identifiers: readonly RiskReportSubmissionIdentifier[];
-  handoverAt?: Date | null;
-  incidentAt: Date | null | undefined;
-  issues: readonly RiskReportIssueType[];
-  lossOccurred: RiskLossOccurrence | null | undefined;
-  narrative: string | null | undefined;
-  otherIssueDescription?: string | null;
-  platform?: string | null;
-  publicNarrative: string | null | undefined;
-  publicPacketPreviewedAt: Date | null | undefined;
-  purchaseAt?: Date | null;
-  reporterInvolvement: RiskReporterInvolvement | null | undefined;
-  transactions: readonly RiskReportTransactionInput[];
-  type: RiskReportType;
-  violationType?: RiskReportWebsiteViolationType | null;
-}): void => {
+export const assertRiskReportSubmission = (
+  {
+    accessLostAt,
+    claimedLoss,
+    evidence,
+    handoverAt,
+    identifiers,
+    incidentAt,
+    issues,
+    lossOccurred,
+    narrative,
+    otherIssueDescription,
+    platform,
+    publicNarrative,
+    publicPacketPreviewedAt,
+    purchaseAt,
+    reporterInvolvement,
+    transactions,
+    type,
+    violationType,
+  }: {
+    accessLostAt?: Date | null;
+    claimedLoss: number | null | undefined;
+    evidence: readonly RiskReportSubmissionEvidence[];
+    identifiers: readonly RiskReportSubmissionIdentifier[];
+    handoverAt?: Date | null;
+    incidentAt: Date | null | undefined;
+    issues: readonly RiskReportIssueType[];
+    lossOccurred: RiskLossOccurrence | null | undefined;
+    narrative: string | null | undefined;
+    otherIssueDescription?: string | null;
+    platform?: string | null;
+    publicNarrative: string | null | undefined;
+    publicPacketPreviewedAt: Date | null | undefined;
+    purchaseAt?: Date | null;
+    reporterInvolvement: RiskReporterInvolvement | null | undefined;
+    transactions: readonly RiskReportTransactionInput[];
+    type: RiskReportType;
+    violationType?: RiskReportWebsiteViolationType | null;
+  },
+  { requirePublicProjection = true }: { requirePublicProjection?: boolean } = {}
+): void => {
   assertSubmissionNarrativeAndInvolvement({
     incidentAt,
     narrative,
     publicNarrative,
     publicPacketPreviewedAt,
     reporterInvolvement,
+    requirePublicProjection,
     type,
   });
 
@@ -1268,19 +1219,15 @@ export const assertRiskReportSubmission = ({
     evidence,
     identifiers,
     platform,
+    requirePublicProjection,
     type,
     violationType,
   });
 
   if (type === "BANK_WALLET_PHONE") {
-    assertBankWalletPhoneSubmission(identifiers, evidence, issues);
+    assertBankWalletPhoneSubmission(identifiers, evidence);
   } else if (type === "MALICIOUS_WEBSITE") {
-    assertMaliciousWebsiteSubmission(
-      identifiers,
-      evidence,
-      issues,
-      lossOccurred
-    );
+    assertMaliciousWebsiteSubmission(identifiers, evidence, issues);
   } else {
     assertSocialGameAccountSubmission(identifiers, evidence, {
       accessLostAt,
@@ -1288,6 +1235,13 @@ export const assertRiskReportSubmission = ({
       purchaseAt,
     });
   }
+};
+
+/** Validates the private intake path while publication processing is deferred. */
+export const assertRiskReportIntake = (
+  input: Parameters<typeof assertRiskReportSubmission>[0]
+): void => {
+  assertRiskReportSubmission(input, { requirePublicProjection: false });
 };
 
 export const isPublicRiskReportStatus = (status: RiskReportStatus): boolean =>

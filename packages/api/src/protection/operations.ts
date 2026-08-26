@@ -4,7 +4,7 @@ import {
   protectionProviderRiskIncident,
   protectionRiskReport,
 } from "@avin/db/schema/protection";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 
 import type { Context } from "../runtime/context";
 
@@ -144,11 +144,14 @@ export const listProtectionOperationsQueue = async ({
       .select()
       .from(protectionRiskReport)
       .where(
-        inArray(protectionRiskReport.status, [
-          "SUBMITTED",
-          "UNDER_REVIEW",
-          "UNDER_VERIFICATION",
-        ])
+        and(
+          inArray(protectionRiskReport.status, [
+            "SUBMITTED",
+            "UNDER_REVIEW",
+            "UNDER_VERIFICATION",
+          ]),
+          isNull(protectionRiskReport.externalSource)
+        )
       )
       .execute(),
     database

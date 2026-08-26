@@ -204,6 +204,7 @@ const liveConfiguration = {
     programEntity: true,
   },
   mode: "LIVE" as const,
+  riskReportPublicationEnabled: true,
 };
 
 const noMoneyConfiguration = {

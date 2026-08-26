@@ -36,7 +36,8 @@ export type ProtectionLaunchBlocker =
   | "DATA_GOVERNANCE_REVIEW"
   | "LEGAL_REVIEW"
   | "NO_MONEY_PILOT"
-  | "PROGRAM_ENTITY_APPROVAL";
+  | "PROGRAM_ENTITY_APPROVAL"
+  | "RISK_REPORT_PUBLICATION_DISABLED";
 
 export type ProtectionReadinessBlocker =
   | "AUDIT_DUAL_APPROVAL_NOT_VALIDATED"
@@ -49,6 +50,7 @@ export type ProtectionReadinessBlocker =
 export interface ProtectionLaunchConfiguration {
   gates: Record<ProtectionLaunchGateName, boolean>;
   mode: ProtectionLaunchMode;
+  riskReportPublicationEnabled: boolean;
   readiness?: Record<ProtectionReadinessGateName, boolean>;
 }
 
@@ -92,6 +94,7 @@ export const defaultProtectionLaunchConfiguration: ProtectionLaunchConfiguration
       privacyProjection: false,
       slaMeasurement: false,
     },
+    riskReportPublicationEnabled: false,
   };
 
 const blockerByGate: Record<ProtectionLaunchGateName, ProtectionLaunchBlocker> =
@@ -160,7 +163,12 @@ export const getProtectionLaunchStatus = (
   configuration: ProtectionLaunchConfiguration
 ): ProtectionLaunchStatus => {
   const gateBlockers = getGateBlockers(configuration);
+  const riskReportPublicationBlockers = [...gateBlockers];
   const bondBlockers = [...gateBlockers];
+
+  if (!configuration.riskReportPublicationEnabled) {
+    riskReportPublicationBlockers.push("RISK_REPORT_PUBLICATION_DISABLED");
+  }
 
   if (configuration.mode === "NO_MONEY_PILOT") {
     bondBlockers.push("NO_MONEY_PILOT");
@@ -175,7 +183,7 @@ export const getProtectionLaunchStatus = (
     },
     providerBondRecognition: createOperationStatus(bondBlockers),
     readiness: getProtectionReadinessStatus(configuration),
-    riskReportPublication: createOperationStatus(gateBlockers),
+    riskReportPublication: createOperationStatus(riskReportPublicationBlockers),
   };
 };
 

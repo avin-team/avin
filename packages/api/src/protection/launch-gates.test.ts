@@ -29,6 +29,7 @@ const createConfiguration = (
   gates: approvedGates,
   mode: "NO_MONEY_PILOT",
   readiness: approvedReadiness,
+  riskReportPublicationEnabled: true,
   ...overrides,
 });
 
@@ -57,6 +58,23 @@ describe("Avin Check launch gates", () => {
       enabled: true,
       gates: approvedReadiness,
     });
+  });
+
+  it("keeps Risk Report publication disabled until the explicit switch is enabled", () => {
+    const status = getProtectionLaunchStatus(
+      createConfiguration({ riskReportPublicationEnabled: false })
+    );
+
+    expect(status.riskReportPublication.enabled).toBe(false);
+    expect(status.riskReportPublication.blockers).toEqual([
+      "RISK_REPORT_PUBLICATION_DISABLED",
+    ]);
+    expect(() =>
+      assertProtectionOperationAllowed(
+        createConfiguration({ riskReportPublicationEnabled: false }),
+        "RISK_REPORT_PUBLICATION"
+      )
+    ).toThrow("RISK_REPORT_PUBLICATION_DISABLED");
   });
 
   it("keeps the no-money pilot available without recognizing Provider Bond", () => {

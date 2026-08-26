@@ -102,7 +102,7 @@ export const NotificationButton = () => {
             </Link>
           </div>
         </div>
-        <div className="max-h-[380px] space-y-1 overflow-y-auto p-2">
+        <div className="max-h-95 space-y-1 overflow-y-auto p-2">
           {notificationsQuery.isPending ? (
             <p className="px-3 py-6 text-center text-sm text-muted-foreground">
               Đang tải thông báo…

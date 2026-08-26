@@ -45,6 +45,10 @@ export const env = createEnv({
       .enum(["true", "false"])
       .default("false")
       .transform((value) => value === "true"),
+    AVIN_CHECK_RISK_REPORT_PUBLICATION_ENABLED: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
     AVIN_CHECK_SLA_MEASURABLE: z
       .enum(["true", "false"])
       .default("false")

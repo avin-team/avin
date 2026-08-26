@@ -95,6 +95,7 @@ const deliveryAttachmentClientMetadataSchema = z.object({
 const riskReportEvidenceClientMetadataSchema = z.object({
   kind: z.enum(riskReportEvidenceKinds),
   reportId: z.uuid(),
+  uploadId: z.uuid(),
 });
 const riskReportDerivativeClientMetadataSchema = z.object({
   evidenceId: z.uuid(),
@@ -558,7 +559,8 @@ export const createRiskReportEvidenceUploadRouter = (
             cacheControl: "private, max-age=0",
             key: createRiskReportEvidenceKey(
               clientMetadata.reportId,
-              file.type
+              file.type,
+              clientMetadata.uploadId
             ),
           }),
         };

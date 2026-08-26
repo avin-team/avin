@@ -11,7 +11,7 @@ import {
 } from "@avin/db/schema/protection";
 import { ORPCError } from "@orpc/server";
 import type { SQL } from "drizzle-orm";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, isNull } from "drizzle-orm";
 
 import type { Context } from "../runtime/context";
 import {
@@ -81,7 +81,10 @@ const findSupportReview = async (database: Database, reviewId: string) => {
     )
     .innerJoin(
       protectionRiskReport,
-      eq(protectionSupportReview.riskReportId, protectionRiskReport.id)
+      and(
+        eq(protectionSupportReview.riskReportId, protectionRiskReport.id),
+        isNull(protectionRiskReport.externalSource)
+      )
     )
     .where(eq(protectionSupportReview.id, reviewId))
     .limit(1);
@@ -309,7 +312,13 @@ const findIncidentContext = async (database: Database, incidentId: string) => {
     )
     .innerJoin(
       protectionRiskReport,
-      eq(protectionProviderRiskIncident.riskReportId, protectionRiskReport.id)
+      and(
+        eq(
+          protectionProviderRiskIncident.riskReportId,
+          protectionRiskReport.id
+        ),
+        isNull(protectionRiskReport.externalSource)
+      )
     )
     .where(eq(protectionProviderRiskIncident.id, incidentId))
     .limit(1);

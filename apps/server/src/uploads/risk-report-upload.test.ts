@@ -14,6 +14,7 @@ import {
 
 const REPORT_ID = "11111111-1111-4111-8111-111111111111";
 const EVIDENCE_ID = "22222222-2222-4222-8222-222222222222";
+const UPLOAD_ID = "33333333-3333-4333-8333-333333333333";
 
 const {
   assertProtectionAdminAccess,
@@ -60,7 +61,9 @@ const client = custom({
 
 describe("risk report upload routes", () => {
   it("keeps reporter evidence private and delegates ownership checks", async () => {
-    getAuthSession.mockResolvedValue({ user: { id: "reporter-1" } });
+    getAuthSession.mockResolvedValue({
+      user: { banned: false, id: "reporter-1", role: "BUYER" },
+    });
     assertRiskReportEvidenceUploadAccess.mockResolvedValue(null);
     const uploadRouter = createRiskReportEvidenceUploadRouter(client);
     const routeFactory = uploadRouter.routes[RISK_REPORT_EVIDENCE_UPLOAD_ROUTE];
@@ -78,6 +81,7 @@ describe("risk report upload routes", () => {
       clientMetadata: {
         kind: "PAYMENT_PROOF",
         reportId: REPORT_ID,
+        uploadId: UPLOAD_ID,
       },
       files: [file],
       req: new Request("http://localhost/api/risk-report-evidence-upload"),
@@ -95,11 +99,8 @@ describe("risk report upload routes", () => {
       reporterUserId: "reporter-1",
     });
     const object = await result?.generateObjectInfo?.({ file });
-    expect(object?.key).toMatch(
-      new RegExp(
-        `^risk-reports/private/${REPORT_ID}/[a-f0-9-]{36}\\.pdf$`,
-        "iu"
-      )
+    expect(object?.key).toBe(
+      `risk-reports/private/${REPORT_ID}/${UPLOAD_ID}.pdf`
     );
   });
 

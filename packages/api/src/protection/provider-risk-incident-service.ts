@@ -7,7 +7,7 @@ import {
   protectionRiskReport,
 } from "@avin/db/schema/protection";
 import { ORPCError } from "@orpc/server";
-import { and, asc, desc, eq, lte } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, lte } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 
 import { createNotificationEvent } from "../notifications/notification";
@@ -83,7 +83,13 @@ const findIncident = async (database: Database, incidentId: string) => {
     )
     .innerJoin(
       protectionRiskReport,
-      eq(protectionProviderRiskIncident.riskReportId, protectionRiskReport.id)
+      and(
+        eq(
+          protectionProviderRiskIncident.riskReportId,
+          protectionRiskReport.id
+        ),
+        isNull(protectionRiskReport.externalSource)
+      )
     )
     .where(eq(protectionProviderRiskIncident.id, incidentId))
     .limit(1);
@@ -519,7 +525,12 @@ export const linkRiskReportToProvider = async ({
     const [report] = await transaction
       .select()
       .from(protectionRiskReport)
-      .where(eq(protectionRiskReport.id, reportId))
+      .where(
+        and(
+          eq(protectionRiskReport.id, reportId),
+          isNull(protectionRiskReport.externalSource)
+        )
+      )
       .limit(1);
     if (!report) {
       throw new ORPCError("NOT_FOUND", { message: "Risk report not found" });

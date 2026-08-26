@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  assertRiskReportIntake,
   assertRiskReportSubmission,
   assertRiskReportTransition,
   buildRiskReportPublicNarrative,
@@ -157,11 +158,11 @@ describe("Risk report contracts", () => {
   it("requires the complete transaction evidence bundle and a public preview", () => {
     expect(() => assertRiskReportSubmission(bankSubmission)).not.toThrow();
     expect(() =>
-      assertRiskReportSubmission({
+      assertRiskReportIntake({
         ...bankSubmission,
-        evidence: [cleanEvidence("PAYMENT_PROOF")],
+        evidence: [],
       })
-    ).toThrow("Conversation, listing, order, or agreement evidence");
+    ).toThrow("Payment or conversation proof");
     expect(() =>
       assertRiskReportSubmission({
         ...bankSubmission,
@@ -177,6 +178,28 @@ describe("Risk report contracts", () => {
         publicPacketPreviewedAt: null,
       })
     ).toThrow("previewed");
+  });
+
+  it("allows private intake while publication processing is deferred", () => {
+    expect(() =>
+      assertRiskReportIntake({
+        ...bankSubmission,
+        evidence: [
+          {
+            ...cleanEvidence("PAYMENT_PROOF"),
+            publicCopyReady: false,
+            scanStatus: "PENDING",
+          },
+          {
+            ...cleanEvidence("CONVERSATION"),
+            publicCopyReady: false,
+            scanStatus: "PENDING",
+          },
+        ],
+        publicNarrative: null,
+        publicPacketPreviewedAt: null,
+      })
+    ).not.toThrow();
   });
 
   it("requires exact fake-surface evidence and impersonation references", () => {
@@ -206,9 +229,9 @@ describe("Risk report contracts", () => {
 
     expect(() => assertRiskReportSubmission(websiteSubmission)).not.toThrow();
     expect(() =>
-      assertRiskReportSubmission({
+      assertRiskReportIntake({
         ...websiteSubmission,
-        evidence: [cleanEvidence("PAYMENT_PROOF")],
+        evidence: [],
       })
     ).toThrow("screenshot or video");
   });
@@ -250,14 +273,16 @@ describe("Risk report contracts", () => {
       assertRiskReportSubmission({
         ...accountSubmission,
         accessLostAt: null,
+        handoverAt: null,
+        purchaseAt: null,
       })
     ).toThrow("access-loss date");
     expect(() =>
-      assertRiskReportSubmission({
+      assertRiskReportIntake({
         ...accountSubmission,
-        evidence: [cleanEvidence("OWNERSHIP_PROOF")],
+        evidence: [],
       })
-    ).toThrow("Purchase or handover proof");
+    ).toThrow("Evidence of ownership");
   });
 
   it("generates a deterministic masked public title", () => {

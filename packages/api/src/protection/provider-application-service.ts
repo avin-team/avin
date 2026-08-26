@@ -16,7 +16,7 @@ import {
 import type { ProviderOfficialChannels } from "@avin/db/schema/protection";
 import { sellerEnforcementAction } from "@avin/db/schema/seller-enforcement";
 import { ORPCError } from "@orpc/server";
-import { and, asc, desc, eq, inArray, lte, ne } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, lte, ne } from "drizzle-orm";
 
 import {
   createNotificationEvent,
@@ -581,7 +581,8 @@ const findProviderRelatedWarnings = async (
     .where(
       and(
         inArray(protectionRiskReport.id, reportIds),
-        inArray(protectionRiskReport.status, publicRiskReportStatuses)
+        inArray(protectionRiskReport.status, publicRiskReportStatuses),
+        isNull(protectionRiskReport.externalSource)
       )
     )
     .orderBy(desc(protectionRiskReport.publishedAt))
