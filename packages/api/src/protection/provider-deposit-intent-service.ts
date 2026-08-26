@@ -12,6 +12,10 @@ import { env } from "@avin/env/server";
 import { ORPCError } from "@orpc/server";
 import { and, desc, eq, inArray, lte } from "drizzle-orm";
 
+import {
+  createNotificationEvent,
+  listNotificationRecipientsByRole,
+} from "../notifications/notification";
 import type { Context } from "../runtime/context";
 import { buildVietQrUrl, generatePaymentCode } from "../wallet/sepay";
 import type { NormalizedSePayEvent } from "../wallet/sepay";
@@ -676,6 +680,74 @@ const applyMatchedProviderDeposit = async ({
   recordedByUserId: string;
 }): Promise<void> => {
   if (intent.kind === "APPLICATION" && intent.applicationId) {
+    const [application] = await database
+      .select({
+        id: protectionProviderApplication.id,
+        policyAcceptedAt: protectionProviderApplication.policyAcceptedAt,
+        providerUserId: protectionProviderApplication.providerUserId,
+        revisionCount: protectionProviderApplication.revisionCount,
+        status: protectionProviderApplication.status,
+      })
+      .from(protectionProviderApplication)
+      .where(eq(protectionProviderApplication.id, intent.applicationId))
+      .limit(1);
+
+    if (
+      application &&
+      ["DRAFT", "CHANGES_REQUESTED"].includes(application.status)
+    ) {
+      const nextRevisionCount =
+        application.status === "CHANGES_REQUESTED"
+          ? application.revisionCount + 1
+          : application.revisionCount;
+
+      await database
+        .update(protectionProviderApplication)
+        .set({
+          bondAmount: amount,
+          depositIntentId: intent.id,
+          policyAcceptedAt: application.policyAcceptedAt ?? now,
+          recognizedBondAmount: amount,
+          reviewReason: null,
+          revisionCount: nextRevisionCount,
+          status: "PENDING_REVIEW",
+          submittedAt: now,
+          updatedAt: now,
+        })
+        .where(eq(protectionProviderApplication.id, intent.applicationId));
+
+      await createNotificationEvent(database, {
+        body: "Hồ sơ Đối tác Avin của bạn đã được gửi để xem xét sau khi xác nhận thanh toán.",
+        context: {
+          applicationId: application.id,
+          revisionCount: nextRevisionCount,
+        },
+        email: {
+          htmlBody:
+            "<p>Hồ sơ Đối tác Avin của bạn đã được gửi để xem xét sau khi xác nhận thanh toán.</p>",
+          recipientUserIds: [application.providerUserId],
+          subject: "Avin Check: hồ sơ Provider đã được gửi",
+          textBody:
+            "Hồ sơ Đối tác Avin của bạn đã được gửi để xem xét sau khi xác nhận thanh toán.",
+        },
+        eventType: "protection_provider_application.submitted",
+        recipients: [
+          {
+            targetPath: "/avin-check/workspace",
+            userId: application.providerUserId,
+          },
+          ...(await listNotificationRecipientsByRole(database, {
+            role: "ADMIN",
+            targetPath: "/avin-check/providers",
+          })),
+        ],
+        sourceId: `${application.id}:${nextRevisionCount}:submitted`,
+        sourceType: "PROTECTION_PROVIDER_APPLICATION",
+        title: "Hồ sơ Provider mới",
+      });
+      return;
+    }
+
     await database
       .update(protectionProviderApplication)
       .set({

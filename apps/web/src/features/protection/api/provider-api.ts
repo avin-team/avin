@@ -20,7 +20,19 @@ export type ProviderDepositIntent = NonNullable<
 >;
 
 export const useProviderWorkspace = () =>
-  useQuery(orpc.protection.providerWorkspace.queryOptions());
+  useQuery({
+    ...orpc.protection.providerWorkspace.queryOptions(),
+    refetchInterval: (query) => {
+      const { data } = query.state;
+      if (
+        data?.application?.status === "DRAFT" &&
+        data.depositIntent?.status === "PENDING"
+      ) {
+        return 4000;
+      }
+      return false;
+    },
+  });
 
 export const useProviderProtectionPolicy = () =>
   useQuery(orpc.protection.providerPolicy.get.queryOptions());

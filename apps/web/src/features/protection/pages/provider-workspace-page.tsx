@@ -1,6 +1,16 @@
+import {
+  calculateRecommendedTransactionLimit,
+  getProviderTier,
+  providerTierLabel as providerTierLabels,
+} from "@avin/api/protection/provider-tier";
 import { Button } from "@avin/ui/components/button";
 import { Input } from "@avin/ui/components/input";
-import { ArrowLeftIcon } from "@phosphor-icons/react";
+import {
+  ArrowLeftIcon,
+  CheckCircle,
+  Clock,
+  ShieldCheck,
+} from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -372,6 +382,323 @@ const ProviderBondSummary = ({
   );
 };
 
+const SubmittedOfficialChannels = ({
+  channels,
+}: {
+  channels: NonNullable<ProviderWorkspace["application"]>["officialChannels"];
+}) => {
+  if (!channels) {
+    return null;
+  }
+  return (
+    <div className="space-y-3">
+      <h4 className="font-semibold text-foreground text-sm">
+        Kênh liên hệ chính thức
+      </h4>
+      <div className="grid gap-2 text-xs sm:grid-cols-2">
+        {channels.hotline ? (
+          <div className="rounded-xl border bg-background p-3">
+            <span className="text-muted-foreground">Hotline / SĐT:</span>{" "}
+            <strong className="text-foreground">{channels.hotline}</strong>
+          </div>
+        ) : null}
+        {channels.zalo ? (
+          <div className="rounded-xl border bg-background p-3">
+            <span className="text-muted-foreground">Zalo:</span>{" "}
+            <strong className="text-foreground">{channels.zalo}</strong>
+          </div>
+        ) : null}
+        {channels.facebookUrl ? (
+          <div className="rounded-xl border bg-background p-3">
+            <span className="text-muted-foreground">Facebook:</span>{" "}
+            <a
+              className="font-medium text-primary underline"
+              href={channels.facebookUrl}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              {channels.facebookUrl}
+            </a>
+          </div>
+        ) : null}
+        {channels.telegramCommunityUrl ? (
+          <div className="rounded-xl border bg-background p-3">
+            <span className="text-muted-foreground">Telegram:</span>{" "}
+            <a
+              className="font-medium text-primary underline"
+              href={channels.telegramCommunityUrl}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              {channels.telegramCommunityUrl}
+            </a>
+          </div>
+        ) : null}
+        {channels.tiktokUrl ? (
+          <div className="rounded-xl border bg-background p-3">
+            <span className="text-muted-foreground">TikTok:</span>{" "}
+            <a
+              className="font-medium text-primary underline"
+              href={channels.tiktokUrl}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              {channels.tiktokUrl}
+            </a>
+          </div>
+        ) : null}
+        {channels.websiteUrl ? (
+          <div className="rounded-xl border bg-background p-3">
+            <span className="text-muted-foreground">Website:</span>{" "}
+            <a
+              className="font-medium text-primary underline"
+              href={channels.websiteUrl}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              {channels.websiteUrl}
+            </a>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+};
+
+const SubmittedBankAccounts = ({
+  bankAccounts,
+}: {
+  bankAccounts: NonNullable<
+    ProviderWorkspace["application"]
+  >["registeredBankAccounts"];
+}) => {
+  if (!bankAccounts || bankAccounts.length === 0) {
+    return null;
+  }
+  return (
+    <div className="space-y-3">
+      <h4 className="font-semibold text-foreground text-sm">
+        Tài khoản ngân hàng đăng ký
+      </h4>
+      <div className="grid gap-2 text-xs sm:grid-cols-2">
+        {bankAccounts.map((acc) => (
+          <div
+            className="flex items-center justify-between rounded-xl border bg-background p-3"
+            key={`${acc.bankCode}-${acc.accountNumber}`}
+          >
+            <div>
+              <p className="font-bold text-foreground">
+                {acc.bankCode} - {acc.accountNumber}
+              </p>
+              <p className="text-muted-foreground">{acc.accountName}</p>
+            </div>
+            {acc.isPrimary ? (
+              <span className="rounded-md bg-primary/10 px-2 py-0.5 font-medium text-primary text-xs">
+                Tài khoản chính
+              </span>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const SubmittedDetailsSummary = ({
+  application,
+}: {
+  application: NonNullable<ProviderWorkspace["application"]>;
+}) => {
+  const recognizedBond =
+    application.recognizedBondAmount || application.bondAmount || 0;
+  const tier = application.tier ?? getProviderTier(recognizedBond);
+
+  return (
+    <section
+      aria-labelledby="submitted-details-heading"
+      className="space-y-6 rounded-3xl border bg-card p-6 shadow-sm sm:p-8"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2 border-border/60 border-b pb-4">
+        <div>
+          <h3
+            className="font-bold text-foreground text-lg"
+            id="submitted-details-heading"
+          >
+            Thông tin hồ sơ đã gửi
+          </h3>
+          <p className="text-muted-foreground text-xs">
+            Các thông tin định danh, kênh liên hệ và quỹ đảm bảo đã đăng ký.
+          </p>
+        </div>
+        {application.submittedAt ? (
+          <span className="text-muted-foreground text-xs">
+            Thời gian gửi:{" "}
+            {new Date(application.submittedAt).toLocaleString("vi-VN")}
+          </span>
+        ) : null}
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="rounded-2xl border bg-muted/20 p-4">
+          <p className="text-muted-foreground text-xs">Họ và tên đối tác</p>
+          <p className="mt-1 font-semibold text-foreground text-base">
+            {application.fullName || "Chưa cập nhật"}
+          </p>
+          {application.bio ? (
+            <p className="mt-1 text-muted-foreground text-xs italic">
+              &ldquo;{application.bio}&rdquo;
+            </p>
+          ) : null}
+        </div>
+
+        <div className="rounded-2xl border bg-muted/20 p-4">
+          <p className="text-muted-foreground text-xs">Địa điểm hoạt động</p>
+          <p className="mt-1 font-semibold text-foreground text-base">
+            {application.location || "Chưa cập nhật"}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:col-span-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-muted-foreground text-xs">
+                Quỹ đảm bảo đã nạp · Hạng đối tác dự kiến
+              </p>
+              <p className="mt-1 font-bold text-primary text-xl">
+                {vndFormatter.format(recognizedBond)} · Hạng{" "}
+                {providerTierLabels[tier] ?? tier}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-muted-foreground text-xs">
+                Hạn mức khuyến nghị / giao dịch
+              </p>
+              <p className="mt-1 font-semibold text-foreground text-sm">
+                {vndFormatter.format(
+                  application.recommendedTransactionLimit ||
+                    calculateRecommendedTransactionLimit({
+                      recognizedBondAmount: recognizedBond,
+                    })
+                )}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <SubmittedOfficialChannels channels={application.officialChannels} />
+      <SubmittedBankAccounts
+        bankAccounts={application.registeredBankAccounts}
+      />
+
+      {application.services ? (
+        <div className="space-y-2">
+          <h4 className="font-semibold text-foreground text-sm">
+            Dịch vụ cung cấp
+          </h4>
+          <div className="whitespace-pre-wrap rounded-2xl border bg-muted/10 p-4 text-muted-foreground text-xs leading-relaxed">
+            {application.services}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="flex flex-wrap items-center justify-between gap-3 border-border/60 border-t pt-4">
+        <Link
+          className="inline-flex items-center gap-1.5 font-medium text-primary text-sm underline underline-offset-4"
+          to="/avin-check/directory"
+        >
+          Khám phá danh bạ Đối tác Avin Check →
+        </Link>
+        <Link
+          className="text-muted-foreground text-xs hover:text-foreground"
+          to="/avin-check/partner-policy"
+        >
+          Xem Quy chế hoạt động Đối tác
+        </Link>
+      </div>
+    </section>
+  );
+};
+
+const ProviderApplicationPendingReviewPanel = ({
+  application,
+}: {
+  application: NonNullable<ProviderWorkspace["application"]>;
+}) => {
+  const recognizedBond =
+    application.recognizedBondAmount || application.bondAmount || 0;
+
+  return (
+    <div className="space-y-6">
+      <article className="rounded-3xl border border-amber-500/40 bg-linear-to-br from-amber-500/10 via-amber-500/5 to-transparent p-6 shadow-sm sm:p-8">
+        <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+          <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-500">
+            <Clock className="size-7" />
+          </div>
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-0.5 font-medium text-emerald-600 text-xs dark:text-emerald-400">
+                <CheckCircle className="size-3.5" />
+                Đã thanh toán quỹ đảm bảo
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-0.5 font-medium text-amber-700 text-xs dark:text-amber-300">
+                <Clock className="size-3.5" />
+                Đang chờ xét duyệt
+              </span>
+            </div>
+            <h2 className="font-bold text-2xl text-foreground sm:text-3xl">
+              Đăng ký đối tác thành công
+            </h2>
+            <p className="text-muted-foreground text-sm leading-relaxed sm:text-base">
+              Hồ sơ đăng ký của bạn đã được ghi nhận và đang trong hàng đợi kiểm
+              duyệt của Reviewer Avin Check. Thời gian xét duyệt thường trong
+              vòng <strong>24 giờ làm việc</strong>.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-3 border-border/60 border-t pt-6 sm:grid-cols-3">
+          <div className="flex items-start gap-3 rounded-2xl border border-emerald-500/20 bg-background/80 p-4">
+            <CheckCircle className="mt-0.5 size-5 shrink-0 text-emerald-500" />
+            <div>
+              <p className="font-semibold text-foreground text-xs">
+                1. Nộp hồ sơ & Quỹ đảm bảo
+              </p>
+              <p className="mt-0.5 text-muted-foreground text-xs">
+                Đã hoàn tất thanh toán {vndFormatter.format(recognizedBond)}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
+            <Clock className="mt-0.5 size-5 shrink-0 text-amber-500 animate-pulse" />
+            <div>
+              <p className="font-semibold text-amber-600 text-xs dark:text-amber-400">
+                2. Kiểm duyệt hồ sơ
+              </p>
+              <p className="mt-0.5 text-muted-foreground text-xs">
+                Reviewer đang đối soát danh tính & kênh liên hệ
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3 rounded-2xl border border-border/50 bg-background/50 p-4 opacity-75">
+            <ShieldCheck className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+            <div>
+              <p className="font-semibold text-muted-foreground text-xs">
+                3. Phát hành hồ sơ & Huy hiệu
+              </p>
+              <p className="mt-0.5 text-muted-foreground text-xs">
+                Công khai trên danh bạ Đối tác Avin Check
+              </p>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <SubmittedDetailsSummary application={application} />
+    </div>
+  );
+};
+
 const InactiveOrApprovedWorkspaceContent = ({
   applicationStatus,
   currentPolicyVersion,
@@ -382,7 +709,13 @@ const InactiveOrApprovedWorkspaceContent = ({
   workspaceData: NonNullable<ProviderWorkspace>;
 }) => (
   <>
-    {applicationStatus === "PENDING_REVIEW" ? (
+    {applicationStatus === "PENDING_REVIEW" && workspaceData.application ? (
+      <ProviderApplicationPendingReviewPanel
+        application={workspaceData.application}
+      />
+    ) : null}
+
+    {applicationStatus === "PENDING_REVIEW" && !workspaceData.application ? (
       <article className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-6 shadow-sm">
         <h2 className="font-semibold text-xl">Hồ sơ đang chờ xét duyệt</h2>
         <p className="mt-2 text-muted-foreground text-sm">
@@ -491,9 +824,6 @@ export const ProviderWorkspacePage = () => {
               <ProviderApplicationForm
                 application={workspace.data.application}
                 currentPolicyVersion={currentPolicyVersion}
-                key={
-                  workspace.data.application?.id ?? "new-provider-application"
-                }
               />
             </>
           ) : (

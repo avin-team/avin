@@ -456,8 +456,10 @@ interface ProviderDepositIntentView {
 
 const ProviderDepositPanel = ({
   intent,
+  onEditForm,
 }: {
   intent: ProviderDepositIntentView | null | undefined;
+  onEditForm?: () => void;
 }) => {
   if (
     !intent ||
@@ -493,40 +495,62 @@ const ProviderDepositPanel = ({
     }
   };
   return (
-    <div className="mx-auto w-full max-w-3xl rounded-2xl border border-primary/30 bg-primary/5 p-4">
-      <div className="flex items-center gap-2 font-semibold text-sm">
+    <div className="mx-auto w-full max-w-3xl rounded-3xl border border-primary/30 bg-primary/5 p-6 shadow-sm">
+      <div className="flex items-center gap-2 font-bold text-base text-foreground">
         <QrCode aria-hidden="true" className="size-5 text-primary" />
         Chuyển khoản và chờ đối soát
       </div>
-      <p className="mt-1 text-muted-foreground text-xs">
-        Đã tạo lệnh quỹ đảm bảo. Chuyển đúng {formatVnd(intent.amount)} trong 24
-        giờ; hồ sơ sẽ chuyển sang chờ duyệt sau khi hệ thống đối soát đúng số
+      <p className="mt-1 text-muted-foreground text-xs leading-relaxed">
+        Đã tạo lệnh quỹ đảm bảo. Chuyển đúng{" "}
+        <strong>{formatVnd(intent.amount)}</strong> trong 24 giờ; hồ sơ sẽ tự
+        động chuyển sang trạng thái chờ duyệt sau khi hệ thống đối soát đúng số
         tiền.
       </p>
       {intent.qrUrl ? (
-        <img
-          alt="Mã QR chuyển khoản vào quỹ đảm bảo của Đối tác"
-          className="mx-auto my-4 size-52 rounded-xl border bg-white p-2"
-          src={intent.qrUrl}
-        />
+        <div className="my-5 flex flex-col items-center justify-center">
+          <img
+            alt="Mã QR chuyển khoản vào quỹ đảm bảo của Đối tác"
+            className="size-56 rounded-2xl border bg-white p-3 shadow-xs"
+            src={intent.qrUrl}
+          />
+          <span className="mt-2 text-muted-foreground text-xs">
+            Quét mã VietQR bằng ứng dụng ngân hàng bất kỳ
+          </span>
+        </div>
       ) : null}
-      <div className="grid gap-2 text-xs sm:grid-cols-2">
-        <div className="rounded-xl bg-background p-3">
-          <p className="text-muted-foreground">Nội dung chuyển khoản</p>
+      <div className="grid gap-3 text-xs sm:grid-cols-2">
+        <div className="rounded-2xl border bg-background p-4 shadow-2xs">
+          <p className="text-muted-foreground">
+            Nội dung chuyển khoản (bắt buộc đúng)
+          </p>
           <button
-            className="mt-1 inline-flex items-center gap-1 font-mono font-semibold text-primary"
+            className="mt-1.5 inline-flex items-center gap-1.5 font-mono font-bold text-primary text-sm hover:underline"
             onClick={copyCode}
             type="button"
           >
-            {intent.paymentCode}{" "}
-            <Copy aria-hidden="true" className="size-3.5" />
+            {intent.paymentCode} <Copy aria-hidden="true" className="size-4" />
           </button>
         </div>
-        <div className="rounded-xl bg-background p-3">
-          <p className="text-muted-foreground">Hết hạn</p>
-          <p className="mt-1 font-semibold">{formatDate(intent.expiresAt)}</p>
+        <div className="rounded-2xl border bg-background p-4 shadow-2xs">
+          <p className="text-muted-foreground">Thời gian hết hạn</p>
+          <p className="mt-1.5 font-semibold text-foreground text-sm">
+            {formatDate(intent.expiresAt)}
+          </p>
         </div>
       </div>
+      {onEditForm ? (
+        <div className="mt-5 border-border/60 border-t pt-4">
+          <Button
+            className="text-xs"
+            onClick={onEditForm}
+            size="sm"
+            type="button"
+            variant="ghost"
+          >
+            ← Chỉnh sửa thông tin hồ sơ
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 };
@@ -550,6 +574,7 @@ const ProviderApplicationFormContent = ({
     "identity_and_channels" | "payout_and_policy"
   >("identity_and_channels");
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [isEditingForm, setIsEditingForm] = useState(false);
   const [createdDepositIntent, setCreatedDepositIntent] =
     useState<ProviderDepositIntentView | null>(null);
   const applicationActions = useProviderApplicationActions();
@@ -558,6 +583,7 @@ const ProviderApplicationFormContent = ({
   const paymentIntent = depositIntentQuery.data ?? createdDepositIntent;
   const isPendingApplicationDeposit = Boolean(
     mode === "application" &&
+    !isEditingForm &&
     paymentIntent?.kind === "APPLICATION" &&
     paymentIntent.status === "PENDING"
   );
@@ -752,6 +778,7 @@ const ProviderApplicationFormContent = ({
               amount: form.bondAmount,
             });
           setCreatedDepositIntent(createdIntent);
+          setIsEditingForm(false);
           toast.success(
             "Đã tạo lệnh chuyển khoản. Vui lòng chuyển khoản và chờ hệ thống đối soát."
           );
@@ -774,7 +801,15 @@ const ProviderApplicationFormContent = ({
   };
 
   if (isPendingApplicationDeposit) {
-    return <ProviderDepositPanel intent={paymentIntent} />;
+    return (
+      <ProviderDepositPanel
+        intent={paymentIntent}
+        onEditForm={() => {
+          setIsEditingForm(true);
+          setActiveTab("identity_and_channels");
+        }}
+      />
+    );
   }
 
   let submitLabel = "Lưu và chuyển sang thanh toán";
@@ -1356,9 +1391,11 @@ const ProviderApplicationFormContent = ({
 
 export const ProviderApplicationForm = (
   props: ProviderApplicationFormProps
-) => {
-  const formKey = `${props.mode ?? "application"}:${props.application?.id ?? "empty"}`;
-  return <ProviderApplicationFormContent key={formKey} {...props} />;
-};
+) => (
+  <ProviderApplicationFormContent
+    key={props.mode ?? "application"}
+    {...props}
+  />
+);
 
 export { ProviderApplicationFormSkeleton } from "./provider-application-form-skeleton";
