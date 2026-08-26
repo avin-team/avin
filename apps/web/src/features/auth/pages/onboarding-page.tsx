@@ -2,17 +2,20 @@ import { ACCOUNT_ROLE } from "@avin/auth/permissions";
 import type { AccountRole } from "@avin/auth/permissions";
 import { cn } from "@avin/ui/lib/utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { toast } from "sonner";
 
 import { Shell } from "@/components/shell";
 import { invalidateAuthSession } from "@/features/auth/api/session-query";
 import { DecorIcon } from "@/features/auth/components/decor-icon";
 import { RoleSelectionStep } from "@/features/auth/components/role-selection";
+import { sanitizeRedirectPath } from "@/features/auth/utils/sanitize-redirect-path";
 import { orpc } from "@/utils/orpc";
 
 export const OnboardingPage = () => {
   const navigate = useNavigate();
+  const { redirectTo } = useSearch({ from: "/_authenticated/onboarding" });
+  const safeRedirectTo = sanitizeRedirectPath(redirectTo);
   const queryClient = useQueryClient();
 
   const selectRoleMutation = useMutation({
@@ -33,7 +36,7 @@ export const OnboardingPage = () => {
         await navigate({ to: "/seller/onboarding" });
       } else {
         toast.success("Chào mừng bạn đến với Avin!");
-        await navigate({ to: "/" });
+        await navigate({ to: safeRedirectTo });
       }
     } catch {
       toast.error("Không thể thiết lập vai trò. Vui lòng thử lại.");

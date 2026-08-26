@@ -19,7 +19,6 @@ import { toast } from "sonner";
 
 import { Header } from "@/components/layout/header";
 import { Main } from "@/components/layout/main";
-import { ThemeSwitch } from "@/components/theme-switch";
 
 import {
   categoriesQueryOptions,
@@ -223,11 +222,7 @@ export const CategoriesPage = () => {
 
   return (
     <>
-      <Header fixed>
-        <div className="ml-auto">
-          <ThemeSwitch />
-        </div>
-      </Header>
+      <Header fixed />
       <Main className="flex flex-1 flex-col gap-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>

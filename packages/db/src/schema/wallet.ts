@@ -312,6 +312,7 @@ export const sepayPaymentEvent = pgTable(
     ),
     paymentCode: text("payment_code"),
     processedAt: timestamp("processed_at"),
+    providerDepositIntentId: uuid("provider_deposit_intent_id"),
     providerEventId: text("provider_event_id").notNull(),
     rawBody: text("raw_body").notNull(),
     rawPayload: jsonb("raw_payload").$type<Record<string, unknown>>().notNull(),
@@ -337,6 +338,9 @@ export const sepayPaymentEvent = pgTable(
     ),
     index("sepay_payment_event_status_idx").on(table.status),
     index("sepay_payment_event_payment_code_idx").on(table.paymentCode),
+    index("sepay_payment_event_provider_intent_idx").on(
+      table.providerDepositIntentId
+    ),
     index("sepay_payment_event_transaction_at_idx").on(table.transactionAt),
     check(
       "sepay_payment_event_amount_non_negative_check",

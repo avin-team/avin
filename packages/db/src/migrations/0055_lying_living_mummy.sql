@@ -1,0 +1,1 @@
+ALTER TABLE "protection_risk_report" ADD COLUMN "view_count" integer DEFAULT 0 NOT NULL;

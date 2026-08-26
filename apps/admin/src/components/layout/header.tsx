@@ -2,6 +2,9 @@ import { SidebarTrigger } from "@avin/ui/components/sidebar";
 import { cn } from "@avin/ui/lib/utils";
 import { useEffect, useRef, useState } from "react";
 
+import { ThemeSwitch } from "@/components/theme-switch";
+import { NotificationButton } from "@/features/notifications/components/notification-button";
+
 type HeaderProps = React.HTMLAttributes<HTMLElement> & {
   fixed?: boolean;
   ref?: React.Ref<HTMLElement>;
@@ -54,6 +57,10 @@ export const Header = ({
       <div className="relative flex h-full items-center gap-3 p-4 sm:gap-4">
         <SidebarTrigger variant="outline" className="max-md:scale-125" />
         {children}
+        <div className="ml-auto flex items-center gap-2">
+          <NotificationButton />
+          <ThemeSwitch />
+        </div>
       </div>
     </header>
   );

@@ -17,6 +17,8 @@ import { secureHeaders } from "hono/secure-headers";
 import { startEmailDeliverySchedule } from "./jobs/email-delivery";
 import { startFulfillmentMaintenanceSchedule } from "./jobs/fulfillment-maintenance";
 import { startOrderChatAttachmentMaintenanceSchedule } from "./jobs/order-chat-attachment-maintenance";
+import { startProviderPolicyMaintenanceSchedule } from "./jobs/provider-policy-maintenance";
+import { startProviderRiskIncidentMaintenanceSchedule } from "./jobs/provider-risk-incident-maintenance";
 import { startSePayReconciliationSchedule } from "./jobs/sepay-reconciliation";
 import {
   createOrderChatAttachmentUploadRouter,
@@ -24,12 +26,32 @@ import {
   createSellerEnforcementAppealEvidenceUploadRouter,
   createCheckoutAttachmentUploadRouter,
   createDeliveryAttachmentUploadRouter,
+  createRiskReportEvidenceUploadRouter,
+  createRiskReportDerivativeUploadRouter,
+  createProviderRiskIncidentEvidenceUploadRouter,
   handleUploadRequest,
   createListingImageUploadRouter,
 } from "./uploads/listing-image-upload";
 import { createListingImageStorage } from "./uploads/storage";
 
 const app = new Hono();
+const PUBLIC_RISK_LOOKUP_RPC_PATH = "/rpc/protection/publicRiskLookup/";
+
+export const isPublicRiskLookupRequest = (request: Request): boolean =>
+  new URL(request.url).pathname.startsWith(PUBLIC_RISK_LOOKUP_RPC_PATH);
+
+const withNoStoreHeaders = (response: Response): Response => {
+  const headers = new Headers(response.headers);
+  headers.set("Cache-Control", "no-store");
+  headers.set("Expires", "0");
+  headers.set("Pragma", "no-cache");
+  return new Response(response.body, {
+    headers,
+    status: response.status,
+    statusText: response.statusText,
+  });
+};
+
 const listingImageStorage = createListingImageStorage();
 const listingImageUploadRouter = listingImageStorage
   ? createListingImageUploadRouter(listingImageStorage.client)
@@ -50,6 +72,15 @@ const checkoutAttachmentUploadRouter = listingImageStorage
   : null;
 const deliveryAttachmentUploadRouter = listingImageStorage
   ? createDeliveryAttachmentUploadRouter(listingImageStorage.client)
+  : null;
+const riskReportEvidenceUploadRouter = listingImageStorage
+  ? createRiskReportEvidenceUploadRouter(listingImageStorage.client)
+  : null;
+const riskReportDerivativeUploadRouter = listingImageStorage
+  ? createRiskReportDerivativeUploadRouter(listingImageStorage.client)
+  : null;
+const providerRiskIncidentEvidenceUploadRouter = listingImageStorage
+  ? createProviderRiskIncidentEvidenceUploadRouter(listingImageStorage.client)
   : null;
 
 const sePayWebhookConfiguration = {
@@ -82,7 +113,6 @@ app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 app.on(["POST", "GET"], "/api/admin-auth/*", (c) =>
   adminAuth.handler(c.req.raw)
 );
-
 app.post("/api/upload", (c) => {
   if (!listingImageUploadRouter) {
     return c.json({ error: "Media uploads are not configured" }, 503);
@@ -151,6 +181,42 @@ app.post("/api/delivery-attachment-upload", (c) => {
   return handleUploadRequest(c.req.raw, deliveryAttachmentUploadRouter);
 });
 
+app.post("/api/risk-report-evidence-upload", (c) => {
+  if (!riskReportEvidenceUploadRouter) {
+    return c.json(
+      { error: "Risk report evidence uploads are not configured" },
+      503
+    );
+  }
+
+  return handleUploadRequest(c.req.raw, riskReportEvidenceUploadRouter);
+});
+
+app.post("/api/risk-report-derivative-upload", (c) => {
+  if (!riskReportDerivativeUploadRouter) {
+    return c.json(
+      { error: "Risk report derivative uploads are not configured" },
+      503
+    );
+  }
+
+  return handleUploadRequest(c.req.raw, riskReportDerivativeUploadRouter);
+});
+
+app.post("/api/provider-risk-incident-evidence-upload", (c) => {
+  if (!providerRiskIncidentEvidenceUploadRouter) {
+    return c.json(
+      { error: "Provider incident evidence uploads are not configured" },
+      503
+    );
+  }
+
+  return handleUploadRequest(
+    c.req.raw,
+    providerRiskIncidentEvidenceUploadRouter
+  );
+});
+
 const sePayWebhook = (c: { req: { raw: Request } }) =>
   handleSePayWebhook({
     configuration: sePayWebhookConfiguration,
@@ -192,7 +258,9 @@ app.use("/*", async (c, next) => {
   });
 
   if (rpcResult.matched) {
-    return rpcResult.response;
+    return isPublicRiskLookupRequest(c.req.raw)
+      ? withNoStoreHeaders(rpcResult.response)
+      : rpcResult.response;
   }
 
   const apiResult = await apiHandler.handle(c.req.raw, {
@@ -214,4 +282,6 @@ export default app;
 startSePayReconciliationSchedule();
 startFulfillmentMaintenanceSchedule();
 startOrderChatAttachmentMaintenanceSchedule();
+startProviderRiskIncidentMaintenanceSchedule();
+startProviderPolicyMaintenanceSchedule();
 startEmailDeliverySchedule();

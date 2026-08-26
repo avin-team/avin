@@ -27,7 +27,6 @@ import { useState } from "react";
 
 import { Header } from "@/components/layout/header";
 import { Main } from "@/components/layout/main";
-import { ThemeSwitch } from "@/components/theme-switch";
 
 import { useAdminDisputes } from "../api/disputes-api";
 import { DisputeStatusBadge } from "../components/dispute-status-badge";
@@ -68,11 +67,7 @@ export const DisputeQueuePage = () => {
 
   return (
     <>
-      <Header fixed>
-        <div className="ml-auto">
-          <ThemeSwitch />
-        </div>
-      </Header>
+      <Header fixed />
       <Main className="flex flex-1 flex-col gap-6">
         <div>
           <p className="text-sm font-medium text-primary">DISPUTE MEDIATION</p>

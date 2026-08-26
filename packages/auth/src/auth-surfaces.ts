@@ -23,7 +23,12 @@ export const AUTH_SURFACES = {
   { basePath: string; cookiePrefix: string; errorPath: string }
 >;
 
-export const getAuthSurface = (headers: Headers): AuthSurface =>
-  headers.get(AUTH_SURFACE_HEADER) === AUTH_SURFACE.ADMIN
-    ? AUTH_SURFACE.ADMIN
-    : AUTH_SURFACE.STOREFRONT;
+export const getAuthSurface = (headers: Headers): AuthSurface => {
+  const requestedSurface = headers.get(AUTH_SURFACE_HEADER);
+
+  if (requestedSurface === AUTH_SURFACE.ADMIN) {
+    return AUTH_SURFACE.ADMIN;
+  }
+
+  return AUTH_SURFACE.STOREFRONT;
+};

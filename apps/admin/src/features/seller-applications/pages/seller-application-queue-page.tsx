@@ -27,7 +27,6 @@ import { useState } from "react";
 
 import { Header } from "@/components/layout/header";
 import { Main } from "@/components/layout/main";
-import { ThemeSwitch } from "@/components/theme-switch";
 
 import { useAdminSellerApplications } from "../api/seller-applications-api";
 import { ApplicationStatusBadge } from "../components/application-status-badge";
@@ -55,11 +54,7 @@ export const SellerApplicationQueuePage = () => {
 
   return (
     <>
-      <Header fixed>
-        <div className="ml-auto">
-          <ThemeSwitch />
-        </div>
-      </Header>
+      <Header fixed />
       <Main className="flex flex-1 flex-col gap-6">
         <div>
           <p className="text-sm font-medium text-primary">SELLER ONBOARDING</p>

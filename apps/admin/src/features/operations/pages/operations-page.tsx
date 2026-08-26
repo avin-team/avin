@@ -36,7 +36,6 @@ import { toast } from "sonner";
 
 import { Header } from "@/components/layout/header";
 import { Main } from "@/components/layout/main";
-import { ThemeSwitch } from "@/components/theme-switch";
 
 import {
   useOperationsAuditLog,
@@ -51,6 +50,7 @@ import type {
   ReconciliationStatus,
   TransactionType,
 } from "../api/operations-api";
+import { ProtectionOperationsQueuePanel } from "../components/protection-operations-queue-panel";
 
 const RECONCILIATION_STATUS_OPTIONS = [
   { label: "Tất cả trạng thái", value: "ALL" },
@@ -148,7 +148,7 @@ const QueryState = ({
 };
 
 export const OperationsPage = () => {
-  const [tab, setTab] = useState("reconciliation");
+  const [tab, setTab] = useState("protection");
   const [reconciliationStatus, setReconciliationStatus] =
     useState<(typeof RECONCILIATION_STATUS_OPTIONS)[number]["value"]>("ALL");
   const [transactionType, setTransactionType] =
@@ -227,11 +227,7 @@ export const OperationsPage = () => {
 
   return (
     <>
-      <Header fixed>
-        <div className="ml-auto">
-          <ThemeSwitch />
-        </div>
-      </Header>
+      <Header fixed />
       <Main className="flex flex-1 flex-col gap-6">
         <div>
           <p className="text-sm font-medium text-primary">OPERATIONS</p>
@@ -239,13 +235,14 @@ export const OperationsPage = () => {
             Operations Console
           </h1>
           <p className="text-muted-foreground">
-            Read-only surfaces cho reconciliation, ledger, audit và email
-            health.
+            Queue vận hành Avin Check cùng reconciliation, ledger, audit và
+            email health.
           </p>
         </div>
 
         <Tabs onValueChange={setTab} value={tab}>
-          <TabsList className="grid h-auto w-full grid-cols-2 lg:grid-cols-4">
+          <TabsList className="grid h-auto w-full grid-cols-2 lg:grid-cols-5">
+            <TabsTrigger value="protection">Protection queue</TabsTrigger>
             <TabsTrigger value="reconciliation">
               Deposit reconciliation
             </TabsTrigger>
@@ -253,6 +250,10 @@ export const OperationsPage = () => {
             <TabsTrigger value="audit">Audit log</TabsTrigger>
             <TabsTrigger value="email">Email health</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="protection">
+            <ProtectionOperationsQueuePanel />
+          </TabsContent>
 
           <TabsContent value="reconciliation">
             <Card>

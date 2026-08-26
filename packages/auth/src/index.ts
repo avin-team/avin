@@ -1,6 +1,7 @@
 import { createDb } from "@avin/db";
 import { auditLog } from "@avin/db/schema/auth";
 import * as schema from "@avin/db/schema/auth";
+import { protectionRiskReport } from "@avin/db/schema/protection";
 import { env } from "@avin/env/server";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
@@ -11,6 +12,7 @@ import {
   getOAuthState,
 } from "better-auth/api";
 import { admin, twoFactor } from "better-auth/plugins";
+import { and, eq } from "drizzle-orm";
 import { Resend } from "resend";
 
 import { AUTH_SURFACES } from "./auth-surfaces";
@@ -71,11 +73,26 @@ export const createAuth = (surface: AuthSurface = "storefront") => {
             }
             const intendedRole =
               typeof oauthState?.role === "string" ? oauthState.role : null;
-            const allowedRoles = Object.values(ACCOUNT_ROLE) as string[];
+            const allowedRoles = [
+              ACCOUNT_ROLE.BUYER,
+              ACCOUNT_ROLE.SELLER,
+            ] as string[];
             if (intendedRole && allowedRoles.includes(intendedRole)) {
               return { data: { ...data, role: intendedRole } };
             }
             return { data };
+          },
+        },
+        delete: {
+          before: async (data) => {
+            await db
+              .delete(protectionRiskReport)
+              .where(
+                and(
+                  eq(protectionRiskReport.reporterUserId, data.id),
+                  eq(protectionRiskReport.status, "DRAFT")
+                )
+              );
           },
         },
       },
@@ -138,7 +155,10 @@ export const createAuth = (surface: AuthSurface = "storefront") => {
         // that by re-injecting the validated role into the request body
         // so the admin plugin picks it up correctly.
         if (context.path === "/sign-up/email") {
-          const allowedRoles = Object.values(ACCOUNT_ROLE) as string[];
+          const allowedRoles = [
+            ACCOUNT_ROLE.BUYER,
+            ACCOUNT_ROLE.SELLER,
+          ] as string[];
           const bodyRole =
             typeof context.body?.role === "string" ? context.body.role : null;
           if (bodyRole && allowedRoles.includes(bodyRole)) {

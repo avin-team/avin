@@ -1,5 +1,6 @@
 import { adminAuth, auth } from "@avin/auth";
 import { AUTH_SURFACE, getAuthSurface } from "@avin/auth/auth-surfaces";
+import type { ProtectionAdminCapability } from "@avin/auth/permissions";
 import { db } from "@avin/db";
 import type { Context as HonoContext } from "hono";
 
@@ -18,8 +19,12 @@ export type MarketplaceSession = NonNullable<AuthSession>;
 export interface AuditEvent {
   action: string;
   actorUserId: string;
+  createdAt?: Date;
+  ipAddress?: string;
   metadata?: Record<string, unknown>;
   outcome: "FAILURE" | "SUCCESS";
+  purpose?: string;
+  sessionId?: string;
   targetId?: string;
   targetType?: string;
 }
@@ -32,16 +37,21 @@ export const createContext = async ({
   context,
   storage,
 }: CreateContextOptions): Promise<Context> => {
-  const authClient =
-    getAuthSurface(context.req.raw.headers) === AUTH_SURFACE.ADMIN
-      ? adminAuth
-      : auth;
+  const authSurface = getAuthSurface(context.req.raw.headers);
+  let authClient = auth;
+  if (authSurface === AUTH_SURFACE.ADMIN) {
+    authClient = adminAuth;
+  }
   const session = await authClient.api.getSession({
     headers: context.req.raw.headers,
   });
   return {
     audit: auditRecorder,
     db,
+    ipAddress:
+      context.req.raw.headers.get("cf-connecting-ip") ??
+      context.req.raw.headers.get("x-real-ip") ??
+      context.req.raw.headers.get("x-forwarded-for")?.split(",")[0]?.trim(),
     session,
     storage,
   };
@@ -50,6 +60,8 @@ export const createContext = async ({
 export interface Context {
   audit: AuditRecorder;
   db: typeof db;
+  ipAddress?: string;
+  protectionCapabilities?: readonly ProtectionAdminCapability[];
   session: MarketplaceSession | null;
   storage?: ManagedObjectStore;
 }

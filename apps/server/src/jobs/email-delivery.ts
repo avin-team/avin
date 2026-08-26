@@ -2,6 +2,7 @@ import {
   createResendEmailSender,
   processEmailDeliveries,
 } from "@avin/api/notifications/email-delivery";
+import { processRiskReportEmailDeliveries } from "@avin/api/protection/risk-report-email-delivery";
 import { db } from "@avin/db";
 import { env } from "@avin/env/server";
 
@@ -14,6 +15,7 @@ const sender = createResendEmailSender({
 
 export const runEmailDelivery = async (): Promise<void> => {
   await processEmailDeliveries({ database: db, sender });
+  await processRiskReportEmailDeliveries({ database: db, sender });
 };
 
 export const startEmailDeliverySchedule = (): ReturnType<

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { DecorIcon } from "@/features/auth/components/decor-icon";
 import { GoogleSignInButton } from "@/features/auth/components/google-sign-in-button";
+import { sanitizeRedirectPath } from "@/features/auth/utils/sanitize-redirect-path";
 
 const getOAuthErrorMessage = (
   error?: string,
@@ -44,6 +45,7 @@ const getErrorFromParams = (
 
 export const AuthPage = () => {
   const search = useSearch({ from: "/(auth)/login" });
+  const redirectTo = sanitizeRedirectPath(search.redirectTo);
 
   useEffect(() => {
     const urlParams =
@@ -109,7 +111,14 @@ export const AuthPage = () => {
         </header>
 
         <div className="flex flex-col gap-6 animate-in fade-in duration-300">
-          <GoogleSignInButton />
+          <GoogleSignInButton
+            newUserRedirectTo={
+              redirectTo === "/"
+                ? "/onboarding"
+                : `/onboarding?redirectTo=${encodeURIComponent(redirectTo)}`
+            }
+            redirectTo={redirectTo}
+          />
         </div>
 
         <p className="text-muted-foreground text-xs text-center">

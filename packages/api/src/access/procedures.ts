@@ -33,17 +33,49 @@ export const o = os.$context<Context>();
 
 export const publicProcedure = o;
 
-export const protectedProcedure = publicProcedure.use(({ context, next }) => {
-  if (!context.session?.user) {
-    throw new ORPCError("UNAUTHORIZED");
-  }
+export const authenticatedProcedure = publicProcedure.use(
+  ({ context, next }) => {
+    if (!context.session?.user) {
+      throw new ORPCError("UNAUTHORIZED");
+    }
 
-  return next({
-    context: {
-      session: context.session,
-    },
-  });
-});
+    return next({
+      context: {
+        session: context.session,
+      },
+    });
+  }
+);
+
+export const protectedProcedure = authenticatedProcedure.use(
+  ({ context, next }) => {
+    const { role } = context.session.user;
+    if (!isAccountRole(role)) {
+      throw new ORPCError("FORBIDDEN");
+    }
+
+    return next();
+  }
+);
+
+export const providerProcedure = authenticatedProcedure.use(
+  ({ context, next }) => {
+    if (context.session.user.banned) {
+      throw new ORPCError("FORBIDDEN", {
+        message: "This account is locked and cannot access Avin Check.",
+      });
+    }
+
+    if (
+      context.session.user.role !== ACCOUNT_ROLE.BUYER &&
+      context.session.user.role !== ACCOUNT_ROLE.SELLER
+    ) {
+      throw new ORPCError("FORBIDDEN");
+    }
+
+    return next();
+  }
+);
 
 const procedureForRoles = (roles: readonly AccountRole[]) =>
   protectedProcedure.use(({ context, next }) => {

@@ -8,10 +8,14 @@ import { GoogleIcon } from "@/features/auth/components/icons/google-icon";
 import { getAuthCallbackUrl } from "@/features/auth/utils/get-auth-callback-url";
 
 interface GoogleSignInButtonProps {
+  authClient?: Pick<typeof authClient, "signIn">;
+  newUserRedirectTo?: string;
   redirectTo?: string;
 }
 
 export const GoogleSignInButton = ({
+  authClient: client = authClient,
+  newUserRedirectTo = "/onboarding",
   redirectTo = "/",
 }: GoogleSignInButtonProps) => {
   const [isPending, setIsPending] = useState(false);
@@ -26,9 +30,9 @@ export const GoogleSignInButton = ({
       const callbackURL = getAuthCallbackUrl(redirectTo, origin);
 
       // Where brand-new users go after Google creates their account (role onboarding)
-      const newUserCallbackURL = getAuthCallbackUrl("/onboarding", origin);
+      const newUserCallbackURL = getAuthCallbackUrl(newUserRedirectTo, origin);
 
-      const result = await authClient.signIn.social({
+      const result = await client.signIn.social({
         callbackURL,
         newUserCallbackURL,
         provider: "google",

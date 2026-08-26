@@ -4,16 +4,28 @@ import { commerceRouter } from "./commerce/router";
 import { listingRouter } from "./listing/router";
 import { notificationRouter } from "./notifications/router";
 import { operationsRouter } from "./operations/router";
+import { protectionRouter } from "./protection/router";
 import { sellerApplicationRouter } from "./seller-application/router";
 import { sellerEnforcementRouter } from "./seller-enforcement/router";
 import { sellerStoreRouter } from "./seller-store/router";
 import { walletRouter } from "./wallet/router";
 
-export const appRouter = {
+export const appRouter: {
+  commerce: typeof commerceRouter;
+  listing: typeof listingRouter;
+  notifications: typeof notificationRouter;
+  operations: typeof operationsRouter;
+  protection: typeof protectionRouter;
+  sellerApplication: typeof sellerApplicationRouter;
+  sellerEnforcement: typeof sellerEnforcementRouter;
+  sellerStore: typeof sellerStoreRouter;
+  wallet: typeof walletRouter;
+} = {
   commerce: commerceRouter,
   listing: listingRouter,
   notifications: notificationRouter,
   operations: operationsRouter,
+  protection: protectionRouter,
   sellerApplication: sellerApplicationRouter,
   sellerEnforcement: sellerEnforcementRouter,
   sellerStore: sellerStoreRouter,

@@ -88,7 +88,7 @@ describe("SePay event processing", () => {
           limit: () => {
             selectCount += 1;
             return Promise.resolve(
-              selectCount <= 2
+              selectCount <= 3
                 ? []
                 : [{ amount: 50_000, id: "request-1", status: "PENDING" }]
             );
@@ -120,11 +120,13 @@ describe("SePay event processing", () => {
     );
 
     expect(result).toEqual({ eventId: "event-1", status: "UNMATCHED" });
-    expect(updates).toContainEqual({
-      depositRequestId: "request-1",
-      failureReason: "amount_mismatch",
-      processedAt: new Date("2026-08-02T10:05:00.000Z"),
-      status: "UNMATCHED",
-    });
+    expect(updates).toContainEqual(
+      expect.objectContaining({
+        depositRequestId: "request-1",
+        failureReason: "amount_mismatch",
+        processedAt: new Date("2026-08-02T10:05:00.000Z"),
+        status: "UNMATCHED",
+      })
+    );
   });
 });

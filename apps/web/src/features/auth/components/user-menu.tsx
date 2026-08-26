@@ -23,8 +23,8 @@ import { Skeleton } from "@avin/ui/components/skeleton";
 import {
   DesktopIcon,
   MoonIcon,
+  ShieldWarningIcon,
   SignOutIcon,
-  ShieldCheckIcon,
   StorefrontIcon,
   SunIcon,
 } from "@phosphor-icons/react";
@@ -159,12 +159,12 @@ export const UserMenu = () => {
           <DropdownMenuItem
             onClick={async () => {
               await navigate({
-                to: "/security",
+                to: "/avin-check/reports",
               });
             }}
           >
-            <ShieldCheckIcon className="me-2 size-4" />
-            Bảo mật tài khoản
+            <ShieldWarningIcon className="me-2 size-4" />
+            Báo cáo của tôi
           </DropdownMenuItem>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>

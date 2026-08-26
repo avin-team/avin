@@ -1,0 +1,3 @@
+# Freeze submitted Risk Report revisions
+
+Submitting a Risk Report freezes an immutable revision of its narrative, incident facts, identifiers, and evidence selection so neither the reporter nor moderator can alter the material being reviewed. A change request opens a new reporter-authored revision while retaining every previous version; active review permits no free editing, and retries remain idempotent on the same draft or revision. This adds version storage and explicit resubmission but prevents public approval of content different from what the reporter attested or the moderator reviewed.

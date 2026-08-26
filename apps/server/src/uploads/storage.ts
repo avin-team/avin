@@ -3,7 +3,10 @@ import { PUBLIC_MEDIA_BUCKET } from "@avin/api/storage";
 import { env } from "@avin/env/server";
 import type { Router } from "@better-upload/server";
 import { custom } from "@better-upload/server/clients";
-import { deleteObject } from "@better-upload/server/helpers";
+import {
+  deleteObject,
+  putObject as putManagedObject,
+} from "@better-upload/server/helpers";
 
 export interface ListingImageStorageRuntime {
   client: Router["client"];
@@ -37,6 +40,22 @@ export const createListingImageStorage =
       objectStore: {
         deleteObject: (key, bucket = PUBLIC_MEDIA_BUCKET) =>
           deleteObject(client, { bucket, key }),
+        putObject: ({
+          body,
+          bucket,
+          cacheControl,
+          contentLength,
+          contentType,
+          key,
+        }) =>
+          putManagedObject(client, {
+            body,
+            bucket,
+            cacheControl,
+            contentLength,
+            contentType,
+            key,
+          }),
         supabaseUrl: env.SUPABASE_URL,
       },
     };

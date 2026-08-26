@@ -4,6 +4,12 @@ import { orpc } from "@/lib/orpc";
 
 export const OPERATIONS_PAGE_SIZE = 50;
 
+export const useProtectionOperationsQueue = () =>
+  useQuery(orpc.protection.adminOperationsQueue.queryOptions());
+
+export const useExportProtectionOperations = () =>
+  useMutation(orpc.protection.adminOperationsExport.mutationOptions());
+
 export type ReconciliationStatus =
   | "CREDITED"
   | "RECEIVED"

@@ -60,15 +60,21 @@
     "db:studio": "turbo -F @avin/db db:studio",
     "db:generate": "turbo -F @avin/db db:generate",
     "db:migrate": "turbo -F @avin/db db:migrate",
+    "db:backup": "bun run --cwd packages/db db:backup",
     "db:clear": "bun run --cwd packages/db db:clear",
     "db:seed-seller-listings": "bun run --cwd packages/db db:seed-seller-listings",
+    "db:backfill-risk-identifiers": "bun --env-file=apps/server/.env run scripts/risk-identifier-backfill.ts",
+    "db:import-checkscam": "bun --env-file=apps/server/.env run scripts/checkscam-import/import.ts",
+    "db:clean-checkscam": "bun --env-file=apps/server/.env run scripts/checkscam-import/import.ts --clean",
     "check": "ultracite check",
     "fix": "ultracite fix && bun run scripts/fix-tailwind-canonical.ts",
     "prepare": "lefthook install"
   },
   "dependencies": {
+    "@avin/db": "workspace:*",
     "@avin/env": "workspace:*",
     "dotenv": "catalog:",
+    "drizzle-orm": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

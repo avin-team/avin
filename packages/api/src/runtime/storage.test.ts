@@ -10,12 +10,20 @@ import {
   createSellerLogoKey,
   createSellerBannerKey,
   createPublicMediaUrl,
+  createRiskReportDerivativeKey,
+  createRiskReportEvidenceKey,
   getManagedListingImageKeysToDelete,
   isDisputeEvidenceKey,
   isSellerEnforcementAppealEvidenceKey,
   isOrderChatAttachmentKey,
   isCheckoutAttachmentKey,
   isDeliveryAttachmentKey,
+  isRiskReportDerivativeKey,
+  getNativeRiskReportEvidenceMaxBytes,
+  isNativeRiskReportEvidenceContentType,
+  isNativeRiskReportEvidenceFileNameAllowed,
+  isRiskReportEvidenceFileNameAllowed,
+  isRiskReportEvidenceKey,
   LISTING_IMAGE_MAX_BYTES,
   ORDER_CHAT_ATTACHMENT_CONTENT_TYPES,
   ORDER_CHAT_ATTACHMENT_MAX_BYTES,
@@ -258,5 +266,62 @@ describe("Seller Enforcement appeal evidence storage helpers", () => {
     expect(
       isSellerEnforcementAppealEvidenceKey(key, LISTING_ID, BUYER_ID)
     ).toBe(false);
+  });
+});
+
+describe("Risk report evidence storage helpers", () => {
+  it("keeps originals private and scopes both original and derivative keys", () => {
+    const originalKey = createRiskReportEvidenceKey(
+      LISTING_ID,
+      "application/pdf",
+      NEW_OBJECT_ID
+    );
+    const derivativeKey = createRiskReportDerivativeKey(
+      LISTING_ID,
+      BUYER_ID,
+      "application/pdf",
+      NEW_OBJECT_ID
+    );
+
+    expect(originalKey).toBe(
+      `risk-reports/private/${LISTING_ID}/${NEW_OBJECT_ID}.pdf`
+    );
+    expect(derivativeKey).toBe(
+      `risk-reports/public/${LISTING_ID}/${BUYER_ID}/${NEW_OBJECT_ID}.pdf`
+    );
+    expect(isRiskReportEvidenceKey(originalKey, LISTING_ID)).toBe(true);
+    expect(isRiskReportEvidenceKey(derivativeKey, LISTING_ID)).toBe(false);
+    expect(isRiskReportDerivativeKey(derivativeKey, LISTING_ID, BUYER_ID)).toBe(
+      true
+    );
+  });
+
+  it("rejects unsafe extensions even when a MIME type is allowlisted", () => {
+    expect(
+      isRiskReportEvidenceFileNameAllowed("proof.pdf", "application/pdf")
+    ).toBe(true);
+    expect(
+      isRiskReportEvidenceFileNameAllowed("proof.exe", "application/pdf")
+    ).toBe(false);
+    expect(
+      isRiskReportEvidenceFileNameAllowed("../proof.pdf", "application/pdf")
+    ).toBe(false);
+  });
+
+  it("keeps native report uploads free of text files and allows larger videos", () => {
+    expect(isNativeRiskReportEvidenceContentType("text/plain")).toBe(false);
+    expect(isNativeRiskReportEvidenceContentType("video/mp4")).toBe(true);
+    expect(getNativeRiskReportEvidenceMaxBytes("image/png")).toBe(
+      20 * BYTES_PER_MEGABYTE
+    );
+    expect(getNativeRiskReportEvidenceMaxBytes("video/mp4")).toBe(
+      100 * BYTES_PER_MEGABYTE
+    );
+    expect(
+      isNativeRiskReportEvidenceFileNameAllowed("proof.txt", "text/plain")
+    ).toBe(false);
+    expect(
+      isNativeRiskReportEvidenceFileNameAllowed("screen.mp4", "video/mp4")
+    ).toBe(true);
   });
 });

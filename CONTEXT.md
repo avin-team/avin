@@ -16,63 +16,83 @@ An Admin-only workspace that brings together role-protected views of marketplace
 
 ### User (Buyer)
 
-An authenticated account representing a buyer on the marketplace. Every `User` is implicitly a buyer and possesses a `UserWallet`. Under Avin's architecture, `User` and `Seller` are strictly separate entities requiring distinct accounts and logins.
+An authenticated account representing a buyer on the marketplace. Every `User` is implicitly a buyer and possesses a `UserWallet`; it may also own a Protection Provider Application without changing its Buyer role. Under Avin's architecture, `User` and `Seller` remain separate entities requiring distinct accounts and logins.
 
 ### Seller
 
-An authenticated entity representing an independent seller/merchant on the marketplace. A `Seller` manages their store profile, publishes `Listing`s, fulfills `Order`s, and maintains a `SellerWallet`. Its public profile exposes only storefront name, avatar, Store description, joined month/year, average rating and rating count, and completed-order count; bank and verification data remain private.
+An authenticated entity representing an independent seller/merchant on the marketplace. A `Seller` manages their store profile, Listings, Orders, and `SellerWallet`, and may also own a Protection Provider Application without changing its Seller role. Its marketplace profile and Provider standing remain distinct.
 
 ### Avin Check
 
 The public Avin module for verified Provider discovery, external identifier lookup, moderated transaction warnings, and manually administered protection records. It shares Avin applications and infrastructure while remaining distinct from marketplace commerce.
 
+### Provider Directory
+
+The public list of active Protection Providers, ordered by Provider Tier from `VIP` through `NORMAL`, then by recognized Provider Bond descending, verification recency, and display name. Each card shows the Provider's avatar, name, tier presentation, exact Bond, Recommended Transaction Limit, summarized services, Zalo/Facebook channels, and verification date; full Registered Bank Accounts remain on the profile detail. A specific search ranks identity relevance instead of forcing tier order: it supports exact normalized lookup by bank account number, optional phone/Zalo, and social username or URL, plus fuzzy lookup by display name, verified legal name, and registered service. CCCD values are never searchable. _Avoid_: paid placement, trust leaderboard.
+
 ### Protection Provider
 
-A person or business accepted into Avin Check, whether or not they are an Avin `Seller`, and presented publicly as a **Đối tác Avin**. A Protection Provider is not an authorization `Admin`, has an Admin-managed `Provider Bond`, and cannot delegate its verified standing to agents or subordinate merchants. _Avoid in code_: Admin, guaranteed Seller, protected Seller, GDV network owner.
+A person or business accepted into Avin Check, whether their owning account is a Buyer or Seller, and presented publicly as a **Đối tác Avin**. Its Provider profile neither reveals nor automatically links its marketplace role or Store; a Protection Provider is not an `Admin` and cannot delegate its verified standing. _Avoid in code_: Admin, guaranteed Seller, protected Seller, GDV network owner.
 
 ### Protection Provider Application
 
-An evidence-backed, year-round request to become a Protection Provider, reviewed as `PENDING_REVIEW`, `CHANGES_REQUESTED`, `APPROVED`, or `REJECTED` with an explicit reason. It verifies the applicant's adult identity, operating history, public identities, registered services, payment information, and acceptance of the current Protection Program Policy.
+An evidence-backed, year-round request owned by an active, non-locked Buyer or Seller account to become a Protection Provider. A complete application enters review only after its Provider Deposit Intent is matched, then is reviewed as `PENDING_REVIEW`, `CHANGES_REQUESTED`, `APPROVED`, or `REJECTED` with an explicit reason. Missing or correctable information uses `CHANGES_REQUESTED` and may be revised on the same application; `REJECTED` is terminal and reserved for fraud, impersonation, or a definitive policy prohibition. Seller approval is not a prerequisite, but confirmed marketplace fraud blocks a new application, and the same verified person or business cannot acquire a second Provider standing through another account. Avin does not classify applicants as individuals or businesses in a separate lifecycle; an Admin verifies the declared legal identity, CCCD, and Registered Bank Accounts. Creating the transfer instruction and submitting the application require the owner to complete 2FA and separately acknowledge that the exact Bond and full Registered Bank Account numbers will become public after approval. Once the first transfer is matched, the Bond amount is fixed throughout review: no additional application deposit or decrease is permitted, and a later increase uses Provider Bond Top-up after approval. Approval is one atomic operation that verifies the matched Bond has not entered refund, consumes it into the active standing, and creates the Protection Provider, its Bond record, and first Provider Profile Version; a concurrent refund committed first makes approval fail.
+
+### Provider CCCD
+
+The applicant's required 12-digit citizen identity number used privately by an Admin to verify identity and prevent duplicate Provider standing. Avin accepts the number as text and never collects a front or back card image; the full value is encrypted while the application remains editable or under review and is excluded from public profiles, public list views, search indexes, logs, and notification payloads. A duplicate keyed hash blocks submission with a neutral message and may be relinked by a `SUPER_ADMIN` only after proving the same identity. After approval or rejection, Avin deletes the full value and retains only the keyed hash, last four digits, verifier, and verification time; even the last four digits remain Admin-only. _Avoid_: identity image, public identifier, generic evidence reference.
 
 ### Protection Provider Workspace
 
-The Provider's private area for reading the exact profile and status held by Avin and requesting a profile revision or Bond Withdrawal. It cannot directly publish verified information, alter the recognized Provider Bond, or move money. _Avoid_: Provider admin panel, wallet.
+The Provider's private area, entered through its owning Buyer or Seller account, for reading the exact profile and status held by Avin and requesting a profile revision or Bond Withdrawal. Reading and saving drafts use the normal authenticated session, while submitting a profile revision or Bond Withdrawal requires 2FA. It cannot directly publish verified information, alter the recognized Provider Bond, or move money. _Avoid_: Provider admin panel, wallet.
 
-### Provider Account
+### Provider Owner Account
 
-The authenticated identity used only to own a Protection Provider Application and enter the Protection Provider Workspace. It is separate from Buyer, Seller, and Admin accounts, and grants no moderation or Bond-operation authority. _Avoid_: User account, Seller account, Admin account.
+The existing Buyer or Seller account that owns a Protection Provider Application and enters the Protection Provider Workspace after approval. A security lock blocks workspace access without changing Provider standing, and the account cannot be hard-deleted while retained Provider records depend on it. Account recovery is preferred when access is lost; an Admin may relink ownership to another Buyer or Seller account only after proving it represents the same verified person or business, recording an immutable audit trail, and never transferring the Provider standing to a different identity. _Avoid_: Provider Account, `PROVIDER` role, separate Provider login.
 
 ### Protection Program Policy
 
-The versioned terms governing Provider eligibility, Membership Fee, minimum Provider Bond, Recommended Transaction Limit, support rules, and withdrawal conditions. Material changes require existing Providers to re-accept by a stated deadline or become suspended; editorial changes do not.
+The versioned terms governing Provider eligibility, the currently applicable Membership Fee, minimum Provider Bond, Provider Tier thresholds, Recommended Transaction Limit ratio and rounding, support rules, and withdrawal conditions. A Provider Deposit Intent snapshots the current policy, and successful payment matching binds the resulting application, Bond, tier, and limit to that policy version so a later policy change cannot retrospectively change a standing still under review. Material changes require existing Providers to re-accept by a stated deadline or become suspended; editorial changes do not.
+
+### Provider Deposit Intent
+
+A one-time instruction for an applicant to transfer a chosen Provider Bond amount of at least 1,000,000 VND to Avin using a unique payment reference. An application has at most one active intent, which expires after 24 hours and may be replaced before receiving money. Exact amount and reference matches are recognized automatically; late, partial, excess, or split transfers enter manual reconciliation available only to a `SUPER_ADMIN`, who may link multiple source transactions and recognize their actual total when it meets the minimum. A matched Provider Deposit Intent gates entry into application review and remains separate from UserWallet deposits and marketplace Transactions. _Avoid_: wallet deposit, membership payment, application fee.
 
 ### Provider Bond
 
-Provider-owned money transferred to and managed directly by an `Admin` outside Avin's automated payment flows, with its recognized amount recorded by Avin for the Protection Provider. It is neither an Avin wallet balance nor an `EscrowHold` tied to an `OrderItem`. _Avoid_: wallet balance, escrow, insurance fund.
+Provider-owned money transferred to a dedicated Avin Check custody bank account and recognized after its Provider Deposit Intent is matched. Its exact recognized amount is public on the Provider profile and determines the Provider Tier and maximum Recommended Transaction Limit. It remains separate from Avin's marketplace payment flows and is neither an Avin wallet balance nor an `EscrowHold` tied to an `OrderItem`. _Avoid_: wallet balance, escrow, insurance fund.
+
+### Provider Tier
+
+The public presentation level derived from a Protection Provider's confirmed Provider Bond, never assigned independently by an Admin. `NORMAL` applies from 1,000,000 VND to below 5,000,000 VND and has no decorative frame; `BRONZE`, `SILVER`, `GOLD`, `DIAMOND`, and `VIP` begin at 5,000,000, 10,000,000, 20,000,000, 50,000,000, and 100,000,000 VND respectively. Top-ups and decreases recalculate the tier automatically; falling below 1,000,000 VND suspends the Provider pending review. _Avoid_: trust score, Royal, manually assigned rank.
 
 ### Bond Adjustment
 
-An immutable Admin record that changes Avin's recognized `Provider Bond` amount after an externally completed deposit, withdrawal, support payment, or correction. It records the reason and private evidence but never moves money itself. _Avoid_: wallet transaction, payout transaction.
+An immutable record that changes Avin's recognized `Provider Bond` amount after a matched deposit, withdrawal, support payment, refund, or correction. SePay creates exact-match increases automatically; only a `SUPER_ADMIN` may reconcile a mismatch, issue a refund, or record a manual adjustment, and every manual action records its reason and external evidence without dual approval. Any applied change publishes a new Provider Profile Version containing the resulting Bond, Provider Tier, and Recommended Transaction Limit. _Avoid_: wallet transaction, unreviewed manual mutation.
 
-### Bond Adjustment Approval
+### Application Bond Refund
 
-A second authorized Admin's confirmation of a Bond decrease, withdrawal, or Support Allocation recorded by another Admin. A Bond increase may be recorded by one authorized operator with private transfer evidence. _Avoid_: self-approval.
+The full return of matched Provider Bond when a Provider Application is terminally rejected or its owner abandons the application. `CHANGES_REQUESTED` retains the Bond for resubmission; a paid application becomes abandoned after 30 days without owner activity following its final reminder. An Application Bond Refund moves through `REFUND_PENDING` to `REFUNDED`, has a three-business-day operating target, and is executed only by a `SUPER_ADMIN` without dual approval. It returns to the verified source account when available, otherwise the Primary Bank Account; exceptions enter manual review, and completion records the external bank reference. _Avoid_: wallet refund, rejection fee, partial forfeiture.
 
 ### Bond Withdrawal
 
-An off-platform Provider request, recorded by an Admin, to leave the program and recover the remaining Provider Bond after a 30-day cooling period, open Support Reviews, and valid Bond Adjustments are resolved. The remaining Bond is fully returnable; the separate Membership Fee is not. _Avoid_: wallet withdrawal, early-exit forfeiture.
+An off-platform Provider request, recorded by an Admin, to leave the program and recover the remaining Provider Bond after a 30-day cooling period, open Support Reviews, and valid Bond Adjustments are resolved. P0 has no voluntary partial withdrawal: a Provider may top up or request full exit only; a decrease while remaining active can result solely from support, refund, or a `SUPER_ADMIN` correction. The remaining Bond is fully returnable; the separate Membership Fee is not. _Avoid_: partial cash-out, wallet withdrawal, early-exit forfeiture.
+
+### Provider Bond Top-up
+
+A 2FA-authorized, 24-hour VietQR/SePay intent created by an active Protection Provider to add a chosen amount to its recognized Bond. It uses the same dedicated Avin Check custody and exact-match rules as the application deposit, snapshots the current Protection Program Policy, and remains separate from UserWallet. An exact match atomically increases Bond and publishes a new Provider Profile Version with the derived tier and limit without repeating identity review; late, partial, excess, or split payments require `SUPER_ADMIN` reconciliation. _Avoid_: application amendment, wallet deposit, manual tier upgrade.
 
 ### Membership Fee
 
-A non-refundable charge for participation or verification in the protection program, separate from the refundable `Provider Bond`. _Avoid_: bond fee, protection balance.
+A policy-configured charge concept for participation or verification in the protection program, separate from the refundable `Provider Bond`. P0 fixes it at zero and neither Provider Deposit Intent nor Provider Bond Top-up collects it; enabling a non-zero fee requires an explicit future collection and refund decision instead of silently adding it to Bond transfers. _Avoid_: bond fee, protection balance, latent payment split.
 
 ### Recommended Transaction Limit
 
-The public per-Provider amount used as the upper bound when an Admin considers support for eligible external losses; it must not exceed the Provider's recognized `Provider Bond`. It is neither the Provider's private Bond balance nor a promise that every transaction will be compensated. _Avoid_: trust score, guaranteed payout, Bond balance.
+The public per-Provider amount used as the upper bound when an Admin considers support for eligible external losses. It is calculated automatically as 80% of the recognized Provider Bond, rounded down to the nearest 100,000 VND, and cannot be edited independently by an Admin. It is not a promise that every transaction will be compensated. _Avoid_: trust score, guaranteed payout, manually assigned limit.
 
 ### Provider Profile Version
 
-An immutable historical snapshot of the Protection Provider's public identity, registered services, payment information, Recommended Transaction Limit, status, and publication consent. Eligibility is evaluated against the version effective when the reported transaction occurred, not later profile edits.
+An immutable historical snapshot of the Protection Provider's public identity, registered services, Registered Bank Accounts, official contact channels, exact recognized Provider Bond, Provider Tier, Recommended Transaction Limit, status, and publication consent. Every applied Bond change creates a new version; public history shows its date, Bond, and tier without exposing receipts, reconciliation evidence, or internal reasons. Eligibility is evaluated against the version effective when the reported transaction occurred, not later profile edits.
 
 ### Provider Profile Revision
 
@@ -82,13 +102,25 @@ A Provider-requested change that requires Admin verification before becoming a n
 
 A free-text description of a service that an Admin has approved for publication on a Protection Provider profile. Only a transaction within the approved wording can be a Support-Eligible Transaction. _Avoid_: category, unverified service.
 
+### Registered Bank Account
+
+A bank account verified for a Protection Provider and published for Real/Fake transaction checks. It contains only the bank identifier, full account number, verified account-holder name, and primary flag; P0 has no branch, account type, wallet, or per-account QR fields. A Provider may have at most ten Registered Bank Accounts, exactly one of which is the Primary Bank Account; account changes require a new Provider Profile Version, and removed accounts remain in immutable version history. _Avoid_: refund-only account, wallet account, unverified payment destination.
+
+### Primary Bank Account
+
+The single Registered Bank Account marked as the Protection Provider's preferred payment destination. Its primary status does not make the Provider's other registered accounts invalid. _Avoid_: only valid account, Avin receiving account.
+
 ### Verified Provider Information
 
-The Provider-consented public identity and transaction data verified by an Admin, including official Facebook/Zalo contacts and full registered bank or wallet account details. It is presented for Real/Fake comparison without a payment QR and does not expose KYC or the private Provider Bond amount.
+The Provider-consented public identity and transaction data verified by an Admin, including the verified legal name, chosen display name, optional phone number, required Zalo, optional Facebook, Telegram, TikTok, YouTube, and website channels, full Registered Bank Account details, and the exact recognized Provider Bond. It is presented for Real/Fake comparison without a payment QR and does not expose CCCD fragments, KYC evidence, transfer receipts, or internal reconciliation notes.
+
+### Provider Lifecycle Notification
+
+An in-app message and verified-email notification sent when a Provider Deposit Intent is matched, an application enters review or needs changes, an application is approved or rejected, a refund completes, or an active Provider's Bond or Provider Tier changes. Public Zalo, Telegram, and other contact channels are not notification consent and receive no automated lifecycle messages in P0.
 
 ### Provider Verification Badge
 
-A single public indicator that the displayed Provider information was verified and the profile is active. It has no Silver/Gold tiers, trust score, or unconditional guarantee meaning. _Avoid_: insurance badge, trust tier, red tick.
+A public indicator that the displayed Provider information was verified and the profile is active. It may be presented with the Provider Tier derived from confirmed Bond, but never carries a numeric trust score, fabricated support rating, or unconditional guarantee meaning. _Avoid_: insurance badge, trust score, Royal, guaranteed badge.
 
 ### Support-Eligible Transaction
 
@@ -96,11 +128,11 @@ A lawful direct Facebook or Zalo transaction with a Protection Provider that use
 
 ### Pre-Transaction Verification Evidence
 
-The required screen recording showing the verified Provider identity, transaction box, registered payment information, and Provider confirmation before money or access is transferred. Its absence does not block a Public Risk Report but makes a transaction that requires it ineligible for Support Review.
+The required screen recording showing the verified Provider identity, transaction box, registered payment information, and Provider confirmation before money or access is transferred. Its absence does not block a Risk Report but makes a transaction that requires it ineligible for Support Review.
 
 ### Support Review
 
-An Admin's manual, off-platform evaluation of a reported `Support-Eligible Transaction` under the published support policy, opened only after a Risk Moderator confirms a Public Risk Report meets Provider, service, payment, scope, and evidence requirements. The affected person is entitled to consistent consideration, not an automatic payment, and the Admin records the decision without creating an in-app claim or moving money. _Avoid_: Protection Claim, Dispute, automatic compensation.
+An Admin's manual, off-platform evaluation of a reported `Support-Eligible Transaction` under the published support policy, opened only after a Risk Moderator confirms a Risk Report meets Provider, service, payment, scope, and evidence requirements. The affected person is entitled to consistent consideration, not an automatic payment, and the Admin records the decision without creating an in-app claim or moving money. _Avoid_: Protection Claim, Dispute, automatic compensation.
 
 ### Support Reconsideration
 
@@ -112,35 +144,175 @@ An Admin-recorded amount of manually delivered support for verified loss from a 
 
 ### Protection Provider Status
 
-The Provider's public standing: `ACTIVE`, `SUSPENDED_PENDING_REVIEW`, `WITHDRAWAL_PENDING`, `WITHDRAWN`, or `REMOVED_FOR_FRAUD`. A withdrawn or removed Provider leaves a historical profile at the stable public address rather than disappearing from history.
+The Provider's public standing: `ACTIVE`, `SUSPENDED_PENDING_REVIEW`, `WITHDRAWAL_PENDING`, `WITHDRAWN`, or `REMOVED_FOR_FRAUD`. Confirmed marketplace fraud requires a Provider review, while ordinary Seller suspension is only a review signal and never changes Provider standing automatically; withdrawn or removed Providers leave historical profiles at stable public addresses.
 
-### Public Risk Report
+### Risk Report
 
-A visitor-submitted allegation about any external account, website, social identity, or transaction, moving through `DRAFT`, `SUBMITTED`, `UNDER_REVIEW`, `CHANGES_REQUESTED`, `REJECTED`, `PUBLISHED`, `CORRECTED`, or `REMOVED`. No Avin account is required, but a verified private reporter contact and sufficient evidence are required before publication; the report neither creates compensation rights nor changes a Provider Bond automatically. _Avoid_: Dispute, Protection Claim, verdict.
+An evidence-backed allegation owned by a `Risk Reporter` about one scam or external-risk incident, moving through `DRAFT`, `SUBMITTED`, `UNDER_REVIEW`, `CHANGES_REQUESTED`, `REJECTED`, `PUBLISHED`, `CORRECTED`, or `REMOVED`. An Avin Order incident begins as a Commerce Dispute and may be promoted without duplicate intake; publication creates community reputation history but never automatically changes Seller Enforcement, Provider standing or Bond, or Support Review. _Avoid_: Public Risk Report, anonymous report, duplicate Commerce Dispute, Protection Claim, automatic enforcement, verdict.
+
+### Risk Report Type
+
+The user-facing classification that selects one of three reporting flows: transaction or transfer scam, fake or dangerous website/application/profile, and seized or reclaimed digital account. Transaction or transfer includes digital goods, digital services, intermediaries, and chargebacks; `Other` is a reason within a flow rather than a fourth top-level type. _Avoid_: identifier type, bank-account type, generic Other report.
+
+### Risk Report Issue
+
+One or more reporter-selected behaviors within a Risk Report Type. Transaction issues include non-delivery, partial or mismatched delivery, payment followed by blocking, failed or damaging service, post-delivery chargeback, and intermediary impersonation; account issues include reclaim, missing recovery transfer, lost access, publisher lock or ban, and refused warranty; fake-surface issues include impersonation, phishing, malware, fake shop, and fake payment. _Avoid_: top-level report type, single mandatory reason.
+
+### Risk Reporter
+
+The authenticated Buyer or Seller account privately attributable as the owner of a Risk Report. A valid session is sufficient to submit a report without verified phone, 2FA, or another step-up. Seller Enforcement does not remove reporting access while the account can still authenticate, but security locks do; authorized moderation can see relevant enforcement context, system-derived Provider-ownership conflicts, duplicate-report signals, and abuse controls applied by account and IP. Reporter identity and contact remain private, while optional phone or Zalo details support follow-up but never authentication. _Avoid_: anonymous visitor, accused person, separately verified reporter identity.
+
+### Risk Reporting Restriction
+
+A 30-day protection-specific account restriction that one Risk Moderator may apply with a mandatory reason for deliberately fabricated evidence, brigading, extortion, or repeated report abuse. It blocks creating or revising Risk Reports while preserving login, workspace history, responses, and correction access; the account may request one review, and a later violation may receive a new 30-day restriction. It never changes Seller Enforcement or Protection Provider standing unless a separate authorized decision does so. _Avoid_: account lock, escalating duration ladder, automatic Seller ban, deleting report history.
+
+### Risk Reporter Involvement
+
+The Risk Reporter's declared participation in the reported incident: a buyer, seller, or intermediary who participated directly; an authorized representative supplying the affected person's evidence; or a person who directly observed a fake website, application, or profile. Hearsay and posting on another person's behalf without permission cannot produce a publishable Risk Report. _Avoid_: generic observer, “posting for someone,” Provider relationship field, mandatory victim contact.
+
+### Risk Report Workspace
+
+The Risk Reporter's private area for managing drafts, reading review status and change requests, and viewing public-safe history for their own reports. Account deletion removes drafts, while submitted or published reports and a private reporter-identity snapshot remain under the applicable audit-retention policy; deleting the account ends workspace access but does not erase the moderation record. It never exposes Admin-only notes, private moderation evidence, or another reporter's activity. _Avoid_: Admin report queue, public warning page.
+
+### Risk Report Draft
+
+The mutable, private working state of one Risk Report as its reporter progresses, uploads evidence, saves, exits, and resumes before submission. An account may own several drafts for different incidents; every save, upload retry, and final-submit retry continues the selected draft identity, and its owner may delete it before submission. _Avoid_: one global draft per account, browser-only form state, retry-created report.
+
+### Risk Report Revision
+
+An immutable submitted version of a Risk Report's narrative, identifiers, incident facts, and evidence selection. Submission freezes the current revision; a `CHANGES_REQUESTED` decision lets the reporter create a new revision while every prior version remains available for audit, and no editing is allowed during active review. _Avoid_: mutable submitted report, moderator edit, untracked replacement.
 
 ### Risk Identifier
 
-A normalized bank, wallet, phone, website, social, or platform-account value attached to one or more Public Risk Reports for exact lookup and history grouping. Sensitive identifiers are masked in public projections even when an exact private search value matched. _Avoid_: accused person, fuzzy identity match.
+A normalized bank, wallet, phone, website, social, listing, or platform-account value attached to a Risk Report with an explicit `Risk Identifier Role`. The value alone does not assert risk: a `Risk Subject Identifier` may produce an accused-counterparty warning, while a `Risk Asset Identifier` or `Impersonated Identifier` may produce only its role-specific neutral lookup result. Bank, wallet, social, and platform values retain the namespace needed to distinguish otherwise identical values. _Avoid_: user-selected primary identifier, context-free account number, treating every lookup result as risky.
+
+### Risk Identifier Role
+
+The identifier's relationship to one reported incident: accused counterparty, payment destination, intermediary, contact channel, listing or store, reported asset, or impersonated identity. Reported assets and impersonated identities may be exactly searchable through neutral alerts but can never become risky merely because they appear in a report. _Avoid_: identifier type, scam status.
+
+### Risk Subject Identifier
+
+A Risk Identifier presented by the reporter as representing the accused counterparty or as an operational identifier used in the incident, such as its payment destination, contact channel, listing, store, or fake locator. The public packet always states that precise incident role and never infers that the legal account holder is the scammer merely because funds arrived there. One report may contain several such identifiers and therefore appear from several Risk Warning pages, but it remains one globally owned Published Risk Report and counts only once per page. An identifier enters exact lookup only when the packet is published; the Risk Moderator approves or rejects the packet rather than editing identifier roles during publication. _Avoid_: victim asset, impersonated identity, ownership claim from payment destination, every mentioned value by default, duplicated report per identifier.
+
+### Risk Asset Identifier
+
+A reported digital account or other uniquely identified asset whose history is material to an account-reclaim incident. It is required for that flow even when the reporter no longer has a reliable identifier for the seller or reclaimer. After publication it enters exact lookup only through a neutral asset alert such as **Tài khoản này từng xuất hiện trong báo cáo bị thu hồi**; it is neither a Risk Subject Identifier nor evidence that its current holder is a scammer, and it never contributes to accused-subject totals. Additional reliable seller or reclaimer identifiers may create their own Risk Warnings but are not required to publish the asset history. _Avoid_: victim account flagged as scammer, fabricated counterparty identifier, risk score transfer, unnamespaced UID.
+
+### Impersonated Identifier
+
+The genuine Provider, intermediary, shop, profile, or other identity that a fake surface copied. After publication it may enter exact lookup through a neutral alert such as **Danh tính này đang bị mạo danh trong N báo cáo**, linking users to the reported fake identifiers without counting the reports against the genuine identity. _Avoid_: impersonated party as accused subject, reputation penalty, warning without the fake locator.
+
+### Public Risk Identifier
+
+The public-safe projection of a published lookup identifier. Bank or wallet numbers and phones retain the first and last three characters around `***`; an account-holder name retains earlier name parts and reduces its final part to an initial; an email retains a short local prefix and full domain. Institutions, platforms, app package IDs, and reported social/profile UIDs remain recognizable. A dangerous web locator shows its full domain and only a safe path when needed, never its query or fragment, and every dangerous locator renders as non-clickable text. _Avoid_: full sensitive payment identifier, irreversible hash shown to users, clickable dangerous locator, public URL token.
+
+### Risk Lookup Match
+
+An exact private comparison between user-supplied lookup input and published Risk Subject, Risk Asset, or Impersonated Identifiers that confirms a match without returning a stored full sensitive value. Every result states whether it is an accused-counterparty warning, neutral asset history, or impersonation alert. Aggregation uses exact normalized namespace and value only; co-occurrence in one report creates cross-links but never a fuzzy person-level identity merge. Bank is an optional lookup namespace: a supplied institution narrows matching, while an account-number-only lookup searches every institution and keeps results grouped by bank so identical numbers never collapse. An account-holder or person's name can support a bank-account match but is never searchable by itself. _Avoid_: fuzzy accusation match, name-only accusation search, mandatory bank filter, full-value echo, name-based entity resolution.
+
+### Risk Triage Signal
+
+A structured fact derived from a Risk Report to help moderators prioritize review, including the incident or discovery date and whether the risk remains ongoing. The form does not ask the reporter to assign urgency or estimate a victim count, and a triage signal never permits publication. _Avoid_: self-declared urgent status, reported victim total, automatic publication trigger.
+
+### Published Risk Report
+
+The moderated public projection of one approved Risk Report, preserving that reporter's Public Report Narrative and approved Public Evidence Copies without exposing the private record. Its public moderation badge is **Đã duyệt đăng**, which means Avin approved publication of the complete packet rather than declaring a legal or per-claim finding. It remains independently visible when several reports concern the same risk subject and is either published or rejected as a whole in P0. _Avoid_: moderator summary, merged testimony, raw private report, “Đã xác minh scam,” “Scammer.”
+
+### Risk Warning
+
+The aggregate public page for one exact Risk Subject Identifier, presenting its Public Risk Identifier, precise incident role, institution or platform, deterministic title, and count of independently Published Risk Reports before listing the newest reports. A payment destination is described as an account that received funds in an approved report, not proof that its legal holder is the scammer. Each report retains its source, date, Claimed Loss, narrative, evidence, response, and resolution without public comments, reactions, or votes; submissions, rejections, retries, revisions, and repeated copies of one incident never increase the count. _Avoid_: account-holder guilt claim, asset-history page, impersonation alert, victim count, popularity score, scam verdict, combined narrative.
+
+### Risk Asset Alert
+
+The neutral exact-lookup page for one published Risk Asset Identifier. It lists independently Published Risk Reports in which the asset was reported as reclaimed or otherwise affected, uses asset-history wording instead of a scam verdict, and never transfers the reports or their counts to the asset's present holder. _Avoid_: Risk Warning, accused-subject count, “Scammer.”
+
+### Impersonation Alert
+
+The neutral exact-lookup page for one published Impersonated Identifier. It states that the genuine identity is reported as being impersonated, counts the relevant independently Published Risk Reports, and identifies or links to their fake locators without reducing the genuine party's standing. _Avoid_: Risk Warning against the genuine party, merged identity, unlinked impersonation claim.
+
+### Public Report Narrative
+
+The system-generated public copy of the Risk Reporter's immutable 50–10,000-character account of what was traded, agreed, delivered or paid, what went wrong, and how resolution was attempted. It preserves the reporter's wording while automatically redacting personal data, credentials, and unrelated private material with visible placeholders; a Risk Moderator can only approve or reject the whole generated public packet, and an unsafe projection must be revised by the reporter. _Avoid_: public summary, moderator redaction, moderator rewrite, generated narrative.
+
+### Risk Report Private Note
+
+Optional reporter context needed for moderation but never intended for publication, such as recovery data, private contact details, or unrelated victim information. It remains separate from the Public Report Narrative and cannot be copied into the generated public packet. _Avoid_: second public narrative, moderator summary.
 
 ### Risk Report Evidence
 
-An immutable private original submitted to support a Public Risk Report and visible only to authorized Admins. Publication requires a separate `Public Evidence Copy`; an original is never exposed by default. _Avoid_: public attachment.
+An immutable private original submitted to support a Risk Report and visible only to authorized Admins. Publication requires a separate `Public Evidence Copy`; an original is never exposed by default. _Avoid_: public attachment.
+
+### Risk Report Evidence Scan
+
+The file-level quarantine and malware-validation state of one Risk Report Evidence original. Every retained file must finish scanning before final submission; an unsafe or unprocessable file must be removed or replaced, and the reporter may save and exit while processing continues. Scanning never becomes a separate public report status. _Avoid_: pending scan after submission, allowlist equals clean, `UNDER_VERIFICATION` report state.
+
+### Risk Report Evidence Bundle
+
+The complete flow-specific set of Risk Report Evidence required before final submission, not merely an arbitrary file count. Transaction reports pair payment or reversal proof with agreement, listing, chat, or delivery proof; fake-surface reports pair an exact locator with a screenshot or video; account-reclaim reports link purchase or handover, prior control, and lost access or recovery, plus the reported counterparty when a reliable counterparty identifier is available. An incomplete bundle remains a resumable draft rather than entering moderation. _Avoid_: one-file threshold, moderator intake for obviously missing evidence, evidence batch without purpose.
+
+### Risk Transaction
+
+One reported transfer of value within a Risk Report, recording its date, optional time, amount, currency or crypto asset, payment method, destination, and optional transaction reference or hash. A report may contain several Risk Transactions, while Claimed Loss summarizes the reporter's stated financial outcome rather than replacing the individual rows. _Avoid_: marketplace Transaction, one aggregate transfer, evidence file.
+
+### Risk Report Submission Threshold
+
+The complete structural gate required to place a Risk Report into moderation: the flow's required Risk Subject, Risk Asset, or fake-surface locator; incident time; narrative; and the full clean Risk Report Evidence Bundle for that flow. Every retained file must have completed scanning, the system must have generated at least one safe material Public Evidence Copy, and the reporter must preview the exact public packet before final submission. Incomplete material remains an auto-saved draft; `CHANGES_REQUESTED` is reserved for quality, ambiguity, or evidentiary linkage that becomes apparent during review. _Avoid_: one-file submission, pending file processing, moderator discovery of an obviously missing required kind, verified allegation.
+
+### Risk Report Publication Threshold
+
+The moderation standard a structurally complete Risk Report and its system-generated public packet must satisfy before one Risk Moderator may publish it. The moderator confirms that the submitted evidence materially connects the incident, lookup identifiers, narrative, and Claimed Loss where applicable; considers any Risk Subject Response; and approves or rejects the whole packet. Passing the submission gate, file scan, or automatic redaction does not itself establish this judgment. _Avoid_: duplicate form-completeness check, upload completed equals published, second-approver requirement, reporter-declared sufficient evidence.
 
 ### Public Evidence Copy
 
-An Admin-approved derivative of Risk Report Evidence with unrelated personal data redacted, metadata removed, and an Avin watermark applied. It is the only evidence asset permitted on a public report page.
+A system-generated public-safe derivative of Risk Report Evidence with unrelated personal data redacted, metadata removed, and an Avin watermark applied. Every Published Risk Report contains at least one copy that materially supports its allegation; the reporter previews and accepts the whole generated packet before submission, originals never appear publicly, and the Risk Moderator approves or rejects without editing its assets.
+
+### Risk Report Redaction
+
+The automatic creation of public-safe narrative and evidence projections using known private fields and text patterns for prose, OCR plus masking for images and PDFs, and extracted still frames for private video originals. Final submission remains disabled until the reporter can preview a safe narrative and at least one safe material Public Evidence Copy; failed output must be cropped, replaced, or revised in the draft, and no moderator edits it. _Avoid_: post-submission redaction dependency, moderator redaction editor, original-file publication, silent low-confidence release.
 
 ### Risk Report Moderation Action
 
-An immutable Admin decision to request changes, reject, publish, correct, or remove a Public Risk Report, recording the reason, actor, time, and prior/new state. Corrections and removals append history rather than silently editing the original decision.
+An immutable, reasoned Admin decision on a Risk Report. P0 review exposes `CHANGES_REQUESTED`, `REJECTED`, and `PUBLISHED`; correctable evidentiary quality, ambiguity, or linkage problems use the first, while fabricated or irrelevant evidence, an incident with no publishable lookup result, out-of-scope material, or an unsuccessful correction uses terminal rejection. Change-request and rejection reasons remain private to the reporter, publication adds no moderator-authored reason, and a later correction or removal exposes only a public-safe reason. One Risk Moderator decides without editing the packet, obtaining a second approval, or creating separate public findings.
+
+### Risk Report Change Window
+
+The 30-day period in which a reporter may submit a replacement revision after `CHANGES_REQUESTED`. Avin sends reminders during the window; expiry produces a terminal `REJECTED` outcome for incompleteness while preserving the audit record, and a genuinely new incident may still be reported separately. _Avoid_: indefinite pending report, silent expiry, editing the frozen revision.
+
+### Risk Subject Response
+
+The reported subject's single evidence-backed response and counter-evidence packet for one Risk Report Revision. An identified Avin account or Protection Provider receives a 48-hour private response opportunity before publication and may see only the proposed system-generated public packet, never reporter identity or contact, originals, private notes, abuse signals, or moderator notes. A material replacement revision to the narrative, Risk Subject Identifiers, or Public Evidence Copies starts a new 48-hour window while retaining the prior response for audit; typo and formatting changes do not. The system automatically creates the response's redacted public projection, the same Risk Moderator approves or rejects it with the report, and non-response never implies admission. An external subject without a reliable contact may claim the relevant identifier and seek correction after publication.
+
+### Public Report Source
+
+The privacy-safe description of how a Published Risk Report entered Avin: the reporter's direct incident role and whether it was promoted from an Avin Commerce Dispute. It may state buyer, seller, intermediary, authorized representative, or direct fake-surface observer plus “Avin account,” but never exposes the reporter's identity, account age, marketplace status, or contact details.
+
+### Risk Report Attestation
+
+The single versioned confirmation made before submitting a Risk Report: the contents are accurate to the reporter's knowledge, the reporter may provide the evidence, and the automatically redacted public packet may be published if Avin approves it. It is presented as a concise acknowledgment rather than a threat of legal liability. _Avoid_: separate consent maze, responsibility threat, implicit publication consent.
 
 ### Risk Report Correction Request
 
-A reporter- or subject-submitted request to correct or remove a published Public Risk Report. An approved correction remains visible in the report history, while removal normally preserves a stable public tombstone unless law requires deletion.
+A single evidence-backed request by the original reporter, reported subject, or authorized representative to add context, correct, or remove a Published Risk Report. It creates a new immutable revision rather than editing the public report; a subject must sign in and prove identifier ownership, and one Risk Moderator may decide it while approved changes and removals remain visible in public history or a stable tombstone. _Avoid_: anonymous appeal, silent edit, direct narrative mutation.
+
+### Risk Report Resolution
+
+A public outcome appended after publication when the parties report a full or partial refund, replacement, or other resolution. It adds dated context without erasing the incident, narrative, evidence, response, or correction history and never removes a warning by itself. _Avoid_: delete on refund, retroactive rejection, silent settlement.
+
+### Risk Report Retention
+
+The lifecycle-based preservation schedule for Risk Report data: inactive drafts are removed after 90 days, rejected or withdrawn originals after one year, and published originals while their warning remains active plus three years after removal. Public correction history and tombstones remain long-lived unless law requires deletion. _Avoid_: retain every original forever, immediate submitted-report deletion, one retention period for every state.
+
+### Risk Report Review Target
+
+The non-guaranteed operating target to perform the first review within 48 hours after submission. A separate 48-hour Risk Subject Response window begins only after the report is otherwise publication-ready, not while the reporter still owes evidence. _Avoid_: guaranteed SLA, response window starting from incomplete submission.
 
 ### Verified Claimed Loss
 
-The loss amount supported by evidence and accepted by an Admin for report statistics or Support Review; it remains a platform moderation finding rather than a court judgment. _Avoid_: legally adjudicated loss, guaranteed compensation.
+The loss amount supported by evidence and accepted for a private Support Review, not produced by ordinary P0 Risk Report publication or included in P0 public risk statistics. It remains a platform support finding rather than a court judgment. _Avoid_: published report amount, automatically verified loss, guaranteed compensation.
+
+### Claimed Loss
+
+The total financial loss the Risk Reporter says resulted from the incident, shown on an approved report as **Số tiền người tố cáo khai**. Whole-report approval does not separately verify this amount, and P0 does not aggregate it into verified-loss statistics. _Avoid_: Verified Claimed Loss, transaction value, verified public statistic.
 
 ### Public Support Outcome
 
@@ -148,7 +320,11 @@ A privacy-safe label stating that a Provider-related report is under verificatio
 
 ### Protection Admin Permission
 
-A least-privilege capability assigned to an Admin for Provider review, risk moderation, Bond operations, protection management, or program administration. Sensitive financial and publication actions depend on capabilities rather than the undifferentiated Admin role alone.
+A least-privilege capability assigned to an Admin. `PROVIDER_REVIEWER` verifies applications and profile revisions but cannot mutate money; `RISK_MODERATOR` handles reports and support review; `SUPER_ADMIN` alone manages policy and performs manual reconciliation, refunds, and Bond adjustments, audited without dual approval. SePay still applies exact-match deposits automatically. P0 has no separate `BOND_OPERATOR` or `PROTECTION_MANAGER` role.
+
+### Provider Admin List
+
+The Admin operations list of Provider standing, showing legal name, status, Provider Tier, exact recognized Bond, Recommended Transaction Limit, full Primary Bank Account, verification date, and actionable warnings. Provider Reviewers may inspect application and identity-verification material with 2FA, while financial mutations remain restricted to `SUPER_ADMIN`. _Avoid_: masked operations list, public directory.
 
 ### Store profile
 

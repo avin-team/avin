@@ -10,14 +10,16 @@ import {
   assertAccountAccess,
   auditedAdminProcedure,
   buyerProcedure,
+  providerProcedure,
   protectedProcedure,
 } from "./procedures";
 
 const createContext = (
-  role: (typeof ACCOUNT_ROLE)[keyof typeof ACCOUNT_ROLE],
+  role: string,
   twoFactorEnabled = true,
   userId = "user-1",
-  auditEvents: AuditEvent[] = []
+  auditEvents: AuditEvent[] = [],
+  banned = false
 ): Context => ({
   audit: {
     record: (event) => {
@@ -40,7 +42,7 @@ const createContext = (
     user: {
       banExpires: null,
       banReason: null,
-      banned: false,
+      banned,
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       email: "user@example.com",
       emailVerified: true,
@@ -72,6 +74,67 @@ describe("protected procedure authorization", () => {
     ).rejects.toMatchObject({
       code: "UNAUTHORIZED",
     });
+  });
+
+  it("rejects a Provider from marketplace-protected procedures", async () => {
+    const procedure = protectedProcedure.handler(() => "marketplace-private");
+
+    await expect(
+      call(procedure, undefined, {
+        context: createContext("PROVIDER"),
+      })
+    ).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+  });
+});
+
+describe("Provider procedure authorization", () => {
+  it.each([ACCOUNT_ROLE.BUYER, ACCOUNT_ROLE.SELLER])(
+    "accepts a %s session",
+    async (role) => {
+      const procedure = providerProcedure.handler(() => "provider-private");
+
+      await expect(
+        call(procedure, undefined, {
+          context: createContext(role),
+        })
+      ).resolves.toBe("provider-private");
+    }
+  );
+
+  it.each([ACCOUNT_ROLE.ADMIN, "PROVIDER"])(
+    "rejects a %s session",
+    async (role) => {
+      const procedure = providerProcedure.handler(() => "provider-private");
+
+      await expect(
+        call(procedure, undefined, {
+          context: createContext(role),
+        })
+      ).rejects.toMatchObject({
+        code: "FORBIDDEN",
+      });
+    }
+  );
+
+  it("allows Provider actions without two-factor authentication", async () => {
+    const procedure = providerProcedure.handler(() => "provider-private");
+    await expect(
+      call(procedure, undefined, {
+        context: createContext(ACCOUNT_ROLE.BUYER, false),
+      })
+    ).resolves.toBe("provider-private");
+  });
+
+  it("rejects a locked Buyer or Seller from the Provider workspace", async () => {
+    const procedure = providerProcedure.handler(() => "provider-private");
+
+    await expect(
+      call(procedure, undefined, {
+        context: createContext(ACCOUNT_ROLE.BUYER, true, "user-1", [], true),
+      })
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });
 
