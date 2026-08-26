@@ -4,10 +4,17 @@ import {
 } from "@avin/auth/permissions";
 import { db } from "@avin/db";
 import { call } from "@orpc/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { AuditEvent, Context } from "../runtime/context";
+import { defaultProtectionLaunchConfiguration } from "./launch-gates";
 import { protectionRouter } from "./router";
+
+vi.mock("./configuration", () => ({
+  getProtectionLaunchConfiguration: vi.fn(
+    () => defaultProtectionLaunchConfiguration
+  ),
+}));
 
 const createAdminContext = (
   capabilities: readonly (typeof PROTECTION_ADMIN_CAPABILITY)[keyof typeof PROTECTION_ADMIN_CAPABILITY][],
