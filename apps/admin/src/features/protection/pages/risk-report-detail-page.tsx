@@ -21,6 +21,7 @@ import {
   DownloadSimpleIcon,
   ShieldCheckIcon,
 } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -247,6 +248,72 @@ const RiskDerivativeUploader = ({
   );
 };
 
+const useEvidenceSignedUrl = ({
+  evidenceId,
+  isMedia,
+  reportId,
+}: {
+  evidenceId: string;
+  isMedia: boolean;
+  reportId: string;
+}) =>
+  useQuery({
+    enabled: isMedia,
+    queryFn: async () => {
+      const result =
+        await client.protection.adminRiskReports.getOriginalEvidenceUrl({
+          evidenceId,
+          id: reportId,
+        });
+      return result.url;
+    },
+    queryKey: ["risk-report-evidence-signed-url", reportId, evidenceId],
+    staleTime: 4 * 60 * 1000,
+  });
+
+const EvidencePreview = ({
+  fileName,
+  isLoading,
+  onOpenOriginal,
+  previewSource,
+}: {
+  fileName: string;
+  isLoading: boolean;
+  onOpenOriginal: () => void;
+  previewSource?: string;
+}) => {
+  if (previewSource) {
+    return (
+      <button
+        className="flex max-h-96 w-full items-center justify-center overflow-hidden rounded-xl border bg-muted/10 p-2 transition-opacity hover:opacity-95"
+        onClick={onOpenOriginal}
+        type="button"
+      >
+        <img
+          alt={fileName}
+          className="max-h-80 w-auto rounded-lg object-contain"
+          src={previewSource}
+        />
+      </button>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 rounded-xl border bg-muted/10 py-12 text-muted-foreground text-xs">
+        <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <span>Đang tải ảnh bằng chứng...</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 rounded-xl border bg-muted/10 py-12 text-muted-foreground text-xs">
+      <span>Không thể tải ảnh xem trước</span>
+    </div>
+  );
+};
+
 const EvidenceCard = ({
   evidence,
   reportId,
@@ -255,8 +322,7 @@ const EvidenceCard = ({
   reportId: string;
 }) => {
   const [showDerivativeUploader, setShowDerivativeUploader] = useState(false);
-  const [urlError, setUrlError] = useState<string>();
-  const [loadingUrl, setLoadingUrl] = useState(false);
+  const [openError, setOpenError] = useState<string>();
 
   const isImage =
     evidence.contentType.startsWith("image/") ||
@@ -265,9 +331,18 @@ const EvidenceCard = ({
     evidence.contentType.startsWith("video/") ||
     /\.(?:mp4|webm)$/iu.test(evidence.fileName);
 
+  const { data: signedUrl, isLoading: isSigningUrl } = useEvidenceSignedUrl({
+    evidenceId: evidence.id,
+    isMedia: isImage || isVideo,
+    reportId,
+  });
+
   const handleOpenOriginal = async () => {
-    setLoadingUrl(true);
-    setUrlError(undefined);
+    setOpenError(undefined);
+    if (signedUrl) {
+      window.open(signedUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
     try {
       const result =
         await client.protection.adminRiskReports.getOriginalEvidenceUrl({
@@ -276,15 +351,13 @@ const EvidenceCard = ({
         });
       window.open(result.url, "_blank", "noopener,noreferrer");
     } catch (error) {
-      setUrlError(
+      setOpenError(
         error instanceof Error ? error.message : "Không thể mở bản gốc"
       );
-    } finally {
-      setLoadingUrl(false);
     }
   };
 
-  const previewSource = evidence.publicUrl;
+  const previewSource = signedUrl || evidence.derivative?.publicUrl;
 
   return (
     <Card className="overflow-hidden">
@@ -309,14 +382,13 @@ const EvidenceCard = ({
             </CardDescription>
           </div>
           <Button
-            disabled={loadingUrl}
             onClick={() => void handleOpenOriginal()}
             size="sm"
             type="button"
             variant="outline"
           >
             <DownloadSimpleIcon />
-            {loadingUrl ? "Đang tạo link..." : "Mở file gốc"}
+            Mở file gốc
           </Button>
         </div>
       </CardHeader>
@@ -328,14 +400,13 @@ const EvidenceCard = ({
           </p>
         ) : null}
 
-        {isImage && previewSource ? (
-          <div className="flex max-h-96 items-center justify-center overflow-hidden rounded-xl border bg-muted/10 p-2">
-            <img
-              alt={evidence.fileName}
-              className="max-h-80 w-auto rounded-lg object-contain"
-              src={previewSource}
-            />
-          </div>
+        {isImage ? (
+          <EvidencePreview
+            fileName={evidence.fileName}
+            isLoading={isSigningUrl}
+            onOpenOriginal={() => void handleOpenOriginal()}
+            previewSource={previewSource}
+          />
         ) : null}
 
         {isVideo && previewSource ? (
@@ -350,8 +421,8 @@ const EvidenceCard = ({
           </div>
         ) : null}
 
-        {urlError ? (
-          <p className="text-destructive text-xs">{urlError}</p>
+        {openError ? (
+          <p className="text-destructive text-xs">{openError}</p>
         ) : null}
 
         <div className="border-t pt-3">
