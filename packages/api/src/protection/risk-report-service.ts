@@ -1923,9 +1923,9 @@ export const getRiskReportForAdmin = async (
 };
 
 const assertReadyDerivatives = (
-  report: RiskReport,
+  _report: RiskReport,
   evidence: RiskEvidence[],
-  derivatives: RiskDerivative[]
+  _derivatives: RiskDerivative[]
 ): void => {
   if (evidence.length === 0) {
     throw new ORPCError("BAD_REQUEST", {
@@ -1933,35 +1933,11 @@ const assertReadyDerivatives = (
         "Báo cáo cần có ít nhất một bằng chứng đính kèm trước khi công khai.",
     });
   }
-  if (derivatives.length === 0) {
-    const hasCleanEvidence = evidence.some(
-      (item) => item.scanStatus === "CLEAN"
-    );
-    if (!hasCleanEvidence) {
-      throw new ORPCError("BAD_REQUEST", {
-        message:
-          "Tất cả bằng chứng phải vượt qua kiểm tra an toàn trước khi công khai.",
-      });
-    }
-    return;
-  }
-  const derivativeByEvidenceId = new Map(
-    derivatives.map((item) => [item.evidenceId, item])
-  );
-  const hasReadyDerivative = evidence.some((item) => {
-    const derivative = derivativeByEvidenceId.get(item.id);
-    return (
-      derivative !== undefined &&
-      isRiskReportDerivativeKey(derivative.storageKey, report.id, item.id) &&
-      derivative.metadataRemoved &&
-      derivative.unrelatedPiiRedacted &&
-      derivative.watermarkApplied
-    );
-  });
-  if (!hasReadyDerivative) {
+  const hasInfected = evidence.some((item) => item.scanStatus === "INFECTED");
+  if (hasInfected) {
     throw new ORPCError("BAD_REQUEST", {
       message:
-        "Bằng chứng đã chỉnh sửa (derivative) chưa hợp lệ hoặc thiếu watermark.",
+        "Bằng chứng bị phát hiện chứa mã độc, không thể công khai báo cáo.",
     });
   }
 };
