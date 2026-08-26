@@ -111,137 +111,162 @@ export const TransactionReportForm = ({
   };
 
   return (
-    <form className="grid gap-6" onSubmit={handleSubmit}>
-      <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-center">
-        <p className="font-semibold text-primary text-sm">
-          BẠN BỊ LỪA ĐẢO ONLINE / GIAO DỊCH CHUYỂN TIỀN?
-        </p>
-        <p className="mt-1 text-muted-foreground text-xs">
-          Bạn lấy STK đã nhận tiền lừa đảo để tố cáo nhé. Bài tố cáo phải đủ ảnh
-          Bill, nội dung đoạn chat giao dịch mới đủ điều kiện duyệt.
-        </p>
-      </div>
+    <form className="space-y-6" onSubmit={handleSubmit}>
+      <section
+        aria-labelledby="tx-heading"
+        className="space-y-6 rounded-3xl border bg-card p-6 sm:p-8"
+      >
+        <div className="space-y-1">
+          <h3 className="font-bold text-lg" id="tx-heading">
+            Thông tin chuyển tiền & tài khoản nhận
+          </h3>
+          <p className="text-muted-foreground text-xs">
+            Nhập chính xác số tài khoản ngân hàng hoặc ví đã nhận tiền giao dịch
+            lừa đảo.
+          </p>
+        </div>
 
-      {errorMessage ? (
-        <Alert className="border-destructive/30 bg-destructive/5" role="alert">
-          <AlertTitle>Chưa thể gửi tố cáo</AlertTitle>
-          <AlertDescription>{errorMessage}</AlertDescription>
-        </Alert>
-      ) : null}
+        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+          <p className="font-semibold text-primary text-sm">
+            BẠN BỊ LỪA ĐẢO ONLINE / GIAO DỊCH CHUYỂN TIỀN?
+          </p>
+          <p className="mt-1 text-muted-foreground text-xs leading-relaxed">
+            Bạn lấy STK đã nhận tiền lừa đảo để tố cáo nhé. Bài tố cáo phải đủ
+            ảnh Bill, nội dung đoạn chat giao dịch mới đủ điều kiện duyệt.
+          </p>
+        </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="grid gap-1.5 font-medium text-sm" htmlFor="tx-holder">
-          Tên chủ tài khoản *
-          <Input
-            autoComplete="off"
-            id="tx-holder"
-            onChange={(e) => setHolderName(e.target.value)}
-            placeholder="Chủ tài khoản nhận tiền"
-            value={holderName}
+        {errorMessage ? (
+          <Alert
+            className="border-destructive/30 bg-destructive/5"
+            role="alert"
+          >
+            <AlertTitle>Chưa thể gửi tố cáo</AlertTitle>
+            <AlertDescription>{errorMessage}</AlertDescription>
+          </Alert>
+        ) : null}
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label
+            className="grid gap-1.5 font-medium text-sm"
+            htmlFor="tx-holder"
+          >
+            Tên chủ tài khoản *
+            <Input
+              autoComplete="off"
+              id="tx-holder"
+              onChange={(e) => setHolderName(e.target.value)}
+              placeholder="Chủ tài khoản nhận tiền"
+              value={holderName}
+            />
+          </label>
+
+          <label
+            className="grid gap-1.5 font-medium text-sm"
+            htmlFor="tx-account"
+          >
+            Số tài khoản *
+            <Input
+              autoComplete="off"
+              id="tx-account"
+              onChange={(e) => setAccountNumber(e.target.value)}
+              placeholder="Số tài khoản nhận tiền"
+              value={accountNumber}
+            />
+          </label>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="grid gap-1.5 font-medium text-sm" htmlFor="tx-bank">
+            Ngân hàng *
+            <Input
+              autoComplete="off"
+              id="tx-bank"
+              onChange={(e) => setBankName(e.target.value)}
+              placeholder="VIB, MB, Vietcombank..."
+              value={bankName}
+            />
+          </label>
+
+          <label
+            className="grid gap-1.5 font-medium text-sm"
+            htmlFor="tx-amount"
+          >
+            Số tiền chiếm đoạt (VNĐ) *
+            <Input
+              autoComplete="off"
+              id="tx-amount"
+              inputMode="numeric"
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="Nhập chính xác số tiền bạn bị lừa"
+              value={amount}
+            />
+          </label>
+        </div>
+
+        <div className="grid gap-2">
+          <span className="font-medium text-sm">Bằng chứng giao dịch *</span>
+          <EvidenceUploader
+            disabled={isSubmitting}
+            onFilesChange={setEvidenceFiles}
+            selectedFiles={evidenceFiles}
           />
-        </label>
+        </div>
 
         <label
           className="grid gap-1.5 font-medium text-sm"
-          htmlFor="tx-account"
+          htmlFor="tx-narrative"
         >
-          Số tài khoản *
-          <Input
-            autoComplete="off"
-            id="tx-account"
-            onChange={(e) => setAccountNumber(e.target.value)}
-            placeholder="Số tài khoản nhận tiền"
-            value={accountNumber}
+          Nội dung tố cáo *
+          <Textarea
+            id="tx-narrative"
+            maxLength={10_000}
+            minLength={50}
+            onChange={(e) => setNarrative(e.target.value)}
+            placeholder="Nêu rõ và đầy đủ vấn đề: thỏa thuận ban đầu, đã chuyển khoản ra sao, diễn biến sự việc..."
+            rows={5}
+            value={narrative}
           />
-        </label>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="grid gap-1.5 font-medium text-sm" htmlFor="tx-bank">
-          Ngân hàng *
-          <Input
-            autoComplete="off"
-            id="tx-bank"
-            onChange={(e) => setBankName(e.target.value)}
-            placeholder="VIB, MB, Vietcombank..."
-            value={bankName}
-          />
-        </label>
-
-        <label className="grid gap-1.5 font-medium text-sm" htmlFor="tx-amount">
-          Số tiền chiếm đoạt (VNĐ) *
-          <Input
-            autoComplete="off"
-            id="tx-amount"
-            inputMode="numeric"
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="Nhập chính xác số tiền bạn bị lừa"
-            value={amount}
-          />
-        </label>
-      </div>
-
-      <div className="grid gap-1.5">
-        <span className="font-medium text-sm">Bằng chứng giao dịch *</span>
-        <EvidenceUploader
-          disabled={isSubmitting}
-          onFilesChange={setEvidenceFiles}
-          selectedFiles={evidenceFiles}
-        />
-      </div>
-
-      <label
-        className="grid gap-1.5 font-medium text-sm"
-        htmlFor="tx-narrative"
-      >
-        Nội dung tố cáo *
-        <Textarea
-          id="tx-narrative"
-          maxLength={10_000}
-          minLength={50}
-          onChange={(e) => setNarrative(e.target.value)}
-          placeholder="Nêu rõ và đầy đủ vấn đề: thỏa thuận ban đầu, đã chuyển khoản ra sao, diễn biến sự việc..."
-          rows={5}
-          value={narrative}
-        />
-        <span className="text-muted-foreground text-xs">
-          {narrative.length}/10.000 ký tự (tối thiểu 50 ký tự) · Thông tin riêng
-          tư (SĐT, email) sẽ được hệ thống tự động che khi công khai.
-        </span>
-      </label>
-
-      <OptionalDetailsSection
-        dateLabel="Ngày xảy ra chuyển tiền"
-        onChange={(updates) =>
-          setOptionalDetails((prev) => ({ ...prev, ...updates }))
-        }
-        values={optionalDetails}
-      />
-
-      <div className="rounded-xl border bg-muted/10 p-4">
-        <label className="flex cursor-pointer items-start gap-3 text-sm leading-relaxed">
-          <input
-            checked={attestationAccepted}
-            className="mt-0.5 size-4 rounded border-gray-300 text-primary focus:ring-primary"
-            onChange={(e) => setAttestationAccepted(e.target.checked)}
-            type="checkbox"
-          />
-          <span>
-            Tôi cam kết thông tin và bằng chứng cung cấp trên là trung thực và
-            chịu trách nhiệm về nội dung tố cáo này.
+          <span className="text-muted-foreground text-xs">
+            {narrative.length}/10.000 ký tự (tối thiểu 50 ký tự) · Thông tin
+            riêng tư (SĐT, email) sẽ được hệ thống tự động che khi công khai.
           </span>
         </label>
-      </div>
 
-      <div className="flex justify-center pt-2">
-        <Button
-          className="h-12 w-full max-w-sm font-semibold text-base"
-          disabled={isSubmitting}
-          type="submit"
-        >
-          {isSubmitting ? "Đang gửi đơn duyệt..." : "Gửi Duyệt Tố Cáo"}
-        </Button>
-      </div>
+        <OptionalDetailsSection
+          dateLabel="Ngày xảy ra chuyển tiền"
+          onChange={(updates) =>
+            setOptionalDetails((prev) => ({ ...prev, ...updates }))
+          }
+          values={optionalDetails}
+        />
+
+        <div className="rounded-2xl border bg-muted/20 p-4">
+          <label className="flex cursor-pointer items-start gap-3 text-sm leading-relaxed">
+            <input
+              checked={attestationAccepted}
+              className="mt-0.5 size-4 rounded border-gray-300 text-primary focus:ring-primary"
+              onChange={(e) => setAttestationAccepted(e.target.checked)}
+              type="checkbox"
+            />
+            <span>
+              Tôi cam kết thông tin và bằng chứng cung cấp trên là trung thực và
+              chịu trách nhiệm về nội dung tố cáo này.
+            </span>
+          </label>
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end border-t pt-5">
+          <Button
+            className="h-11 w-full sm:w-auto px-8 font-semibold text-sm"
+            disabled={isSubmitting}
+            size="lg"
+            type="submit"
+          >
+            {isSubmitting ? "Đang gửi đơn duyệt..." : "Gửi duyệt tố cáo"}
+          </Button>
+        </div>
+      </section>
     </form>
   );
 };

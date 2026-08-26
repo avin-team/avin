@@ -96,114 +96,133 @@ export const AccountReportForm = ({
   };
 
   return (
-    <form className="grid gap-6" onSubmit={handleSubmit}>
-      <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-center">
-        <p className="font-semibold text-primary text-sm">
-          BẠN MUA TÀI KHOẢN BỊ BACK / THU HỒI?
-        </p>
-        <p className="mt-1 text-muted-foreground text-xs">
-          Bạn gửi tố cáo các tài khoản ID Game (FF, Liên Quân, Roblox...), ID
-          TikTok, Facebook, kênh YouTube, Fanpage bị thu hồi để cộng đồng cảnh
-          báo, nhận biết và chủ động né tránh.
-        </p>
-      </div>
+    <form className="space-y-6" onSubmit={handleSubmit}>
+      <section
+        aria-labelledby="acc-heading"
+        className="space-y-6 rounded-3xl border bg-card p-6 sm:p-8"
+      >
+        <div className="space-y-1">
+          <h3 className="font-bold text-lg" id="acc-heading">
+            Thông tin tài khoản Game / MXH bị back
+          </h3>
+          <p className="text-muted-foreground text-xs">
+            Cung cấp ID hoặc tài khoản và bằng chứng mất quyền để cộng đồng nhận
+            biết và phòng tránh.
+          </p>
+        </div>
 
-      {errorMessage ? (
-        <Alert className="border-destructive/30 bg-destructive/5" role="alert">
-          <AlertTitle>Chưa thể gửi tố cáo</AlertTitle>
-          <AlertDescription>{errorMessage}</AlertDescription>
-        </Alert>
-      ) : null}
+        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+          <p className="font-semibold text-primary text-sm">
+            BẠN MUA TÀI KHOẢN BỊ BACK / THU HỒI?
+          </p>
+          <p className="mt-1 text-muted-foreground text-xs leading-relaxed">
+            Bạn gửi tố cáo các tài khoản ID Game (FF, Liên Quân, Roblox...), ID
+            TikTok, Facebook, kênh YouTube, Fanpage bị thu hồi để cộng đồng cảnh
+            báo, nhận biết và chủ động né tránh.
+          </p>
+        </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+        {errorMessage ? (
+          <Alert
+            className="border-destructive/30 bg-destructive/5"
+            role="alert"
+          >
+            <AlertTitle>Chưa thể gửi tố cáo</AlertTitle>
+            <AlertDescription>{errorMessage}</AlertDescription>
+          </Alert>
+        ) : null}
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label
+            className="grid gap-1.5 font-medium text-sm"
+            htmlFor="acc-platform"
+          >
+            Nền tảng *
+            <Input
+              autoComplete="off"
+              id="acc-platform"
+              onChange={(e) => setPlatform(e.target.value)}
+              placeholder="TikTok, Free Fire, LMHT, Roblox, YouTube..."
+              value={platform}
+            />
+          </label>
+
+          <label className="grid gap-1.5 font-medium text-sm" htmlFor="acc-id">
+            ID, Tài khoản *
+            <Input
+              autoComplete="off"
+              id="acc-id"
+              onChange={(e) => setAccountId(e.target.value)}
+              placeholder="ID hoặc tên tài khoản đã bị back"
+              value={accountId}
+            />
+          </label>
+        </div>
+
+        <div className="grid gap-2">
+          <span className="font-medium text-sm">
+            Bằng chứng ID, tài khoản bị back *
+          </span>
+          <EvidenceUploader
+            disabled={isSubmitting}
+            onFilesChange={setEvidenceFiles}
+            selectedFiles={evidenceFiles}
+          />
+        </div>
+
         <label
           className="grid gap-1.5 font-medium text-sm"
-          htmlFor="acc-platform"
+          htmlFor="acc-narrative"
         >
-          Nền tảng *
-          <Input
-            autoComplete="off"
-            id="acc-platform"
-            onChange={(e) => setPlatform(e.target.value)}
-            placeholder="TikTok, Free Fire, LMHT, Roblox, YouTube..."
-            value={platform}
+          Nội dung tố cáo *
+          <Textarea
+            id="acc-narrative"
+            maxLength={10_000}
+            minLength={50}
+            onChange={(e) => setNarrative(e.target.value)}
+            placeholder="Nêu rõ và đầy đủ vấn đề: mua qua ai, ngày bàn giao, ngày bị đổi thông tin hoặc mất quyền truy cập..."
+            rows={5}
+            value={narrative}
           />
-        </label>
-
-        <label className="grid gap-1.5 font-medium text-sm" htmlFor="acc-id">
-          ID, Tài khoản *
-          <Input
-            autoComplete="off"
-            id="acc-id"
-            onChange={(e) => setAccountId(e.target.value)}
-            placeholder="ID hoặc tên tài khoản đã bị back"
-            value={accountId}
-          />
-        </label>
-      </div>
-
-      <div className="grid gap-1.5">
-        <span className="font-medium text-sm">
-          Bằng chứng ID, tài khoản bị back *
-        </span>
-        <EvidenceUploader
-          disabled={isSubmitting}
-          onFilesChange={setEvidenceFiles}
-          selectedFiles={evidenceFiles}
-        />
-      </div>
-
-      <label
-        className="grid gap-1.5 font-medium text-sm"
-        htmlFor="acc-narrative"
-      >
-        Nội dung tố cáo *
-        <Textarea
-          id="acc-narrative"
-          maxLength={10_000}
-          minLength={50}
-          onChange={(e) => setNarrative(e.target.value)}
-          placeholder="Nêu rõ và đầy đủ vấn đề: mua qua ai, ngày bàn giao, ngày bị đổi thông tin hoặc mất quyền truy cập..."
-          rows={5}
-          value={narrative}
-        />
-        <span className="text-muted-foreground text-xs">
-          {narrative.length}/10.000 ký tự (tối thiểu 50 ký tự)
-        </span>
-      </label>
-
-      <OptionalDetailsSection
-        dateLabel="Ngày mất quyền truy cập"
-        onChange={(updates) =>
-          setOptionalDetails((prev) => ({ ...prev, ...updates }))
-        }
-        values={optionalDetails}
-      />
-
-      <div className="rounded-xl border bg-muted/10 p-4">
-        <label className="flex cursor-pointer items-start gap-3 text-sm leading-relaxed">
-          <input
-            checked={attestationAccepted}
-            className="mt-0.5 size-4 rounded border-gray-300 text-primary focus:ring-primary"
-            onChange={(e) => setAttestationAccepted(e.target.checked)}
-            type="checkbox"
-          />
-          <span>
-            Tôi cam kết thông tin và bằng chứng cung cấp trên là trung thực và
-            chịu trách nhiệm về nội dung tố cáo này.
+          <span className="text-muted-foreground text-xs">
+            {narrative.length}/10.000 ký tự (tối thiểu 50 ký tự)
           </span>
         </label>
-      </div>
 
-      <div className="flex justify-center pt-2">
-        <Button
-          className="h-12 w-full max-w-sm font-semibold text-base"
-          disabled={isSubmitting}
-          type="submit"
-        >
-          {isSubmitting ? "Đang gửi đơn duyệt..." : "Gửi Duyệt Tố Cáo"}
-        </Button>
-      </div>
+        <OptionalDetailsSection
+          dateLabel="Ngày mất quyền truy cập"
+          onChange={(updates) =>
+            setOptionalDetails((prev) => ({ ...prev, ...updates }))
+          }
+          values={optionalDetails}
+        />
+
+        <div className="rounded-2xl border bg-muted/20 p-4">
+          <label className="flex cursor-pointer items-start gap-3 text-sm leading-relaxed">
+            <input
+              checked={attestationAccepted}
+              className="mt-0.5 size-4 rounded border-gray-300 text-primary focus:ring-primary"
+              onChange={(e) => setAttestationAccepted(e.target.checked)}
+              type="checkbox"
+            />
+            <span>
+              Tôi cam kết thông tin và bằng chứng cung cấp trên là trung thực và
+              chịu trách nhiệm về nội dung tố cáo này.
+            </span>
+          </label>
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end border-t pt-5">
+          <Button
+            className="h-11 w-full sm:w-auto px-8 font-semibold text-sm"
+            disabled={isSubmitting}
+            size="lg"
+            type="submit"
+          >
+            {isSubmitting ? "Đang gửi đơn duyệt..." : "Gửi duyệt tố cáo"}
+          </Button>
+        </div>
+      </section>
     </form>
   );
 };

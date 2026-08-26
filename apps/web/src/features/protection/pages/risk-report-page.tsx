@@ -6,13 +6,11 @@ import {
 import type { RiskReportIdentifierInput } from "@avin/api/protection/risk-report";
 import { RISK_REPORT_EVIDENCE_UPLOAD_ROUTE } from "@avin/api/storage";
 import { Button } from "@avin/ui/components/button";
-import { Card, CardContent } from "@avin/ui/components/card";
 import { useUploadFiles } from "@better-upload/client";
 import {
   ArrowLeftIcon,
   CheckCircleIcon,
   GlobeIcon,
-  LockKeyIcon,
   MoneyIcon,
   UserSwitchIcon,
 } from "@phosphor-icons/react";
@@ -336,91 +334,102 @@ export const RiskReportPage = () => {
   if (submittedReportId) {
     return (
       <Shell
-        as="div"
-        className="gap-8 max-w-2xl mx-auto py-12"
-        variant="default"
+        aria-label="Tố cáo thành công"
+        as="section"
+        className="flex w-full flex-col items-start gap-6"
       >
-        <Card className="text-center p-8">
-          <CardContent className="grid gap-6">
-            <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600">
-              <CheckCircleIcon aria-hidden="true" className="size-10" />
-            </div>
+        <div className="mx-auto w-full max-w-2xl py-8">
+          <div className="rounded-3xl border bg-card p-8 sm:p-12 text-center shadow-xs">
+            <div className="grid gap-6">
+              <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600">
+                <CheckCircleIcon aria-hidden="true" className="size-10" />
+              </div>
 
-            <div>
-              <h2 className="font-bold text-2xl text-foreground">
-                Gửi Tố Cáo Thành Công!
-              </h2>
-              <p className="mt-2 text-muted-foreground text-sm">
-                Đơn tố cáo của bạn đã được tiếp nhận và chuyển đến đội ngũ
-                Moderator của Avin Check để kiểm duyệt trước khi hiển thị công
-                khai.
-              </p>
-            </div>
+              <div>
+                <h2 className="font-bold text-2xl text-foreground">
+                  Gửi Tố Cáo Thành Công!
+                </h2>
+                <p className="mt-2 text-muted-foreground text-sm">
+                  Đơn tố cáo của bạn đã được tiếp nhận và chuyển đến đội ngũ
+                  Moderator của Avin Check để kiểm duyệt trước khi hiển thị công
+                  khai.
+                </p>
+              </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row sm:justify-center pt-2">
-              <Button
-                onClick={() => void navigate({ to: "/avin-check/reports" })}
-                type="button"
-              >
-                Xem danh sách báo cáo của tôi
-              </Button>
-              <Button
-                onClick={() => {
-                  setSubmittedReportId(undefined);
-                  setPrefilledIdentifier("");
-                }}
-                type="button"
-                variant="outline"
-              >
-                Gửi đơn tố cáo khác
-              </Button>
+              <div className="flex flex-col gap-3 sm:flex-row sm:justify-center pt-2">
+                <Button
+                  onClick={() => void navigate({ to: "/avin-check/reports" })}
+                  type="button"
+                >
+                  Xem danh sách báo cáo của tôi
+                </Button>
+                <Button
+                  onClick={() => {
+                    setSubmittedReportId(undefined);
+                    setPrefilledIdentifier("");
+                  }}
+                  type="button"
+                  variant="outline"
+                >
+                  Gửi đơn tố cáo khác
+                </Button>
+              </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </Shell>
     );
   }
 
   return (
-    <Shell as="div" className="gap-8 max-w-3xl mx-auto" variant="default">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link
-          className="inline-flex items-center gap-1.5 font-medium text-muted-foreground text-sm transition-colors hover:text-foreground"
-          to="/avin-check"
-        >
-          <ArrowLeftIcon aria-hidden="true" className="size-4" />
-          Quay lại
-        </Link>
-        <div className="inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1.5 text-muted-foreground text-xs">
-          <LockKeyIcon aria-hidden="true" className="size-4 text-primary" />
-          Bản gốc chỉ Moderator được mở
-        </div>
-      </div>
+    <Shell
+      aria-label="Tố cáo lừa đảo Avin Check"
+      as="section"
+      className="flex w-full flex-col items-start gap-6"
+    >
+      <Link
+        className="inline-flex items-center gap-1.5 font-medium text-muted-foreground text-sm transition-colors hover:text-foreground"
+        to="/avin-check"
+      >
+        <ArrowLeftIcon aria-hidden="true" className="size-4" />
+        Quay lại
+      </Link>
 
-      <header className="text-center">
-        <h1 className="font-bold text-2xl tracking-tight text-foreground sm:text-3xl">
-          ĐIỀN THÔNG TIN TỐ CÁO
-        </h1>
-        <p className="mt-2 text-muted-foreground text-sm">
-          Chung tay cùng cộng đồng tố cáo và ngăn chặn các hành vi lừa đảo trực
-          tuyến
-        </p>
+      <header className="flex w-full flex-wrap items-start justify-between gap-2 text-left">
+        <div>
+          <p className="font-medium text-primary text-sm">Avin Check</p>
+          <h1
+            className="font-bold text-3xl tracking-tight text-foreground"
+            id="risk-report-title"
+          >
+            Tố cáo lừa đảo & rủi ro
+          </h1>
+          <p className="mt-1 text-muted-foreground text-sm">
+            Chung tay cùng cộng đồng tố cáo và ngăn chặn các hành vi lừa đảo
+            trực tuyến
+          </p>
+        </div>
       </header>
 
-      {/* 3 Simple Tabs */}
-      <div className="grid grid-cols-3 rounded-2xl border bg-muted/30 p-1.5 text-sm">
+      {/* 3 Tabs matching ProviderApplicationForm layout */}
+      <div
+        className="grid w-full grid-cols-3 gap-2 rounded-2xl border bg-muted/30 p-1.5"
+        role="tablist"
+      >
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
           return (
             <button
-              className={`flex items-center justify-center gap-2 rounded-xl py-3 font-semibold transition ${
+              aria-selected={isActive}
+              className={`flex items-center justify-center gap-2 rounded-xl py-2.5 font-semibold text-xs transition ${
                 isActive
-                  ? "bg-card text-primary shadow-sm ring-1 ring-border"
+                  ? "bg-card text-primary shadow-xs"
                   : "text-muted-foreground hover:text-foreground"
               }`}
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
+              role="tab"
               type="button"
             >
               <Icon aria-hidden="true" className="size-4 shrink-0" />
@@ -430,39 +439,37 @@ export const RiskReportPage = () => {
         })}
       </div>
 
-      <Card>
-        <CardContent className="pt-6">
-          {activeTab === "BANK_WALLET_PHONE" ? (
-            <TransactionReportForm
-              initialData={{
-                accountNumber: prefilledIdentifier,
-              }}
-              isSubmitting={isBusy}
-              onSubmit={handleTransactionSubmit}
-            />
-          ) : null}
+      <div className="w-full">
+        {activeTab === "BANK_WALLET_PHONE" ? (
+          <TransactionReportForm
+            initialData={{
+              accountNumber: prefilledIdentifier,
+            }}
+            isSubmitting={isBusy}
+            onSubmit={handleTransactionSubmit}
+          />
+        ) : null}
 
-          {activeTab === "MALICIOUS_WEBSITE" ? (
-            <WebsiteReportForm
-              initialData={{
-                websiteUrl: prefilledIdentifier,
-              }}
-              isSubmitting={isBusy}
-              onSubmit={handleWebsiteSubmit}
-            />
-          ) : null}
+        {activeTab === "MALICIOUS_WEBSITE" ? (
+          <WebsiteReportForm
+            initialData={{
+              websiteUrl: prefilledIdentifier,
+            }}
+            isSubmitting={isBusy}
+            onSubmit={handleWebsiteSubmit}
+          />
+        ) : null}
 
-          {activeTab === "SOCIAL_GAME_ACCOUNT" ? (
-            <AccountReportForm
-              initialData={{
-                accountId: prefilledIdentifier,
-              }}
-              isSubmitting={isBusy}
-              onSubmit={handleAccountSubmit}
-            />
-          ) : null}
-        </CardContent>
-      </Card>
+        {activeTab === "SOCIAL_GAME_ACCOUNT" ? (
+          <AccountReportForm
+            initialData={{
+              accountId: prefilledIdentifier,
+            }}
+            isSubmitting={isBusy}
+            onSubmit={handleAccountSubmit}
+          />
+        ) : null}
+      </div>
     </Shell>
   );
 };

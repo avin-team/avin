@@ -105,15 +105,15 @@ describe("RiskReportPage", () => {
   it("renders 3 simple tabs (Chuyển tiền, Website giả, Acc bị back) and defaults to Chuyển tiền", () => {
     renderWithQueryClient(<RiskReportPage />);
 
-    expect(screen.getByText("ĐIỀN THÔNG TIN TỐ CÁO")).toBeInTheDocument();
+    expect(screen.getByText("Tố cáo lừa đảo & rủi ro")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /chuyển tiền/iu })
+      screen.getByRole("tab", { name: /chuyển tiền/iu })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /website giả/iu })
+      screen.getByRole("tab", { name: /website giả/iu })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /acc bị back/iu })
+      screen.getByRole("tab", { name: /acc bị back/iu })
     ).toBeInTheDocument();
 
     expect(screen.getByLabelText(/tên chủ tài khoản/iu)).toBeInTheDocument();
@@ -125,7 +125,7 @@ describe("RiskReportPage", () => {
   it("switches to Website giả tab and displays appropriate fields", async () => {
     renderWithQueryClient(<RiskReportPage />);
 
-    const webTab = screen.getByRole("button", { name: /website giả/iu });
+    const webTab = screen.getByRole("tab", { name: /website giả/iu });
     fireEvent.click(webTab);
 
     await waitFor(() => {
@@ -138,7 +138,7 @@ describe("RiskReportPage", () => {
   it("switches to Acc bị back tab and displays platform and account ID fields", async () => {
     renderWithQueryClient(<RiskReportPage />);
 
-    const accTab = screen.getByRole("button", { name: /acc bị back/iu });
+    const accTab = screen.getByRole("tab", { name: /acc bị back/iu });
     fireEvent.click(accTab);
 
     await waitFor(() => {
