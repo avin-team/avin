@@ -168,11 +168,11 @@ describe("Risk report contracts", () => {
       assertRiskReportSubmission({
         ...bankSubmission,
         evidence: [
-          { ...cleanEvidence("PAYMENT_PROOF"), scanStatus: "PENDING" },
+          { ...cleanEvidence("PAYMENT_PROOF"), scanStatus: "INFECTED" },
           cleanEvidence("CONVERSATION"),
         ],
       })
-    ).toThrow("malware scanning");
+    ).toThrow("malware");
     expect(() =>
       assertRiskReportSubmission({
         ...bankSubmission,

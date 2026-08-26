@@ -34,10 +34,6 @@ import {
 } from "../runtime/storage";
 import { getProtectionLaunchConfiguration } from "./configuration";
 import { publicNativeRiskFilter } from "./external-risk-import";
-import {
-  assertProtectionOperationAllowed,
-  getProtectionReadinessStatus,
-} from "./launch-gates";
 import type { ProtectionLaunchConfiguration } from "./launch-gates";
 import {
   assertRiskReportIntake,

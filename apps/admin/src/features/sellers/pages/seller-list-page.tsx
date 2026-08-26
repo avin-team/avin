@@ -39,6 +39,7 @@ import { useAdminSellerList } from "../api/seller-enforcement-api";
 import { EnforcementDialog } from "../components/enforcement-dialog";
 import { SellerEnforcementBadge } from "../components/seller-enforcement-badge";
 import type { SellerEnforcementStatus } from "../types";
+import { getSellerStoreURL } from "../utils/seller-store-url";
 
 type StatusFilter = "ALL" | SellerEnforcementStatus;
 
@@ -58,6 +59,15 @@ const STATUS_FILTER_ITEMS: { label: string; value: StatusFilter }[] = [
   { label: "Suspended (Tạm dừng)", value: "SUSPENDED" },
   { label: "Banned (Đã cấm)", value: "BANNED" },
 ];
+
+const navigateToSellerStore = (storeURL: string | null): void => {
+  if (storeURL) {
+    window.open(storeURL, "_blank", "noopener,noreferrer");
+  }
+};
+
+const isRowActionTarget = (target: EventTarget | null): boolean =>
+  target instanceof Element && target.closest("[data-row-action]") !== null;
 
 export const SellerListPage = () => {
   const [query, setQuery] = useState("");
@@ -161,108 +171,145 @@ export const SellerListPage = () => {
                           ))}
                         </TableRow>
                       ))
-                    : sellers.map((seller) => (
-                        <TableRow key={seller.id}>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium text-base">
-                                {seller.storefrontName}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                Tham gia:{" "}
-                                {new Date(seller.joinedAt).toLocaleDateString(
-                                  "vi-VN"
-                                )}
-                              </p>
-                              {seller.hasActiveAppeal ? (
-                                <Badge
-                                  className="mt-1 text-[10px]"
+                    : sellers.map((seller) => {
+                        const storeURL = getSellerStoreURL(seller.storeSlug);
+
+                        return (
+                          <TableRow
+                            aria-label={
+                              storeURL
+                                ? `Mở gian hàng ${seller.storefrontName}`
+                                : undefined
+                            }
+                            className={storeURL ? "cursor-pointer" : undefined}
+                            key={seller.id}
+                            onClick={(event) => {
+                              if (!isRowActionTarget(event.target)) {
+                                navigateToSellerStore(storeURL);
+                              }
+                            }}
+                            onKeyDown={(event) => {
+                              if (
+                                !storeURL ||
+                                isRowActionTarget(event.target) ||
+                                (event.key !== "Enter" && event.key !== " ")
+                              ) {
+                                return;
+                              }
+
+                              event.preventDefault();
+                              navigateToSellerStore(storeURL);
+                            }}
+                            role={storeURL ? "link" : undefined}
+                            tabIndex={storeURL ? 0 : undefined}
+                          >
+                            <TableCell>
+                              <div>
+                                <p className="font-medium text-base">
+                                  {seller.storefrontName}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Tham gia:{" "}
+                                  {new Date(seller.joinedAt).toLocaleDateString(
+                                    "vi-VN"
+                                  )}
+                                </p>
+                                {seller.hasActiveAppeal ? (
+                                  <Badge
+                                    className="mt-1 text-[10px]"
+                                    variant="outline"
+                                  >
+                                    Đang có khiếu nại
+                                  </Badge>
+                                ) : null}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <p className="text-sm font-medium">
+                                  {seller.applicantName}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {seller.email}
+                                </p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-xs">
+                                <p className="font-medium text-amber-600 dark:text-amber-400">
+                                  {seller.averageRating.toFixed(1)} ★ (
+                                  {seller.ratingCount})
+                                </p>
+                                <p className="text-muted-foreground">
+                                  {seller.completedOrdersCount} đơn hoàn thành
+                                </p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="font-mono text-xs">
+                                <p className="font-medium text-emerald-600 dark:text-emerald-400">
+                                  {seller.availableBalanceVnd.toLocaleString(
+                                    "vi-VN"
+                                  )}
+                                  đ
+                                </p>
+                                <p className="text-muted-foreground">
+                                  +
+                                  {seller.heldBalanceVnd.toLocaleString(
+                                    "vi-VN"
+                                  )}
+                                  đ giữ
+                                </p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <SellerEnforcementBadge
+                                status={seller.enforcementStatus}
+                              />
+                              {seller.enforcementStatus === "SUSPENDED" &&
+                              seller.expiresAt ? (
+                                <p className="mt-1 text-[10px] text-muted-foreground">
+                                  Hết hạn:{" "}
+                                  {new Date(
+                                    seller.expiresAt
+                                  ).toLocaleDateString("vi-VN")}
+                                </p>
+                              ) : null}
+                            </TableCell>
+                            <TableCell className="text-end">
+                              <div
+                                className="flex items-center justify-end gap-2"
+                                data-row-action
+                              >
+                                <Button
+                                  onClick={() => setEnforcingId(seller.id)}
+                                  size="sm"
+                                  variant={
+                                    seller.enforcementStatus === "ACTIVE"
+                                      ? "destructive"
+                                      : "outline"
+                                  }
+                                >
+                                  <GearIcon className="mr-1" />
+                                  {getActionLabel(seller.enforcementStatus)}
+                                </Button>
+                                <Button
+                                  render={
+                                    <Link
+                                      params={{ sellerId: seller.id }}
+                                      to="/sellers/$sellerId"
+                                    />
+                                  }
+                                  size="sm"
                                   variant="outline"
                                 >
-                                  Đang có khiếu nại
-                                </Badge>
-                              ) : null}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <p className="text-sm font-medium">
-                                {seller.applicantName}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {seller.email}
-                              </p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="text-xs">
-                              <p className="font-medium text-amber-600 dark:text-amber-400">
-                                {seller.averageRating.toFixed(1)} ★ (
-                                {seller.ratingCount})
-                              </p>
-                              <p className="text-muted-foreground">
-                                {seller.completedOrdersCount} đơn hoàn thành
-                              </p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="font-mono text-xs">
-                              <p className="font-medium text-emerald-600 dark:text-emerald-400">
-                                {seller.availableBalanceVnd.toLocaleString(
-                                  "vi-VN"
-                                )}
-                                đ
-                              </p>
-                              <p className="text-muted-foreground">
-                                +{seller.heldBalanceVnd.toLocaleString("vi-VN")}
-                                đ giữ
-                              </p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <SellerEnforcementBadge
-                              status={seller.enforcementStatus}
-                            />
-                            {seller.enforcementStatus === "SUSPENDED" &&
-                            seller.expiresAt ? (
-                              <p className="mt-1 text-[10px] text-muted-foreground">
-                                Hết hạn:{" "}
-                                {new Date(seller.expiresAt).toLocaleDateString(
-                                  "vi-VN"
-                                )}
-                              </p>
-                            ) : null}
-                          </TableCell>
-                          <TableCell className="text-end">
-                            <div className="flex items-center justify-end gap-2">
-                              <Button
-                                onClick={() => setEnforcingId(seller.id)}
-                                size="sm"
-                                variant={
-                                  seller.enforcementStatus === "ACTIVE"
-                                    ? "destructive"
-                                    : "outline"
-                                }
-                              >
-                                <GearIcon className="mr-1" />
-                                {getActionLabel(seller.enforcementStatus)}
-                              </Button>
-                              <Button
-                                render={
-                                  <Link
-                                    params={{ sellerId: seller.id }}
-                                    to="/sellers/$sellerId"
-                                  />
-                                }
-                                size="sm"
-                                variant="outline"
-                              >
-                                Chi tiết
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                                  Chi tiết
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                   {!isPending && sellers.length === 0 && (
                     <TableRow>
                       <TableCell
