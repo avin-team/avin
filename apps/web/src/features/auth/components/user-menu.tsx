@@ -23,6 +23,7 @@ import { Skeleton } from "@avin/ui/components/skeleton";
 import {
   DesktopIcon,
   MoonIcon,
+  ShieldWarningIcon,
   SignOutIcon,
   StorefrontIcon,
   SunIcon,
@@ -155,6 +156,16 @@ export const UserMenu = () => {
               Trở thành người bán
             </DropdownMenuItem>
           )}
+          <DropdownMenuItem
+            onClick={async () => {
+              await navigate({
+                to: "/avin-check/reports",
+              });
+            }}
+          >
+            <ShieldWarningIcon className="me-2 size-4" />
+            Báo cáo của tôi
+          </DropdownMenuItem>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <SunIcon className="me-2 size-4" />

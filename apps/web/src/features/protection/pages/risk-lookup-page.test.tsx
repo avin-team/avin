@@ -1,3 +1,4 @@
+import type * as TanstackReactQuery from "@tanstack/react-query";
 import {
   cleanup,
   fireEvent,
@@ -12,7 +13,16 @@ import { RiskLookupPage } from "./risk-lookup-page";
 
 const mocks = vi.hoisted(() => ({
   mutateAsync: vi.fn(),
+  reportsData: [] as unknown[],
 }));
+
+vi.mock("@tanstack/react-query", async (importOriginal) => {
+  const actual = await importOriginal<typeof TanstackReactQuery>();
+  return {
+    ...actual,
+    useQuery: () => ({ data: mocks.reportsData, isPending: false }),
+  };
+});
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({
@@ -29,6 +39,25 @@ vi.mock("@tanstack/react-router", () => ({
       {children}
     </a>
   ),
+}));
+
+vi.mock("@/features/auth/api/session-query", () => ({
+  useSession: () => ({
+    data: mocks.reportsData.length > 0 ? { user: { id: "user-1" } } : null,
+    isPending: false,
+  }),
+}));
+
+vi.mock("@/utils/orpc", () => ({
+  orpc: {
+    protection: {
+      riskReport: {
+        getMine: {
+          queryOptions: () => ({ queryKey: ["getMine"] }),
+        },
+      },
+    },
+  },
 }));
 
 vi.mock("../api/risk-lookup-api", () => ({
@@ -259,6 +288,24 @@ describe("RiskLookupPage", () => {
     });
     expect(
       screen.getByRole("link", { name: "Gửi tố cáo về định danh này" })
+    ).toBeInTheDocument();
+  });
+
+  it("does not show 'Báo cáo của tôi' when user has no reports", () => {
+    mocks.reportsData = [];
+    render(<RiskLookupPage />);
+
+    expect(
+      screen.queryByRole("link", { name: "Báo cáo của tôi" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows 'Báo cáo của tôi' when user has reports", () => {
+    mocks.reportsData = [{ id: "report-1", status: "DRAFT" }];
+    render(<RiskLookupPage />);
+
+    expect(
+      screen.getByRole("link", { name: "Báo cáo của tôi" })
     ).toBeInTheDocument();
   });
 });

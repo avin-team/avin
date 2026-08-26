@@ -38,6 +38,8 @@ import {
 import type { RiskReportDetail } from "../api/risk-reports-api";
 import { ProviderRiskIncidentPanel } from "../components/provider-risk-incident-panel";
 
+const numberFormatter = new Intl.NumberFormat("vi-VN");
+
 const ACCEPTED_CONTENT_TYPES = {
   "application/pdf": [".pdf"],
   "image/jpeg": [".jpg", ".jpeg"],
@@ -60,31 +62,64 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const TYPE_LABELS = {
-  BANK_WALLET_PHONE: "Bank / ví / phone",
-  MALICIOUS_WEBSITE: "Website",
-  SOCIAL_GAME_ACCOUNT: "Social / game",
+  BANK_WALLET_PHONE: "Chuyển tiền / STK / Ví",
+  MALICIOUS_WEBSITE: "Website / App giả mạo",
+  SOCIAL_GAME_ACCOUNT: "Tài khoản Game / MXH bị back",
 } as const;
 
-const WEBSITE_VIOLATION_LABELS = {
+const WEBSITE_VIOLATION_LABELS: Record<string, string> = {
   FAKE_STORE: "Cửa hàng giả",
-  IMPERSONATION: "Mạo danh",
-  MALWARE: "Mã độc",
+  IMPERSONATION: "Mạo danh thương hiệu",
+  MALWARE: "Phát tán mã độc",
   OTHER: "Khác",
   PAYMENT_SCAM: "Lừa đảo thanh toán",
-  PHISHING: "Lừa đảo lấy thông tin",
-} as const;
+  PHISHING: "Lừa lấy thông tin",
+};
 
-const URGENCY_LABELS = {
+const URGENCY_LABELS: Record<string, string> = {
   NORMAL: "Thông thường",
   URGENT: "Khẩn cấp",
-} as const;
+};
+
+const IDENTIFIER_TYPE_LABELS: Record<string, string> = {
+  BANK_ACCOUNT: "Tài khoản ngân hàng",
+  PHONE: "Số điện thoại / Zalo",
+  PLATFORM_ACCOUNT: "Tài khoản nền tảng",
+  SOCIAL_ACCOUNT: "Mạng xã hội / Kênh chat",
+  WALLET_ACCOUNT: "Ví điện tử",
+  WEBSITE: "Website / App giả mạo",
+};
+
+const getIdentifierTypeLabel = (type: string): string =>
+  IDENTIFIER_TYPE_LABELS[type] ?? type;
+
+const getReporterInvolvementLabel = (
+  involvement: string | null | undefined
+): string => {
+  if (involvement === "BUYER") {
+    return "Người mua";
+  }
+  if (involvement === "SELLER") {
+    return "Người bán";
+  }
+  if (involvement === "INTERMEDIARY") {
+    return "Trung gian";
+  }
+  if (involvement === "AUTHORIZED_REPRESENTATIVE") {
+    return "Đại diện uỷ quyền";
+  }
+  if (involvement === "DIRECT_OBSERVER") {
+    return "Người quan sát / phát hiện";
+  }
+  return involvement ?? "Chưa cung cấp";
+};
 
 type InitialRiskReportDecision = "REJECTED" | "PUBLISHED";
 
 const DetailField = ({ label, value }: { label: string; value: string }) => (
-  <div className="grid gap-1.5">
-    <p className="font-medium text-sm">{label}</p>
-    <p className="text-muted-foreground text-sm break-words">{value}</p>
+  <div className="grid gap-1">
+    <p className="font-medium text-muted-foreground text-xs">{label}</p>
+    <p className="font-medium text-foreground text-sm break-words">{value}</p>
   </div>
 );
 
@@ -150,7 +185,7 @@ const RiskDerivativeUploader = ({
           {evidence.derivative.contentType} · {evidence.derivative.sizeBytes}{" "}
           bytes
         </p>
-        <p className="mt-1 text-muted-foreground">
+        <p className="mt-1 text-muted-foreground text-xs">
           Metadata removed · unrelated PII redacted · Avin watermark applied
         </p>
       </div>
@@ -159,12 +194,11 @@ const RiskDerivativeUploader = ({
 
   return (
     <div className="grid gap-3 rounded-xl border bg-muted/20 p-4">
-      <p className="font-medium text-sm">Tạo derivative publishable</p>
+      <p className="font-medium text-sm">Tải lên bản derivative đã che PII</p>
       <p className="text-muted-foreground text-xs">
-        Upload phải là file đã xử lý độc lập; bản gốc không được dùng làm public
-        artifact.
+        Dùng khi cần tải bản ảnh/tài liệu đã được biên tập và che riêng biệt.
       </p>
-      <label className="flex items-start gap-2 text-sm">
+      <label className="flex items-start gap-2 text-xs">
         <input
           checked={metadataRemoved}
           onChange={(event) => setMetadataRemoved(event.target.checked)}
@@ -172,7 +206,7 @@ const RiskDerivativeUploader = ({
         />
         <span>Đã xoá metadata nhạy cảm khỏi bản derivative.</span>
       </label>
-      <label className="flex items-start gap-2 text-sm">
+      <label className="flex items-start gap-2 text-xs">
         <input
           checked={unrelatedPiiRedacted}
           onChange={(event) => setUnrelatedPiiRedacted(event.target.checked)}
@@ -182,7 +216,7 @@ const RiskDerivativeUploader = ({
           Đã che PII không liên quan và nội dung ngoài phạm vi warning.
         </span>
       </label>
-      <label className="flex items-start gap-2 text-sm">
+      <label className="flex items-start gap-2 text-xs">
         <input
           checked={watermarkApplied}
           onChange={(event) => setWatermarkApplied(event.target.checked)}
@@ -205,7 +239,7 @@ const RiskDerivativeUploader = ({
         uploadingLabel="Đang upload derivative…"
       />
       {errorMessage ? (
-        <p className="text-destructive text-sm" role="alert">
+        <p className="text-destructive text-xs" role="alert">
           {errorMessage}
         </p>
       ) : null}
@@ -220,8 +254,16 @@ const EvidenceCard = ({
   evidence: RiskReportDetail["evidence"][number];
   reportId: string;
 }) => {
+  const [showDerivativeUploader, setShowDerivativeUploader] = useState(false);
   const [urlError, setUrlError] = useState<string>();
   const [loadingUrl, setLoadingUrl] = useState(false);
+
+  const isImage =
+    evidence.contentType.startsWith("image/") ||
+    /\.(?:png|jpe?g|webp|gif)$/iu.test(evidence.fileName);
+  const isVideo =
+    evidence.contentType.startsWith("video/") ||
+    /\.(?:mp4|webm)$/iu.test(evidence.fileName);
 
   const handleOpenOriginal = async () => {
     setLoadingUrl(true);
@@ -242,14 +284,41 @@ const EvidenceCard = ({
     }
   };
 
+  const previewSource = evidence.publicUrl;
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{evidence.fileName}</CardTitle>
-        <CardDescription>
-          {evidence.kind} · {evidence.contentType} · {evidence.sizeBytes} bytes
-          · scan {evidence.scanStatus}
-        </CardDescription>
+    <Card className="overflow-hidden">
+      <CardHeader className="pb-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <CardTitle className="font-semibold text-base">
+              {evidence.fileName}
+            </CardTitle>
+            <CardDescription className="text-xs">
+              {evidence.kind} · {evidence.contentType} ·{" "}
+              {(evidence.sizeBytes / 1024).toFixed(1)} KB · Quét an toàn:{" "}
+              <span
+                className={
+                  evidence.scanStatus === "CLEAN"
+                    ? "font-medium text-emerald-600 dark:text-emerald-400"
+                    : "text-amber-600"
+                }
+              >
+                {evidence.scanStatus}
+              </span>
+            </CardDescription>
+          </div>
+          <Button
+            disabled={loadingUrl}
+            onClick={() => void handleOpenOriginal()}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            <DownloadSimpleIcon />
+            {loadingUrl ? "Đang tạo link..." : "Mở file gốc"}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="grid gap-4">
         {evidence.explanation ? (
@@ -258,24 +327,50 @@ const EvidenceCard = ({
             {evidence.explanation}
           </p>
         ) : null}
-        <div className="grid gap-2 text-xs">
-          <p className="text-muted-foreground break-all">
-            Original private key: {evidence.originalStorageKey}
-          </p>
+
+        {isImage && previewSource ? (
+          <div className="flex max-h-96 items-center justify-center overflow-hidden rounded-xl border bg-muted/10 p-2">
+            <img
+              alt={evidence.fileName}
+              className="max-h-80 w-auto rounded-lg object-contain"
+              src={previewSource}
+            />
+          </div>
+        ) : null}
+
+        {isVideo && previewSource ? (
+          <div className="rounded-xl border bg-muted/10 p-2">
+            <video
+              className="max-h-80 w-full rounded-lg"
+              controls
+              src={previewSource}
+            >
+              <track kind="captions" />
+            </video>
+          </div>
+        ) : null}
+
+        {urlError ? (
+          <p className="text-destructive text-xs">{urlError}</p>
+        ) : null}
+
+        <div className="border-t pt-3">
           <Button
-            className="w-fit"
-            disabled={loadingUrl}
-            onClick={() => void handleOpenOriginal()}
-            size="sm"
+            className="h-auto p-0 text-muted-foreground text-xs hover:text-foreground"
+            onClick={() => setShowDerivativeUploader(!showDerivativeUploader)}
             type="button"
-            variant="outline"
+            variant="link"
           >
-            <DownloadSimpleIcon />
-            {loadingUrl ? "Đang tạo link…" : "Mở bản gốc signed URL"}
+            {showDerivativeUploader
+              ? "Ẩn công cụ tạo derivative che PII"
+              : "Tuỳ chọn: Đăng ký bản derivative che PII thủ công..."}
           </Button>
-          {urlError ? <p className="text-destructive">{urlError}</p> : null}
+          {showDerivativeUploader ? (
+            <div className="mt-3">
+              <RiskDerivativeUploader evidence={evidence} reportId={reportId} />
+            </div>
+          ) : null}
         </div>
-        <RiskDerivativeUploader evidence={evidence} reportId={reportId} />
       </CardContent>
     </Card>
   );
@@ -375,7 +470,7 @@ const DecisionPanel = ({ report }: { report: RiskReportDetail }) => {
         id: report.id,
         reason: reason.trim() || undefined,
       });
-      toast.success("Đã ghi quyết định Risk Moderator.");
+      toast.success("Đã duyệt và công khai cảnh báo thành công!");
       setDecision(undefined);
       setReason("");
     } catch (error) {
@@ -390,8 +485,8 @@ const DecisionPanel = ({ report }: { report: RiskReportDetail }) => {
       <CardHeader>
         <CardTitle>Quyết định moderation</CardTitle>
         <CardDescription>
-          Publication chỉ thành công khi launch gates, evidence requirements và
-          toàn bộ derivative gates đều đạt.
+          Phê duyệt để công khai cảnh báo lên hệ thống Avin Check hoặc từ chối
+          đơn vi phạm.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3">
@@ -420,8 +515,8 @@ export const RiskReportDetailPage = () => {
       <Header fixed />
       <Main className="flex flex-1 flex-col gap-6">
         <Button
-          render={<Link to="/avin-check/risk-reports" />}
           className="w-fit"
+          render={<Link to="/avin-check/risk-reports" />}
           variant="ghost"
         >
           <ArrowLeftIcon />
@@ -444,116 +539,186 @@ export const RiskReportDetailPage = () => {
               <h1 className="mt-1 font-semibold text-3xl tracking-tight">
                 {report.id}
               </h1>
-              <p className="mt-2 text-muted-foreground">
-                {TYPE_LABELS[report.type]} · {STATUS_LABELS[report.status]}
+              <p className="mt-2 text-muted-foreground text-sm">
+                {TYPE_LABELS[report.type]} · Trạng thái:{" "}
+                <span className="font-semibold text-foreground">
+                  {STATUS_LABELS[report.status] ?? report.status}
+                </span>
               </p>
             </div>
+
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
               <div className="grid gap-6">
+                {/* 1. Thông tin đối tượng bị tố cáo */}
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Reporter private</CardTitle>
-                    <CardDescription>
-                      Chỉ hiển thị trong surface Admin đã xác thực và được
-                      audit.
+                  <CardHeader className="pb-3">
+                    <CardTitle className="font-semibold text-base">
+                      Thông tin đối tượng bị tố cáo
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      Các tài khoản ngân hàng, kênh MXH, số điện thoại của đối
+                      tượng
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="grid gap-5 sm:grid-cols-2">
-                    <DetailField label="Email" value={report.reporterEmail} />
-                    <DetailField
-                      label="Tên"
-                      value={report.reporterName ?? "Ẩn danh"}
-                    />
-                    <DetailField
-                      label="Điện thoại"
-                      value={report.reporterPhone ?? "Không cung cấp"}
-                    />
-                    <DetailField
-                      label="Zalo"
-                      value={report.reporterZalo ?? "Không cung cấp"}
-                    />
-                    <DetailField
-                      label="Tổn thất khai báo"
-                      value={`${report.claimedLoss ?? 0} VND`}
-                    />
-                    <DetailField
-                      label="Nền tảng"
-                      value={report.platform ?? "Không áp dụng"}
-                    />
-                    <DetailField
-                      label="Loại vi phạm website"
-                      value={
-                        report.violationType
-                          ? WEBSITE_VIOLATION_LABELS[report.violationType]
-                          : "Không áp dụng"
-                      }
-                    />
-                    <DetailField
-                      label="Mức độ khẩn cấp"
-                      value={URGENCY_LABELS[report.urgency]}
-                    />
-                    <DetailField
-                      label="Ngày mua tài khoản"
-                      value={
-                        report.purchaseAt
-                          ? new Date(report.purchaseAt).toLocaleDateString(
-                              "vi-VN"
-                            )
-                          : "Không cung cấp"
-                      }
-                    />
-                    <DetailField
-                      label="Ngày bàn giao tài khoản"
-                      value={
-                        report.handoverAt
-                          ? new Date(report.handoverAt).toLocaleDateString(
-                              "vi-VN"
-                            )
-                          : "Không cung cấp"
-                      }
-                    />
-                    <DetailField
-                      label="Ngày mất quyền truy cập"
-                      value={
-                        report.accessLostAt
-                          ? new Date(report.accessLostAt).toLocaleDateString(
-                              "vi-VN"
-                            )
-                          : "Không cung cấp"
-                      }
-                    />
-                    <DetailField
-                      label="Số nạn nhân bị ảnh hưởng"
-                      value={String(report.affectedVictimCount)}
-                    />
-                    <DetailField
-                      label="Narrative"
-                      value={report.narrative ?? "Chưa cung cấp"}
-                    />
-                    <DetailField
-                      label="Packet công khai sau redaction"
-                      value={report.publicNarrative ?? "Chưa tạo bản public"}
-                    />
-                    <DetailField
-                      label="Vai trò người tố cáo"
-                      value={report.reporterInvolvement ?? "Chưa cung cấp"}
-                    />
+                  <CardContent className="grid gap-3 sm:grid-cols-2">
+                    {report.identifiers.map((identifier) => {
+                      const isBank = identifier.type === "BANK_ACCOUNT";
+                      return (
+                        <div
+                          className="space-y-1.5 rounded-xl border bg-muted/20 p-3.5 text-sm"
+                          key={identifier.id}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-semibold text-[11px] text-primary uppercase tracking-wider">
+                              {getIdentifierTypeLabel(identifier.type)}
+                            </span>
+                            {identifier.isPrimary ? (
+                              <span className="rounded-full bg-primary/10 px-2 py-0.5 font-medium text-[10px] text-primary">
+                                Chính (Primary)
+                              </span>
+                            ) : null}
+                          </div>
+                          {isBank && identifier.institutionName ? (
+                            <p className="font-medium text-foreground">
+                              Ngân hàng:{" "}
+                              <span className="font-bold">
+                                {identifier.institutionName}
+                              </span>
+                            </p>
+                          ) : null}
+                          {isBank && identifier.holderName ? (
+                            <p className="text-muted-foreground text-xs">
+                              Chủ TK:{" "}
+                              <span className="font-semibold text-foreground uppercase">
+                                {identifier.holderName}
+                              </span>
+                            </p>
+                          ) : null}
+                          <p className="font-mono font-semibold text-primary text-sm break-all">
+                            {identifier.value}
+                          </p>
+                        </div>
+                      );
+                    })}
                   </CardContent>
                 </Card>
+
+                {/* 2. Chi tiết sự việc & Thiệt hại */}
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Risk identifiers private</CardTitle>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="font-semibold text-base">
+                      Chi tiết sự việc & Thiệt hại
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="grid gap-4 sm:grid-cols-2">
-                    {report.identifiers.map((identifier) => (
+                    <DetailField
+                      label="Số tiền thiệt hại"
+                      value={
+                        report.claimedLoss
+                          ? `${numberFormatter.format(report.claimedLoss)} VNĐ`
+                          : "Không có thiệt hại tiền mặt"
+                      }
+                    />
+                    <DetailField
+                      label="Ngày xảy ra sự việc"
+                      value={
+                        report.incidentAt
+                          ? new Date(report.incidentAt).toLocaleDateString(
+                              "vi-VN"
+                            )
+                          : "Không rõ ngày"
+                      }
+                    />
+                    <DetailField
+                      label="Trạng thái lừa đảo"
+                      value={report.ongoing ? "Đang tiếp diễn" : "Đã kết thúc"}
+                    />
+                    {report.platform ? (
                       <DetailField
-                        key={identifier.id}
-                        label={`${identifier.type}${identifier.isPrimary ? " · primary" : ""}`}
-                        value={identifier.value}
+                        label="Nền tảng tài khoản"
+                        value={report.platform}
                       />
-                    ))}
+                    ) : null}
+                    {report.violationType ? (
+                      <DetailField
+                        label="Hình thức vi phạm"
+                        value={
+                          WEBSITE_VIOLATION_LABELS[report.violationType] ??
+                          report.violationType
+                        }
+                      />
+                    ) : null}
+                    <DetailField
+                      label="Mức độ khẩn cấp"
+                      value={URGENCY_LABELS[report.urgency] ?? report.urgency}
+                    />
                   </CardContent>
                 </Card>
+
+                {/* 3. Nội dung tố cáo */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="font-semibold text-base">
+                      Nội dung tố cáo
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4 text-sm leading-relaxed">
+                    <div className="space-y-1.5 rounded-xl border bg-muted/20 p-4">
+                      <p className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+                        Nội dung gốc (Do nạn nhân gửi)
+                      </p>
+                      <p className="whitespace-pre-line text-foreground">
+                        {report.narrative}
+                      </p>
+                    </div>
+                    {report.publicNarrative ? (
+                      <div className="space-y-1.5 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                        <p className="font-semibold text-primary text-xs uppercase tracking-wider">
+                          Bản công khai (Đã tự động ẩn thông tin nhạy cảm PII)
+                        </p>
+                        <p className="whitespace-pre-line text-foreground">
+                          {report.publicNarrative}
+                        </p>
+                      </div>
+                    ) : null}
+                  </CardContent>
+                </Card>
+
+                {/* 4. Thông tin người tố cáo */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="font-semibold text-base">
+                      Thông tin người tố cáo
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      Chỉ hiển thị cho Quản trị viên (được kiểm toán bảo mật)
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="grid gap-4 sm:grid-cols-2">
+                    <DetailField
+                      label="Họ và tên"
+                      value={report.reporterName ?? "Ẩn danh"}
+                    />
+                    <DetailField label="Email" value={report.reporterEmail} />
+                    {report.reporterPhone ? (
+                      <DetailField
+                        label="Số điện thoại"
+                        value={report.reporterPhone}
+                      />
+                    ) : null}
+                    {report.reporterZalo ? (
+                      <DetailField label="Zalo" value={report.reporterZalo} />
+                    ) : null}
+                    <DetailField
+                      label="Vai trò người tố cáo"
+                      value={getReporterInvolvementLabel(
+                        report.reporterInvolvement
+                      )}
+                    />
+                  </CardContent>
+                </Card>
+
+                {/* 5. Bằng chứng đính kèm */}
                 <section
                   aria-labelledby="risk-evidence-heading"
                   className="grid gap-4"
@@ -562,7 +727,7 @@ export const RiskReportDetailPage = () => {
                     className="font-semibold text-xl"
                     id="risk-evidence-heading"
                   >
-                    Evidence & public derivatives
+                    Bằng chứng đính kèm ({report.evidence.length})
                   </h2>
                   {report.evidence.map((evidence) => (
                     <EvidenceCard
@@ -573,17 +738,20 @@ export const RiskReportDetailPage = () => {
                   ))}
                   {report.evidence.length === 0 ? (
                     <p className="rounded-xl border p-4 text-muted-foreground text-sm">
-                      Chưa có evidence.
+                      Chưa có bằng chứng nào được tải lên.
                     </p>
                   ) : null}
                 </section>
+
                 <ProviderRiskIncidentPanel reportId={report.id} />
               </div>
+
+              {/* Right column: Quyết định & Lịch sử */}
               <div className="grid content-start gap-6">
                 <DecisionPanel report={report} />
                 <Card>
                   <CardHeader>
-                    <CardTitle>History append-only</CardTitle>
+                    <CardTitle>Lịch sử trạng thái</CardTitle>
                   </CardHeader>
                   <CardContent className="grid gap-3">
                     {report.history.map((item) => (
@@ -598,12 +766,17 @@ export const RiskReportDetailPage = () => {
                           {new Date(item.createdAt).toLocaleString("vi-VN")}
                         </p>
                         {item.reason ? (
-                          <p className="mt-1 text-muted-foreground">
-                            {item.reason}
+                          <p className="mt-1 text-muted-foreground text-xs">
+                            Lý do: {item.reason}
                           </p>
                         ) : null}
                       </div>
                     ))}
+                    {report.history.length === 0 ? (
+                      <p className="text-muted-foreground text-sm">
+                        Chưa có lịch sử trạng thái.
+                      </p>
+                    ) : null}
                   </CardContent>
                 </Card>
               </div>

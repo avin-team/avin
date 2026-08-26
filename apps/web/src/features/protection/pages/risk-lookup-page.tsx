@@ -11,16 +11,20 @@ import {
 import { Input } from "@avin/ui/components/input";
 import { Skeleton } from "@avin/ui/components/skeleton";
 import {
+  ClockCounterClockwiseIcon,
   FlagIcon,
   MagnifyingGlassIcon,
   ShieldWarningIcon,
   XIcon,
 } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import type { FormEvent } from "react";
 
 import { Shell } from "@/components/shell";
+import { useSession } from "@/features/auth/api/session-query";
+import { orpc } from "@/utils/orpc";
 
 import {
   usePublicRiskIdentifierSearch,
@@ -323,6 +327,13 @@ export const RiskLookupPage = () => {
   const [value, setValue] = useState("");
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [clientError, setClientError] = useState<string | null>(null);
+  const { data: session } = useSession();
+  const myReports = useQuery({
+    ...orpc.protection.riskReport.getMine.queryOptions({ input: {} }),
+    enabled: Boolean(session),
+  });
+  const hasMyReports = Boolean(myReports.data && myReports.data.length > 0);
+
   const searchMutation = usePublicRiskIdentifierSearch();
   const statisticsQuery = usePublicRiskStatistics();
   const [result, setResult] = useState<PublicRiskIdentifierLookup | null>(
@@ -405,13 +416,24 @@ export const RiskLookupPage = () => {
               Kiểm tra dấu hiệu lừa đảo.
             </h1>
           </div>
-          <Link
-            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-4xl border border-input px-3 font-medium text-sm transition hover:bg-accent hover:text-accent-foreground"
-            to="/avin-check/report"
-          >
-            <FlagIcon data-icon="inline-start" />
-            Gửi tố cáo
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            {hasMyReports ? (
+              <Link
+                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-4xl border border-input px-3.5 font-medium text-sm transition hover:bg-accent hover:text-accent-foreground"
+                to="/avin-check/reports"
+              >
+                <ClockCounterClockwiseIcon data-icon="inline-start" />
+                Báo cáo của tôi
+              </Link>
+            ) : null}
+            <Link
+              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-4xl border border-input px-3.5 font-medium text-sm transition hover:bg-accent hover:text-accent-foreground"
+              to="/avin-check/report"
+            >
+              <FlagIcon data-icon="inline-start" />
+              Gửi tố cáo
+            </Link>
+          </div>
         </div>
         <form className="grid gap-3" onSubmit={handleSubmit}>
           <label className="font-medium text-sm" htmlFor="risk-lookup-value">

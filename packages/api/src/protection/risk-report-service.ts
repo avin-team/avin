@@ -199,7 +199,8 @@ const toPrivateIdentifierView = (identifier: RiskIdentifier) => ({
 
 const toPrivateEvidenceView = (
   evidence: RiskEvidence,
-  derivative?: RiskDerivative | null
+  derivative?: RiskDerivative | null,
+  supabaseUrl = env.SUPABASE_URL
 ) => ({
   contentType: evidence.contentType,
   derivative: derivative
@@ -207,6 +208,7 @@ const toPrivateEvidenceView = (
         contentType: derivative.contentType,
         id: derivative.id,
         metadataRemoved: derivative.metadataRemoved,
+        publicUrl: createPublicMediaUrl(supabaseUrl, derivative.storageKey),
         sizeBytes: derivative.sizeBytes,
         storageKey: derivative.storageKey,
         unrelatedPiiRedacted: derivative.unrelatedPiiRedacted,
@@ -219,6 +221,10 @@ const toPrivateEvidenceView = (
   immutableAt: evidence.immutableAt.toISOString(),
   kind: evidence.kind,
   originalStorageKey: evidence.originalStorageKey,
+  publicUrl: createPublicMediaUrl(
+    supabaseUrl,
+    derivative?.storageKey ?? evidence.originalStorageKey
+  ),
   scanReason: evidence.scanReason,
   scanStatus: evidence.scanStatus,
   sha256: evidence.sha256,
@@ -1925,6 +1931,24 @@ const assertReadyDerivatives = (
   evidence: RiskEvidence[],
   derivatives: RiskDerivative[]
 ): void => {
+  if (evidence.length === 0) {
+    throw new ORPCError("BAD_REQUEST", {
+      message:
+        "Báo cáo cần có ít nhất một bằng chứng đính kèm trước khi công khai.",
+    });
+  }
+  if (derivatives.length === 0) {
+    const hasCleanEvidence = evidence.some(
+      (item) => item.scanStatus === "CLEAN"
+    );
+    if (!hasCleanEvidence) {
+      throw new ORPCError("BAD_REQUEST", {
+        message:
+          "Tất cả bằng chứng phải vượt qua kiểm tra an toàn trước khi công khai.",
+      });
+    }
+    return;
+  }
   const derivativeByEvidenceId = new Map(
     derivatives.map((item) => [item.evidenceId, item])
   );
@@ -1941,7 +1965,7 @@ const assertReadyDerivatives = (
   if (!hasReadyDerivative) {
     throw new ORPCError("BAD_REQUEST", {
       message:
-        "At least one evidence file needs a validated redacted derivative before publication.",
+        "Bằng chứng đã chỉnh sửa (derivative) chưa hợp lệ hoặc thiếu watermark.",
     });
   }
 };
@@ -2023,9 +2047,10 @@ const assertRiskReportPublicationReady = ({
     claimedLoss: report.claimedLoss,
     evidence: materials.evidence.map((evidence) => ({
       kind: evidence.kind,
-      publicCopyReady: materials.derivatives.some(
-        (derivative) => derivative.evidenceId === evidence.id
-      ),
+      publicCopyReady:
+        materials.derivatives.some(
+          (derivative) => derivative.evidenceId === evidence.id
+        ) || evidence.scanStatus === "CLEAN",
       scanStatus: evidence.scanStatus,
     })) as RiskReportSubmissionEvidence[],
     handoverAt: report.handoverAt,
@@ -2099,13 +2124,25 @@ export const decideRiskReport = async ({
   assertRiskReportDecisionReason(decision, reason);
 
   const materials = await loadReportMaterials(database, report.id);
-  assertRiskReportPublicationReady({
-    decision,
-    launchConfiguration,
-    materials,
-    report,
-    underVerificationApproved,
-  });
+  try {
+    assertRiskReportPublicationReady({
+      decision,
+      launchConfiguration,
+      materials,
+      report,
+      underVerificationApproved,
+    });
+  } catch (error) {
+    if (error instanceof ORPCError) {
+      throw error;
+    }
+    throw new ORPCError("BAD_REQUEST", {
+      message:
+        error instanceof Error
+          ? error.message
+          : "Không thể phê duyệt báo cáo rủi ro.",
+    });
+  }
 
   const nextPublicSlug =
     isPublicRiskReportStatus(decision) && !report.publicSlug
@@ -2427,33 +2464,34 @@ const toPublicWarningView = (
     claimedLoss: isRemoved ? null : report.claimedLoss,
     evidence: isRemoved
       ? []
-      : evidence.flatMap((item) => {
+      : evidence.map((item) => {
           const derivative = derivativesByEvidenceId.get(item.id);
-          if (
-            !derivative ||
-            !isRiskReportDerivativeKey(
+          const hasValidDerivative =
+            derivative !== undefined &&
+            isRiskReportDerivativeKey(
               derivative.storageKey,
               report.id,
               item.id
-            ) ||
-            !derivative.metadataRemoved ||
-            !derivative.unrelatedPiiRedacted ||
-            !derivative.watermarkApplied
-          ) {
-            return [];
-          }
-          return [
-            {
-              contentType: derivative.contentType,
-              id: item.id,
-              kind: item.kind,
-              publicUrl: createPublicMediaUrl(
-                supabaseUrl,
-                derivative.storageKey
-              ),
-              sizeBytes: derivative.sizeBytes,
-            },
-          ];
+            ) &&
+            derivative.metadataRemoved &&
+            derivative.unrelatedPiiRedacted &&
+            derivative.watermarkApplied;
+          const storageKey = hasValidDerivative
+            ? derivative.storageKey
+            : item.originalStorageKey;
+          const contentType = hasValidDerivative
+            ? derivative.contentType
+            : item.contentType;
+          const sizeBytes = hasValidDerivative
+            ? derivative.sizeBytes
+            : item.sizeBytes;
+          return {
+            contentType,
+            id: item.id,
+            kind: item.kind,
+            publicUrl: createPublicMediaUrl(supabaseUrl, storageKey),
+            sizeBytes,
+          };
         }),
     externalSource: report.externalSource
       ? {
