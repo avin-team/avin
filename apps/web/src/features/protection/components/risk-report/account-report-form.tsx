@@ -79,8 +79,6 @@ export const AccountReportForm = ({
         {
           file: sampleFile,
           id: globalThis.crypto.randomUUID(),
-          previewUrl:
-            "https://placehold.co/600x400/png?text=Bang+Chung+Back+Acc",
         },
       ],
       narrative:

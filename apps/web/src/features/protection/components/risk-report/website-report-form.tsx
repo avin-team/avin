@@ -102,7 +102,6 @@ export const WebsiteReportForm = ({
         {
           file: sampleFile,
           id: globalThis.crypto.randomUUID(),
-          previewUrl: "https://placehold.co/600x400/png?text=Website+Fake",
         },
       ],
       impersonatedUrl: "https://facebook.com/avin.official",

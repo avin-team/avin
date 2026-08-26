@@ -15,6 +15,7 @@ import {
   maskRiskIdentifier,
   normalizeRiskIdentifier,
   riskReportAdminDecisionInputSchema,
+  riskReportIdentifierTypes,
 } from "./risk-report";
 
 type Submission = Parameters<typeof assertRiskReportSubmission>[0];
@@ -303,11 +304,9 @@ describe("Risk report contracts", () => {
   });
 
   it("keeps identifier classes and public status helpers explicit", () => {
-    expect(getRiskReportIdentifierTypes("MALICIOUS_WEBSITE")).toEqual([
-      "WEBSITE",
-      "SOCIAL_ACCOUNT",
-      "PLATFORM_ACCOUNT",
-    ]);
+    expect(getRiskReportIdentifierTypes("MALICIOUS_WEBSITE")).toEqual(
+      riskReportIdentifierTypes
+    );
     expect(createRiskReportPublicPath("warning-report-1")).toBe(
       "/avin-check/warning/warning-report-1"
     );

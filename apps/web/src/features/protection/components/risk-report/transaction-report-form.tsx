@@ -87,7 +87,6 @@ export const TransactionReportForm = ({
         {
           file: sampleFile,
           id: globalThis.crypto.randomUUID(),
-          previewUrl: "https://placehold.co/600x400/png?text=Bill+Chuyen+Khoan",
         },
       ],
       holderName: "NGUYEN VAN SCAM",

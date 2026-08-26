@@ -884,16 +884,8 @@ export const maskRiskHolderName = (value: string): string => {
 };
 
 export const getRiskReportIdentifierTypes = (
-  type: RiskReportType
-): readonly RiskReportIdentifierType[] => {
-  if (type === "BANK_WALLET_PHONE") {
-    return ["BANK_ACCOUNT", "WALLET_ACCOUNT", "PHONE"];
-  }
-  if (type === "MALICIOUS_WEBSITE") {
-    return ["WEBSITE", "SOCIAL_ACCOUNT", "PLATFORM_ACCOUNT"];
-  }
-  return ["SOCIAL_ACCOUNT", "PLATFORM_ACCOUNT"];
-};
+  _type: RiskReportType
+): readonly RiskReportIdentifierType[] => riskReportIdentifierTypes;
 
 export interface RiskReportSubmissionEvidence {
   kind: RiskReportEvidenceKind;
