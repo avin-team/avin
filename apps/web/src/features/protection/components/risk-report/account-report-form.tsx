@@ -159,6 +159,14 @@ export const AccountReportForm = ({
           </label>
         </div>
 
+        <OptionalDetailsSection
+          dateLabel="Ngày mất quyền truy cập"
+          onChange={(updates) =>
+            setOptionalDetails((prev) => ({ ...prev, ...updates }))
+          }
+          values={optionalDetails}
+        />
+
         <div className="grid gap-2">
           <span className="font-medium text-sm">
             Bằng chứng ID, tài khoản bị back *
@@ -188,14 +196,6 @@ export const AccountReportForm = ({
             {narrative.length}/10.000 ký tự (tối thiểu 50 ký tự)
           </span>
         </label>
-
-        <OptionalDetailsSection
-          dateLabel="Ngày mất quyền truy cập"
-          onChange={(updates) =>
-            setOptionalDetails((prev) => ({ ...prev, ...updates }))
-          }
-          values={optionalDetails}
-        />
 
         <div className="rounded-2xl border bg-muted/20 p-4">
           <label className="flex cursor-pointer items-start gap-3 text-sm leading-relaxed">

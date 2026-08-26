@@ -226,6 +226,14 @@ export const WebsiteReportForm = ({
           </div>
         ) : null}
 
+        <OptionalDetailsSection
+          dateLabel="Ngày phát hiện"
+          onChange={(updates) =>
+            setOptionalDetails((prev) => ({ ...prev, ...updates }))
+          }
+          values={optionalDetails}
+        />
+
         <div className="grid gap-2">
           <span className="font-medium text-sm">Bằng chứng lừa đảo *</span>
           <EvidenceUploader
@@ -253,14 +261,6 @@ export const WebsiteReportForm = ({
             {narrative.length}/10.000 ký tự (tối thiểu 50 ký tự)
           </span>
         </label>
-
-        <OptionalDetailsSection
-          dateLabel="Ngày phát hiện"
-          onChange={(updates) =>
-            setOptionalDetails((prev) => ({ ...prev, ...updates }))
-          }
-          values={optionalDetails}
-        />
 
         <div className="rounded-2xl border bg-muted/20 p-4">
           <label className="flex cursor-pointer items-start gap-3 text-sm leading-relaxed">

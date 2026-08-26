@@ -204,6 +204,14 @@ export const TransactionReportForm = ({
           </label>
         </div>
 
+        <OptionalDetailsSection
+          dateLabel="Ngày xảy ra chuyển tiền"
+          onChange={(updates) =>
+            setOptionalDetails((prev) => ({ ...prev, ...updates }))
+          }
+          values={optionalDetails}
+        />
+
         <div className="grid gap-2">
           <span className="font-medium text-sm">Bằng chứng giao dịch *</span>
           <EvidenceUploader
@@ -232,14 +240,6 @@ export const TransactionReportForm = ({
             riêng tư (SĐT, email) sẽ được hệ thống tự động che khi công khai.
           </span>
         </label>
-
-        <OptionalDetailsSection
-          dateLabel="Ngày xảy ra chuyển tiền"
-          onChange={(updates) =>
-            setOptionalDetails((prev) => ({ ...prev, ...updates }))
-          }
-          values={optionalDetails}
-        />
 
         <div className="rounded-2xl border bg-muted/20 p-4">
           <label className="flex cursor-pointer items-start gap-3 text-sm leading-relaxed">
