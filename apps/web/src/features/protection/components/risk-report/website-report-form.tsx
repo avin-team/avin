@@ -12,6 +12,7 @@ import {
 } from "@avin/ui/components/select";
 import { Textarea } from "@avin/ui/components/textarea";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { EvidenceUploader } from "./evidence-uploader";
 import type { SelectedFileItem } from "./evidence-uploader";
@@ -41,84 +42,131 @@ export interface WebsiteReportData {
   websiteUrl: string;
 }
 
+interface FormState {
+  attestationAccepted: boolean;
+  evidenceFiles: SelectedFileItem[];
+  impersonatedUrl: string;
+  narrative: string;
+  optionalDetails: OptionalDetailsState;
+  violationType: RiskReportWebsiteViolationType;
+  websiteUrl: string;
+}
+
 interface WebsiteReportFormProps {
   initialData?: Partial<WebsiteReportData>;
   isSubmitting?: boolean;
   onSubmit: (data: WebsiteReportData) => Promise<void>;
 }
 
+const getInitialFormState = (
+  initialData?: Partial<WebsiteReportData>
+): FormState => ({
+  attestationAccepted: false,
+  evidenceFiles: initialData?.evidenceFiles ?? [],
+  impersonatedUrl: initialData?.impersonatedUrl ?? "",
+  narrative: initialData?.narrative ?? "",
+  optionalDetails: initialData?.optionalDetails ?? {
+    facebookUrl: "",
+    incidentDate: todayInput(),
+    ongoing: false,
+    phoneNumber: "",
+    telegramUrl: "",
+    tiktokUrl: "",
+  },
+  violationType: initialData?.violationType ?? "IMPERSONATION",
+  websiteUrl: initialData?.websiteUrl ?? "",
+});
+
 export const WebsiteReportForm = ({
   initialData,
   isSubmitting = false,
   onSubmit,
 }: WebsiteReportFormProps) => {
-  const [websiteUrl, setWebsiteUrl] = useState(initialData?.websiteUrl ?? "");
-  const [violationType, setViolationType] =
-    useState<RiskReportWebsiteViolationType>(
-      initialData?.violationType ?? "IMPERSONATION"
-    );
-  const [impersonatedUrl, setImpersonatedUrl] = useState(
-    initialData?.impersonatedUrl ?? ""
+  const [form, setForm] = useState<FormState>(() =>
+    getInitialFormState(initialData)
   );
-  const [evidenceFiles, setEvidenceFiles] = useState<SelectedFileItem[]>(
-    initialData?.evidenceFiles ?? []
-  );
-  const [narrative, setNarrative] = useState(initialData?.narrative ?? "");
-  const [optionalDetails, setOptionalDetails] = useState<OptionalDetailsState>(
-    initialData?.optionalDetails ?? {
-      facebookUrl: "",
-      incidentDate: todayInput(),
-      ongoing: false,
-      phoneNumber: "",
-      telegramUrl: "",
-      tiktokUrl: "",
-    }
-  );
-  const [attestationAccepted, setAttestationAccepted] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>();
+
+  const fillDevelopmentData = () => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+    const sampleFile = new File(
+      ["evidence-content-preview"],
+      "screenshot_website_fake.png",
+      { type: "image/png" }
+    );
+    setForm({
+      attestationAccepted: true,
+      evidenceFiles: [
+        {
+          file: sampleFile,
+          id: globalThis.crypto.randomUUID(),
+          previewUrl: "https://placehold.co/600x400/png?text=Website+Fake",
+        },
+      ],
+      impersonatedUrl: "https://facebook.com/avin.official",
+      narrative:
+        "Trang web này tạo giao diện nhái hệt cổng đăng nhập của Avin để đánh cắp tài khoản và mật khẩu của người dùng khi truy cập và nhập thông tin.",
+      optionalDetails: {
+        facebookUrl: "https://facebook.com/trang.web.lua.dao",
+        incidentDate: todayInput(),
+        ongoing: true,
+        phoneNumber: "0912345678",
+        telegramUrl: "https://t.me/fake_support_bot",
+        tiktokUrl: "https://tiktok.com/@fake_shop_review",
+      },
+      violationType: "IMPERSONATION",
+      websiteUrl: "https://fake-shop-avin-scam.xyz/login",
+    });
+    toast.success("Đã điền dữ liệu mẫu cho môi trường dev.");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(undefined);
 
-    if (!websiteUrl.trim()) {
+    if (!form.websiteUrl.trim()) {
       setErrorMessage("Vui lòng nhập link website, app hoặc profile lừa đảo.");
       return;
     }
-    if (violationType === "IMPERSONATION" && !impersonatedUrl.trim()) {
+    if (
+      form.violationType === "IMPERSONATION" &&
+      !form.impersonatedUrl.trim()
+    ) {
       setErrorMessage(
         "Vui lòng nhập link profile/website chính chủ bị mạo danh để đối chiếu."
       );
       return;
     }
-    if (evidenceFiles.length === 0) {
+    if (form.evidenceFiles.length === 0) {
       setErrorMessage(
         "Vui lòng tải lên ít nhất một bằng chứng (ảnh chụp màn hình, video...)."
       );
       return;
     }
-    if (narrative.trim().length < 50) {
+    if (form.narrative.trim().length < 50) {
       setErrorMessage(
         "Nội dung mô tả cần tối thiểu 50 ký tự để nêu rõ hành vi lừa đảo."
       );
       return;
     }
-    if (!attestationAccepted) {
+    if (!form.attestationAccepted) {
       setErrorMessage("Vui lòng xác nhận cam kết thông tin trước khi gửi.");
       return;
     }
 
     try {
       await onSubmit({
-        evidenceFiles,
+        evidenceFiles: form.evidenceFiles,
         impersonatedUrl:
-          violationType === "IMPERSONATION"
-            ? impersonatedUrl.trim()
+          form.violationType === "IMPERSONATION"
+            ? form.impersonatedUrl.trim()
             : undefined,
-        narrative: narrative.trim(),
-        optionalDetails,
-        violationType,
-        websiteUrl: websiteUrl.trim(),
+        narrative: form.narrative.trim(),
+        optionalDetails: form.optionalDetails,
+        violationType: form.violationType,
+        websiteUrl: form.websiteUrl.trim(),
       });
     } catch (error) {
       setErrorMessage(
@@ -133,14 +181,27 @@ export const WebsiteReportForm = ({
         aria-labelledby="web-heading"
         className="space-y-6 rounded-3xl border bg-card p-6 sm:p-8"
       >
-        <div className="space-y-1">
-          <h3 className="font-bold text-lg" id="web-heading">
-            Thông tin Website / App / Profile độc hại
-          </h3>
-          <p className="text-muted-foreground text-xs">
-            Cung cấp đường link và thông tin dấu hiệu giả mạo để hệ thống ghi
-            nhận cảnh báo.
-          </p>
+        <div className="flex w-full flex-wrap items-start justify-between gap-2">
+          <div className="space-y-1">
+            <h3 className="font-bold text-lg" id="web-heading">
+              Thông tin Website / App / Profile độc hại
+            </h3>
+            <p className="text-muted-foreground text-xs">
+              Cung cấp đường link và thông tin dấu hiệu giả mạo để hệ thống ghi
+              nhận cảnh báo.
+            </p>
+          </div>
+          {import.meta.env.DEV ? (
+            <Button
+              disabled={isSubmitting}
+              onClick={fillDevelopmentData}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              Điền dữ liệu mẫu
+            </Button>
+          ) : null}
         </div>
 
         <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
@@ -170,9 +231,11 @@ export const WebsiteReportForm = ({
             <Input
               autoComplete="off"
               id="web-url"
-              onChange={(e) => setWebsiteUrl(e.target.value)}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, websiteUrl: e.target.value }))
+              }
               placeholder="https://website-lua-dao.com/..."
-              value={websiteUrl}
+              value={form.websiteUrl}
             />
           </label>
 
@@ -184,9 +247,12 @@ export const WebsiteReportForm = ({
             <Select
               items={violationTypeOptions}
               onValueChange={(val) =>
-                setViolationType(val as RiskReportWebsiteViolationType)
+                setForm((prev) => ({
+                  ...prev,
+                  violationType: val as RiskReportWebsiteViolationType,
+                }))
               }
-              value={violationType}
+              value={form.violationType}
             >
               <SelectTrigger id="web-violation">
                 <SelectValue />
@@ -204,7 +270,7 @@ export const WebsiteReportForm = ({
           </label>
         </div>
 
-        {violationType === "IMPERSONATION" ? (
+        {form.violationType === "IMPERSONATION" ? (
           <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
             <label
               className="grid gap-1.5 font-medium text-sm"
@@ -214,9 +280,14 @@ export const WebsiteReportForm = ({
               <Input
                 autoComplete="off"
                 id="web-impersonated"
-                onChange={(e) => setImpersonatedUrl(e.target.value)}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    impersonatedUrl: e.target.value,
+                  }))
+                }
                 placeholder="https://facebook.com/trang-chinh-chu-that..."
-                value={impersonatedUrl}
+                value={form.impersonatedUrl}
               />
             </label>
             <p className="mt-1.5 text-muted-foreground text-xs">
@@ -229,17 +300,22 @@ export const WebsiteReportForm = ({
         <OptionalDetailsSection
           dateLabel="Ngày phát hiện"
           onChange={(updates) =>
-            setOptionalDetails((prev) => ({ ...prev, ...updates }))
+            setForm((prev) => ({
+              ...prev,
+              optionalDetails: { ...prev.optionalDetails, ...updates },
+            }))
           }
-          values={optionalDetails}
+          values={form.optionalDetails}
         />
 
         <div className="grid gap-2">
           <span className="font-medium text-sm">Bằng chứng lừa đảo *</span>
           <EvidenceUploader
             disabled={isSubmitting}
-            onFilesChange={setEvidenceFiles}
-            selectedFiles={evidenceFiles}
+            onFilesChange={(files) =>
+              setForm((prev) => ({ ...prev, evidenceFiles: files }))
+            }
+            selectedFiles={form.evidenceFiles}
           />
         </div>
 
@@ -252,22 +328,29 @@ export const WebsiteReportForm = ({
             id="web-narrative"
             maxLength={10_000}
             minLength={50}
-            onChange={(e) => setNarrative(e.target.value)}
+            onChange={(e) =>
+              setForm((prev) => ({ ...prev, narrative: e.target.value }))
+            }
             placeholder="Cung cấp chi tiết bằng chứng: phương thức dụ dỗ, link tải app giả, dấu hiệu bất thường..."
             rows={5}
-            value={narrative}
+            value={form.narrative}
           />
           <span className="text-muted-foreground text-xs">
-            {narrative.length}/10.000 ký tự (tối thiểu 50 ký tự)
+            {form.narrative.length}/10.000 ký tự (tối thiểu 50 ký tự)
           </span>
         </label>
 
         <div className="rounded-2xl border bg-muted/20 p-4">
           <label className="flex cursor-pointer items-start gap-3 text-sm leading-relaxed">
             <input
-              checked={attestationAccepted}
+              checked={form.attestationAccepted}
               className="mt-0.5 size-4 rounded border-gray-300 text-primary focus:ring-primary"
-              onChange={(e) => setAttestationAccepted(e.target.checked)}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  attestationAccepted: e.target.checked,
+                }))
+              }
               type="checkbox"
             />
             <span>

@@ -3,6 +3,7 @@ import { Button } from "@avin/ui/components/button";
 import { Input } from "@avin/ui/components/input";
 import { Textarea } from "@avin/ui/components/textarea";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { EvidenceUploader } from "./evidence-uploader";
 import type { SelectedFileItem } from "./evidence-uploader";
@@ -19,74 +20,122 @@ export interface AccountReportData {
   platform: string;
 }
 
+interface FormState {
+  accountId: string;
+  attestationAccepted: boolean;
+  evidenceFiles: SelectedFileItem[];
+  narrative: string;
+  optionalDetails: OptionalDetailsState;
+  platform: string;
+}
+
 interface AccountReportFormProps {
   initialData?: Partial<AccountReportData>;
   isSubmitting?: boolean;
   onSubmit: (data: AccountReportData) => Promise<void>;
 }
 
+const getInitialFormState = (
+  initialData?: Partial<AccountReportData>
+): FormState => ({
+  accountId: initialData?.accountId ?? "",
+  attestationAccepted: false,
+  evidenceFiles: initialData?.evidenceFiles ?? [],
+  narrative: initialData?.narrative ?? "",
+  optionalDetails: initialData?.optionalDetails ?? {
+    facebookUrl: "",
+    incidentDate: todayInput(),
+    ongoing: false,
+    phoneNumber: "",
+    telegramUrl: "",
+    tiktokUrl: "",
+  },
+  platform: initialData?.platform ?? "",
+});
+
 export const AccountReportForm = ({
   initialData,
   isSubmitting = false,
   onSubmit,
 }: AccountReportFormProps) => {
-  const [platform, setPlatform] = useState(initialData?.platform ?? "");
-  const [accountId, setAccountId] = useState(initialData?.accountId ?? "");
-  const [evidenceFiles, setEvidenceFiles] = useState<SelectedFileItem[]>(
-    initialData?.evidenceFiles ?? []
+  const [form, setForm] = useState<FormState>(() =>
+    getInitialFormState(initialData)
   );
-  const [narrative, setNarrative] = useState(initialData?.narrative ?? "");
-  const [optionalDetails, setOptionalDetails] = useState<OptionalDetailsState>(
-    initialData?.optionalDetails ?? {
-      facebookUrl: "",
-      incidentDate: todayInput(),
-      ongoing: false,
-      phoneNumber: "",
-      telegramUrl: "",
-      tiktokUrl: "",
-    }
-  );
-  const [attestationAccepted, setAttestationAccepted] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>();
+
+  const fillDevelopmentData = () => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+    const sampleFile = new File(
+      ["evidence-content-preview"],
+      "bang_chung_bi_back.png",
+      { type: "image/png" }
+    );
+    setForm({
+      accountId: "@idol_trieu_view_2026",
+      attestationAccepted: true,
+      evidenceFiles: [
+        {
+          file: sampleFile,
+          id: globalThis.crypto.randomUUID(),
+          previewUrl:
+            "https://placehold.co/600x400/png?text=Bang+Chung+Back+Acc",
+        },
+      ],
+      narrative:
+        "Tôi đã mua kênh TikTok này với giá thỏa thuận qua trung gian. Sau 3 ngày nhận bàn giao kênh thì đối tượng đã dùng email gốc và số điện thoại ban đầu để khôi phục và chiếm đoạt lại quyền quản trị kênh.",
+      optionalDetails: {
+        facebookUrl: "https://facebook.com/nguoi.ban.acc.scam",
+        incidentDate: todayInput(),
+        ongoing: false,
+        phoneNumber: "0909123456",
+        telegramUrl: "https://t.me/trung_gian_acc",
+        tiktokUrl: "https://tiktok.com/@idol_trieu_view_2026",
+      },
+      platform: "TikTok",
+    });
+    toast.success("Đã điền dữ liệu mẫu cho môi trường dev.");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(undefined);
 
-    if (!platform.trim()) {
+    if (!form.platform.trim()) {
       setErrorMessage(
         "Vui lòng nhập nền tảng tài khoản (vd: TikTok, Free Fire, LMHT, Roblox...)."
       );
       return;
     }
-    if (!accountId.trim()) {
+    if (!form.accountId.trim()) {
       setErrorMessage("Vui lòng nhập ID hoặc tên tài khoản bị back.");
       return;
     }
-    if (evidenceFiles.length === 0) {
+    if (form.evidenceFiles.length === 0) {
       setErrorMessage(
         "Vui lòng tải lên ít nhất một bằng chứng (ảnh ID, tin nhắn giao dịch, thông báo mất quyền...)."
       );
       return;
     }
-    if (narrative.trim().length < 50) {
+    if (form.narrative.trim().length < 50) {
       setErrorMessage(
         "Nội dung tố cáo cần tối thiểu 50 ký tự để nêu rõ sự việc."
       );
       return;
     }
-    if (!attestationAccepted) {
+    if (!form.attestationAccepted) {
       setErrorMessage("Vui lòng xác nhận cam kết thông tin trước khi gửi.");
       return;
     }
 
     try {
       await onSubmit({
-        accountId: accountId.trim(),
-        evidenceFiles,
-        narrative: narrative.trim(),
-        optionalDetails,
-        platform: platform.trim(),
+        accountId: form.accountId.trim(),
+        evidenceFiles: form.evidenceFiles,
+        narrative: form.narrative.trim(),
+        optionalDetails: form.optionalDetails,
+        platform: form.platform.trim(),
       });
     } catch (error) {
       setErrorMessage(
@@ -101,14 +150,27 @@ export const AccountReportForm = ({
         aria-labelledby="acc-heading"
         className="space-y-6 rounded-3xl border bg-card p-6 sm:p-8"
       >
-        <div className="space-y-1">
-          <h3 className="font-bold text-lg" id="acc-heading">
-            Thông tin tài khoản Game / MXH bị back
-          </h3>
-          <p className="text-muted-foreground text-xs">
-            Cung cấp ID hoặc tài khoản và bằng chứng mất quyền để cộng đồng nhận
-            biết và phòng tránh.
-          </p>
+        <div className="flex w-full flex-wrap items-start justify-between gap-2">
+          <div className="space-y-1">
+            <h3 className="font-bold text-lg" id="acc-heading">
+              Thông tin tài khoản Game / MXH bị back
+            </h3>
+            <p className="text-muted-foreground text-xs">
+              Cung cấp ID hoặc tài khoản và bằng chứng mất quyền để cộng đồng
+              nhận biết và phòng tránh.
+            </p>
+          </div>
+          {import.meta.env.DEV ? (
+            <Button
+              disabled={isSubmitting}
+              onClick={fillDevelopmentData}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              Điền dữ liệu mẫu
+            </Button>
+          ) : null}
         </div>
 
         <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
@@ -141,9 +203,11 @@ export const AccountReportForm = ({
             <Input
               autoComplete="off"
               id="acc-platform"
-              onChange={(e) => setPlatform(e.target.value)}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, platform: e.target.value }))
+              }
               placeholder="TikTok, Free Fire, LMHT, Roblox, YouTube..."
-              value={platform}
+              value={form.platform}
             />
           </label>
 
@@ -152,9 +216,11 @@ export const AccountReportForm = ({
             <Input
               autoComplete="off"
               id="acc-id"
-              onChange={(e) => setAccountId(e.target.value)}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, accountId: e.target.value }))
+              }
               placeholder="ID hoặc tên tài khoản đã bị back"
-              value={accountId}
+              value={form.accountId}
             />
           </label>
         </div>
@@ -162,9 +228,12 @@ export const AccountReportForm = ({
         <OptionalDetailsSection
           dateLabel="Ngày mất quyền truy cập"
           onChange={(updates) =>
-            setOptionalDetails((prev) => ({ ...prev, ...updates }))
+            setForm((prev) => ({
+              ...prev,
+              optionalDetails: { ...prev.optionalDetails, ...updates },
+            }))
           }
-          values={optionalDetails}
+          values={form.optionalDetails}
         />
 
         <div className="grid gap-2">
@@ -173,8 +242,10 @@ export const AccountReportForm = ({
           </span>
           <EvidenceUploader
             disabled={isSubmitting}
-            onFilesChange={setEvidenceFiles}
-            selectedFiles={evidenceFiles}
+            onFilesChange={(files) =>
+              setForm((prev) => ({ ...prev, evidenceFiles: files }))
+            }
+            selectedFiles={form.evidenceFiles}
           />
         </div>
 
@@ -187,22 +258,29 @@ export const AccountReportForm = ({
             id="acc-narrative"
             maxLength={10_000}
             minLength={50}
-            onChange={(e) => setNarrative(e.target.value)}
+            onChange={(e) =>
+              setForm((prev) => ({ ...prev, narrative: e.target.value }))
+            }
             placeholder="Nêu rõ và đầy đủ vấn đề: mua qua ai, ngày bàn giao, ngày bị đổi thông tin hoặc mất quyền truy cập..."
             rows={5}
-            value={narrative}
+            value={form.narrative}
           />
           <span className="text-muted-foreground text-xs">
-            {narrative.length}/10.000 ký tự (tối thiểu 50 ký tự)
+            {form.narrative.length}/10.000 ký tự (tối thiểu 50 ký tự)
           </span>
         </label>
 
         <div className="rounded-2xl border bg-muted/20 p-4">
           <label className="flex cursor-pointer items-start gap-3 text-sm leading-relaxed">
             <input
-              checked={attestationAccepted}
+              checked={form.attestationAccepted}
               className="mt-0.5 size-4 rounded border-gray-300 text-primary focus:ring-primary"
-              onChange={(e) => setAttestationAccepted(e.target.checked)}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  attestationAccepted: e.target.checked,
+                }))
+              }
               type="checkbox"
             />
             <span>

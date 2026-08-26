@@ -35,10 +35,7 @@ export const OptionalDetailsSection = ({
           className="grid gap-1.5 font-medium text-sm"
           htmlFor="optional-facebook"
         >
-          Link Facebook đối tượng{" "}
-          <span className="font-normal text-muted-foreground text-xs">
-            (Tuỳ chọn)
-          </span>
+          Link Facebook đối tượng
           <Input
             autoComplete="off"
             id="optional-facebook"
@@ -52,10 +49,7 @@ export const OptionalDetailsSection = ({
           className="grid gap-1.5 font-medium text-sm"
           htmlFor="optional-phone"
         >
-          Số điện thoại / Zalo đối tượng{" "}
-          <span className="font-normal text-muted-foreground text-xs">
-            (Tuỳ chọn)
-          </span>
+          Số điện thoại / Zalo đối tượng
           <Input
             autoComplete="tel"
             id="optional-phone"
@@ -74,7 +68,7 @@ export const OptionalDetailsSection = ({
           type="button"
         >
           <div className="flex items-center gap-2">
-            <span>Bổ sung thêm thông tin khác (tuỳ chọn)</span>
+            <span>Bổ sung thêm thông tin khác</span>
             {hasExtraFilledData && !isOpen ? (
               <span className="rounded-full bg-primary/10 px-2 py-0.5 text-primary text-xs">
                 Đã nhập
@@ -100,10 +94,7 @@ export const OptionalDetailsSection = ({
               className="grid gap-1.5 font-medium text-sm"
               htmlFor="optional-tiktok"
             >
-              Link TikTok đối tượng{" "}
-              <span className="font-normal text-muted-foreground text-xs">
-                (Tuỳ chọn)
-              </span>
+              Link TikTok đối tượng
               <Input
                 autoComplete="off"
                 id="optional-tiktok"
@@ -117,10 +108,7 @@ export const OptionalDetailsSection = ({
               className="grid gap-1.5 font-medium text-sm"
               htmlFor="optional-telegram"
             >
-              Link Telegram đối tượng{" "}
-              <span className="font-normal text-muted-foreground text-xs">
-                (Tuỳ chọn)
-              </span>
+              Link Telegram đối tượng
               <Input
                 autoComplete="off"
                 id="optional-telegram"

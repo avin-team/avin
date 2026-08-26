@@ -161,4 +161,19 @@ describe("RiskReportPage", () => {
       ).toBeInTheDocument();
     });
   });
+
+  it("fills the form with development sample data when clicking the dev button", async () => {
+    renderWithQueryClient(<RiskReportPage />);
+
+    const fillDevBtn = screen.getByRole("button", {
+      name: /điền dữ liệu mẫu/iu,
+    });
+    fireEvent.click(fillDevBtn);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("NGUYEN VAN SCAM")).toBeInTheDocument();
+      expect(screen.getByDisplayValue("1029384756")).toBeInTheDocument();
+      expect(screen.getByDisplayValue("MB Bank")).toBeInTheDocument();
+    });
+  });
 });

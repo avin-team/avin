@@ -3,6 +3,7 @@ import { Button } from "@avin/ui/components/button";
 import { Input } from "@avin/ui/components/input";
 import { Textarea } from "@avin/ui/components/textarea";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { EvidenceUploader } from "./evidence-uploader";
 import type { SelectedFileItem } from "./evidence-uploader";
@@ -21,87 +22,136 @@ export interface TransactionReportData {
   optionalDetails: OptionalDetailsState;
 }
 
+interface FormState {
+  accountNumber: string;
+  amount: string;
+  attestationAccepted: boolean;
+  bankName: string;
+  evidenceFiles: SelectedFileItem[];
+  holderName: string;
+  narrative: string;
+  optionalDetails: OptionalDetailsState;
+}
+
 interface TransactionReportFormProps {
   initialData?: Partial<TransactionReportData>;
   isSubmitting?: boolean;
   onSubmit: (data: TransactionReportData) => Promise<void>;
 }
 
+const getInitialFormState = (
+  initialData?: Partial<TransactionReportData>
+): FormState => ({
+  accountNumber: initialData?.accountNumber ?? "",
+  amount: initialData?.amount ?? "",
+  attestationAccepted: false,
+  bankName: initialData?.bankName ?? "",
+  evidenceFiles: initialData?.evidenceFiles ?? [],
+  holderName: initialData?.holderName ?? "",
+  narrative: initialData?.narrative ?? "",
+  optionalDetails: initialData?.optionalDetails ?? {
+    facebookUrl: "",
+    incidentDate: todayInput(),
+    ongoing: false,
+    phoneNumber: "",
+    telegramUrl: "",
+    tiktokUrl: "",
+  },
+});
+
 export const TransactionReportForm = ({
   initialData,
   isSubmitting = false,
   onSubmit,
 }: TransactionReportFormProps) => {
-  const [holderName, setHolderName] = useState(initialData?.holderName ?? "");
-  const [accountNumber, setAccountNumber] = useState(
-    initialData?.accountNumber ?? ""
+  const [form, setForm] = useState<FormState>(() =>
+    getInitialFormState(initialData)
   );
-  const [bankName, setBankName] = useState(initialData?.bankName ?? "");
-  const [amount, setAmount] = useState(initialData?.amount ?? "");
-  const [evidenceFiles, setEvidenceFiles] = useState<SelectedFileItem[]>(
-    initialData?.evidenceFiles ?? []
-  );
-  const [narrative, setNarrative] = useState(initialData?.narrative ?? "");
-  const [optionalDetails, setOptionalDetails] = useState<OptionalDetailsState>(
-    initialData?.optionalDetails ?? {
-      facebookUrl: "",
-      incidentDate: todayInput(),
-      ongoing: false,
-      phoneNumber: "",
-      telegramUrl: "",
-      tiktokUrl: "",
-    }
-  );
-  const [attestationAccepted, setAttestationAccepted] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>();
+
+  const fillDevelopmentData = () => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+    const sampleFile = new File(
+      ["evidence-content-preview"],
+      "bill_chuyen_khoan_mau.png",
+      { type: "image/png" }
+    );
+    setForm({
+      accountNumber: "1029384756",
+      amount: "1500000",
+      attestationAccepted: true,
+      bankName: "MB Bank",
+      evidenceFiles: [
+        {
+          file: sampleFile,
+          id: globalThis.crypto.randomUUID(),
+          previewUrl: "https://placehold.co/600x400/png?text=Bill+Chuyen+Khoan",
+        },
+      ],
+      holderName: "NGUYEN VAN SCAM",
+      narrative:
+        "Ngày 25/08 tôi có thỏa thuận mua tài khoản game qua Facebook với đối tượng này. Sau khi tôi chuyển khoản 1.500.000đ vào tài khoản MB Bank nêu trên, đối tượng lập tức chặn Facebook và xóa toàn bộ tin nhắn mà không bàn giao tài khoản.",
+      optionalDetails: {
+        facebookUrl: "https://facebook.com/nguyen.van.scam.fake",
+        incidentDate: todayInput(),
+        ongoing: false,
+        phoneNumber: "0987654321",
+        telegramUrl: "https://t.me/scammer_crypto",
+        tiktokUrl: "https://tiktok.com/@scammer_vn",
+      },
+    });
+    toast.success("Đã điền dữ liệu mẫu cho môi trường dev.");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(undefined);
 
-    if (!holderName.trim()) {
+    if (!form.holderName.trim()) {
       setErrorMessage("Vui lòng nhập tên chủ tài khoản.");
       return;
     }
-    if (!accountNumber.trim()) {
+    if (!form.accountNumber.trim()) {
       setErrorMessage("Vui lòng nhập số tài khoản ngân hàng.");
       return;
     }
-    if (!bankName.trim()) {
+    if (!form.bankName.trim()) {
       setErrorMessage("Vui lòng nhập tên ngân hàng nhận tiền.");
       return;
     }
-    const cleanAmount = Number(amount.replaceAll(/[,.\s]/gu, ""));
+    const cleanAmount = Number(form.amount.replaceAll(/[,.\s]/gu, ""));
     if (!cleanAmount || cleanAmount <= 0) {
       setErrorMessage("Vui lòng nhập số tiền hợp lệ lớn hơn 0.");
       return;
     }
-    if (evidenceFiles.length === 0) {
+    if (form.evidenceFiles.length === 0) {
       setErrorMessage(
         "Vui lòng tải lên ít nhất một bằng chứng (ảnh Bill, đoạn chat giao dịch...)."
       );
       return;
     }
-    if (narrative.trim().length < 50) {
+    if (form.narrative.trim().length < 50) {
       setErrorMessage(
         "Nội dung tố cáo cần tối thiểu 50 ký tự để nêu rõ sự việc."
       );
       return;
     }
-    if (!attestationAccepted) {
+    if (!form.attestationAccepted) {
       setErrorMessage("Vui lòng xác nhận cam kết thông tin trước khi gửi.");
       return;
     }
 
     try {
       await onSubmit({
-        accountNumber: accountNumber.trim(),
+        accountNumber: form.accountNumber.trim(),
         amount: String(cleanAmount),
-        bankName: bankName.trim(),
-        evidenceFiles,
-        holderName: holderName.trim(),
-        narrative: narrative.trim(),
-        optionalDetails,
+        bankName: form.bankName.trim(),
+        evidenceFiles: form.evidenceFiles,
+        holderName: form.holderName.trim(),
+        narrative: form.narrative.trim(),
+        optionalDetails: form.optionalDetails,
       });
     } catch (error) {
       setErrorMessage(
@@ -116,14 +166,27 @@ export const TransactionReportForm = ({
         aria-labelledby="tx-heading"
         className="space-y-6 rounded-3xl border bg-card p-6 sm:p-8"
       >
-        <div className="space-y-1">
-          <h3 className="font-bold text-lg" id="tx-heading">
-            Thông tin chuyển tiền & tài khoản nhận
-          </h3>
-          <p className="text-muted-foreground text-xs">
-            Nhập chính xác số tài khoản ngân hàng hoặc ví đã nhận tiền giao dịch
-            lừa đảo.
-          </p>
+        <div className="flex w-full flex-wrap items-start justify-between gap-2">
+          <div className="space-y-1">
+            <h3 className="font-bold text-lg" id="tx-heading">
+              Thông tin chuyển tiền & tài khoản nhận
+            </h3>
+            <p className="text-muted-foreground text-xs">
+              Nhập chính xác số tài khoản ngân hàng hoặc ví đã nhận tiền giao
+              dịch lừa đảo.
+            </p>
+          </div>
+          {import.meta.env.DEV ? (
+            <Button
+              disabled={isSubmitting}
+              onClick={fillDevelopmentData}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              Điền dữ liệu mẫu
+            </Button>
+          ) : null}
         </div>
 
         <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
@@ -155,9 +218,11 @@ export const TransactionReportForm = ({
             <Input
               autoComplete="off"
               id="tx-holder"
-              onChange={(e) => setHolderName(e.target.value)}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, holderName: e.target.value }))
+              }
               placeholder="Chủ tài khoản nhận tiền"
-              value={holderName}
+              value={form.holderName}
             />
           </label>
 
@@ -169,9 +234,11 @@ export const TransactionReportForm = ({
             <Input
               autoComplete="off"
               id="tx-account"
-              onChange={(e) => setAccountNumber(e.target.value)}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, accountNumber: e.target.value }))
+              }
               placeholder="Số tài khoản nhận tiền"
-              value={accountNumber}
+              value={form.accountNumber}
             />
           </label>
         </div>
@@ -182,9 +249,11 @@ export const TransactionReportForm = ({
             <Input
               autoComplete="off"
               id="tx-bank"
-              onChange={(e) => setBankName(e.target.value)}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, bankName: e.target.value }))
+              }
               placeholder="VIB, MB, Vietcombank..."
-              value={bankName}
+              value={form.bankName}
             />
           </label>
 
@@ -197,9 +266,11 @@ export const TransactionReportForm = ({
               autoComplete="off"
               id="tx-amount"
               inputMode="numeric"
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, amount: e.target.value }))
+              }
               placeholder="Nhập chính xác số tiền bạn bị lừa"
-              value={amount}
+              value={form.amount}
             />
           </label>
         </div>
@@ -207,17 +278,22 @@ export const TransactionReportForm = ({
         <OptionalDetailsSection
           dateLabel="Ngày xảy ra chuyển tiền"
           onChange={(updates) =>
-            setOptionalDetails((prev) => ({ ...prev, ...updates }))
+            setForm((prev) => ({
+              ...prev,
+              optionalDetails: { ...prev.optionalDetails, ...updates },
+            }))
           }
-          values={optionalDetails}
+          values={form.optionalDetails}
         />
 
         <div className="grid gap-2">
           <span className="font-medium text-sm">Bằng chứng giao dịch *</span>
           <EvidenceUploader
             disabled={isSubmitting}
-            onFilesChange={setEvidenceFiles}
-            selectedFiles={evidenceFiles}
+            onFilesChange={(files) =>
+              setForm((prev) => ({ ...prev, evidenceFiles: files }))
+            }
+            selectedFiles={form.evidenceFiles}
           />
         </div>
 
@@ -230,23 +306,31 @@ export const TransactionReportForm = ({
             id="tx-narrative"
             maxLength={10_000}
             minLength={50}
-            onChange={(e) => setNarrative(e.target.value)}
+            onChange={(e) =>
+              setForm((prev) => ({ ...prev, narrative: e.target.value }))
+            }
             placeholder="Nêu rõ và đầy đủ vấn đề: thỏa thuận ban đầu, đã chuyển khoản ra sao, diễn biến sự việc..."
             rows={5}
-            value={narrative}
+            value={form.narrative}
           />
           <span className="text-muted-foreground text-xs">
-            {narrative.length}/10.000 ký tự (tối thiểu 50 ký tự) · Thông tin
-            riêng tư (SĐT, email) sẽ được hệ thống tự động che khi công khai.
+            {form.narrative.length}/10.000 ký tự (tối thiểu 50 ký tự) · Thông
+            tin riêng tư (SĐT, email) sẽ được hệ thống tự động che khi công
+            khai.
           </span>
         </label>
 
         <div className="rounded-2xl border bg-muted/20 p-4">
           <label className="flex cursor-pointer items-start gap-3 text-sm leading-relaxed">
             <input
-              checked={attestationAccepted}
+              checked={form.attestationAccepted}
               className="mt-0.5 size-4 rounded border-gray-300 text-primary focus:ring-primary"
-              onChange={(e) => setAttestationAccepted(e.target.checked)}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  attestationAccepted: e.target.checked,
+                }))
+              }
               type="checkbox"
             />
             <span>
