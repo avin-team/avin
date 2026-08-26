@@ -204,10 +204,11 @@ export const RiskReportPage = () => {
       claimedLoss: Number(data.amount),
       identifiers,
       incidentAt: incidentDate,
-      issues: ["NON_DELIVERY", "OTHER"],
+      issues: ["NON_DELIVERY", "PAID_THEN_BLOCKED"],
       lossOccurred: "YES",
       narrative: data.narrative,
       ongoing: data.optionalDetails.ongoing,
+      otherIssueDescription: data.narrative,
       reporterInvolvement: "BUYER",
       transactions: [
         {
@@ -273,6 +274,7 @@ export const RiskReportPage = () => {
       lossOccurred: "NO",
       narrative: data.narrative,
       ongoing: data.optionalDetails.ongoing,
+      otherIssueDescription: data.narrative,
       reporterInvolvement: "DIRECT_OBSERVER",
       type: "MALICIOUS_WEBSITE",
       violationType: data.violationType,
@@ -311,6 +313,7 @@ export const RiskReportPage = () => {
       lossOccurred: "NO",
       narrative: data.narrative,
       ongoing: data.optionalDetails.ongoing,
+      otherIssueDescription: data.narrative,
       platform: data.platform,
       purchaseAt: incidentDate,
       reporterInvolvement: "BUYER",

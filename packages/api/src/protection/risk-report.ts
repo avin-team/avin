@@ -923,7 +923,8 @@ const hasRiskSubjectIdentifier = (
 const assertReportIssues = (
   type: RiskReportType,
   issues: readonly RiskReportIssueType[],
-  otherIssueDescription: string | null | undefined
+  otherIssueDescription?: string | null,
+  narrative?: string | null
 ): void => {
   if (issues.length === 0) {
     throw new Error("At least one report issue is required");
@@ -932,13 +933,14 @@ const assertReportIssues = (
   if (issues.some((issue) => !allowedIssues.has(issue))) {
     throw new Error("A report issue does not match the selected report type");
   }
-  if (
-    issues.includes("OTHER") &&
-    (otherIssueDescription?.trim().length ?? 0) < 20
-  ) {
-    throw new Error(
-      "An explanation of at least 20 characters is required for Other"
-    );
+  if (issues.includes("OTHER")) {
+    const descriptionLength =
+      otherIssueDescription?.trim().length || narrative?.trim().length || 0;
+    if (descriptionLength < 20) {
+      throw new Error(
+        "An explanation of at least 20 characters is required for Other"
+      );
+    }
   }
 };
 
@@ -1199,7 +1201,7 @@ export const assertRiskReportSubmission = (
     type,
   });
 
-  assertReportIssues(type, issues, otherIssueDescription);
+  assertReportIssues(type, issues, otherIssueDescription, narrative);
 
   assertSubmissionFinancials({
     claimedLoss,
