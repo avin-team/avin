@@ -9,7 +9,7 @@ import {
   protectionRiskReportHistory,
 } from "@avin/db/schema/protection";
 import { ORPCError } from "@orpc/server";
-import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import type { Context } from "../runtime/context";
@@ -37,6 +37,23 @@ export const CHONGSCAM_CRAWL_DELAY_MS = 1000;
 const MAX_SOURCE_PAGES = 500;
 const MAX_SUMMARY_LENGTH = 10_000;
 const SOURCE_USER_AGENT = "Avin-ChongScam-Importer/1.0";
+
+const getSafeExternalHttpUrl = (
+  value: string | null | undefined
+): string | null => {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return null;
+  }
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "http:" || url.protocol === "https:"
+      ? url.toString()
+      : null;
+  } catch {
+    return null;
+  }
+};
 
 const getImportErrorMessage = (error: unknown): string => {
   if (!(error instanceof Error)) {
@@ -369,7 +386,7 @@ const buildIdentifierRows = (
   if (identifier) {
     addCandidate(inferIdentifierType(identifier, sourceReport), identifier);
   }
-  const platformUrl = trimOrNull(sourceReport.platformUrl);
+  const platformUrl = getSafeExternalHttpUrl(sourceReport.platformUrl);
   if (platformUrl) {
     const platformType = inferPlatformUrlType(platformUrl);
     if (platformType) {
@@ -530,7 +547,7 @@ const buildExternalReportValues = ({
     externalImportRunId: importRunId,
     externalLastSyncedAt: now,
     externalPayloadHash: createPayloadHash(sourceReport),
-    externalPlatformUrl: trimOrNull(sourceReport.platformUrl),
+    externalPlatformUrl: getSafeExternalHttpUrl(sourceReport.platformUrl),
     externalRawPayload: sourceReport,
     externalSource: CHONGSCAM_SOURCE,
     externalSourceCreatedAt: sourceCreatedAt,
@@ -1367,10 +1384,8 @@ export const isExternalRiskReport = (report: {
   externalSource: string | null;
 }): boolean => report.externalSource === CHONGSCAM_SOURCE;
 
-export const publicExternalRiskFilter = or(
-  isNull(protectionRiskReport.externalSource),
-  and(
-    eq(protectionRiskReport.externalAdminHidden, false),
-    eq(protectionRiskReport.status, "PUBLISHED")
-  )
+// External imports remain an admin-only provenance dataset until an Avin-native
+// report is submitted and approved through the normal evidence workflow.
+export const publicNativeRiskFilter = isNull(
+  protectionRiskReport.externalSource
 );

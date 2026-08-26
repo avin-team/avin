@@ -170,6 +170,7 @@ import {
   riskReportEvidenceInputSchema,
   riskReportMineInputSchema,
   riskReportOwnedInputSchema,
+  riskReportSubmitInputSchema,
   riskReportWithdrawalInputSchema,
 } from "./risk-report";
 import {
@@ -185,6 +186,7 @@ import {
   listRiskReportCorrectionsForRequester,
   listPublicRiskWarnings,
   listRiskReportsForAdmin,
+  previewRiskReport,
   registerRiskReportDerivative,
   requestRiskReportCorrection,
   requestRiskReportWithdrawal,
@@ -875,7 +877,6 @@ export const protectionRouter = {
           database: context.db,
           decision: input.decision,
           id: input.id,
-          publicSummary: input.publicSummary,
           reason: input.reason,
           reviewerUserId: context.session.user.id,
           underVerificationApproved: input.underVerificationApproved,
@@ -1323,6 +1324,16 @@ export const protectionRouter = {
         })
       ),
 
+    preview: providerProcedure
+      .input(riskReportOwnedInputSchema)
+      .handler(({ context, input }) =>
+        previewRiskReport({
+          database: context.db,
+          reportId: input.reportId,
+          reporterUserId: context.session.user.id,
+        })
+      ),
+
     requestCorrection: providerProcedure
       .input(riskReportCorrectionRequestInputSchema)
       .handler(({ context, input }) =>
@@ -1358,7 +1369,7 @@ export const protectionRouter = {
       ),
 
     submit: providerProcedure
-      .input(riskReportOwnedInputSchema)
+      .input(riskReportSubmitInputSchema)
       .handler(({ context, input }) =>
         submitRiskReport({
           database: context.db,

@@ -7,6 +7,8 @@ import {
   protectionRiskReport,
   protectionRiskReportEmailDelivery,
   protectionRiskReportHistory,
+  protectionRiskReportRevision,
+  protectionRiskTransaction,
   protectionSupportReview,
 } from "@avin/db/schema/protection";
 import { env } from "@avin/env/server";
@@ -21,22 +23,28 @@ import type { NotificationEventType } from "../notifications/notification-logic"
 import type { Context } from "../runtime/context";
 import {
   createPublicMediaUrl,
+  getNativeRiskReportEvidenceMaxBytes,
   isRiskReportDerivativeKey,
-  isRiskReportEvidenceFileNameAllowed,
+  isNativeRiskReportEvidenceContentType,
+  isNativeRiskReportEvidenceFileNameAllowed,
   isRiskReportEvidenceKey,
   PROTECTION_RISK_ORIGINALS_BUCKET,
-  RISK_REPORT_EVIDENCE_CONTENT_TYPES,
-  RISK_REPORT_EVIDENCE_MAX_BYTES,
   RISK_REPORT_EVIDENCE_MAX_COUNT,
+  RISK_REPORT_EVIDENCE_MAX_VIDEO_COUNT,
 } from "../runtime/storage";
 import { getProtectionLaunchConfiguration } from "./configuration";
-import { publicExternalRiskFilter } from "./external-risk-import";
-import { assertProtectionOperationAllowed } from "./launch-gates";
+import { publicNativeRiskFilter } from "./external-risk-import";
+import {
+  assertProtectionOperationAllowed,
+  getProtectionReadinessStatus,
+} from "./launch-gates";
 import type { ProtectionLaunchConfiguration } from "./launch-gates";
 import {
   assertRiskReportSubmission,
   assertRiskReportTransition,
+  buildRiskReportPublicNarrative,
   createRiskReportEmailSubject,
+  createRiskReportPublicTitle,
   createRiskReportPublicPath as createPublicWarningPath,
   createRiskReportPublicSlug,
   getRiskIdentifierPublicValue,
@@ -44,17 +52,19 @@ import {
   isRiskReportUnderVerificationEligible,
   isPublicRiskReportStatus,
   maskRiskIdentifier,
+  maskRiskHolderName,
   normalizeRiskIdentifier,
+  riskReportPublicSubjectIdentifierRoles,
 } from "./risk-report";
 import type {
+  RiskReportCorrectionRequestInput,
   RiskReportDecisionStatus,
   RiskReportDraftInput,
   RiskReportEvidenceInput,
   RiskReportIdentifierInput,
-  RiskReportCorrectionRequestInput,
-  RiskReporterRelationship,
   RiskReportStatus,
   RiskReportSubmissionEvidence,
+  RISK_REPORT_ATTESTATION_VERSION,
 } from "./risk-report";
 
 type Database = Context["db"];
@@ -63,9 +73,14 @@ type RiskIdentifier = typeof protectionRiskIdentifier.$inferSelect;
 type RiskEvidence = typeof protectionRiskEvidence.$inferSelect;
 type RiskDerivative = typeof protectionRiskEvidenceDerivative.$inferSelect;
 type RiskHistory = typeof protectionRiskReportHistory.$inferSelect;
+type RiskTransaction = typeof protectionRiskTransaction.$inferSelect;
 type RiskCorrection = typeof protectionRiskCorrectionRequest.$inferSelect;
 type SupportReviewPublicOutcome =
   typeof protectionSupportReview.$inferSelect.publicOutcome;
+
+const publicSubjectIdentifierRoles = new Set<string>(
+  riskReportPublicSubjectIdentifierRoles
+);
 
 const RISK_EMAIL_SOURCE_TYPE = "PROTECTION_RISK_REPORT";
 
@@ -97,12 +112,10 @@ const riskReportNotificationEvents: Partial<
 const toIso = (value: Date | null): string | null =>
   value?.toISOString() ?? null;
 
-const isRiskEvidenceContentType = (
-  value: string
-): value is (typeof RISK_REPORT_EVIDENCE_CONTENT_TYPES)[number] =>
-  RISK_REPORT_EVIDENCE_CONTENT_TYPES.includes(
-    value as (typeof RISK_REPORT_EVIDENCE_CONTENT_TYPES)[number]
-  );
+const isRiskEvidenceContentType = isNativeRiskReportEvidenceContentType;
+
+const isRiskReportVideoContentType = (contentType: string): boolean =>
+  contentType === "video/mp4" || contentType === "video/webm";
 
 const throwBadRequest = (message: string): never => {
   throw new ORPCError("BAD_REQUEST", { message });
@@ -145,33 +158,6 @@ export const resetRiskReportSubmissionRateLimitForTests = (): void => {
   reportSubmissionRateLimitBuckets.clear();
 };
 
-const assertReporterRelationship = async (
-  database: Database,
-  reporterUserId: string,
-  relationship: RiskReporterRelationship | null | undefined
-): Promise<void> => {
-  const [providerProfile] = await database
-    .select({ id: protectionProviderProfile.id })
-    .from(protectionProviderProfile)
-    .where(eq(protectionProviderProfile.providerUserId, reporterUserId))
-    .limit(1);
-
-  if (providerProfile && !relationship) {
-    throwBadRequest(
-      "Provider Owners must declare whether this report concerns themselves or another Provider"
-    );
-  }
-
-  if (
-    !providerProfile &&
-    (relationship === "SELF_PROVIDER" || relationship === "OTHER_PROVIDER")
-  ) {
-    throwBadRequest(
-      "Only an approved Provider Owner can declare a Provider relationship"
-    );
-  }
-};
-
 const findOwnedReport = async (
   database: Database,
   reporterUserId: string,
@@ -196,11 +182,16 @@ const findOwnedReport = async (
 };
 
 const toPrivateIdentifierView = (identifier: RiskIdentifier) => ({
+  displayName: identifier.displayName,
+  holderName: identifier.holderName,
   id: identifier.id,
+  institutionName: identifier.institutionName,
   isPrimary: identifier.isPrimary,
   maskedValue: identifier.maskedValue,
+  namespace: identifier.namespace,
   normalizedValue: identifier.normalizedValue,
   publicValue: identifier.publicValue,
+  role: identifier.role,
   type: identifier.type,
   value: identifier.value,
 });
@@ -221,6 +212,7 @@ const toPrivateEvidenceView = (
         watermarkApplied: derivative.watermarkApplied,
       }
     : null,
+  explanation: evidence.explanation,
   fileName: evidence.fileName,
   id: evidence.id,
   immutableAt: evidence.immutableAt.toISOString(),
@@ -235,17 +227,37 @@ const toPrivateEvidenceView = (
 const toDraftView = (
   report: RiskReport,
   identifiers: RiskIdentifier[],
-  evidence: RiskEvidence[]
+  evidence: RiskEvidence[],
+  derivatives: RiskDerivative[],
+  transactions: RiskTransaction[]
 ) => ({
+  accessLostAt: toIso(report.accessLostAt),
   affectedVictimCount: report.affectedVictimCount,
   claimedLoss: report.claimedLoss,
   createdAt: report.createdAt.toISOString(),
-  evidence: evidence.map((item) => toPrivateEvidenceView(item)),
+  evidence: evidence.map((item) =>
+    toPrivateEvidenceView(
+      item,
+      derivatives.find((derivative) => derivative.evidenceId === item.id)
+    )
+  ),
+  handoverAt: toIso(report.handoverAt),
   id: report.id,
   identifiers: identifiers.map(toPrivateIdentifierView),
+  incidentAt: toIso(report.incidentAt),
+  incidentDateApproximate: report.incidentDateApproximate,
+  issues: report.issues,
+  lossOccurred: report.lossOccurred,
   narrative: report.narrative,
+  ongoing: report.ongoing,
+  otherIssueDescription: report.otherIssueDescription,
   platform: report.platform,
   possibleDuplicateOfReportId: report.possibleDuplicateOfReportId,
+  privateNote: report.privateNote,
+  publicNarrative: report.publicNarrative,
+  publicPacketPreviewedAt: toIso(report.publicPacketPreviewedAt),
+  purchaseAt: toIso(report.purchaseAt),
+  reporterInvolvement: report.reporterInvolvement,
   reporterName: report.reporterName,
   reporterPhone: report.reporterPhone,
   reporterRelationship: report.reporterRelationship,
@@ -253,6 +265,16 @@ const toDraftView = (
   reviewReason: report.reviewReason,
   status: report.status,
   submittedAt: toIso(report.submittedAt),
+  transactions: transactions.map((transaction) => ({
+    amount: transaction.amount,
+    currencyOrAsset: transaction.currencyOrAsset,
+    destinationIdentifierId: transaction.destinationIdentifierId,
+    id: transaction.id,
+    occurredAt: transaction.occurredAt.toISOString(),
+    paymentMethod: transaction.paymentMethod,
+    reference: transaction.reference,
+    timeKnown: transaction.timeKnown,
+  })),
   type: report.type,
   underVerificationApproved: report.underVerificationApproved,
   updatedAt: report.updatedAt.toISOString(),
@@ -261,6 +283,19 @@ const toDraftView = (
   withdrawalReason: report.withdrawalReason,
   withdrawalRequestedAt: toIso(report.withdrawalRequestedAt),
   withdrawalStatus: report.withdrawalStatus,
+});
+
+const toPublicIdentifierView = (item: RiskIdentifier) => ({
+  holderName:
+    item.type === "BANK_ACCOUNT" && item.holderName
+      ? maskRiskHolderName(item.holderName)
+      : null,
+  institutionName: item.institutionName,
+  isPrimary: item.isPrimary,
+  maskedValue: item.maskedValue,
+  publicValue: getRiskIdentifierPublicValue(item.type, item.normalizedValue),
+  role: item.role,
+  type: item.type,
 });
 
 const toCorrectionView = (request: RiskCorrection) => ({
@@ -285,8 +320,9 @@ const loadReportMaterials = async (
   evidence: RiskEvidence[];
   history: RiskHistory[];
   identifiers: RiskIdentifier[];
+  transactions: RiskTransaction[];
 }> => {
-  const [identifiers, evidence, history] = await Promise.all([
+  const [identifiers, evidence, history, transactions] = await Promise.all([
     database
       .select()
       .from(protectionRiskIdentifier)
@@ -300,6 +336,11 @@ const loadReportMaterials = async (
       .from(protectionRiskReportHistory)
       .where(eq(protectionRiskReportHistory.reportId, reportId))
       .orderBy(desc(protectionRiskReportHistory.createdAt)),
+    database
+      .select()
+      .from(protectionRiskTransaction)
+      .where(eq(protectionRiskTransaction.reportId, reportId))
+      .orderBy(protectionRiskTransaction.occurredAt),
   ]);
 
   const derivatives = evidence.length
@@ -314,7 +355,23 @@ const loadReportMaterials = async (
         )
     : [];
 
-  return { derivatives, evidence, history, identifiers };
+  return { derivatives, evidence, history, identifiers, transactions };
+};
+
+const assertRiskReportTransactionDestinations = (
+  report: RiskReport,
+  transactions: readonly RiskTransaction[]
+): void => {
+  if (
+    report.lossOccurred !== "YES" ||
+    report.type === "SOCIAL_GAME_ACCOUNT" ||
+    transactions.every((transaction) => transaction.destinationIdentifierId)
+  ) {
+    return;
+  }
+  throwBadRequest(
+    "Every loss transaction must identify the payment destination in this report"
+  );
 };
 
 type ReportMaterials = Awaited<ReturnType<typeof loadReportMaterials>>;
@@ -530,31 +587,76 @@ const buildIdentifierRows = (
       normalizedValue
     );
     return {
+      displayName: identifier.displayName,
+      holderName: identifier.holderName,
+      id: crypto.randomUUID(),
+      institutionName: identifier.institutionName,
       isPrimary: index === 0,
       maskedValue: maskRiskIdentifier(identifier.type, normalizedValue),
+      namespace: identifier.namespace,
       normalizedValue,
       publicValue,
       reportId,
+      role: identifier.role,
       type: identifier.type,
       value: identifier.value.trim(),
     };
   });
 
+// oxlint-disable-next-line complexity
 const buildRiskReportDraftUpdates = (
   input: RiskReportDraftInput,
   now: Date
 ): Partial<typeof protectionRiskReport.$inferInsert> => {
   const updates: Partial<typeof protectionRiskReport.$inferInsert> = {
+    publicPacketPreviewedAt: null,
     updatedAt: now,
   };
+  if (input.accessLostAt !== undefined) {
+    updates.accessLostAt = input.accessLostAt;
+  }
   if (input.affectedVictimCount !== undefined) {
     updates.affectedVictimCount = input.affectedVictimCount;
   }
   if (input.claimedLoss !== undefined) {
     updates.claimedLoss = input.claimedLoss;
   }
+  if (input.incidentAt !== undefined) {
+    updates.incidentAt = input.incidentAt;
+  }
+  if (input.incidentDateApproximate !== undefined) {
+    updates.incidentDateApproximate = input.incidentDateApproximate;
+  }
+  if (input.handoverAt !== undefined) {
+    updates.handoverAt = input.handoverAt;
+  }
+  if (input.issues !== undefined) {
+    updates.issues = input.issues;
+  }
+  if (input.lossOccurred !== undefined) {
+    updates.lossOccurred = input.lossOccurred;
+    if (input.lossOccurred !== "YES" && input.claimedLoss === undefined) {
+      updates.claimedLoss = null;
+    }
+  }
   if (input.narrative !== undefined) {
-    updates.narrative = input.narrative;
+    updates.narrative = input.narrative.trim() || null;
+    updates.publicPacketPreviewedAt = null;
+  }
+  if (input.ongoing !== undefined) {
+    updates.ongoing = input.ongoing;
+  }
+  if (input.otherIssueDescription !== undefined) {
+    updates.otherIssueDescription = input.otherIssueDescription || null;
+  }
+  if (input.privateNote !== undefined) {
+    updates.privateNote = input.privateNote || null;
+  }
+  if (input.purchaseAt !== undefined) {
+    updates.purchaseAt = input.purchaseAt;
+  }
+  if (input.reporterInvolvement !== undefined) {
+    updates.reporterInvolvement = input.reporterInvolvement;
   }
   if (input.platform !== undefined) {
     updates.platform = input.platform;
@@ -564,9 +666,11 @@ const buildRiskReportDraftUpdates = (
   }
   if (input.reporterPhone !== undefined) {
     updates.reporterPhone = input.reporterPhone;
+    updates.publicPacketPreviewedAt = null;
   }
   if (input.reporterZalo !== undefined) {
     updates.reporterZalo = input.reporterZalo;
+    updates.publicPacketPreviewedAt = null;
   }
   if (input.urgency !== undefined) {
     updates.urgency = input.urgency;
@@ -584,13 +688,26 @@ const buildRiskReportDraftValues = (
   reporterEmail: string,
   reporterName: string
 ): typeof protectionRiskReport.$inferInsert => ({
+  accessLostAt: input.accessLostAt,
   affectedVictimCount: input.affectedVictimCount,
   claimedLoss: input.claimedLoss,
   createdAt: now,
-  narrative: input.narrative,
+  handoverAt: input.handoverAt,
+  incidentAt: input.incidentAt,
+  incidentDateApproximate: input.incidentDateApproximate ?? false,
+  issues: input.issues ?? [],
+  lossOccurred: input.lossOccurred,
+  narrative: input.narrative?.trim() || null,
+  ongoing: input.ongoing ?? false,
+  otherIssueDescription: input.otherIssueDescription || null,
   platform: input.platform,
   possibleDuplicateOfReportId: null,
+  privateNote: input.privateNote || null,
+  publicNarrative: null,
+  publicPacketPreviewedAt: null,
+  purchaseAt: input.purchaseAt,
   reporterEmail,
+  reporterInvolvement: input.reporterInvolvement,
   reporterName,
   reporterPhone: input.reporterPhone,
   reporterRelationship:
@@ -603,6 +720,7 @@ const buildRiskReportDraftValues = (
   violationType: input.violationType,
 });
 
+// oxlint-disable-next-line complexity
 export const saveRiskReportDraft = async ({
   database,
   input,
@@ -633,12 +751,6 @@ export const saveRiskReportDraft = async ({
       )
       .limit(1);
   }
-  await assertReporterRelationship(
-    database,
-    reporterUserId,
-    input.reporterRelationship ?? existingReport?.reporterRelationship
-  );
-
   if (input.reportId) {
     report = existingReport;
     if (!report) {
@@ -658,11 +770,17 @@ export const saveRiskReportDraft = async ({
 
   if (report) {
     const updates = buildRiskReportDraftUpdates(input, now);
-    [report] = await database
+    const [updatedReport] = await database
       .update(protectionRiskReport)
       .set(updates)
       .where(eq(protectionRiskReport.id, report.id))
       .returning();
+    if (!updatedReport) {
+      throw new ORPCError("CONFLICT", {
+        message: "Risk draft could not be saved",
+      });
+    }
+    report = updatedReport;
   } else {
     [report] = await database
       .insert(protectionRiskReport)
@@ -684,6 +802,8 @@ export const saveRiskReportDraft = async ({
     });
   }
 
+  let currentReport = report;
+
   if (input.identifiers !== undefined) {
     const allowedTypes = new Set(getRiskReportIdentifierTypes(input.type));
     for (const identifier of input.identifiers) {
@@ -693,15 +813,204 @@ export const saveRiskReportDraft = async ({
     }
     await database
       .delete(protectionRiskIdentifier)
-      .where(eq(protectionRiskIdentifier.reportId, report.id));
-    const rows = buildIdentifierRows(report.id, input.identifiers);
+      .where(eq(protectionRiskIdentifier.reportId, currentReport.id));
+    const rows = buildIdentifierRows(currentReport.id, input.identifiers);
     if (rows.length > 0) {
       await database.insert(protectionRiskIdentifier).values(rows);
     }
   }
 
+  const materialsBeforeTransactions = await loadReportMaterials(
+    database,
+    currentReport.id
+  );
+
+  if (input.transactions !== undefined) {
+    const identifiersByIndex = materialsBeforeTransactions.identifiers;
+    const transactionRows = input.transactions.map((transaction) => {
+      const destinationIdentifier =
+        transaction.destinationIdentifierIndex === undefined
+          ? null
+          : identifiersByIndex[transaction.destinationIdentifierIndex];
+      if (
+        transaction.destinationIdentifierIndex !== undefined &&
+        !destinationIdentifier
+      ) {
+        throwBadRequest(
+          "Transaction destination must reference an identifier in this report"
+        );
+      }
+      return {
+        amount: transaction.amount,
+        currencyOrAsset: transaction.currencyOrAsset,
+        destinationIdentifierId: destinationIdentifier?.id ?? null,
+        occurredAt: transaction.occurredAt,
+        paymentMethod: transaction.paymentMethod,
+        reference: transaction.reference || null,
+        reportId: currentReport.id,
+        timeKnown: transaction.timeKnown,
+      };
+    });
+    await database
+      .delete(protectionRiskTransaction)
+      .where(eq(protectionRiskTransaction.reportId, currentReport.id));
+    if (transactionRows.length > 0) {
+      await database.insert(protectionRiskTransaction).values(transactionRows);
+    }
+  }
+
+  const materials = await loadReportMaterials(database, currentReport.id);
+  const shouldRefreshPublicNarrative =
+    input.narrative !== undefined ||
+    input.identifiers !== undefined ||
+    input.reporterPhone !== undefined ||
+    input.reporterZalo !== undefined;
+  if (shouldRefreshPublicNarrative) {
+    const privateValues = [
+      currentReport.reporterPhone,
+      currentReport.reporterZalo,
+      ...materials.identifiers.flatMap((identifier) => [
+        identifier.value,
+        identifier.displayName,
+        identifier.holderName,
+        identifier.institutionName,
+      ]),
+    ].filter((value): value is string => Boolean(value));
+    const [refreshedReport] = await database
+      .update(protectionRiskReport)
+      .set({
+        publicNarrative: currentReport.narrative
+          ? buildRiskReportPublicNarrative(
+              currentReport.narrative,
+              privateValues
+            )
+          : null,
+        publicPacketPreviewedAt: null,
+        updatedAt: now,
+      })
+      .where(eq(protectionRiskReport.id, currentReport.id))
+      .returning();
+    if (!refreshedReport) {
+      throw new ORPCError("CONFLICT", {
+        message: "Risk draft could not be refreshed",
+      });
+    }
+    currentReport = refreshedReport;
+  }
+
+  return toDraftView(
+    currentReport,
+    materials.identifiers,
+    materials.evidence,
+    materials.derivatives,
+    materials.transactions
+  );
+};
+
+export const previewRiskReport = async ({
+  database,
+  now = new Date(),
+  reportId,
+  reporterUserId,
+}: {
+  database: Database;
+  now?: Date;
+  reportId: string;
+  reporterUserId: string;
+}) => {
+  const { report } = await findOwnedReport(database, reporterUserId, reportId);
+  if (report.status !== "DRAFT" && report.status !== "CHANGES_REQUESTED") {
+    throw new ORPCError("CONFLICT", {
+      message: "Only an editable report can be previewed.",
+    });
+  }
   const materials = await loadReportMaterials(database, report.id);
-  return toDraftView(report, materials.identifiers, materials.evidence);
+  assertRiskReportTransactionDestinations(report, materials.transactions);
+  try {
+    assertRiskReportSubmission({
+      accessLostAt: report.accessLostAt,
+      claimedLoss: report.claimedLoss,
+      evidence: materials.evidence.map((evidence) => ({
+        kind: evidence.kind,
+        publicCopyReady: materials.derivatives.some(
+          (derivative) => derivative.evidenceId === evidence.id
+        ),
+        scanStatus: evidence.scanStatus,
+      })) as RiskReportSubmissionEvidence[],
+      handoverAt: report.handoverAt,
+      identifiers: materials.identifiers,
+      incidentAt: report.incidentAt,
+      issues: report.issues as NonNullable<RiskReportDraftInput["issues"]>,
+      lossOccurred: report.lossOccurred,
+      narrative: report.narrative,
+      otherIssueDescription: report.otherIssueDescription,
+      platform: report.platform,
+      publicNarrative: report.publicNarrative,
+      // Preview is the operation that creates this timestamp, so validate the
+      // packet as if it had just been previewed.
+      publicPacketPreviewedAt: now,
+      purchaseAt: report.purchaseAt,
+      reporterInvolvement: report.reporterInvolvement,
+      transactions: materials.transactions.map((transaction) => ({
+        amount: transaction.amount,
+        currencyOrAsset: transaction.currencyOrAsset,
+        occurredAt: transaction.occurredAt,
+        paymentMethod: transaction.paymentMethod,
+        reference: transaction.reference ?? undefined,
+        timeKnown: transaction.timeKnown,
+      })),
+      type: report.type,
+      violationType: report.violationType,
+    });
+  } catch (error) {
+    throwBadRequest(
+      error instanceof Error ? error.message : "Report is incomplete"
+    );
+  }
+  const [updated] = await database
+    .update(protectionRiskReport)
+    .set({ publicPacketPreviewedAt: now, updatedAt: now })
+    .where(eq(protectionRiskReport.id, report.id))
+    .returning();
+  if (!updated) {
+    throw new ORPCError("CONFLICT", {
+      message: "Risk report preview could not be saved",
+    });
+  }
+  const publicIdentifiers = materials.identifiers.map(toPublicIdentifierView);
+
+  return {
+    evidence: materials.evidence.flatMap((evidence) => {
+      const derivative = materials.derivatives.find(
+        (item) => item.evidenceId === evidence.id
+      );
+      return derivative
+        ? [
+            {
+              contentType: derivative.contentType,
+              fileName: evidence.fileName,
+              kind: evidence.kind,
+            },
+          ]
+        : [];
+    }),
+    identifiers: publicIdentifiers.map((identifier) => ({
+      holderName: identifier.holderName,
+      institutionName: identifier.institutionName,
+      maskedValue: identifier.maskedValue,
+      publicValue: identifier.publicValue,
+      role: identifier.role,
+      type: identifier.type,
+    })),
+    previewedAt: updated.publicPacketPreviewedAt?.toISOString() ?? null,
+    publicNarrative: updated.publicNarrative,
+    publicTitle: createRiskReportPublicTitle({
+      identifiers: publicIdentifiers,
+      platform: updated.platform,
+      type: updated.type,
+    }),
+    reportId: updated.id,
+  };
 };
 
 export const deleteRiskReportDraft = async ({
@@ -813,7 +1122,13 @@ export const requestRiskReportWithdrawal = async ({
   });
 
   const materials = await loadReportMaterials(database, updated.id);
-  return toDraftView(updated, materials.identifiers, materials.evidence);
+  return toDraftView(
+    updated,
+    materials.identifiers,
+    materials.evidence,
+    materials.derivatives,
+    materials.transactions
+  );
 };
 
 export const requestRiskReportCorrection = async ({
@@ -1036,7 +1351,13 @@ export const getRiskReportMine = async ({
   return Promise.all(
     reports.map(async (report) => {
       const materials = await loadReportMaterials(database, report.id);
-      return toDraftView(report, materials.identifiers, materials.evidence);
+      return toDraftView(
+        report,
+        materials.identifiers,
+        materials.evidence,
+        materials.derivatives,
+        materials.transactions
+      );
     })
   );
 };
@@ -1060,23 +1381,42 @@ export const addRiskReportEvidence = async (
   if (!isRiskEvidenceContentType(input.contentType)) {
     throwBadRequest("This evidence file type is not supported");
   }
-  if (input.sizeBytes > RISK_REPORT_EVIDENCE_MAX_BYTES) {
+  if (
+    input.sizeBytes > getNativeRiskReportEvidenceMaxBytes(input.contentType)
+  ) {
     throwBadRequest("This evidence file is too large");
   }
   if (!isRiskReportEvidenceKey(input.originalStorageKey, input.reportId)) {
     throwBadRequest("The evidence storage key is not valid for this report");
   }
-  if (!isRiskReportEvidenceFileNameAllowed(input.fileName, input.contentType)) {
+  if (
+    !isNativeRiskReportEvidenceFileNameAllowed(
+      input.fileName,
+      input.contentType
+    )
+  ) {
     throwBadRequest("The evidence file name does not match its content type");
   }
 
   const existing = await database
-    .select({ id: protectionRiskEvidence.id })
+    .select({
+      contentType: protectionRiskEvidence.contentType,
+      id: protectionRiskEvidence.id,
+    })
     .from(protectionRiskEvidence)
     .where(eq(protectionRiskEvidence.reportId, input.reportId));
   if (existing.length >= RISK_REPORT_EVIDENCE_MAX_COUNT) {
     throwBadRequest(
       `A report can contain at most ${RISK_REPORT_EVIDENCE_MAX_COUNT} evidence files`
+    );
+  }
+  if (
+    isRiskReportVideoContentType(input.contentType) &&
+    existing.filter((item) => isRiskReportVideoContentType(item.contentType))
+      .length >= RISK_REPORT_EVIDENCE_MAX_VIDEO_COUNT
+  ) {
+    throwBadRequest(
+      `A report can contain at most ${RISK_REPORT_EVIDENCE_MAX_VIDEO_COUNT} video evidence files`
     );
   }
 
@@ -1085,13 +1425,14 @@ export const addRiskReportEvidence = async (
     .values({
       contentType: input.contentType,
       createdAt: now,
+      explanation: input.explanation,
       fileName: input.fileName,
       immutableAt: now,
       kind: input.kind,
       originalStorageKey: input.originalStorageKey,
       reportId: input.reportId,
-      scanReason: "Validated by the Avin Check upload allowlist",
-      scanStatus: "CLEAN",
+      scanReason: "Queued for malware scanning and public-copy processing",
+      scanStatus: "PENDING",
       sha256: input.sha256,
       sizeBytes: input.sizeBytes,
     })
@@ -1101,6 +1442,10 @@ export const addRiskReportEvidence = async (
       message: "Evidence could not be registered",
     });
   }
+  await database
+    .update(protectionRiskReport)
+    .set({ publicPacketPreviewedAt: null, updatedAt: now })
+    .where(eq(protectionRiskReport.id, input.reportId));
   return toPrivateEvidenceView(evidence);
 };
 
@@ -1122,7 +1467,10 @@ export const assertRiskReportEvidenceUploadAccess = async ({
     });
   }
   const existing = await database
-    .select({ id: protectionRiskEvidence.id })
+    .select({
+      contentType: protectionRiskEvidence.contentType,
+      id: protectionRiskEvidence.id,
+    })
     .from(protectionRiskEvidence)
     .where(eq(protectionRiskEvidence.reportId, reportId));
   if (existing.length + files.length > RISK_REPORT_EVIDENCE_MAX_COUNT) {
@@ -1130,10 +1478,25 @@ export const assertRiskReportEvidenceUploadAccess = async ({
       message: `A report can contain at most ${RISK_REPORT_EVIDENCE_MAX_COUNT} evidence files`,
     });
   }
+  const existingVideoCount = existing.filter((item) =>
+    isRiskReportVideoContentType(item.contentType)
+  ).length;
+  const requestedVideoCount = files.filter((file) =>
+    isRiskReportVideoContentType(file.type)
+  ).length;
+  if (
+    existingVideoCount + requestedVideoCount >
+    RISK_REPORT_EVIDENCE_MAX_VIDEO_COUNT
+  ) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: `A report can contain at most ${RISK_REPORT_EVIDENCE_MAX_VIDEO_COUNT} video evidence files`,
+    });
+  }
   for (const file of files) {
     if (
       !isRiskEvidenceContentType(file.type) ||
-      (file.size !== undefined && file.size > RISK_REPORT_EVIDENCE_MAX_BYTES)
+      (file.size !== undefined &&
+        file.size > getNativeRiskReportEvidenceMaxBytes(file.type))
     ) {
       throw new ORPCError("BAD_REQUEST", {
         message: "This evidence file type or size is not supported",
@@ -1151,7 +1514,11 @@ export const submitRiskReport = async ({
 }: {
   database: Database;
   ipAddress?: string;
-  input: { reportId: string };
+  input: {
+    attestationAccepted: true;
+    attestationVersion: typeof RISK_REPORT_ATTESTATION_VERSION;
+    reportId: string;
+  };
   now?: Date;
   reporterUserId: string;
 }) => {
@@ -1161,19 +1528,40 @@ export const submitRiskReport = async ({
     reporterUserId,
     input.reportId
   );
-  await assertReporterRelationship(
-    database,
-    reporterUserId,
-    report.reporterRelationship
-  );
   const materials = await loadReportMaterials(database, report.id);
+  const submissionEvidence = materials.evidence.map((evidence) => ({
+    kind: evidence.kind,
+    publicCopyReady: materials.derivatives.some(
+      (derivative) => derivative.evidenceId === evidence.id
+    ),
+    scanStatus: evidence.scanStatus,
+  }));
+  assertRiskReportTransactionDestinations(report, materials.transactions);
   try {
     assertRiskReportSubmission({
+      accessLostAt: report.accessLostAt,
       claimedLoss: report.claimedLoss,
-      evidence: materials.evidence as RiskReportSubmissionEvidence[],
+      evidence: submissionEvidence as RiskReportSubmissionEvidence[],
+      handoverAt: report.handoverAt,
       identifiers: materials.identifiers,
+      incidentAt: report.incidentAt,
+      issues: report.issues as NonNullable<RiskReportDraftInput["issues"]>,
+      lossOccurred: report.lossOccurred,
       narrative: report.narrative,
+      otherIssueDescription: report.otherIssueDescription,
       platform: report.platform,
+      publicNarrative: report.publicNarrative,
+      publicPacketPreviewedAt: report.publicPacketPreviewedAt,
+      purchaseAt: report.purchaseAt,
+      reporterInvolvement: report.reporterInvolvement,
+      transactions: materials.transactions.map((transaction) => ({
+        amount: transaction.amount,
+        currencyOrAsset: transaction.currencyOrAsset,
+        occurredAt: transaction.occurredAt,
+        paymentMethod: transaction.paymentMethod,
+        reference: transaction.reference ?? undefined,
+        timeKnown: transaction.timeKnown,
+      })),
       type: report.type,
       violationType: report.violationType,
     });
@@ -1192,6 +1580,8 @@ export const submitRiskReport = async ({
   const [updated] = await database
     .update(protectionRiskReport)
     .set({
+      attestationVersion: input.attestationVersion,
+      attestedAt: now,
       possibleDuplicateOfReportId,
       status: "SUBMITTED",
       submittedAt: now,
@@ -1211,10 +1601,40 @@ export const submitRiskReport = async ({
     reportId: report.id,
     status: "SUBMITTED",
   });
+  await database.insert(protectionRiskReportRevision).values({
+    reportId: report.id,
+    revisionNumber: 1,
+    snapshot: {
+      evidenceIds: materials.evidence.map((evidence) => evidence.id),
+      identifiers: materials.identifiers.map((identifier) => ({
+        id: identifier.id,
+        role: identifier.role,
+        type: identifier.type,
+        value: identifier.value,
+      })),
+      issues: report.issues,
+      narrative: report.narrative,
+      publicNarrative: report.publicNarrative,
+      transactions: materials.transactions.map((transaction) => ({
+        amount: transaction.amount,
+        currencyOrAsset: transaction.currencyOrAsset,
+        destinationIdentifierId: transaction.destinationIdentifierId,
+        occurredAt: transaction.occurredAt.toISOString(),
+        paymentMethod: transaction.paymentMethod,
+      })),
+    },
+    submittedAt: now,
+  });
   await notifyRiskModerators(database, updated, "SUBMITTED", now);
   await notifyRiskReporter(database, updated, "SUBMITTED", now);
   await enqueueRiskReportStatusEmail(database, updated, "SUBMITTED", null, now);
-  return toDraftView(updated, materials.identifiers, materials.evidence);
+  return toDraftView(
+    updated,
+    materials.identifiers,
+    materials.evidence,
+    materials.derivatives,
+    materials.transactions
+  );
 };
 
 export const listRiskReportsForAdmin = async (
@@ -1296,12 +1716,14 @@ export const getRiskReportForAdmin = async (
     materials.derivatives.map((item) => [item.evidenceId, item])
   );
   return {
+    accessLostAt: toIso(report.accessLostAt),
     affectedVictimCount: report.affectedVictimCount,
     claimedLoss: report.claimedLoss,
     createdAt: report.createdAt.toISOString(),
     evidence: materials.evidence.map((item) =>
       toPrivateEvidenceView(item, derivativesByEvidenceId.get(item.id))
     ),
+    handoverAt: toIso(report.handoverAt),
     history: materials.history.map((item) => ({
       actorUserId: item.actorUserId,
       createdAt: item.createdAt.toISOString(),
@@ -1315,9 +1737,15 @@ export const getRiskReportForAdmin = async (
       ...toPrivateIdentifierView(item),
       value: item.value,
     })),
+    incidentAt: toIso(report.incidentAt),
+    incidentDateApproximate: report.incidentDateApproximate,
+    issues: report.issues,
+    lossOccurred: report.lossOccurred,
     narrative: report.narrative,
+    ongoing: report.ongoing,
     platform: report.platform,
     possibleDuplicateOfReportId: report.possibleDuplicateOfReportId,
+    privateNote: report.privateNote,
     providerConflictSignal:
       report.reporterRelationship &&
       report.reporterRelationship !== "NO_PROVIDER_RELATIONSHIP"
@@ -1326,9 +1754,13 @@ export const getRiskReportForAdmin = async (
             relationship: report.reporterRelationship,
           }
         : null,
+    publicNarrative: report.publicNarrative,
+    publicPacketPreviewedAt: toIso(report.publicPacketPreviewedAt),
     publicSlug: report.publicSlug,
     publicSummary: report.publicSummary,
+    purchaseAt: toIso(report.purchaseAt),
     reporterEmail: report.reporterEmail,
+    reporterInvolvement: report.reporterInvolvement,
     reporterName: report.reporterName,
     reporterPhone: report.reporterPhone,
     reporterRelationship: report.reporterRelationship,
@@ -1357,20 +1789,21 @@ const assertReadyDerivatives = (
   const derivativeByEvidenceId = new Map(
     derivatives.map((item) => [item.evidenceId, item])
   );
-  for (const item of evidence) {
+  const hasReadyDerivative = evidence.some((item) => {
     const derivative = derivativeByEvidenceId.get(item.id);
-    if (
-      !derivative ||
-      !isRiskReportDerivativeKey(derivative.storageKey, report.id, item.id) ||
-      !derivative.metadataRemoved ||
-      !derivative.unrelatedPiiRedacted ||
-      !derivative.watermarkApplied
-    ) {
-      throw new ORPCError("BAD_REQUEST", {
-        message:
-          "Every evidence file needs a validated redacted derivative before publication.",
-      });
-    }
+    return (
+      derivative !== undefined &&
+      isRiskReportDerivativeKey(derivative.storageKey, report.id, item.id) &&
+      derivative.metadataRemoved &&
+      derivative.unrelatedPiiRedacted &&
+      derivative.watermarkApplied
+    );
+  });
+  if (!hasReadyDerivative) {
+    throw new ORPCError("BAD_REQUEST", {
+      message:
+        "At least one evidence file needs a validated redacted derivative before publication.",
+    });
   }
 };
 
@@ -1413,14 +1846,12 @@ const assertRiskReportPublicationReady = ({
   decision,
   launchConfiguration,
   materials,
-  publicSummary,
   report,
   underVerificationApproved,
 }: {
   decision: RiskReportDecisionStatus;
   launchConfiguration: ProtectionLaunchConfiguration;
   materials: ReportMaterials;
-  publicSummary: string | undefined;
   report: RiskReport;
   underVerificationApproved?: boolean;
 }): void => {
@@ -1441,18 +1872,49 @@ const assertRiskReportPublicationReady = ({
     launchConfiguration,
     "RISK_REPORT_PUBLICATION"
   );
+  const readinessStatus = getProtectionReadinessStatus(launchConfiguration);
+  if (!readinessStatus.enabled) {
+    throwBadRequest(
+      `Risk report publication readiness is blocked: ${readinessStatus.blockers.join(", ")}`
+    );
+  }
+  assertRiskReportTransactionDestinations(report, materials.transactions);
   assertRiskReportSubmission({
+    accessLostAt: report.accessLostAt,
     claimedLoss: report.claimedLoss,
-    evidence: materials.evidence as RiskReportSubmissionEvidence[],
+    evidence: materials.evidence.map((evidence) => ({
+      kind: evidence.kind,
+      publicCopyReady: materials.derivatives.some(
+        (derivative) => derivative.evidenceId === evidence.id
+      ),
+      scanStatus: evidence.scanStatus,
+    })) as RiskReportSubmissionEvidence[],
+    handoverAt: report.handoverAt,
     identifiers: materials.identifiers,
+    incidentAt: report.incidentAt,
+    issues: report.issues as NonNullable<RiskReportDraftInput["issues"]>,
+    lossOccurred: report.lossOccurred,
     narrative: report.narrative,
+    otherIssueDescription: report.otherIssueDescription,
     platform: report.platform,
+    publicNarrative: report.publicNarrative,
+    publicPacketPreviewedAt: report.publicPacketPreviewedAt,
+    purchaseAt: report.purchaseAt,
+    reporterInvolvement: report.reporterInvolvement,
+    transactions: materials.transactions.map((transaction) => ({
+      amount: transaction.amount,
+      currencyOrAsset: transaction.currencyOrAsset,
+      occurredAt: transaction.occurredAt,
+      paymentMethod: transaction.paymentMethod,
+      reference: transaction.reference ?? undefined,
+      timeKnown: transaction.timeKnown,
+    })),
     type: report.type,
     violationType: report.violationType,
   });
   assertReadyDerivatives(report, materials.evidence, materials.derivatives);
-  if (!(publicSummary?.trim() || report.publicSummary?.trim())) {
-    throwBadRequest("A public redacted summary is required before publication");
+  if (!report.publicNarrative?.trim()) {
+    throwBadRequest("A public report narrative is required before publication");
   }
 };
 
@@ -1461,7 +1923,6 @@ export const decideRiskReport = async ({
   decision,
   id,
   now = new Date(),
-  publicSummary,
   reason,
   reviewerUserId,
   underVerificationApproved,
@@ -1472,7 +1933,6 @@ export const decideRiskReport = async ({
   id: string;
   launchConfiguration?: ProtectionLaunchConfiguration;
   now?: Date;
-  publicSummary?: string;
   reason?: string;
   reviewerUserId: string;
   underVerificationApproved?: boolean;
@@ -1504,7 +1964,6 @@ export const decideRiskReport = async ({
     decision,
     launchConfiguration,
     materials,
-    publicSummary,
     report,
     underVerificationApproved,
   });
@@ -1521,7 +1980,7 @@ export const decideRiskReport = async ({
     .update(protectionRiskReport)
     .set({
       publicSlug: nextPublicSlug,
-      publicSummary: publicSummary?.trim() || report.publicSummary,
+      publicSummary: report.publicSummary,
       publishedAt: nextPublishedAt,
       reviewReason: reason?.trim() || null,
       reviewedAt: now,
@@ -1583,7 +2042,7 @@ export const registerRiskReportDerivative = async ({
   if (!isRiskEvidenceContentType(contentType)) {
     throwBadRequest("This derivative file type is not supported");
   }
-  if (sizeBytes > RISK_REPORT_EVIDENCE_MAX_BYTES) {
+  if (sizeBytes > getNativeRiskReportEvidenceMaxBytes(contentType)) {
     throwBadRequest("This derivative file is too large");
   }
   if (!metadataRemoved || !unrelatedPiiRedacted || !watermarkApplied) {
@@ -1595,7 +2054,9 @@ export const registerRiskReportDerivative = async ({
     throwBadRequest("The derivative storage key is not valid for this report");
   }
   const derivativeFileName = storageKey.split("/").at(-1) ?? "";
-  if (!isRiskReportEvidenceFileNameAllowed(derivativeFileName, contentType)) {
+  if (
+    !isNativeRiskReportEvidenceFileNameAllowed(derivativeFileName, contentType)
+  ) {
     throwBadRequest("The derivative file name does not match its content type");
   }
   const [evidence] = await database
@@ -1641,6 +2102,10 @@ export const registerRiskReportDerivative = async ({
       message: "Derivative could not be registered",
     });
   }
+  await database
+    .update(protectionRiskReport)
+    .set({ publicPacketPreviewedAt: null, updatedAt: now })
+    .where(eq(protectionRiskReport.id, reportId));
   return {
     contentType: derivative.contentType,
     evidenceId: derivative.evidenceId,
@@ -1710,21 +2175,36 @@ export const createRiskReportOriginalEvidenceUrl = async ({
       message: "Could not create a private evidence URL",
     });
   }
-  const result = (await response.json()) as { signedURL?: string };
-  if (!result.signedURL) {
+  const payload: unknown = await response.json();
+  const signedURL =
+    typeof payload === "object" &&
+    payload !== null &&
+    "signedURL" in payload &&
+    typeof payload.signedURL === "string"
+      ? payload.signedURL
+      : null;
+  if (!signedURL) {
     throw new ORPCError("INTERNAL_SERVER_ERROR", {
       message: "Could not create a private evidence URL",
     });
   }
-  const signedPath = result.signedURL.startsWith("/storage/v1/")
-    ? result.signedURL
-    : `/storage/v1${result.signedURL}`;
+  const signedPath = signedURL.startsWith("/storage/v1/")
+    ? signedURL
+    : `/storage/v1${signedURL}`;
+  const baseUrl = new URL(storage.supabaseUrl);
+  const privateEvidenceUrl = new URL(signedPath, baseUrl);
+  if (privateEvidenceUrl.origin !== baseUrl.origin) {
+    throw new ORPCError("INTERNAL_SERVER_ERROR", {
+      message: "Could not create a private evidence URL",
+    });
+  }
   return {
     expiresInSeconds: 300,
-    url: new URL(signedPath, storage.supabaseUrl).toString(),
+    url: privateEvidenceUrl.toString(),
   };
 };
 
+// oxlint-disable-next-line complexity
 const toPublicWarningView = (
   report: RiskReport,
   identifiers: RiskIdentifier[],
@@ -1735,6 +2215,25 @@ const toPublicWarningView = (
   supabaseUrl: string
 ) => {
   const isRemoved = report.status === "REMOVED";
+  const {
+    externalSource,
+    publicNarrative: reportPublicNarrative,
+    publicSummary: reportPublicSummary,
+  } = report;
+  const publicSubjectIdentifiers: ReturnType<typeof toPublicIdentifierView>[] =
+    [];
+  const reportedAssets: ReturnType<typeof toPublicIdentifierView>[] = [];
+  const impersonatedIdentities: ReturnType<typeof toPublicIdentifierView>[] =
+    [];
+  for (const identifier of identifiers) {
+    if (publicSubjectIdentifierRoles.has(identifier.role)) {
+      publicSubjectIdentifiers.push(toPublicIdentifierView(identifier));
+    } else if (identifier.role === "REPORTED_ASSET") {
+      reportedAssets.push(toPublicIdentifierView(identifier));
+    } else if (identifier.role === "IMPERSONATED_IDENTITY") {
+      impersonatedIdentities.push(toPublicIdentifierView(identifier));
+    }
+  }
   const derivativesByEvidenceId = new Map(
     derivatives.map((item) => [item.evidenceId, item])
   );
@@ -1750,6 +2249,25 @@ const toPublicWarningView = (
       });
     }
   }
+  let publicNarrative = reportPublicNarrative;
+  let publicSummary = externalSource ? reportPublicSummary : null;
+  if (isRemoved) {
+    publicNarrative = null;
+    publicSummary = "Warning này đã được gỡ khỏi danh mục công khai.";
+  } else if (externalSource) {
+    publicNarrative = reportPublicNarrative ?? reportPublicSummary;
+  }
+  const publicTitle =
+    report.externalTitle ??
+    createRiskReportPublicTitle({
+      identifiers: [
+        ...publicSubjectIdentifiers,
+        ...reportedAssets,
+        ...impersonatedIdentities,
+      ],
+      platform: report.platform,
+      type: report.type,
+    });
   return {
     claimedLoss: isRemoved ? null : report.claimedLoss,
     evidence: isRemoved
@@ -1795,27 +2313,19 @@ const toPublicWarningView = (
         }
       : null,
     history: publicHistory,
-    identifiers: isRemoved
-      ? []
-      : identifiers.map((item) => ({
-          isPrimary: item.isPrimary,
-          maskedValue: item.maskedValue,
-          publicValue: getRiskIdentifierPublicValue(
-            item.type,
-            item.normalizedValue
-          ),
-          type: item.type,
-        })),
+    identifiers: isRemoved ? [] : publicSubjectIdentifiers,
+    impersonatedIdentities: isRemoved ? [] : impersonatedIdentities,
     platform: isRemoved ? null : report.platform,
+    publicNarrative,
     publicPath: createPublicWarningPath(
       report.publicSlug ?? createRiskReportPublicSlug(report.id)
     ),
     publicSlug: report.publicSlug ?? createRiskReportPublicSlug(report.id),
-    publicSummary: isRemoved
-      ? "Warning này đã được gỡ khỏi danh mục công khai."
-      : report.publicSummary,
+    publicSummary,
+    publicTitle,
     publishedAt: toIso(report.publishedAt),
     reportId: report.id,
+    reportedAssets: isRemoved ? [] : reportedAssets,
     status: report.status,
     supportOutcome: isRemoved ? null : supportOutcome,
     type: report.type,
@@ -1842,8 +2352,6 @@ export const listPublicRiskWarnings = async (
   input:
     | {
         limit?: number;
-        source?: "chongscam";
-        sourceReportIds?: string[];
       }
     | undefined,
   supabaseUrl = env.SUPABASE_URL
@@ -1856,19 +2364,9 @@ export const listPublicRiskWarnings = async (
         inArray(protectionRiskReport.status, [
           "PUBLISHED",
           "CORRECTED",
-          "UNDER_VERIFICATION",
           "REMOVED",
         ]),
-        input?.source
-          ? eq(protectionRiskReport.externalSource, input.source)
-          : undefined,
-        input?.sourceReportIds?.length
-          ? inArray(
-              protectionRiskReport.externalSourceId,
-              input.sourceReportIds
-            )
-          : undefined,
-        publicExternalRiskFilter
+        publicNativeRiskFilter
       )
     )
     .orderBy(desc(protectionRiskReport.publishedAt))
@@ -1907,10 +2405,9 @@ export const getPublicRiskWarning = async (
         inArray(protectionRiskReport.status, [
           "PUBLISHED",
           "CORRECTED",
-          "UNDER_VERIFICATION",
           "REMOVED",
         ]),
-        publicExternalRiskFilter
+        publicNativeRiskFilter
       )
     )
     .limit(1);

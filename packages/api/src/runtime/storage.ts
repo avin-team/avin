@@ -83,6 +83,7 @@ export const DISPUTE_EVIDENCE_CONTENT_TYPES = [
 
 export const RISK_REPORT_EVIDENCE_MAX_BYTES = 20 * 1024 * 1024;
 export const RISK_REPORT_EVIDENCE_MAX_COUNT = 10;
+export const RISK_REPORT_EVIDENCE_MAX_VIDEO_COUNT = 2;
 export const RISK_REPORT_EVIDENCE_CONTENT_TYPES = [
   "application/pdf",
   "image/jpeg",
@@ -92,6 +93,32 @@ export const RISK_REPORT_EVIDENCE_CONTENT_TYPES = [
   "video/mp4",
   "video/webm",
 ] as const;
+
+/** Native Avin Check reports accept these evidence types; plain-text files remain
+ * supported only by legacy/provider evidence flows. */
+export const RISK_REPORT_NATIVE_EVIDENCE_CONTENT_TYPES = [
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "video/mp4",
+  "video/webm",
+] as const;
+export const RISK_REPORT_EVIDENCE_MAX_VIDEO_BYTES = 100 * 1024 * 1024;
+
+export const isNativeRiskReportEvidenceContentType = (
+  contentType: string
+): contentType is (typeof RISK_REPORT_NATIVE_EVIDENCE_CONTENT_TYPES)[number] =>
+  RISK_REPORT_NATIVE_EVIDENCE_CONTENT_TYPES.includes(
+    contentType as (typeof RISK_REPORT_NATIVE_EVIDENCE_CONTENT_TYPES)[number]
+  );
+
+export const getNativeRiskReportEvidenceMaxBytes = (
+  contentType: string
+): number =>
+  contentType === "video/mp4" || contentType === "video/webm"
+    ? RISK_REPORT_EVIDENCE_MAX_VIDEO_BYTES
+    : RISK_REPORT_EVIDENCE_MAX_BYTES;
 
 export const SELLER_ENFORCEMENT_APPEAL_EVIDENCE_MAX_BYTES =
   DISPUTE_EVIDENCE_MAX_BYTES;
@@ -357,6 +384,13 @@ export const isRiskReportEvidenceFileNameAllowed = (
     return false;
   }
 };
+
+export const isNativeRiskReportEvidenceFileNameAllowed = (
+  fileName: string,
+  contentType: string
+): boolean =>
+  isNativeRiskReportEvidenceContentType(contentType) &&
+  isRiskReportEvidenceFileNameAllowed(fileName, contentType);
 
 const assertRiskReportStorageSegments = (segments: string[]): void => {
   if (segments.some((segment) => !SAFE_PATH_SEGMENT.test(segment))) {

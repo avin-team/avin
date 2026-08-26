@@ -134,6 +134,18 @@ export const RiskReportWorkspacePage = () => {
                   </p>
                 )}
                 <div className="mt-4 flex flex-wrap gap-2">
+                  {report.status === "DRAFT" ||
+                  report.status === "CHANGES_REQUESTED" ? (
+                    <Link
+                      className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-3 font-medium text-primary-foreground text-sm transition hover:bg-primary/85"
+                      search={{ reportId: report.id }}
+                      to="/avin-check/report"
+                    >
+                      {report.status === "DRAFT"
+                        ? "Tiếp tục bản nháp"
+                        : "Bổ sung báo cáo"}
+                    </Link>
+                  ) : null}
                   {report.status === "DRAFT" ? (
                     <Button
                       disabled={deleteDraft.isPending}

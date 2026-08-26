@@ -1,0 +1,3 @@
+# Promote Commerce Disputes into Risk Reports instead of duplicating intake
+
+An incident involving an Avin Order begins in the Commerce Dispute workflow, where Avin already owns the order, chat, payment, delivery, and evidence context. After review, an authorized Admin may create a linked, prefilled Risk Report Draft without asking the participant to upload the same material again. Promotion never publishes automatically: the participant must still write or confirm the public narrative, review the generated public packet, attest, and submit it for Risk Report moderation. External MMO incidents use Risk Report intake directly. This keeps commerce resolution separate from community reputation while preventing two conflicting source records for one Avin transaction.

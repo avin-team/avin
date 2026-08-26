@@ -30,8 +30,8 @@ describe("risk identifier backfill", () => {
     expect(change).toMatchObject({
       id: "identifier-1",
       nextMaskedValue: "example.com",
-      nextNormalizedValue: "https://example.com",
-      nextPublicValue: "example.com",
+      nextNormalizedValue: "https://example.com/checkout",
+      nextPublicValue: "example.com/checkout",
       previousNormalizedValue: "legacy-value",
     });
   });
@@ -40,7 +40,7 @@ describe("risk identifier backfill", () => {
     const rows = [
       createRow({
         id: "identifier-phone-1",
-        maskedValue: "**** 5678",
+        maskedValue: "091***678",
         normalizedValue: "0912345678",
         reportId: "report-1",
         type: "PHONE",

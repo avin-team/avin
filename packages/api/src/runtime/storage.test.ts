@@ -19,6 +19,9 @@ import {
   isCheckoutAttachmentKey,
   isDeliveryAttachmentKey,
   isRiskReportDerivativeKey,
+  getNativeRiskReportEvidenceMaxBytes,
+  isNativeRiskReportEvidenceContentType,
+  isNativeRiskReportEvidenceFileNameAllowed,
   isRiskReportEvidenceFileNameAllowed,
   isRiskReportEvidenceKey,
   LISTING_IMAGE_MAX_BYTES,
@@ -303,5 +306,22 @@ describe("Risk report evidence storage helpers", () => {
     expect(
       isRiskReportEvidenceFileNameAllowed("../proof.pdf", "application/pdf")
     ).toBe(false);
+  });
+
+  it("keeps native report uploads free of text files and allows larger videos", () => {
+    expect(isNativeRiskReportEvidenceContentType("text/plain")).toBe(false);
+    expect(isNativeRiskReportEvidenceContentType("video/mp4")).toBe(true);
+    expect(getNativeRiskReportEvidenceMaxBytes("image/png")).toBe(
+      20 * BYTES_PER_MEGABYTE
+    );
+    expect(getNativeRiskReportEvidenceMaxBytes("video/mp4")).toBe(
+      100 * BYTES_PER_MEGABYTE
+    );
+    expect(
+      isNativeRiskReportEvidenceFileNameAllowed("proof.txt", "text/plain")
+    ).toBe(false);
+    expect(
+      isNativeRiskReportEvidenceFileNameAllowed("screen.mp4", "video/mp4")
+    ).toBe(true);
   });
 });

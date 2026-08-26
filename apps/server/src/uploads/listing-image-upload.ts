@@ -55,6 +55,9 @@ import {
   createRiskReportEvidenceKey,
   createProviderRiskIncidentEvidenceKey,
   isRiskReportEvidenceFileNameAllowed,
+  isNativeRiskReportEvidenceFileNameAllowed,
+  RISK_REPORT_EVIDENCE_MAX_VIDEO_BYTES,
+  RISK_REPORT_NATIVE_EVIDENCE_CONTENT_TYPES,
   RISK_REPORT_EVIDENCE_CONTENT_TYPES,
   RISK_REPORT_EVIDENCE_MAX_COUNT,
   RISK_REPORT_EVIDENCE_MAX_BYTES,
@@ -506,8 +509,8 @@ export const createRiskReportEvidenceUploadRouter = (
   routes: {
     [RISK_REPORT_EVIDENCE_UPLOAD_ROUTE]: route({
       clientMetadataSchema: riskReportEvidenceClientMetadataSchema,
-      fileTypes: [...RISK_REPORT_EVIDENCE_CONTENT_TYPES],
-      maxFileSize: RISK_REPORT_EVIDENCE_MAX_BYTES,
+      fileTypes: [...RISK_REPORT_NATIVE_EVIDENCE_CONTENT_TYPES],
+      maxFileSize: RISK_REPORT_EVIDENCE_MAX_VIDEO_BYTES,
       maxFiles: RISK_REPORT_EVIDENCE_MAX_COUNT,
       multipleFiles: true,
       onBeforeUpload: async ({ clientMetadata, files, req }) => {
@@ -541,7 +544,9 @@ export const createRiskReportEvidenceUploadRouter = (
         }
 
         for (const file of files) {
-          if (!isRiskReportEvidenceFileNameAllowed(file.name, file.type)) {
+          if (
+            !isNativeRiskReportEvidenceFileNameAllowed(file.name, file.type)
+          ) {
             throw new RejectUpload(
               "Evidence file extension must match its supported content type"
             );

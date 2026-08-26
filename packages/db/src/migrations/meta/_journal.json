@@ -400,6 +400,20 @@
       "when": 1787661600000,
       "tag": "0056_update_protection_policy_vietnamese",
       "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1787714960812,
+      "tag": "0057_right_snowbird",
+      "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1787719300811,
+      "tag": "0058_right_odin",
+      "breakpoints": true
     }
   ]
 }

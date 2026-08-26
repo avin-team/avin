@@ -1,17 +1,9 @@
 import { Alert, AlertDescription, AlertTitle } from "@avin/ui/components/alert";
 import { Badge } from "@avin/ui/components/badge";
 import { Button } from "@avin/ui/components/button";
-import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemDescription,
-  ItemGroup,
-  ItemMedia,
-  ItemTitle,
-} from "@avin/ui/components/item";
+import { ItemGroup } from "@avin/ui/components/item";
 import { Skeleton } from "@avin/ui/components/skeleton";
-import { EyeIcon, ShieldWarningIcon } from "@phosphor-icons/react";
+import { EyeIcon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 
 import type { PublicRiskIdentifierLookup } from "../api/risk-lookup-api";
@@ -35,40 +27,25 @@ const getPrimaryWarningIdentifier = (warning: PublicRiskWarning): string => {
     (identifier) => identifier.isPrimary
   );
   const identifier = primaryIdentifier ?? warning.identifiers[0];
-  return identifier?.publicValue ?? identifier?.maskedValue ?? "Chưa xác định";
+  const reportedAsset = warning.reportedAssets?.[0];
+  return (
+    identifier?.publicValue ??
+    identifier?.maskedValue ??
+    reportedAsset?.publicValue ??
+    reportedAsset?.maskedValue ??
+    "Chưa xác định"
+  );
 };
 
 const formatClaimedLoss = (value: number | null): string =>
   value === null
-    ? "Chưa rõ thiệt hại"
+    ? "Chưa rõ số tiền người tố cáo khai"
     : `${riskWarningNumberFormatter.format(value)} ₫`;
 
 const lookupStatusLabels = {
   CORRECTED: "Đã cập nhật",
   PUBLISHED: "Đã công khai",
-  UNDER_VERIFICATION: "Đang xác minh",
 } as const;
-
-const draftWarnings = [
-  {
-    date: "21 thg 8, 2026",
-    identifier: "**** 6789",
-    summary: "Định danh đã được xem xét và che một phần trước khi công khai.",
-    type: "Tài khoản ngân hàng",
-  },
-  {
-    date: "18 thg 8, 2026",
-    identifier: "example-scam.vn",
-    summary: "Website có dấu hiệu mạo danh. Kiểm tra kỹ trước khi giao dịch.",
-    type: "Website rủi ro",
-  },
-  {
-    date: "15 thg 8, 2026",
-    identifier: "09••• 1234",
-    summary: "Số điện thoại liên quan đến một cảnh báo đã được phát hành.",
-    type: "Số điện thoại",
-  },
-] as const;
 
 const PublicRiskWarningListItem = ({
   warning,
@@ -87,7 +64,7 @@ const PublicRiskWarningListItem = ({
           </dd>
         </div>
         <div className="inline-flex items-center gap-2 rounded-md bg-destructive/10 px-2.5 py-1.5 text-destructive">
-          <dt className="sr-only">Số tiền bị lừa</dt>
+          <dt className="sr-only">Số tiền người tố cáo khai</dt>
           <dd className="font-semibold">
             {formatClaimedLoss(warning.claimedLoss)}
           </dd>
@@ -95,31 +72,9 @@ const PublicRiskWarningListItem = ({
       </dl>
     }
     publicSlug={warning.publicSlug}
-    summary={warning.publicSummary}
-    title={getPrimaryWarningIdentifier(warning)}
+    summary={warning.publicNarrative ?? warning.publicSummary}
+    title={warning.publicTitle ?? getPrimaryWarningIdentifier(warning)}
   />
-);
-
-const DraftWarningListItem = ({
-  warning,
-}: {
-  warning: (typeof draftWarnings)[number];
-}) => (
-  <Item variant="outline">
-    <ItemMedia variant="icon">
-      <ShieldWarningIcon aria-hidden="true" />
-    </ItemMedia>
-    <ItemContent>
-      <ItemTitle>{warning.identifier}</ItemTitle>
-      <ItemDescription>
-        {warning.type} · {warning.summary}
-      </ItemDescription>
-    </ItemContent>
-    <ItemActions className="ml-auto flex-col items-end gap-1">
-      <Badge variant="outline">Đã xem xét</Badge>
-      <span className="text-muted-foreground text-xs">{warning.date}</span>
-    </ItemActions>
-  </Item>
 );
 
 interface PublicRiskWarningCatalogueProps {
@@ -141,10 +96,9 @@ const LookupWarningListItem = ({
     date={formatDate(warning.publishedAt)}
     metadata={
       <span className="text-muted-foreground text-sm">
-        {warning.affectedVictimCount} người bị ảnh hưởng
         {warning.claimedLoss === null
           ? ""
-          : ` · ${formatClaimedLoss(warning.claimedLoss)}`}
+          : formatClaimedLoss(warning.claimedLoss)}
       </span>
     }
     provenance={
@@ -166,18 +120,16 @@ const LookupWarningListItem = ({
     }
     publicSlug={warning.publicSlug}
     statusLabel={lookupStatusLabels[warning.status]}
-    summary={warning.publicSummary}
-    title={identifier}
+    summary={warning.publicNarrative ?? warning.publicSummary}
+    title={warning.publicTitle ?? identifier}
   />
 );
 
 const PublicRiskWarningItems = ({
   lookupResult,
-  showsDraftWarnings,
   warnings,
 }: {
   lookupResult: PublicRiskIdentifierLookup | null;
-  showsDraftWarnings: boolean;
   warnings: PublicRiskWarning[];
 }) => {
   if (lookupResult) {
@@ -194,16 +146,6 @@ const PublicRiskWarningItems = ({
             />
           ))
         )}
-      </ItemGroup>
-    );
-  }
-
-  if (showsDraftWarnings) {
-    return (
-      <ItemGroup>
-        {draftWarnings.map((warning) => (
-          <DraftWarningListItem key={warning.identifier} warning={warning} />
-        ))}
       </ItemGroup>
     );
   }
@@ -231,30 +173,36 @@ const getCatalogueDescription = (
 
 const getWarningCount = (
   lookupResult: PublicRiskIdentifierLookup | null,
-  showsDraftWarnings: boolean,
   warningsCount: number
 ): number => {
   if (lookupResult) {
     return lookupResult.totalReports;
   }
-  if (showsDraftWarnings) {
-    return draftWarnings.length;
-  }
   return warningsCount;
 };
+
+const shouldShowEmptyCatalogue = ({
+  hasError,
+  isFiltering,
+  isPending,
+  warningCount,
+}: {
+  hasError: boolean;
+  isFiltering: boolean;
+  isPending: boolean;
+  warningCount: number;
+}): boolean => !isFiltering && !isPending && !hasError && warningCount === 0;
 
 const renderCatalogueItems = ({
   isFiltering,
   isLoading,
   lookupResult,
-  showsDraftWarnings,
   warnings,
   warningsQueryError,
 }: {
   isFiltering: boolean;
   isLoading: boolean;
   lookupResult: PublicRiskIdentifierLookup | null;
-  showsDraftWarnings: boolean;
   warnings: PublicRiskWarning[];
   warningsQueryError: boolean;
 }) => {
@@ -273,11 +221,7 @@ const renderCatalogueItems = ({
   }
 
   return (
-    <PublicRiskWarningItems
-      lookupResult={lookupResult}
-      showsDraftWarnings={showsDraftWarnings}
-      warnings={warnings}
-    />
+    <PublicRiskWarningItems lookupResult={lookupResult} warnings={warnings} />
   );
 };
 
@@ -292,13 +236,13 @@ export const PublicRiskWarningCatalogue = ({
   const warnings = warningsQuery.data ?? [];
   const isFiltering = lookupResult !== null;
   const isPending = isLoading || (!isFiltering && warningsQuery.isPending);
-  const showsDraftWarnings =
-    !isPending && !isFiltering && warnings.length === 0;
-  const warningCount = getWarningCount(
-    lookupResult,
-    showsDraftWarnings,
-    warnings.length
-  );
+  const warningCount = getWarningCount(lookupResult, warnings.length);
+  const showEmptyCatalogue = shouldShowEmptyCatalogue({
+    hasError: warningsQuery.isError,
+    isFiltering,
+    isPending,
+    warningCount: warnings.length,
+  });
 
   return (
     <section
@@ -338,10 +282,17 @@ export const PublicRiskWarningCatalogue = ({
         isFiltering,
         isLoading: isPending,
         lookupResult,
-        showsDraftWarnings,
         warnings,
         warningsQueryError: warningsQuery.isError,
       })}
+
+      {showEmptyCatalogue ? (
+        <div className="rounded-xl border border-dashed p-5 text-sm">
+          <p className="text-muted-foreground">
+            Chưa có tố cáo Avin nào được duyệt công khai.
+          </p>
+        </div>
+      ) : null}
 
       {isFiltering && !lookupResult.exactMatch && !isPending ? (
         <div className="grid gap-3 rounded-xl border border-dashed p-5 text-sm">

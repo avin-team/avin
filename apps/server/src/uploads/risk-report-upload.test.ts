@@ -1,8 +1,8 @@
 import {
   RISK_REPORT_DERIVATIVE_UPLOAD_ROUTE,
-  RISK_REPORT_EVIDENCE_CONTENT_TYPES,
-  RISK_REPORT_EVIDENCE_MAX_BYTES,
+  RISK_REPORT_EVIDENCE_MAX_VIDEO_BYTES,
   RISK_REPORT_EVIDENCE_UPLOAD_ROUTE,
+  RISK_REPORT_NATIVE_EVIDENCE_CONTENT_TYPES,
 } from "@avin/api/storage";
 import { custom } from "@better-upload/server/clients";
 import { describe, expect, it, vi } from "vitest";
@@ -84,8 +84,10 @@ describe("risk report upload routes", () => {
     });
 
     expect(uploadRouter.bucketName).toBe("order-files");
-    expect(route.fileTypes).toEqual([...RISK_REPORT_EVIDENCE_CONTENT_TYPES]);
-    expect(route.maxFileSize).toBe(RISK_REPORT_EVIDENCE_MAX_BYTES);
+    expect(route.fileTypes).toEqual([
+      ...RISK_REPORT_NATIVE_EVIDENCE_CONTENT_TYPES,
+    ]);
+    expect(route.maxFileSize).toBe(RISK_REPORT_EVIDENCE_MAX_VIDEO_BYTES);
     expect(assertRiskReportEvidenceUploadAccess).toHaveBeenCalledWith({
       database: expect.anything(),
       files: [file],

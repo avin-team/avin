@@ -39,6 +39,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Shell } from "@/components/shell";
+import { getSafeEvidenceHref } from "@/utils/get-safe-evidence-href";
 
 import { usePublicRiskWarning } from "../api/risk-warning-api";
 
@@ -98,9 +99,6 @@ const formatWarningStatus = (status: string): string => {
   if (status === "REMOVED") {
     return "Đã gỡ";
   }
-  if (status === "UNDER_VERIFICATION") {
-    return "Đang xác minh";
-  }
   if (status === "PUBLISHED") {
     return "Đã công khai";
   }
@@ -143,16 +141,6 @@ const PublicWarningStatusNotice = ({ status }: { status: string }) => {
         <AlertTitle>Cảnh báo đã được gỡ</AlertTitle>
         <AlertDescription>
           Nội dung và bằng chứng công khai không còn hiển thị.
-        </AlertDescription>
-      </Alert>
-    );
-  }
-  if (status === "UNDER_VERIFICATION") {
-    return (
-      <Alert>
-        <AlertTitle>Cảnh báo đang được xác minh</AlertTitle>
-        <AlertDescription>
-          Thông tin có thể thay đổi sau khi được xem xét thêm.
         </AlertDescription>
       </Alert>
     );
@@ -636,7 +624,10 @@ export const PublicRiskWarningDetailSkeleton = () => (
           </div>
         </DetailRow>
 
-        <DetailRow icon={CurrencyCircleDollarIcon} label="Số tiền chiếm đoạt">
+        <DetailRow
+          icon={CurrencyCircleDollarIcon}
+          label="Số tiền người tố cáo khai"
+        >
           <Skeleton className="h-5 w-32 rounded-md" />
         </DetailRow>
 
@@ -674,6 +665,7 @@ export const PublicRiskWarningDetailSkeleton = () => (
   </Shell>
 );
 
+// oxlint-disable-next-line complexity
 export const PublicRiskWarningDetailPage = () => {
   const { slug } = useParams({ from: "/(public)/avin-check/warning/$slug" });
   const warningQuery = usePublicRiskWarning(slug);
@@ -707,7 +699,12 @@ export const PublicRiskWarningDetailPage = () => {
 
   const warning = warningQuery.data;
   const title =
-    warning.externalSource?.title ?? RISK_REPORT_TYPE_LABELS[warning.type];
+    warning.publicTitle ??
+    warning.externalSource?.title ??
+    RISK_REPORT_TYPE_LABELS[warning.type];
+  const safePlatformUrl = warning.externalSource?.platformUrl
+    ? getSafeEvidenceHref(warning.externalSource.platformUrl)
+    : null;
 
   const bankAccountIdentifiers: typeof warning.identifiers = [];
   const phoneIdentifiers: typeof warning.identifiers = [];
@@ -719,11 +716,13 @@ export const PublicRiskWarningDetailPage = () => {
       phoneIdentifiers.push(identifier);
     } else if (
       identifier.type !== "PLATFORM_ACCOUNT" &&
-      !(identifier.type === "WEBSITE" && warning.externalSource?.platformUrl)
+      !(identifier.type === "WEBSITE" && safePlatformUrl)
     ) {
       otherIdentifiers.push(identifier);
     }
   }
+  const reportedAssets = warning.reportedAssets ?? [];
+  const impersonatedIdentities = warning.impersonatedIdentities ?? [];
 
   return (
     <Shell
@@ -791,7 +790,13 @@ export const PublicRiskWarningDetailPage = () => {
               label="STK"
             >
               <div className="inline-flex items-center gap-2 font-bold font-mono text-foreground">
-                <span>{identifier.publicValue ?? identifier.maskedValue}</span>
+                <span>
+                  {identifier.publicValue ?? identifier.maskedValue}
+                  {identifier.institutionName
+                    ? ` · ${identifier.institutionName}`
+                    : ""}
+                  {identifier.holderName ? ` · ${identifier.holderName}` : ""}
+                </span>
                 <WarningIcon
                   aria-label="Tài khoản bị cảnh báo"
                   className="size-4 text-amber-500"
@@ -819,15 +824,15 @@ export const PublicRiskWarningDetailPage = () => {
             </DetailRow>
           ))}
 
-          {warning.externalSource?.platformUrl ? (
+          {safePlatformUrl ? (
             <DetailRow icon={GlobeIcon} label="Nền tảng">
               <a
                 className="break-all font-mono text-primary underline underline-offset-4"
-                href={warning.externalSource.platformUrl}
+                href={safePlatformUrl}
                 rel="noopener noreferrer"
                 target="_blank"
               >
-                {warning.externalSource.platformUrl}
+                {safePlatformUrl}
               </a>
             </DetailRow>
           ) : null}
@@ -844,6 +849,36 @@ export const PublicRiskWarningDetailPage = () => {
             </DetailRow>
           ))}
 
+          {reportedAssets.map((identifier) => (
+            <DetailRow
+              icon={UserCircleIcon}
+              key={`asset-${identifier.type}-${identifier.maskedValue}`}
+              label="Tài khoản/tài sản được báo cáo"
+            >
+              <div className="space-y-1">
+                <span className="font-mono">
+                  {identifier.publicValue ?? identifier.maskedValue}
+                </span>
+                <p className="font-normal text-muted-foreground text-xs">
+                  Đây là cảnh báo về lịch sử giao dịch/tài sản; không phải kết
+                  luận rằng chủ tài khoản hiện tại là kẻ lừa đảo.
+                </p>
+              </div>
+            </DetailRow>
+          ))}
+
+          {impersonatedIdentities.map((identifier) => (
+            <DetailRow
+              icon={UserCircleIcon}
+              key={`impersonated-${identifier.type}-${identifier.maskedValue}`}
+              label="Danh tính chính chủ bị mạo danh"
+            >
+              <span className="font-mono">
+                {identifier.publicValue ?? identifier.maskedValue}
+              </span>
+            </DetailRow>
+          ))}
+
           <DetailRow icon={FileImageIcon} label="Ảnh Bằng Chứng">
             <WarningEvidenceGallery
               evidence={warning.evidence}
@@ -851,7 +886,10 @@ export const PublicRiskWarningDetailPage = () => {
             />
           </DetailRow>
 
-          <DetailRow icon={CurrencyCircleDollarIcon} label="Số tiền chiếm đoạt">
+          <DetailRow
+            icon={CurrencyCircleDollarIcon}
+            label="Số tiền người tố cáo khai"
+          >
             <span className="font-bold text-base text-destructive">
               {formatLoss(warning.claimedLoss)}
             </span>
@@ -860,7 +898,7 @@ export const PublicRiskWarningDetailPage = () => {
           <DetailRow icon={FileTextIcon} label="Nội dung cảnh báo">
             <div className="space-y-3">
               <div className="rounded-xl border bg-muted/20 p-4 font-normal text-sm leading-relaxed whitespace-pre-wrap">
-                {warning.publicSummary}
+                {warning.publicNarrative ?? warning.publicSummary}
               </div>
               <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
                 <ChatCircleDotsIcon className="size-4 shrink-0 text-muted-foreground" />

@@ -35,10 +35,7 @@ import {
   useDecideAdminRiskReport,
   useRegisterRiskReportDerivative,
 } from "../api/risk-reports-api";
-import type {
-  RiskReportDetail,
-  RiskReportDecision,
-} from "../api/risk-reports-api";
+import type { RiskReportDetail } from "../api/risk-reports-api";
 import { ProviderRiskIncidentPanel } from "../components/provider-risk-incident-panel";
 
 const ACCEPTED_CONTENT_TYPES = {
@@ -46,7 +43,6 @@ const ACCEPTED_CONTENT_TYPES = {
   "image/jpeg": [".jpg", ".jpeg"],
   "image/png": [".png"],
   "image/webp": [".webp"],
-  "text/plain": [".txt"],
   "video/mp4": [".mp4"],
   "video/webm": [".webm"],
 };
@@ -82,6 +78,8 @@ const URGENCY_LABELS = {
   NORMAL: "Thông thường",
   URGENT: "Khẩn cấp",
 } as const;
+
+type InitialRiskReportDecision = "REJECTED" | "PUBLISHED";
 
 const DetailField = ({ label, value }: { label: string; value: string }) => (
   <div className="grid gap-1.5">
@@ -254,6 +252,12 @@ const EvidenceCard = ({
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
+        {evidence.explanation ? (
+          <p className="rounded-lg border bg-muted/20 p-3 text-sm">
+            <span className="font-medium">Reporter giải thích: </span>
+            {evidence.explanation}
+          </p>
+        ) : null}
         <div className="grid gap-2 text-xs">
           <p className="text-muted-foreground break-all">
             Original private key: {evidence.originalStorageKey}
@@ -277,82 +281,31 @@ const EvidenceCard = ({
   );
 };
 
-const riskDecisionRequiresReason = (decision: RiskReportDecision): boolean =>
-  decision === "CHANGES_REQUESTED" ||
-  decision === "REJECTED" ||
-  decision === "REMOVED" ||
-  decision === "UNDER_VERIFICATION";
-
-const riskDecisionRequiresPublicSummary = (
-  decision: RiskReportDecision
-): boolean =>
-  decision === "PUBLISHED" ||
-  decision === "CORRECTED" ||
-  decision === "UNDER_VERIFICATION";
+const riskDecisionRequiresReason = (
+  decision: InitialRiskReportDecision
+): boolean => decision === "REJECTED";
 
 const RiskReportDecisionActions = ({
   onChoose,
-  onChooseUnderVerification,
   report,
 }: {
-  onChoose: (decision: RiskReportDecision) => void;
-  onChooseUnderVerification: () => void;
+  onChoose: (decision: InitialRiskReportDecision) => void;
   report: RiskReportDetail;
 }) => {
-  const canReview = report.status === "UNDER_REVIEW";
-  const canTakeReview = report.status === "SUBMITTED";
-  const canPublish =
-    report.status === "UNDER_REVIEW" || report.status === "UNDER_VERIFICATION";
-  const canCorrect =
-    report.status === "PUBLISHED" || report.status === "UNDER_VERIFICATION";
-  const canRemove =
-    report.status === "PUBLISHED" ||
-    report.status === "CORRECTED" ||
-    report.status === "UNDER_VERIFICATION";
-  const canUnderVerify =
-    canReview &&
-    (report.urgency === "URGENT" || report.affectedVictimCount >= 2);
+  const canReview =
+    report.status === "SUBMITTED" || report.status === "UNDER_REVIEW";
 
   return (
     <>
-      {canTakeReview ? (
-        <Button onClick={() => onChoose("UNDER_REVIEW")} variant="outline">
-          Nhận vào review
+      {canReview ? (
+        <Button onClick={() => onChoose("REJECTED")} variant="destructive">
+          Từ chối report
         </Button>
       ) : null}
       {canReview ? (
-        <>
-          {canUnderVerify ? (
-            <Button onClick={onChooseUnderVerification} variant="outline">
-              Công khai under-verification
-            </Button>
-          ) : null}
-          <Button
-            onClick={() => onChoose("CHANGES_REQUESTED")}
-            variant="outline"
-          >
-            Yêu cầu bổ sung
-          </Button>
-          <Button onClick={() => onChoose("REJECTED")} variant="destructive">
-            Từ chối report
-          </Button>
-        </>
-      ) : null}
-      {canPublish ? (
         <Button onClick={() => onChoose("PUBLISHED")}>
           <ShieldCheckIcon />
           Duyệt & công khai warning
-        </Button>
-      ) : null}
-      {canCorrect ? (
-        <Button onClick={() => onChoose("CORRECTED")}>
-          <ShieldCheckIcon />
-          Ghi nhận bản cập nhật công khai
-        </Button>
-      ) : null}
-      {canRemove ? (
-        <Button onClick={() => onChoose("REMOVED")} variant="destructive">
-          Gỡ warning công khai
         </Button>
       ) : null}
     </>
@@ -364,69 +317,26 @@ const RiskReportDecisionConfirmation = ({
   isPending,
   onCancel,
   onConfirm,
-  onPublicSummaryChange,
   onReasonChange,
-  onUnderVerificationApprovedChange,
-  publicSummary,
   reason,
-  underVerificationApproved,
 }: {
-  decision?: RiskReportDecision;
+  decision?: InitialRiskReportDecision;
   isPending: boolean;
   onCancel: () => void;
   onConfirm: () => void;
-  onPublicSummaryChange: (value: string) => void;
   onReasonChange: (value: string) => void;
-  onUnderVerificationApprovedChange: (value: boolean) => void;
-  publicSummary: string;
   reason: string;
-  underVerificationApproved: boolean;
 }) => {
   if (!decision) {
     return null;
   }
 
   const requiresReason = riskDecisionRequiresReason(decision);
-  const requiresPublicSummary = riskDecisionRequiresPublicSummary(decision);
-  const isValid =
-    (!requiresReason || Boolean(reason.trim())) &&
-    (!requiresPublicSummary || publicSummary.trim().length >= 20) &&
-    (decision !== "UNDER_VERIFICATION" || underVerificationApproved);
+  const isValid = !requiresReason || Boolean(reason.trim());
 
   return (
     <div className="grid gap-3 rounded-xl border bg-muted/20 p-4">
       <p className="font-medium text-sm">Xác nhận: {STATUS_LABELS[decision]}</p>
-      {requiresPublicSummary ? (
-        <div className="grid gap-2">
-          <Label htmlFor="risk-public-summary">
-            Tóm tắt public đã redaction
-          </Label>
-          <Textarea
-            id="risk-public-summary"
-            minLength={20}
-            onChange={(event) => onPublicSummaryChange(event.target.value)}
-            placeholder="Chỉ nêu nội dung đã kiểm chứng và an toàn để công khai..."
-            rows={5}
-            value={publicSummary}
-          />
-        </div>
-      ) : null}
-      {decision === "UNDER_VERIFICATION" ? (
-        <label className="flex items-start gap-2 text-sm">
-          <input
-            checked={underVerificationApproved}
-            onChange={(event) =>
-              onUnderVerificationApprovedChange(event.target.checked)
-            }
-            type="checkbox"
-          />
-          <span>
-            Tôi xác nhận report đủ điều kiện policy: khẩn cấp hoặc có từ hai nạn
-            nhân trở lên, và chấp thuận công khai ở trạng thái
-            under-verification.
-          </span>
-        </label>
-      ) : null}
       {requiresReason ? (
         <div className="grid gap-2">
           <Label htmlFor="risk-review-reason">Lý do (bắt buộc)</Label>
@@ -451,13 +361,8 @@ const RiskReportDecisionConfirmation = ({
 };
 
 const DecisionPanel = ({ report }: { report: RiskReportDetail }) => {
-  const [decision, setDecision] = useState<RiskReportDecision>();
+  const [decision, setDecision] = useState<InitialRiskReportDecision>();
   const [reason, setReason] = useState("");
-  const [underVerificationApproved, setUnderVerificationApproved] =
-    useState(false);
-  const [publicSummary, setPublicSummary] = useState(
-    report.publicSummary ?? ""
-  );
   const decide = useDecideAdminRiskReport();
 
   const confirm = async () => {
@@ -468,12 +373,7 @@ const DecisionPanel = ({ report }: { report: RiskReportDetail }) => {
       await decide.mutateAsync({
         decision,
         id: report.id,
-        publicSummary: publicSummary.trim() || undefined,
         reason: reason.trim() || undefined,
-        underVerificationApproved:
-          decision === "UNDER_VERIFICATION"
-            ? underVerificationApproved
-            : undefined,
       });
       toast.success("Đã ghi quyết định Risk Moderator.");
       setDecision(undefined);
@@ -495,25 +395,14 @@ const DecisionPanel = ({ report }: { report: RiskReportDetail }) => {
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3">
-        <RiskReportDecisionActions
-          onChoose={setDecision}
-          onChooseUnderVerification={() => {
-            setUnderVerificationApproved(false);
-            setDecision("UNDER_VERIFICATION");
-          }}
-          report={report}
-        />
+        <RiskReportDecisionActions onChoose={setDecision} report={report} />
         <RiskReportDecisionConfirmation
           decision={decision}
           isPending={decide.isPending}
           onCancel={() => setDecision(undefined)}
           onConfirm={() => void confirm()}
-          onPublicSummaryChange={setPublicSummary}
           onReasonChange={setReason}
-          onUnderVerificationApprovedChange={setUnderVerificationApproved}
-          publicSummary={publicSummary}
           reason={reason}
-          underVerificationApproved={underVerificationApproved}
         />
       </CardContent>
     </Card>
@@ -604,12 +493,50 @@ export const RiskReportDetailPage = () => {
                       value={URGENCY_LABELS[report.urgency]}
                     />
                     <DetailField
+                      label="Ngày mua tài khoản"
+                      value={
+                        report.purchaseAt
+                          ? new Date(report.purchaseAt).toLocaleDateString(
+                              "vi-VN"
+                            )
+                          : "Không cung cấp"
+                      }
+                    />
+                    <DetailField
+                      label="Ngày bàn giao tài khoản"
+                      value={
+                        report.handoverAt
+                          ? new Date(report.handoverAt).toLocaleDateString(
+                              "vi-VN"
+                            )
+                          : "Không cung cấp"
+                      }
+                    />
+                    <DetailField
+                      label="Ngày mất quyền truy cập"
+                      value={
+                        report.accessLostAt
+                          ? new Date(report.accessLostAt).toLocaleDateString(
+                              "vi-VN"
+                            )
+                          : "Không cung cấp"
+                      }
+                    />
+                    <DetailField
                       label="Số nạn nhân bị ảnh hưởng"
                       value={String(report.affectedVictimCount)}
                     />
                     <DetailField
                       label="Narrative"
                       value={report.narrative ?? "Chưa cung cấp"}
+                    />
+                    <DetailField
+                      label="Packet công khai sau redaction"
+                      value={report.publicNarrative ?? "Chưa tạo bản public"}
+                    />
+                    <DetailField
+                      label="Vai trò người tố cáo"
+                      value={report.reporterInvolvement ?? "Chưa cung cấp"}
                     />
                   </CardContent>
                 </Card>

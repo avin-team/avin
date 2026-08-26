@@ -3,6 +3,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgEnum,
   pgTable,
   text,
@@ -78,6 +79,22 @@ export const protectionRiskReporterRelationship = pgEnum(
   ["NO_PROVIDER_RELATIONSHIP", "SELF_PROVIDER", "OTHER_PROVIDER"]
 );
 
+export const protectionRiskReporterInvolvement = pgEnum(
+  "protection_risk_reporter_involvement",
+  [
+    "BUYER",
+    "SELLER",
+    "INTERMEDIARY",
+    "AUTHORIZED_REPRESENTATIVE",
+    "DIRECT_OBSERVER",
+  ]
+);
+
+export const protectionRiskLossOccurrence = pgEnum(
+  "protection_risk_loss_occurrence",
+  ["YES", "NO", "UNKNOWN"]
+);
+
 export const protectionRiskCorrectionStatus = pgEnum(
   "protection_risk_correction_status",
   ["REQUESTED", "UNDER_REVIEW", "APPROVED", "REJECTED"]
@@ -95,6 +112,19 @@ export const protectionRiskIdentifierType = pgEnum(
   ]
 );
 
+export const protectionRiskIdentifierRole = pgEnum(
+  "protection_risk_identifier_role",
+  [
+    "ACCUSED_COUNTERPARTY",
+    "PAYMENT_DESTINATION",
+    "INTERMEDIARY",
+    "CONTACT_CHANNEL",
+    "LISTING_STORE",
+    "REPORTED_ASSET",
+    "IMPERSONATED_IDENTITY",
+  ]
+);
+
 export const protectionRiskEvidenceKind = pgEnum(
   "protection_risk_evidence_kind",
   [
@@ -103,6 +133,11 @@ export const protectionRiskEvidenceKind = pgEnum(
     "SCREENSHOT",
     "VIDEO",
     "OWNERSHIP_PROOF",
+    "DELIVERY_PROOF",
+    "REVERSAL_NOTICE",
+    "HANDOVER_PROOF",
+    "ACCESS_LOSS_PROOF",
+    "GENUINE_REFERENCE",
     "OTHER",
   ]
 );
@@ -250,7 +285,15 @@ export const protectionSupportTransactionScope = pgEnum(
   ]
 );
 
-const providerChannelUrl = z.string().trim().url().max(2000);
+const providerChannelUrl = z
+  .string()
+  .trim()
+  .url()
+  .max(2000)
+  .refine((value) => {
+    const { protocol } = new URL(value);
+    return protocol === "http:" || protocol === "https:";
+  }, "Channel URL must use HTTP or HTTPS");
 
 export const providerZaloChannelSchema = z.object({
   isPrimary: z.boolean().optional(),
@@ -771,7 +814,10 @@ export const protectionProviderOwnershipChange = pgTable(
 export const protectionRiskReport = pgTable(
   "protection_risk_report",
   {
+    accessLostAt: timestamp("access_lost_at"),
     affectedVictimCount: integer("affected_victim_count").default(1).notNull(),
+    attestationVersion: text("attestation_version"),
+    attestedAt: timestamp("attested_at"),
     claimedLoss: integer("claimed_loss"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     externalAdminHidden: boolean("external_admin_hidden")
@@ -793,18 +839,34 @@ export const protectionRiskReport = pgTable(
     externalSourceUrl: text("external_source_url"),
     externalSuspectName: text("external_suspect_name"),
     externalTitle: text("external_title"),
+    handoverAt: timestamp("handover_at"),
     id: uuid("id").defaultRandom().primaryKey(),
+    incidentAt: timestamp("incident_at"),
+    incidentDateApproximate: boolean("incident_date_approximate")
+      .default(false)
+      .notNull(),
+    issues: text("issues").array().default([]).notNull(),
+    lossOccurred: protectionRiskLossOccurrence("loss_occurred"),
     narrative: text("narrative"),
+    ongoing: boolean("ongoing").default(false).notNull(),
+    otherIssueDescription: text("other_issue_description"),
     platform: text("platform"),
     policyVersionId: uuid("policy_version_id").references(
       () => protectionPolicyVersion.id,
       { onDelete: "restrict" }
     ),
     possibleDuplicateOfReportId: uuid("possible_duplicate_of_report_id"),
+    privateNote: text("private_note"),
+    publicNarrative: text("public_narrative"),
+    publicPacketPreviewedAt: timestamp("public_packet_previewed_at"),
     publicSlug: text("public_slug"),
     publicSummary: text("public_summary"),
     publishedAt: timestamp("published_at"),
+    purchaseAt: timestamp("purchase_at"),
     reporterEmail: text("reporter_email").notNull(),
+    reporterInvolvement: protectionRiskReporterInvolvement(
+      "reporter_involvement"
+    ),
     reporterName: text("reporter_name"),
     reporterPhone: text("reporter_phone"),
     reporterRelationship: protectionRiskReporterRelationship(
@@ -865,14 +927,21 @@ export const protectionRiskIdentifier = pgTable(
   "protection_risk_identifier",
   {
     createdAt: timestamp("created_at").defaultNow().notNull(),
+    displayName: text("display_name"),
+    holderName: text("holder_name"),
     id: uuid("id").defaultRandom().primaryKey(),
+    institutionName: text("institution_name"),
     isPrimary: boolean("is_primary").default(false).notNull(),
     maskedValue: text("masked_value").notNull(),
+    namespace: text("namespace"),
     normalizedValue: text("normalized_value").notNull(),
     publicValue: text("public_value"),
     reportId: uuid("report_id")
       .notNull()
       .references(() => protectionRiskReport.id, { onDelete: "cascade" }),
+    role: protectionRiskIdentifierRole("role")
+      .default("ACCUSED_COUNTERPARTY")
+      .notNull(),
     type: protectionRiskIdentifierType("type").notNull(),
     value: text("value").notNull(),
   },
@@ -882,6 +951,39 @@ export const protectionRiskIdentifier = pgTable(
       table.type,
       table.normalizedValue
     ),
+    index("protection_risk_identifier_role_lookup_idx").on(
+      table.role,
+      table.type,
+      table.namespace,
+      table.normalizedValue
+    ),
+  ]
+);
+
+export const protectionRiskTransaction = pgTable(
+  "protection_risk_transaction",
+  {
+    amount: numeric("amount", { precision: 36, scale: 12 }).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    currencyOrAsset: text("currency_or_asset").notNull(),
+    destinationIdentifierId: uuid("destination_identifier_id").references(
+      () => protectionRiskIdentifier.id,
+      { onDelete: "set null" }
+    ),
+    id: uuid("id").defaultRandom().primaryKey(),
+    occurredAt: timestamp("occurred_at").notNull(),
+    paymentMethod: text("payment_method").notNull(),
+    reference: text("reference"),
+    reportId: uuid("report_id")
+      .notNull()
+      .references(() => protectionRiskReport.id, { onDelete: "cascade" }),
+    timeKnown: boolean("time_known").default(false).notNull(),
+  },
+  (table) => [
+    index("protection_risk_transaction_report_idx").on(
+      table.reportId,
+      table.occurredAt
+    ),
   ]
 );
 
@@ -890,6 +992,7 @@ export const protectionRiskEvidence = pgTable(
   {
     contentType: text("content_type").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
+    explanation: text("explanation"),
     externalEvidenceId: text("external_evidence_id"),
     fileName: text("file_name").notNull(),
     id: uuid("id").defaultRandom().primaryKey(),
@@ -963,6 +1066,30 @@ export const protectionRiskReportHistory = pgTable(
     index("protection_risk_report_history_report_idx").on(
       table.reportId,
       table.createdAt
+    ),
+  ]
+);
+
+export const protectionRiskReportRevision = pgTable(
+  "protection_risk_report_revision",
+  {
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    reportId: uuid("report_id")
+      .notNull()
+      .references(() => protectionRiskReport.id, { onDelete: "cascade" }),
+    revisionNumber: integer("revision_number").notNull(),
+    snapshot: jsonb("snapshot").notNull(),
+    submittedAt: timestamp("submitted_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("protection_risk_report_revision_number_idx").on(
+      table.reportId,
+      table.revisionNumber
+    ),
+    index("protection_risk_report_revision_submitted_idx").on(
+      table.reportId,
+      table.submittedAt
     ),
   ]
 );

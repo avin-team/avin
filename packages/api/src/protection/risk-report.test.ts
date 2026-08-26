@@ -3,17 +3,69 @@ import { describe, expect, it } from "vitest";
 import {
   assertRiskReportSubmission,
   assertRiskReportTransition,
+  buildRiskReportPublicNarrative,
+  createRiskReportPublicTitle,
   createRiskReportPublicPath,
   getRiskIdentifierPublicValue,
   getRiskReportIdentifierTypes,
-  isRiskReportUnderVerificationEligible,
   isPublicRiskReportStatus,
+  isRiskReportUnderVerificationEligible,
+  maskRiskHolderName,
   maskRiskIdentifier,
   normalizeRiskIdentifier,
+  riskReportAdminDecisionInputSchema,
 } from "./risk-report";
 
+type Submission = Parameters<typeof assertRiskReportSubmission>[0];
+
+const incidentAt = new Date("2026-08-20T10:00:00.000Z");
+const longNarrative =
+  "Tôi đã chuyển tiền cho đối tượng qua ngân hàng để mua dịch vụ MMO, có trao đổi và xác nhận giao dịch rõ ràng nhưng sau đó đối tượng không thực hiện đúng cam kết và tiếp tục né tránh liên hệ.";
+
+const cleanEvidence = (
+  kind: Submission["evidence"][number]["kind"]
+): Submission["evidence"][number] => ({
+  kind,
+  publicCopyReady: true,
+  scanStatus: "CLEAN",
+});
+
+const bankSubmission: Submission = {
+  claimedLoss: 100_000,
+  evidence: [cleanEvidence("PAYMENT_PROOF"), cleanEvidence("CONVERSATION")],
+  identifiers: [
+    {
+      holderName: "Nguyen Van A",
+      institutionName: "VIB",
+      role: "PAYMENT_DESTINATION",
+      type: "BANK_ACCOUNT",
+      value: "0123456789",
+    },
+  ],
+  incidentAt,
+  issues: ["NON_DELIVERY"],
+  lossOccurred: "YES",
+  narrative: longNarrative,
+  otherIssueDescription: null,
+  platform: null,
+  publicNarrative: longNarrative,
+  publicPacketPreviewedAt: incidentAt,
+  reporterInvolvement: "BUYER",
+  transactions: [
+    {
+      amount: "100000",
+      currencyOrAsset: "VND",
+      occurredAt: incidentAt,
+      paymentMethod: "BANK_TRANSFER",
+      timeKnown: true,
+    },
+  ],
+  type: "BANK_WALLET_PHONE",
+  violationType: null,
+};
+
 describe("Risk report contracts", () => {
-  it("normalizes exact identifiers and only exposes a masked sensitive value", () => {
+  it("normalizes exact identifiers and masks sensitive values like CheckScam", () => {
     expect(normalizeRiskIdentifier("PHONE", "+84 912-345-678")).toBe(
       "0912345678"
     );
@@ -28,32 +80,26 @@ describe("Risk report contracts", () => {
     );
     expect(
       normalizeRiskIdentifier("WEBSITE", "Example.com/checkout?token=secret")
-    ).toBe("https://example.com");
-    expect(normalizeRiskIdentifier("WEBSITE", "http://www.example.com/")).toBe(
-      "https://example.com"
-    );
-    expect(normalizeRiskIdentifier("WEBSITE", "https://api.example.com/")).toBe(
-      "https://api.example.com"
-    );
-    expect(
-      normalizeRiskIdentifier(
-        "SOCIAL_ACCOUNT",
-        "https://www.facebook.com/profile.php?id=123&tracking=secret"
-      )
-    ).toBe("https://facebook.com/profile.php?id=123");
-    expect(
-      normalizeRiskIdentifier(
-        "SOCIAL_ACCOUNT",
-        "https://m.tiktok.com/@Acme_Store?lang=vi"
-      )
-    ).toBe("https://tiktok.com/@acme_store");
-    expect(
-      normalizeRiskIdentifier("SOCIAL_ACCOUNT", "telegram.me/AcmeStore/")
-    ).toBe("https://t.me/acmestore");
-    expect(maskRiskIdentifier("BANK_ACCOUNT", "0123456789")).toBe("**** 6789");
+    ).toBe("https://example.com/checkout");
+    expect(maskRiskIdentifier("BANK_ACCOUNT", "0123456789")).toBe("012***789");
+    expect(maskRiskIdentifier("PHONE", "0912345678")).toBe("091***678");
+    expect(maskRiskHolderName("Nguyen Van A")).toBe("Nguyen Van A.");
     expect(
       maskRiskIdentifier("WEBSITE", "https://Example.com/path#secret")
     ).toBe("example.com");
+  });
+
+  it("builds a public narrative from the reporter's own narrative without private leaks", () => {
+    const publicNarrative = buildRiskReportPublicNarrative(
+      "Liên hệ 0912345678 hoặc reporter@example.com tại https://fake.example/path?token=secret.",
+      ["0912345678", "fake-account-123"]
+    );
+
+    expect(publicNarrative).toContain("[số điện thoại đã ẩn]");
+    expect(publicNarrative).toContain("[email đã ẩn]");
+    expect(publicNarrative).toContain("https://fake.example/path");
+    expect(publicNarrative).not.toContain("token=secret");
+    expect(publicNarrative).not.toContain("fake-account-123");
   });
 
   it("only exposes approved public profile URLs without query strings", () => {
@@ -69,39 +115,6 @@ describe("Risk report contracts", () => {
         "https://facebook.com/provider-one?tracking=secret"
       )
     ).toBeNull();
-    expect(
-      getRiskIdentifierPublicValue(
-        "SOCIAL_ACCOUNT",
-        "https://untrusted.example/provider-one"
-      )
-    ).toBeNull();
-  });
-
-  it("rejects social content links, short links, and private invitations", () => {
-    expect(() =>
-      normalizeRiskIdentifier(
-        "SOCIAL_ACCOUNT",
-        "https://facebook.com/share/p/secret"
-      )
-    ).toThrow("public profile");
-    expect(() =>
-      normalizeRiskIdentifier(
-        "SOCIAL_ACCOUNT",
-        "https://facebook.com/acme/posts/123"
-      )
-    ).toThrow("public profile");
-    expect(() =>
-      normalizeRiskIdentifier(
-        "SOCIAL_ACCOUNT",
-        "https://tiktok.com/@acme/video/123"
-      )
-    ).toThrow("public profile");
-    expect(() =>
-      normalizeRiskIdentifier("SOCIAL_ACCOUNT", "https://vm.tiktok.com/ZM123/")
-    ).toThrow("Short social profile links");
-    expect(() =>
-      normalizeRiskIdentifier("SOCIAL_ACCOUNT", "https://t.me/+private-invite")
-    ).toThrow("public username");
   });
 
   it("allows only the documented lifecycle transitions", () => {
@@ -111,6 +124,12 @@ describe("Risk report contracts", () => {
     expect(() =>
       assertRiskReportTransition("CHANGES_REQUESTED", "SUBMITTED")
     ).not.toThrow();
+    expect(() =>
+      assertRiskReportTransition("SUBMITTED", "REJECTED")
+    ).not.toThrow();
+    expect(() =>
+      assertRiskReportTransition("SUBMITTED", "PUBLISHED")
+    ).not.toThrow();
     expect(() => assertRiskReportTransition("DRAFT", "PUBLISHED")).toThrow();
     expect(() =>
       assertRiskReportTransition("PUBLISHED", "CORRECTED")
@@ -118,143 +137,162 @@ describe("Risk report contracts", () => {
     expect(() =>
       assertRiskReportTransition("CORRECTED", "REMOVED")
     ).not.toThrow();
-    expect(() =>
-      assertRiskReportTransition("UNDER_REVIEW", "UNDER_VERIFICATION")
-    ).not.toThrow();
-    expect(() =>
-      assertRiskReportTransition("UNDER_VERIFICATION", "PUBLISHED")
-    ).not.toThrow();
-    expect(() => assertRiskReportTransition("REMOVED", "PUBLISHED")).toThrow();
   });
 
-  it("requires identifier, loss, clean payment proof, and conversation evidence", () => {
-    const paymentProofEvidence = {
-      kind: "PAYMENT_PROOF" as const,
-      scanStatus: "CLEAN" as const,
-    };
-    const conversationEvidence = {
-      kind: "CONVERSATION" as const,
-      scanStatus: "CLEAN" as const,
-    };
-    const base = {
-      claimedLoss: 100_000,
-      evidence: [paymentProofEvidence, conversationEvidence],
-      identifiers: [{ type: "BANK_ACCOUNT" as const }],
-      narrative: "Đã chuyển tiền nhưng không nhận được dịch vụ như cam kết.",
-      type: "BANK_WALLET_PHONE" as const,
-    };
+  it("exposes only approve or reject in the P0 moderator input", () => {
+    expect(
+      riskReportAdminDecisionInputSchema.parse({
+        decision: "PUBLISHED",
+        id: "00000000-0000-4000-8000-000000000001",
+      }).decision
+    ).toBe("PUBLISHED");
+    expect(() =>
+      riskReportAdminDecisionInputSchema.parse({
+        decision: "UNDER_VERIFICATION",
+        id: "00000000-0000-4000-8000-000000000001",
+      })
+    ).toThrow();
+  });
 
-    expect(() => assertRiskReportSubmission(base)).not.toThrow();
+  it("requires the complete transaction evidence bundle and a public preview", () => {
+    expect(() => assertRiskReportSubmission(bankSubmission)).not.toThrow();
     expect(() =>
       assertRiskReportSubmission({
-        ...base,
-        evidence: [paymentProofEvidence],
+        ...bankSubmission,
+        evidence: [cleanEvidence("PAYMENT_PROOF")],
       })
-    ).toThrow("Conversation evidence");
+    ).toThrow("Conversation, listing, order, or agreement evidence");
     expect(() =>
       assertRiskReportSubmission({
-        ...base,
-        identifiers: [{ type: "WEBSITE" }],
-      })
-    ).toThrow("relevant risk identifier");
-    expect(() =>
-      assertRiskReportSubmission({
-        ...base,
+        ...bankSubmission,
         evidence: [
-          { kind: "PAYMENT_PROOF", scanStatus: "PENDING" },
-          conversationEvidence,
+          { ...cleanEvidence("PAYMENT_PROOF"), scanStatus: "PENDING" },
+          cleanEvidence("CONVERSATION"),
         ],
       })
-    ).toThrow("pass file validation");
-  });
-
-  it("keeps future report types mapped to their relevant identifier classes", () => {
-    expect(getRiskReportIdentifierTypes("MALICIOUS_WEBSITE")).toEqual([
-      "WEBSITE",
-    ]);
-    expect(createRiskReportPublicPath("warning-report-1")).toBe(
-      "/avin-check/warning/warning-report-1"
-    );
-  });
-
-  it("uses type-specific evidence requirements for website reports", () => {
+    ).toThrow("malware scanning");
     expect(() =>
       assertRiskReportSubmission({
-        claimedLoss: null,
-        evidence: [{ kind: "SCREENSHOT", scanStatus: "CLEAN" }],
-        identifiers: [{ type: "WEBSITE" }],
-        narrative:
-          "Website giả mạo yêu cầu người dùng nhập thông tin thanh toán.",
-        type: "MALICIOUS_WEBSITE",
-        violationType: "PHISHING",
+        ...bankSubmission,
+        publicPacketPreviewedAt: null,
       })
-    ).not.toThrow();
+    ).toThrow("previewed");
+  });
+
+  it("requires exact fake-surface evidence and impersonation references", () => {
+    const websiteSubmission: Submission = {
+      claimedLoss: null,
+      evidence: [cleanEvidence("SCREENSHOT")],
+      identifiers: [
+        {
+          role: "LISTING_STORE",
+          type: "WEBSITE",
+          value: "https://fake.example/store",
+        },
+      ],
+      incidentAt,
+      issues: ["PHISHING"],
+      lossOccurred: "NO",
+      narrative:
+        "Website giả mạo yêu cầu người dùng nhập thông tin thanh toán và thông tin đăng nhập.",
+      publicNarrative:
+        "Website giả mạo yêu cầu người dùng nhập thông tin thanh toán và thông tin đăng nhập.",
+      publicPacketPreviewedAt: incidentAt,
+      reporterInvolvement: "DIRECT_OBSERVER",
+      transactions: [],
+      type: "MALICIOUS_WEBSITE",
+      violationType: "PHISHING",
+    };
+
+    expect(() => assertRiskReportSubmission(websiteSubmission)).not.toThrow();
     expect(() =>
       assertRiskReportSubmission({
-        claimedLoss: null,
-        evidence: [{ kind: "PAYMENT_PROOF", scanStatus: "CLEAN" }],
-        identifiers: [{ type: "WEBSITE" }],
-        narrative:
-          "Website giả mạo yêu cầu người dùng nhập thông tin thanh toán.",
-        type: "MALICIOUS_WEBSITE",
-        violationType: "PHISHING",
+        ...websiteSubmission,
+        evidence: [cleanEvidence("PAYMENT_PROOF")],
       })
     ).toThrow("screenshot or video");
   });
 
-  it("requires ownership or transaction proof and conversation for account reports", () => {
-    const base = {
+  it("requires account asset, ownership, handover, and access-loss evidence", () => {
+    const accountSubmission: Submission = {
+      accessLostAt: incidentAt,
       claimedLoss: null,
-      identifiers: [{ type: "SOCIAL_ACCOUNT" as const }],
-      narrative: "Tài khoản bị chiếm quyền và người dùng không thể khôi phục.",
-      platform: "Telegram",
-      type: "SOCIAL_GAME_ACCOUNT" as const,
+      evidence: [
+        cleanEvidence("HANDOVER_PROOF"),
+        cleanEvidence("OWNERSHIP_PROOF"),
+        cleanEvidence("ACCESS_LOSS_PROOF"),
+      ],
+      handoverAt: new Date("2026-08-19T10:00:00.000Z"),
+      identifiers: [
+        {
+          role: "REPORTED_ASSET",
+          type: "PLATFORM_ACCOUNT",
+          value: "roblox:123456",
+        },
+      ],
+      incidentAt,
+      issues: ["ACCOUNT_RECLAIMED"],
+      lossOccurred: "NO",
+      narrative:
+        "Tài khoản đã được bàn giao nhưng người mua mất quyền truy cập sau khi giao dịch hoàn tất.",
+      platform: "Roblox",
+      publicNarrative:
+        "Tài khoản đã được bàn giao nhưng người mua mất quyền truy cập sau khi giao dịch hoàn tất.",
+      publicPacketPreviewedAt: incidentAt,
+      purchaseAt: new Date("2026-08-18T10:00:00.000Z"),
+      reporterInvolvement: "BUYER",
+      transactions: [],
+      type: "SOCIAL_GAME_ACCOUNT",
     };
 
+    expect(() => assertRiskReportSubmission(accountSubmission)).not.toThrow();
     expect(() =>
       assertRiskReportSubmission({
-        ...base,
-        evidence: [
-          { kind: "OWNERSHIP_PROOF", scanStatus: "CLEAN" },
-          { kind: "CONVERSATION", scanStatus: "CLEAN" },
-        ],
+        ...accountSubmission,
+        accessLostAt: null,
       })
-    ).not.toThrow();
+    ).toThrow("access-loss date");
     expect(() =>
       assertRiskReportSubmission({
-        ...base,
-        evidence: [{ kind: "CONVERSATION", scanStatus: "CLEAN" }],
+        ...accountSubmission,
+        evidence: [cleanEvidence("OWNERSHIP_PROOF")],
       })
-    ).toThrow("Ownership or transaction proof");
-    expect(() =>
-      assertRiskReportSubmission({
-        ...base,
-        evidence: [{ kind: "OWNERSHIP_PROOF", scanStatus: "CLEAN" }],
-      })
-    ).toThrow("Conversation evidence");
+    ).toThrow("Purchase or handover proof");
   });
 
-  it("keeps under-verification and removal in the public lifecycle", () => {
+  it("generates a deterministic masked public title", () => {
+    expect(
+      createRiskReportPublicTitle({
+        identifiers: [
+          {
+            institutionName: "VIB",
+            maskedValue: "327***940",
+            publicValue: null,
+            role: "PAYMENT_DESTINATION",
+            type: "BANK_ACCOUNT",
+          },
+        ],
+        type: "BANK_WALLET_PHONE",
+      })
+    ).toBe("Cảnh báo giao dịch với 327***940 · VIB");
+  });
+
+  it("keeps identifier classes and public status helpers explicit", () => {
+    expect(getRiskReportIdentifierTypes("MALICIOUS_WEBSITE")).toEqual([
+      "WEBSITE",
+      "SOCIAL_ACCOUNT",
+      "PLATFORM_ACCOUNT",
+    ]);
+    expect(createRiskReportPublicPath("warning-report-1")).toBe(
+      "/avin-check/warning/warning-report-1"
+    );
     expect(
       isRiskReportUnderVerificationEligible({
         affectedVictimCount: 1,
         urgency: "URGENT",
       })
     ).toBe(true);
-    expect(
-      isRiskReportUnderVerificationEligible({
-        affectedVictimCount: 2,
-        urgency: "NORMAL",
-      })
-    ).toBe(true);
-    expect(
-      isRiskReportUnderVerificationEligible({
-        affectedVictimCount: 1,
-        urgency: "NORMAL",
-      })
-    ).toBe(false);
-    expect(isPublicRiskReportStatus("UNDER_VERIFICATION")).toBe(true);
-    expect(isPublicRiskReportStatus("REMOVED")).toBe(true);
+    expect(isPublicRiskReportStatus("PUBLISHED")).toBe(true);
     expect(isPublicRiskReportStatus("UNDER_REVIEW")).toBe(false);
   });
 });

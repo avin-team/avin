@@ -25,7 +25,6 @@ export type RiskReportStatus = (typeof riskReportStatuses)[number];
 export const publicRiskReportStatuses = [
   "PUBLISHED",
   "CORRECTED",
-  "UNDER_VERIFICATION",
 ] as const satisfies readonly RiskReportStatus[];
 
 export type PublicRiskReportStatus = (typeof publicRiskReportStatuses)[number];
@@ -58,16 +57,113 @@ export const riskReportIdentifierTypes = [
 export type RiskReportIdentifierType =
   (typeof riskReportIdentifierTypes)[number];
 
+export const riskReportIdentifierRoles = [
+  "ACCUSED_COUNTERPARTY",
+  "PAYMENT_DESTINATION",
+  "INTERMEDIARY",
+  "CONTACT_CHANNEL",
+  "LISTING_STORE",
+  "REPORTED_ASSET",
+  "IMPERSONATED_IDENTITY",
+] as const;
+
+export type RiskReportIdentifierRole =
+  (typeof riskReportIdentifierRoles)[number];
+
+/** Identifier roles that may create a public risk-warning lookup result. */
+export const riskReportPublicSubjectIdentifierRoles = [
+  "ACCUSED_COUNTERPARTY",
+  "PAYMENT_DESTINATION",
+  "INTERMEDIARY",
+  "CONTACT_CHANNEL",
+  "LISTING_STORE",
+] as const satisfies readonly RiskReportIdentifierRole[];
+
+const riskReportPublicSubjectIdentifierRoleSet = new Set<string>(
+  riskReportPublicSubjectIdentifierRoles
+);
+
 export const riskReportEvidenceKinds = [
   "PAYMENT_PROOF",
   "CONVERSATION",
   "SCREENSHOT",
   "VIDEO",
   "OWNERSHIP_PROOF",
+  "DELIVERY_PROOF",
+  "REVERSAL_NOTICE",
+  "HANDOVER_PROOF",
+  "ACCESS_LOSS_PROOF",
+  "GENUINE_REFERENCE",
   "OTHER",
 ] as const;
 
 export type RiskReportEvidenceKind = (typeof riskReportEvidenceKinds)[number];
+
+export const riskReporterInvolvements = [
+  "BUYER",
+  "SELLER",
+  "INTERMEDIARY",
+  "AUTHORIZED_REPRESENTATIVE",
+  "DIRECT_OBSERVER",
+] as const;
+
+export type RiskReporterInvolvement = (typeof riskReporterInvolvements)[number];
+
+export const riskLossOccurrences = ["YES", "NO", "UNKNOWN"] as const;
+
+export type RiskLossOccurrence = (typeof riskLossOccurrences)[number];
+
+export const riskReportIssueTypes = [
+  "NON_DELIVERY",
+  "PARTIAL_OR_MISMATCHED_DELIVERY",
+  "PAID_THEN_BLOCKED",
+  "SERVICE_INCOMPLETE",
+  "SERVICE_DAMAGED_ACCOUNT",
+  "POST_DELIVERY_CHARGEBACK",
+  "FAKE_INTERMEDIARY",
+  "ACCOUNT_RECLAIMED",
+  "RECOVERY_NOT_TRANSFERRED",
+  "ACCOUNT_ACCESS_LOST",
+  "PUBLISHER_LOCKED_OR_BANNED",
+  "WARRANTY_REFUSED",
+  "IMPERSONATION",
+  "PHISHING",
+  "MALWARE",
+  "FAKE_STORE",
+  "FAKE_PAYMENT",
+  "OTHER",
+] as const;
+
+export type RiskReportIssueType = (typeof riskReportIssueTypes)[number];
+
+export const riskReportIssueTypesByReportType = {
+  BANK_WALLET_PHONE: [
+    "NON_DELIVERY",
+    "PARTIAL_OR_MISMATCHED_DELIVERY",
+    "PAID_THEN_BLOCKED",
+    "SERVICE_INCOMPLETE",
+    "SERVICE_DAMAGED_ACCOUNT",
+    "POST_DELIVERY_CHARGEBACK",
+    "FAKE_INTERMEDIARY",
+    "OTHER",
+  ],
+  MALICIOUS_WEBSITE: [
+    "IMPERSONATION",
+    "PHISHING",
+    "MALWARE",
+    "FAKE_STORE",
+    "FAKE_PAYMENT",
+    "OTHER",
+  ],
+  SOCIAL_GAME_ACCOUNT: [
+    "ACCOUNT_RECLAIMED",
+    "RECOVERY_NOT_TRANSFERRED",
+    "ACCOUNT_ACCESS_LOST",
+    "PUBLISHER_LOCKED_OR_BANNED",
+    "WARRANTY_REFUSED",
+    "OTHER",
+  ],
+} as const satisfies Record<RiskReportType, readonly RiskReportIssueType[]>;
 
 export const riskReporterRelationships = [
   "NO_PROVIDER_RELATIONSHIP",
@@ -108,14 +204,24 @@ export const riskReportDecisionStatuses = [
 export type RiskReportDecisionStatus =
   (typeof riskReportDecisionStatuses)[number];
 
+/** P0 moderator decisions exposed by the admin route. */
+export const riskReportAdminDecisionStatuses = [
+  "REJECTED",
+  "PUBLISHED",
+] as const;
+
 const riskReportTypeSchema = z.enum(riskReportTypes);
 const riskReportIdentifierTypeSchema = z.enum(riskReportIdentifierTypes);
+const riskReportIdentifierRoleSchema = z.enum(riskReportIdentifierRoles);
 const riskReportEvidenceKindSchema = z.enum(riskReportEvidenceKinds);
 const riskReportUrgencySchema = z.enum(riskReportUrgencies);
 const riskReportWebsiteViolationTypeSchema = z.enum(
   riskReportWebsiteViolationTypes
 );
 const riskReporterRelationshipSchema = z.enum(riskReporterRelationships);
+const riskReporterInvolvementSchema = z.enum(riskReporterInvolvements);
+const riskLossOccurrenceSchema = z.enum(riskLossOccurrences);
+const riskReportIssueTypeSchema = z.enum(riskReportIssueTypes);
 const riskCorrectionRequesterRelationshipSchema = z.enum(
   riskCorrectionRequesterRelationships
 );
@@ -124,8 +230,17 @@ const reportNarrativeSchema = z.string().trim().max(10_000);
 const reportPhoneSchema = z.string().trim().min(6).max(50);
 const reportIdentifierValueSchema = z.string().trim().min(1).max(300);
 const BANK_ACCOUNT_SEPARATOR_PATTERN = /[\s.-]/gu;
+const EMAIL_IN_NARRATIVE_PATTERN =
+  /\b[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}\b/giu;
+const PHONE_IN_NARRATIVE_PATTERN = /(?<!\d)(?:\+?84|0)\d{8,10}(?!\d)/gu;
+const URL_IN_NARRATIVE_PATTERN = /https?:\/\/[^\s<>()]+/giu;
 
 export const riskReportIdentifierInputSchema = z.object({
+  displayName: z.string().trim().max(200).optional(),
+  holderName: z.string().trim().max(200).optional(),
+  institutionName: z.string().trim().max(200).optional(),
+  namespace: z.string().trim().max(200).optional(),
+  role: riskReportIdentifierRoleSchema,
   type: riskReportIdentifierTypeSchema,
   value: reportIdentifierValueSchema,
 });
@@ -134,16 +249,48 @@ export type RiskReportIdentifierInput = z.infer<
   typeof riskReportIdentifierInputSchema
 >;
 
+export const riskReportTransactionInputSchema = z.object({
+  amount: z
+    .string()
+    .trim()
+    .regex(/^\d+(?:\.\d{1,12})?$/u)
+    .refine((value) => Number(value) > 0, {
+      message: "Transaction amount must be greater than zero",
+    }),
+  currencyOrAsset: z.string().trim().min(1).max(30),
+  destinationIdentifierIndex: z.number().int().min(0).max(9).optional(),
+  occurredAt: z.coerce.date(),
+  paymentMethod: z.string().trim().min(1).max(100),
+  reference: z.string().trim().max(200).optional(),
+  timeKnown: z.boolean().default(false),
+});
+
+export type RiskReportTransactionInput = z.infer<
+  typeof riskReportTransactionInputSchema
+>;
+
 export const riskReportDraftInputSchema = z.object({
+  accessLostAt: z.coerce.date().optional(),
   affectedVictimCount: z.number().int().min(1).max(1_000_000).optional(),
   claimedLoss: z.number().int().min(0).max(2_000_000_000).optional(),
-  identifiers: z.array(riskReportIdentifierInputSchema).max(6).optional(),
+  handoverAt: z.coerce.date().optional(),
+  identifiers: z.array(riskReportIdentifierInputSchema).max(10).optional(),
+  incidentAt: z.coerce.date().optional(),
+  incidentDateApproximate: z.boolean().optional(),
+  issues: z.array(riskReportIssueTypeSchema).max(8).optional(),
+  lossOccurred: riskLossOccurrenceSchema.optional(),
   narrative: reportNarrativeSchema.optional(),
+  ongoing: z.boolean().optional(),
+  otherIssueDescription: z.string().trim().max(500).optional(),
   platform: z.string().trim().max(200).optional(),
+  privateNote: z.string().trim().max(5000).optional(),
+  purchaseAt: z.coerce.date().optional(),
   reportId: z.uuid().optional(),
+  reporterInvolvement: riskReporterInvolvementSchema.optional(),
   reporterPhone: reportPhoneSchema.optional(),
   reporterRelationship: riskReporterRelationshipSchema.optional(),
   reporterZalo: z.string().trim().max(100).optional(),
+  transactions: z.array(riskReportTransactionInputSchema).max(20).optional(),
   type: riskReportTypeSchema,
   urgency: riskReportUrgencySchema.optional(),
   violationType: riskReportWebsiteViolationTypeSchema.optional(),
@@ -152,6 +299,14 @@ export const riskReportDraftInputSchema = z.object({
 export type RiskReportDraftInput = z.infer<typeof riskReportDraftInputSchema>;
 
 export const riskReportOwnedInputSchema = z.object({
+  reportId: z.uuid(),
+});
+
+export const RISK_REPORT_ATTESTATION_VERSION = "risk-report-v1";
+
+export const riskReportSubmitInputSchema = z.object({
+  attestationAccepted: z.literal(true),
+  attestationVersion: z.literal(RISK_REPORT_ATTESTATION_VERSION),
   reportId: z.uuid(),
 });
 
@@ -187,6 +342,7 @@ export const riskReportMineInputSchema = z
 
 export const riskReportEvidenceInputSchema = z.object({
   contentType: z.string().trim().min(1).max(120),
+  explanation: z.string().trim().min(10).max(500),
   fileName: z
     .string()
     .trim()
@@ -219,9 +375,8 @@ export const riskReportAdminListInputSchema = z
 export const riskReportAdminIdInputSchema = z.object({ id: z.uuid() });
 
 export const riskReportAdminDecisionInputSchema = z.object({
-  decision: z.enum(riskReportDecisionStatuses),
+  decision: z.enum(riskReportAdminDecisionStatuses),
   id: z.uuid(),
-  publicSummary: z.string().trim().min(20).max(5000).optional(),
   reason: z.string().trim().max(2000).optional(),
   underVerificationApproved: z.boolean().optional(),
 });
@@ -244,8 +399,6 @@ export const riskReportDerivativeInputSchema = z.object({
 export const publicRiskWarningListInputSchema = z
   .object({
     limit: z.number().int().min(1).max(50).optional(),
-    source: z.literal("chongscam").optional(),
-    sourceReportIds: z.array(z.uuid()).min(1).max(50).optional(),
   })
   .optional();
 
@@ -263,7 +416,7 @@ const allowedTransitions: Record<
   PUBLISHED: ["CORRECTED", "REMOVED"],
   REJECTED: [],
   REMOVED: [],
-  SUBMITTED: ["UNDER_REVIEW"],
+  SUBMITTED: ["UNDER_REVIEW", "REJECTED", "PUBLISHED"],
   UNDER_REVIEW: [
     "CHANGES_REQUESTED",
     "REJECTED",
@@ -306,7 +459,7 @@ const normalizeWebsite = (value: string): string => {
   }
   url.hash = "";
   url.search = "";
-  url.pathname = "";
+  url.pathname = url.pathname.replaceAll(/\/{2,}/gu, "/").replace(/\/$/u, "");
   url.hostname = url.hostname.toLowerCase();
   url.hostname = url.hostname.replace(/^www\./u, "").replace(/\.$/u, "");
   if (
@@ -315,7 +468,43 @@ const normalizeWebsite = (value: string): string => {
   ) {
     url.port = "";
   }
-  return `https://${url.host}`;
+  return `https://${url.host}${url.pathname}`;
+};
+
+const escapeRegExp = (value: string): string =>
+  value.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+
+export const buildRiskReportPublicNarrative = (
+  narrative: string,
+  privateValues: readonly string[] = []
+): string => {
+  let publicNarrative = narrative
+    .trim()
+    .replace(EMAIL_IN_NARRATIVE_PATTERN, "[email đã ẩn]")
+    .replace(PHONE_IN_NARRATIVE_PATTERN, "[số điện thoại đã ẩn]")
+    .replace(URL_IN_NARRATIVE_PATTERN, (rawUrl) => {
+      try {
+        const url = new URL(rawUrl);
+        url.hash = "";
+        url.search = "";
+        return url.toString();
+      } catch {
+        return "[liên kết đã ẩn]";
+      }
+    });
+
+  for (const value of privateValues) {
+    const trimmedValue = value.trim();
+    if (trimmedValue.length < 4) {
+      continue;
+    }
+    publicNarrative = publicNarrative.replaceAll(
+      new RegExp(escapeRegExp(trimmedValue), "giu"),
+      "[thông tin đã ẩn]"
+    );
+  }
+
+  return publicNarrative;
 };
 
 const PUBLIC_SOCIAL_PROFILE_HOSTS = new Set([
@@ -558,7 +747,7 @@ export const getRiskIdentifierPublicValue = (
   if (type === "WEBSITE") {
     try {
       const url = new URL(normalizedValue);
-      return url.host.replace(/^www\./u, "");
+      return `${url.host.replace(/^www\./u, "")}${url.pathname}`;
     } catch {
       return null;
     }
@@ -606,6 +795,54 @@ export const getRiskIdentifierPublicValue = (
   return normalizeProfileIdentifier(normalizedValue);
 };
 
+export interface RiskReportPublicTitleIdentifier {
+  institutionName?: string | null;
+  maskedValue: string;
+  publicValue: string | null;
+  role: RiskReportIdentifierRole;
+  type: RiskReportIdentifierType;
+}
+
+/**
+ * Build the stable public heading for a native warning. The heading only
+ * receives already-normalized/masked values so it cannot leak a private
+ * identifier or accidentally turn a reporter-authored title into a public
+ * claim.
+ */
+export const createRiskReportPublicTitle = ({
+  identifiers,
+  platform,
+  type,
+}: {
+  identifiers: readonly RiskReportPublicTitleIdentifier[];
+  platform?: string | null;
+  type: RiskReportType;
+}): string => {
+  const publicSubjectIdentifier = identifiers.find((identifier) =>
+    riskReportPublicSubjectIdentifierRoleSet.has(identifier.role)
+  );
+  const reportedAsset = identifiers.find(
+    (identifier) => identifier.role === "REPORTED_ASSET"
+  );
+  const identifier = publicSubjectIdentifier ?? reportedAsset ?? identifiers[0];
+  const value =
+    identifier?.publicValue ?? identifier?.maskedValue ?? "liên quan";
+
+  if (type === "MALICIOUS_WEBSITE") {
+    return `Cảnh báo website giả mạo ${value}`;
+  }
+
+  if (type === "SOCIAL_GAME_ACCOUNT") {
+    const platformLabel = platform?.trim() || "tài khoản số";
+    return `Cảnh báo ${platformLabel} bị back · ${value}`;
+  }
+
+  const institution = identifier?.institutionName?.trim();
+  return institution
+    ? `Cảnh báo giao dịch với ${value} · ${institution}`
+    : `Cảnh báo giao dịch với ${value}`;
+};
+
 export const maskRiskIdentifier = (
   type: RiskReportIdentifierType,
   value: string
@@ -621,13 +858,29 @@ export const maskRiskIdentifier = (
     type === "BANK_ACCOUNT" ||
     type === "WALLET_ACCOUNT"
   ) {
-    return `**** ${normalized.slice(-4)}`;
+    if (normalized.length <= 6) {
+      return `${normalized.slice(0, 1)}***${normalized.slice(-1)}`;
+    }
+    return `${normalized.slice(0, 3)}***${normalized.slice(-3)}`;
   }
 
-  if (normalized.length <= 4) {
-    return "****";
+  if (type === "SOCIAL_ACCOUNT" || type === "PLATFORM_ACCOUNT") {
+    return normalized;
   }
-  return `${normalized.slice(0, 2)}****${normalized.slice(-2)}`;
+  return normalized;
+};
+
+export const maskRiskHolderName = (value: string): string => {
+  const parts = value.trim().replaceAll(/\s+/gu, " ").split(" ");
+  const finalPart = parts.at(-1);
+  if (!finalPart) {
+    return "";
+  }
+  const maskedFinalPart = `${finalPart.slice(0, 1).toLocaleUpperCase("vi-VN")}.`;
+  if (parts.length === 1) {
+    return maskedFinalPart;
+  }
+  return `${parts.slice(0, -1).join(" ")} ${maskedFinalPart}`;
 };
 
 export const getRiskReportIdentifierTypes = (
@@ -637,15 +890,27 @@ export const getRiskReportIdentifierTypes = (
     return ["BANK_ACCOUNT", "WALLET_ACCOUNT", "PHONE"];
   }
   if (type === "MALICIOUS_WEBSITE") {
-    return ["WEBSITE"];
+    return ["WEBSITE", "SOCIAL_ACCOUNT", "PLATFORM_ACCOUNT"];
   }
   return ["SOCIAL_ACCOUNT", "PLATFORM_ACCOUNT"];
 };
 
 export interface RiskReportSubmissionEvidence {
   kind: RiskReportEvidenceKind;
+  publicCopyReady?: boolean;
   scanStatus: RiskReportEvidenceScanStatus;
 }
+
+type RiskReportSubmissionIdentifier = Pick<
+  RiskReportIdentifierInput,
+  "role" | "type"
+> & {
+  displayName?: string | null;
+  holderName?: string | null;
+  institutionName?: string | null;
+  namespace?: string | null;
+  value?: string | null;
+};
 
 const assertEvidenceKinds = (
   evidence: readonly RiskReportSubmissionEvidence[],
@@ -659,50 +924,72 @@ const assertEvidenceKinds = (
   }
 };
 
-export const assertRiskReportSubmission = ({
-  claimedLoss,
-  evidence,
-  identifiers,
-  narrative,
-  platform,
-  type,
-  violationType,
-}: {
-  claimedLoss: number | null | undefined;
-  evidence: readonly RiskReportSubmissionEvidence[];
-  identifiers: readonly Pick<RiskReportIdentifierInput, "type">[];
-  narrative: string | null | undefined;
-  platform?: string | null;
-  type: RiskReportType;
-  violationType?: RiskReportWebsiteViolationType | null;
-}): void => {
-  if (!narrative?.trim()) {
-    throw new Error("A report narrative is required before submission");
-  }
-  if (type === "BANK_WALLET_PHONE" && (!claimedLoss || claimedLoss <= 0)) {
-    throw new Error("A claimed loss greater than zero is required");
-  }
+const riskSubjectIdentifierRoles = new Set<RiskReportIdentifierRole>(
+  riskReportPublicSubjectIdentifierRoles
+);
 
-  if (type === "MALICIOUS_WEBSITE" && !violationType) {
-    throw new Error("A website violation type is required");
-  }
-  if (type === "SOCIAL_GAME_ACCOUNT" && !platform?.trim()) {
-    throw new Error("A platform is required for social or game reports");
-  }
+const hasRiskSubjectIdentifier = (
+  identifiers: readonly RiskReportSubmissionIdentifier[],
+  allowedTypes: readonly RiskReportIdentifierType[]
+): boolean => {
+  const allowedTypesSet = new Set(allowedTypes);
+  return identifiers.some(
+    (identifier) =>
+      riskSubjectIdentifierRoles.has(identifier.role) &&
+      allowedTypesSet.has(identifier.type)
+  );
+};
 
-  const allowedIdentifierTypeSet = new Set(getRiskReportIdentifierTypes(type));
+const assertReportIssues = (
+  type: RiskReportType,
+  issues: readonly RiskReportIssueType[],
+  otherIssueDescription: string | null | undefined
+): void => {
+  if (issues.length === 0) {
+    throw new Error("At least one report issue is required");
+  }
+  const allowedIssues = new Set(riskReportIssueTypesByReportType[type]);
+  if (issues.some((issue) => !allowedIssues.has(issue))) {
+    throw new Error("A report issue does not match the selected report type");
+  }
   if (
-    !identifiers.some((identifier) =>
-      allowedIdentifierTypeSet.has(identifier.type)
-    )
+    issues.includes("OTHER") &&
+    (otherIssueDescription?.trim().length ?? 0) < 20
   ) {
-    throw new Error("A relevant risk identifier is required");
+    throw new Error(
+      "An explanation of at least 20 characters is required for Other"
+    );
   }
+};
 
-  if (evidence.some((item) => item.scanStatus !== "CLEAN")) {
-    throw new Error("All evidence must pass file validation before submission");
+const assertBankWalletPhoneSubmission = (
+  identifiers: readonly RiskReportSubmissionIdentifier[],
+  evidence: readonly RiskReportSubmissionEvidence[],
+  issues: readonly RiskReportIssueType[]
+): void => {
+  if (
+    !hasRiskSubjectIdentifier(identifiers, [
+      "BANK_ACCOUNT",
+      "WALLET_ACCOUNT",
+      "PHONE",
+      "SOCIAL_ACCOUNT",
+      "PLATFORM_ACCOUNT",
+    ])
+  ) {
+    throw new Error("A transaction risk identifier is required");
   }
-  if (type === "BANK_WALLET_PHONE") {
+  if (issues.includes("POST_DELIVERY_CHARGEBACK")) {
+    assertEvidenceKinds(
+      evidence,
+      ["DELIVERY_PROOF"],
+      "Delivery proof is required for a chargeback report"
+    );
+    assertEvidenceKinds(
+      evidence,
+      ["REVERSAL_NOTICE"],
+      "A reversal or chargeback notice is required"
+    );
+  } else {
     assertEvidenceKinds(
       evidence,
       ["PAYMENT_PROOF"],
@@ -711,33 +998,300 @@ export const assertRiskReportSubmission = ({
     assertEvidenceKinds(
       evidence,
       ["CONVERSATION"],
-      "Conversation evidence is required before submission"
-    );
-  } else if (type === "MALICIOUS_WEBSITE") {
-    assertEvidenceKinds(
-      evidence,
-      ["SCREENSHOT", "VIDEO"],
-      "A screenshot or video is required before submission"
-    );
-  } else {
-    assertEvidenceKinds(
-      evidence,
-      ["OWNERSHIP_PROOF", "PAYMENT_PROOF"],
-      "Ownership or transaction proof is required before submission"
-    );
-    assertEvidenceKinds(
-      evidence,
-      ["CONVERSATION"],
-      "Conversation evidence is required before submission"
+      "Conversation, listing, order, or agreement evidence is required"
     );
   }
 };
 
+const assertMaliciousWebsiteSubmission = (
+  identifiers: readonly RiskReportSubmissionIdentifier[],
+  evidence: readonly RiskReportSubmissionEvidence[],
+  issues: readonly RiskReportIssueType[],
+  lossOccurred: RiskLossOccurrence | null | undefined
+): void => {
+  if (
+    !hasRiskSubjectIdentifier(identifiers, [
+      "WEBSITE",
+      "SOCIAL_ACCOUNT",
+      "PLATFORM_ACCOUNT",
+    ])
+  ) {
+    throw new Error("The exact fake website, app, or profile is required");
+  }
+  assertEvidenceKinds(
+    evidence,
+    ["SCREENSHOT", "VIDEO"],
+    "A screenshot or video is required before submission"
+  );
+  if (issues.includes("IMPERSONATION")) {
+    if (
+      !identifiers.some(
+        (identifier) => identifier.role === "IMPERSONATED_IDENTITY"
+      )
+    ) {
+      throw new Error("The genuine impersonated identity is required");
+    }
+    assertEvidenceKinds(
+      evidence,
+      ["GENUINE_REFERENCE"],
+      "A genuine-versus-fake reference is required for impersonation"
+    );
+  }
+  if (lossOccurred === "YES") {
+    assertEvidenceKinds(
+      evidence,
+      ["PAYMENT_PROOF"],
+      "Payment proof is required when the fake surface caused a loss"
+    );
+  }
+};
+
+const assertSocialGameAccountSubmission = (
+  identifiers: readonly RiskReportSubmissionIdentifier[],
+  evidence: readonly RiskReportSubmissionEvidence[],
+  dates: {
+    accessLostAt: Date | null | undefined;
+    handoverAt: Date | null | undefined;
+    purchaseAt: Date | null | undefined;
+  }
+): void => {
+  if (
+    !identifiers.some(
+      (identifier) =>
+        identifier.role === "REPORTED_ASSET" &&
+        (identifier.type === "SOCIAL_ACCOUNT" ||
+          identifier.type === "PLATFORM_ACCOUNT")
+    )
+  ) {
+    throw new Error("The reclaimed account UID is required");
+  }
+  if (!dates.purchaseAt) {
+    throw new Error("The account purchase date is required");
+  }
+  if (!dates.handoverAt) {
+    throw new Error("The account handover date is required");
+  }
+  if (!dates.accessLostAt) {
+    throw new Error("The account access-loss date is required");
+  }
+  assertEvidenceKinds(
+    evidence,
+    ["HANDOVER_PROOF", "PAYMENT_PROOF"],
+    "Purchase or handover proof is required before submission"
+  );
+  assertEvidenceKinds(
+    evidence,
+    ["OWNERSHIP_PROOF"],
+    "Proof of prior account control is required before submission"
+  );
+  assertEvidenceKinds(
+    evidence,
+    ["ACCESS_LOSS_PROOF"],
+    "Proof of access loss or recovery is required before submission"
+  );
+};
+
+const assertSubmissionNarrativeAndInvolvement = ({
+  incidentAt,
+  narrative,
+  publicNarrative,
+  publicPacketPreviewedAt,
+  reporterInvolvement,
+  type,
+}: {
+  incidentAt: Date | null | undefined;
+  narrative: string | null | undefined;
+  publicNarrative: string | null | undefined;
+  publicPacketPreviewedAt: Date | null | undefined;
+  reporterInvolvement: RiskReporterInvolvement | null | undefined;
+  type: RiskReportType;
+}): void => {
+  const narrativeLength = narrative?.trim().length ?? 0;
+  if (narrativeLength < 50 || narrativeLength > 10_000) {
+    throw new Error(
+      "A report narrative between 50 and 10000 characters is required"
+    );
+  }
+  if (!publicNarrative?.trim()) {
+    throw new Error("A safe public narrative is required before submission");
+  }
+  if (!publicPacketPreviewedAt) {
+    throw new Error(
+      "The public report packet must be previewed before submission"
+    );
+  }
+  if (!reporterInvolvement) {
+    throw new Error("Reporter involvement is required before submission");
+  }
+  if (!incidentAt) {
+    throw new Error(
+      "An incident or discovery date is required before submission"
+    );
+  }
+  if (
+    reporterInvolvement === "DIRECT_OBSERVER" &&
+    type !== "MALICIOUS_WEBSITE"
+  ) {
+    throw new Error(
+      "Direct observer reports are limited to fake websites, apps, or profiles"
+    );
+  }
+};
+
+const assertSubmissionFinancials = ({
+  claimedLoss,
+  lossOccurred,
+  transactions,
+}: {
+  claimedLoss: number | null | undefined;
+  lossOccurred: RiskLossOccurrence | null | undefined;
+  transactions: readonly RiskReportTransactionInput[];
+}): void => {
+  if (!lossOccurred) {
+    throw new Error("The financial-loss answer is required before submission");
+  }
+  if (lossOccurred === "YES") {
+    if (!claimedLoss || claimedLoss <= 0) {
+      throw new Error("A claimed loss greater than zero is required");
+    }
+    if (transactions.length === 0) {
+      throw new Error(
+        "At least one transaction is required for a claimed loss"
+      );
+    }
+  }
+};
+
+const assertSubmissionIdentifiersAndEvidence = ({
+  evidence,
+  identifiers,
+  platform,
+  type,
+  violationType,
+}: {
+  evidence: readonly RiskReportSubmissionEvidence[];
+  identifiers: readonly RiskReportSubmissionIdentifier[];
+  platform?: string | null;
+  type: RiskReportType;
+  violationType?: RiskReportWebsiteViolationType | null;
+}): void => {
+  if (type === "MALICIOUS_WEBSITE" && !violationType) {
+    throw new Error("A website violation type is required");
+  }
+  if (type === "SOCIAL_GAME_ACCOUNT" && !platform?.trim()) {
+    throw new Error("A platform is required for social or game reports");
+  }
+
+  if (identifiers.length === 0) {
+    throw new Error("A relevant lookup identifier is required");
+  }
+  for (const identifier of identifiers) {
+    if (
+      identifier.type === "BANK_ACCOUNT" &&
+      (!identifier.institutionName?.trim() || !identifier.holderName?.trim())
+    ) {
+      throw new Error(
+        "Bank account identifiers require an institution and account-holder name"
+      );
+    }
+  }
+
+  if (evidence.some((item) => item.scanStatus !== "CLEAN")) {
+    throw new Error(
+      "All evidence must pass malware scanning before submission"
+    );
+  }
+  if (!evidence.some((item) => item.publicCopyReady)) {
+    throw new Error(
+      "At least one safe public evidence copy is required before submission"
+    );
+  }
+};
+
+export const assertRiskReportSubmission = ({
+  accessLostAt,
+  claimedLoss,
+  evidence,
+  handoverAt,
+  identifiers,
+  incidentAt,
+  issues,
+  lossOccurred,
+  narrative,
+  otherIssueDescription,
+  platform,
+  publicNarrative,
+  publicPacketPreviewedAt,
+  purchaseAt,
+  reporterInvolvement,
+  transactions,
+  type,
+  violationType,
+}: {
+  accessLostAt?: Date | null;
+  claimedLoss: number | null | undefined;
+  evidence: readonly RiskReportSubmissionEvidence[];
+  identifiers: readonly RiskReportSubmissionIdentifier[];
+  handoverAt?: Date | null;
+  incidentAt: Date | null | undefined;
+  issues: readonly RiskReportIssueType[];
+  lossOccurred: RiskLossOccurrence | null | undefined;
+  narrative: string | null | undefined;
+  otherIssueDescription?: string | null;
+  platform?: string | null;
+  publicNarrative: string | null | undefined;
+  publicPacketPreviewedAt: Date | null | undefined;
+  purchaseAt?: Date | null;
+  reporterInvolvement: RiskReporterInvolvement | null | undefined;
+  transactions: readonly RiskReportTransactionInput[];
+  type: RiskReportType;
+  violationType?: RiskReportWebsiteViolationType | null;
+}): void => {
+  assertSubmissionNarrativeAndInvolvement({
+    incidentAt,
+    narrative,
+    publicNarrative,
+    publicPacketPreviewedAt,
+    reporterInvolvement,
+    type,
+  });
+
+  assertReportIssues(type, issues, otherIssueDescription);
+
+  assertSubmissionFinancials({
+    claimedLoss,
+    lossOccurred,
+    transactions,
+  });
+
+  assertSubmissionIdentifiersAndEvidence({
+    evidence,
+    identifiers,
+    platform,
+    type,
+    violationType,
+  });
+
+  if (type === "BANK_WALLET_PHONE") {
+    assertBankWalletPhoneSubmission(identifiers, evidence, issues);
+  } else if (type === "MALICIOUS_WEBSITE") {
+    assertMaliciousWebsiteSubmission(
+      identifiers,
+      evidence,
+      issues,
+      lossOccurred
+    );
+  } else {
+    assertSocialGameAccountSubmission(identifiers, evidence, {
+      accessLostAt,
+      handoverAt,
+      purchaseAt,
+    });
+  }
+};
+
 export const isPublicRiskReportStatus = (status: RiskReportStatus): boolean =>
-  status === "CORRECTED" ||
-  status === "PUBLISHED" ||
-  status === "REMOVED" ||
-  status === "UNDER_VERIFICATION";
+  status === "CORRECTED" || status === "PUBLISHED" || status === "REMOVED";
 
 export const createRiskReportPublicSlug = (reportId: string): string =>
   `warning-${reportId}`;

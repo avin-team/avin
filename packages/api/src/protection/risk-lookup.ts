@@ -5,12 +5,22 @@ import {
   protectionRiskReport,
 } from "@avin/db/schema/protection";
 import { ORPCError } from "@orpc/server";
-import { and, countDistinct, desc, eq, inArray, or, sql } from "drizzle-orm";
+import {
+  and,
+  countDistinct,
+  desc,
+  eq,
+  inArray,
+  isNull,
+  or,
+  sql,
+} from "drizzle-orm";
 import { z } from "zod";
 
 import type { Context } from "../runtime/context";
 import {
   createRiskReportPublicPath,
+  createRiskReportPublicTitle,
   createRiskReportPublicSlug,
   getRiskIdentifierPlatform,
   getRiskIdentifierPublicValue,
@@ -18,11 +28,13 @@ import {
   maskRiskIdentifier,
   normalizeRiskIdentifier,
   publicRiskReportStatuses,
+  riskReportPublicSubjectIdentifierRoles,
   riskReportIdentifierTypes,
 } from "./risk-report";
 import type {
   PublicRiskReportStatus,
   RiskReportIdentifierType,
+  RiskReportType,
   RiskReportStatus,
 } from "./risk-report";
 
@@ -406,9 +418,9 @@ const loadCurrentRiskReports = (
   database: Database,
   reportIds?: readonly string[]
 ) => {
-  const statusCondition = inArray(
-    protectionRiskReport.status,
-    publicRiskReportStatuses
+  const statusCondition = and(
+    inArray(protectionRiskReport.status, publicRiskReportStatuses),
+    isNull(protectionRiskReport.externalSource)
   );
   const conditions = reportIds?.length
     ? and(statusCondition, inArray(protectionRiskReport.id, reportIds))
@@ -416,7 +428,6 @@ const loadCurrentRiskReports = (
 
   return database
     .select({
-      affectedVictimCount: protectionRiskReport.affectedVictimCount,
       claimedLoss: protectionRiskReport.claimedLoss,
       id: protectionRiskReport.id,
       publicSlug: protectionRiskReport.publicSlug,
@@ -430,18 +441,18 @@ const loadCurrentRiskReports = (
 };
 
 interface PublicRiskLookupReportRow {
-  affectedVictimCount: number;
   claimedLoss: number | null;
   externalSource: string | null;
   externalSourceUrl: string | null;
   externalTitle: string | null;
   id: string;
   publicSlug: string | null;
+  publicNarrative: string | null;
   publicSummary: string | null;
   publishedAt: Date | null;
   sortAt: unknown;
   status: RiskReportStatus;
-  type: string;
+  type: RiskReportType;
   updatedAt: Date;
 }
 
@@ -452,7 +463,6 @@ interface PublicRiskLookupIdentifierRow {
 }
 
 export interface PublicRiskLookupWarning {
-  affectedVictimCount: number;
   claimedLoss: number | null;
   externalSource: { name: string; title: string | null; url: string | null };
   identifier: {
@@ -461,7 +471,9 @@ export interface PublicRiskLookupWarning {
     type: RiskReportIdentifierType;
   };
   publicPath: string;
+  publicTitle: string;
   publicSlug: string;
+  publicNarrative: string | null;
   publicSummary: string | null;
   publishedAt: string | null;
   status: PublicRiskReportStatus;
@@ -551,7 +563,6 @@ const buildPublicRiskLookupGroups = ({
     const publicSlug =
       report.publicSlug ?? createRiskReportPublicSlug(report.id);
     group.warnings.push({
-      affectedVictimCount: report.affectedVictimCount,
       claimedLoss: report.claimedLoss,
       externalSource: {
         name: report.externalSource ?? "Avin",
@@ -559,9 +570,23 @@ const buildPublicRiskLookupGroups = ({
         url: report.externalSourceUrl,
       },
       identifier: group.identifier,
+      publicNarrative: report.publicNarrative ?? report.publicSummary,
       publicPath: createRiskReportPublicPath(publicSlug),
       publicSlug,
       publicSummary: report.publicSummary,
+      publicTitle:
+        report.externalTitle ??
+        createRiskReportPublicTitle({
+          identifiers: [
+            {
+              maskedValue: group.identifier.maskedValue,
+              publicValue: group.identifier.publicValue,
+              role: "ACCUSED_COUNTERPARTY",
+              type: identifier.type,
+            },
+          ],
+          type: report.type,
+        }),
       publishedAt: report.publishedAt?.toISOString() ?? null,
       status: report.status,
       type: report.type,
@@ -588,7 +613,7 @@ const buildPublicRiskLookupGroups = ({
       latestPublishedAt: warnings[0]?.publishedAt ?? null,
       reportCount: warnings.length,
       sourceCount: sourceNames.size,
-      status: warnings[0]?.status ?? "UNDER_VERIFICATION",
+      status: warnings[0]?.status ?? "PUBLISHED",
       warnings,
     });
   }
@@ -616,9 +641,13 @@ export const searchPublicRiskIdentifiers = async (
       )
     )
   );
-  const publicStatusCondition = inArray(
-    protectionRiskReport.status,
-    publicRiskReportStatuses
+  const publicSubjectIdentifierCondition = inArray(
+    protectionRiskIdentifier.role,
+    riskReportPublicSubjectIdentifierRoles
+  );
+  const publicStatusCondition = and(
+    inArray(protectionRiskReport.status, publicRiskReportStatuses),
+    isNull(protectionRiskReport.externalSource)
   );
   const sortAtExpression = sql`coalesce(${protectionRiskReport.publishedAt}, ${protectionRiskReport.updatedAt})`;
   const cursorCondition = cursor
@@ -632,6 +661,7 @@ export const searchPublicRiskIdentifiers = async (
     : undefined;
   const whereCondition = and(
     publicStatusCondition,
+    publicSubjectIdentifierCondition,
     lookupCondition,
     cursorCondition
   );
@@ -643,16 +673,22 @@ export const searchPublicRiskIdentifiers = async (
       protectionRiskIdentifier,
       eq(protectionRiskIdentifier.reportId, protectionRiskReport.id)
     )
-    .where(and(publicStatusCondition, lookupCondition));
+    .where(
+      and(
+        publicStatusCondition,
+        publicSubjectIdentifierCondition,
+        lookupCondition
+      )
+    );
 
   const reportRows = await database
     .selectDistinct({
-      affectedVictimCount: protectionRiskReport.affectedVictimCount,
       claimedLoss: protectionRiskReport.claimedLoss,
       externalSource: protectionRiskReport.externalSource,
       externalSourceUrl: protectionRiskReport.externalSourceUrl,
       externalTitle: protectionRiskReport.externalTitle,
       id: protectionRiskReport.id,
+      publicNarrative: protectionRiskReport.publicNarrative,
       publicSlug: protectionRiskReport.publicSlug,
       publicSummary: protectionRiskReport.publicSummary,
       publishedAt: protectionRiskReport.publishedAt,
@@ -697,6 +733,7 @@ export const searchPublicRiskIdentifiers = async (
       .where(
         and(
           inArray(protectionRiskIdentifier.reportId, reportIds),
+          publicSubjectIdentifierCondition,
           lookupCondition
         )
       )
@@ -738,7 +775,6 @@ const toMonthPeriod = (date: Date): string => date.toISOString().slice(0, 7);
 const toYearPeriod = (date: Date): string => date.toISOString().slice(0, 4);
 
 export interface PublicRiskActivityPeriod {
-  affectedVictims: number;
   claimedLoss: number;
   period: string;
   reports: number;
@@ -748,18 +784,15 @@ const addReportToActivityPeriod = (
   periods: Map<string, PublicRiskActivityPeriod>,
   period: string,
   report: {
-    affectedVictimCount: number;
     claimedLoss: number | null;
   }
 ): void => {
   const current = periods.get(period) ?? {
-    affectedVictims: 0,
     claimedLoss: 0,
     period,
     reports: 0,
   };
 
-  current.affectedVictims += report.affectedVictimCount ?? 0;
   current.claimedLoss += report.claimedLoss ?? 0;
   current.reports += 1;
   periods.set(period, current);
@@ -807,9 +840,15 @@ export const getPublicRiskStatistics = async (
           })
           .from(protectionRiskIdentifier)
           .where(
-            inArray(
-              protectionRiskIdentifier.reportId,
-              reports.map((report) => report.id)
+            and(
+              inArray(
+                protectionRiskIdentifier.reportId,
+                reports.map((report) => report.id)
+              ),
+              inArray(
+                protectionRiskIdentifier.role,
+                riskReportPublicSubjectIdentifierRoles
+              )
             )
           );
 
@@ -852,19 +891,15 @@ export const getPublicRiskStatistics = async (
       month: sortActivityPeriods(activityByMonth),
       year: sortActivityPeriods(activityByYear),
     },
-    affectedVictims: reports.reduce(
-      (total, report) => total + (report.affectedVictimCount ?? 0),
-      0
-    ),
     currentReports: reports.length,
     lastUpdatedAt: lastUpdatedAt?.toISOString() ?? null,
     publishedRiskIdentifiers: publishedIdentifierKeys.size,
-    reportsByPeriod: sortActivityPeriods(activityByMonth)
-      .toReversed()
-      .map(({ period, reports: count }) => ({ count, period })),
-    verifiedClaimedLoss: reports.reduce(
+    reportedClaimedLoss: reports.reduce(
       (total, report) => total + (report.claimedLoss ?? 0),
       0
     ),
+    reportsByPeriod: sortActivityPeriods(activityByMonth)
+      .toReversed()
+      .map(({ period, reports: count }) => ({ count, period })),
   };
 };

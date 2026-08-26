@@ -102,7 +102,7 @@ const mergeLookupResults = (
       sourceCount: new Set(
         warnings.map((warning) => warning.externalSource.name)
       ).size,
-      status: warnings[0]?.status ?? "UNDER_VERIFICATION",
+      status: warnings[0]?.status ?? "PUBLISHED",
       warnings,
     });
   }
@@ -229,8 +229,8 @@ const PublicRiskStatisticsSection = ({
           />
           <ActivityMetric
             isLoading={isLoading}
-            label="Nạn nhân bị ảnh hưởng"
-            value={statistics?.affectedVictims}
+            label="Tổng số tiền người tố cáo khai"
+            value={statistics?.reportedClaimedLoss}
           />
         </CardContent>
       </Card>
@@ -240,7 +240,7 @@ const PublicRiskStatisticsSection = ({
           <div className="grid gap-3">
             <CardTitle className="text-base">Báo cáo định kỳ</CardTitle>
             <CardDescription>
-              Số tiền bị lừa được ghi nhận từ 20/5/2020
+              Tổng số tiền người tố cáo khai từ 20/5/2020
             </CardDescription>
             <div className="flex w-fit rounded-lg bg-muted p-1">
               {activityRangeOptions.map((option) => (
@@ -296,17 +296,11 @@ const PublicRiskStatisticsSection = ({
                       </dd>
                     </div>
                     <div className="flex justify-between gap-3">
-                      <dt className="text-muted-foreground">Số tiền bị lừa</dt>
+                      <dt className="text-muted-foreground">
+                        Số tiền người tố cáo khai
+                      </dt>
                       <dd className="font-medium text-destructive">
                         {formatMoney(period.claimedLoss)}
-                      </dd>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <dt className="text-muted-foreground">
-                        Nạn nhân bị ảnh hưởng
-                      </dt>
-                      <dd className="font-medium text-primary">
-                        {lookupNumberFormatter.format(period.affectedVictims)}
                       </dd>
                     </div>
                   </dl>

@@ -25,9 +25,7 @@ const createSearchDatabase = (
   reports: readonly Record<string, unknown>[]
 ) => {
   const visibleReports = reports.filter((report) =>
-    ["PUBLISHED", "CORRECTED", "UNDER_VERIFICATION"].includes(
-      String(report.status)
-    )
+    ["PUBLISHED", "CORRECTED"].includes(String(report.status))
   );
   const reportRows = visibleReports.map((report) => ({
     affectedVictimCount: report.affectedVictimCount ?? 1,
@@ -138,7 +136,7 @@ describe("public risk identifier lookup", () => {
         {
           hasPublicWarning: true,
           identifier: {
-            maskedValue: "**** 6789",
+            maskedValue: "012***789",
             publicValue: null,
             type: "BANK_ACCOUNT",
           },
@@ -154,7 +152,7 @@ describe("public risk identifier lookup", () => {
     });
     expect(result.warnings[0]).toMatchObject({
       identifier: {
-        maskedValue: "**** 6789",
+        maskedValue: "012***789",
         publicValue: null,
         type: "BANK_ACCOUNT",
       },
@@ -244,7 +242,9 @@ describe("public risk identifier lookup", () => {
         kind: "AUTO",
         value: "example.com/path?tracking=secret",
       })
-    ).toEqual([{ normalizedValue: "https://example.com", type: "WEBSITE" }]);
+    ).toEqual([
+      { normalizedValue: "https://example.com/path", type: "WEBSITE" },
+    ]);
   });
 
   it("does not confirm a near match or a removed report", async () => {
@@ -343,19 +343,19 @@ describe("public risk identifier lookup", () => {
       groups: [
         {
           hasPublicWarning: true,
-          reportCount: 3,
-          sourceCount: 3,
+          reportCount: 2,
+          sourceCount: 2,
           status: "CORRECTED",
         },
       ],
-      totalReports: 3,
+      totalReports: 2,
     });
     expect(result.groups[0]?.warnings.map((warning) => warning.status)).toEqual(
-      ["CORRECTED", "PUBLISHED", "UNDER_VERIFICATION"]
+      ["CORRECTED", "PUBLISHED"]
     );
     expect(
       result.groups[0]?.warnings.map((warning) => warning.externalSource.name)
-    ).toEqual(["Cộng đồng", "Avin", "Telegram public feed"]);
+    ).toEqual(["Cộng đồng", "Avin"]);
   });
 
   it("normalizes profile URLs and only publishes an allowlisted social profile", async () => {
@@ -415,7 +415,9 @@ describe("public risk identifier lookup", () => {
       "203.0.113.14"
     );
     expect(unsafeResult.warnings[0]?.identifier.publicValue).toBeNull();
-    expect(unsafeResult.warnings[0]?.identifier.maskedValue).toBe("ht****re");
+    expect(unsafeResult.warnings[0]?.identifier.maskedValue).toBe(
+      unsafeIdentifier
+    );
   });
 
   it("rejects malformed or short searches without echoing the submitted value", async () => {
@@ -493,9 +495,8 @@ describe("public risk statistics", () => {
     const result = await getPublicRiskStatistics(database, "203.0.113.20");
 
     expect(result.currentReports).toBe(2);
-    expect(result.affectedVictims).toBe(2);
     expect(result.publishedRiskIdentifiers).toBe(2);
-    expect(result.verifiedClaimedLoss).toBe(200_000);
+    expect(result.reportedClaimedLoss).toBe(200_000);
     expect(result.reportsByPeriod).toEqual([
       { count: 1, period: "2026-07" },
       { count: 1, period: "2026-08" },
@@ -503,13 +504,11 @@ describe("public risk statistics", () => {
     expect(result.activity).toEqual({
       day: [
         {
-          affectedVictims: 1,
           claimedLoss: 125_000,
           period: "2026-08-01",
           reports: 1,
         },
         {
-          affectedVictims: 1,
           claimedLoss: 75_000,
           period: "2026-07-15",
           reports: 1,
@@ -517,13 +516,11 @@ describe("public risk statistics", () => {
       ],
       month: [
         {
-          affectedVictims: 1,
           claimedLoss: 125_000,
           period: "2026-08",
           reports: 1,
         },
         {
-          affectedVictims: 1,
           claimedLoss: 75_000,
           period: "2026-07",
           reports: 1,
@@ -531,7 +528,6 @@ describe("public risk statistics", () => {
       ],
       year: [
         {
-          affectedVictims: 2,
           claimedLoss: 200_000,
           period: "2026",
           reports: 2,

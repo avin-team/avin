@@ -1,0 +1,3 @@
+# Retain Risk Report data according to lifecycle
+
+Avin retains inactive drafts for 90 days, rejected or withdrawn originals for one year, and published originals while the warning is active plus three years after removal; public correction history and tombstones remain long-lived unless law requires deletion. A single indefinite retention rule would simplify storage but would keep sensitive MMO chats, payment proof, and recovery material beyond their operational need, while immediate deletion would undermine correction, abuse investigation, and appeal. Lifecycle-based retention accepts scheduled cleanup complexity to balance privacy with durable public reputation and auditability.

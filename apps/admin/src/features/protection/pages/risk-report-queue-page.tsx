@@ -36,8 +36,7 @@ const STATUS_FILTERS = [
   { label: "Bản nháp", value: "DRAFT" },
   { label: "Đã gửi", value: "SUBMITTED" },
   { label: "Đang xem xét", value: "UNDER_REVIEW" },
-  { label: "Cần bổ sung", value: "CHANGES_REQUESTED" },
-  { label: "Đang xác minh", value: "UNDER_VERIFICATION" },
+  { label: "Từ chối", value: "REJECTED" },
   { label: "Đã công khai", value: "PUBLISHED" },
   { label: "Đã gỡ", value: "REMOVED" },
 ] as const;
