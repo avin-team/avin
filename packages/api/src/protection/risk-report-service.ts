@@ -2354,15 +2354,64 @@ export const createRiskReportOriginalEvidenceUrl = async ({
   };
 };
 
+const createSignedOriginalEvidenceUrl = async (
+  supabaseUrl: string,
+  supabaseSecretKey: string | undefined,
+  storageKey: string,
+  fetchImpl = fetch
+): Promise<string> => {
+  if (!supabaseSecretKey) {
+    return createPublicMediaUrl(supabaseUrl, storageKey);
+  }
+  try {
+    const encodedKey = storageKey.split("/").map(encodeURIComponent).join("/");
+    const response = await fetchImpl(
+      `${supabaseUrl.replace(/\/$/u, "")}/storage/v1/object/sign/${PROTECTION_RISK_ORIGINALS_BUCKET}/${encodedKey}`,
+      {
+        body: JSON.stringify({ expiresIn: 3600 * 24 * 7 }),
+        headers: {
+          Authorization: `Bearer ${supabaseSecretKey}`,
+          "Content-Type": "application/json",
+          apikey: supabaseSecretKey,
+        },
+        method: "POST",
+      }
+    );
+    if (!response.ok) {
+      return createPublicMediaUrl(supabaseUrl, storageKey);
+    }
+    const payload: unknown = await response.json();
+    const signedURL =
+      typeof payload === "object" &&
+      payload !== null &&
+      "signedURL" in payload &&
+      typeof payload.signedURL === "string"
+        ? payload.signedURL
+        : null;
+    if (!signedURL) {
+      return createPublicMediaUrl(supabaseUrl, storageKey);
+    }
+    const signedPath = signedURL.startsWith("/storage/v1/")
+      ? signedURL
+      : `/storage/v1${signedURL}`;
+    const baseUrl = new URL(supabaseUrl);
+    return new URL(signedPath, baseUrl).toString();
+  } catch {
+    return createPublicMediaUrl(supabaseUrl, storageKey);
+  }
+};
+
 // oxlint-disable-next-line complexity
-const toPublicWarningView = (
+const toPublicWarningView = async (
   report: RiskReport,
   identifiers: RiskIdentifier[],
   evidence: RiskEvidence[],
   derivatives: RiskDerivative[],
   history: RiskHistory[],
   supportOutcome: SupportReviewPublicOutcome,
-  supabaseUrl: string
+  supabaseUrl: string,
+  supabaseSecretKey = env.SUPABASE_SECRET_KEY,
+  fetchImpl = fetch
 ) => {
   const isRemoved = report.status === "REMOVED";
   const {
@@ -2418,11 +2467,10 @@ const toPublicWarningView = (
       platform: report.platform,
       type: report.type,
     });
-  return {
-    claimedLoss: isRemoved ? null : report.claimedLoss,
-    evidence: isRemoved
-      ? []
-      : evidence.map((item) => {
+  const formattedEvidence = isRemoved
+    ? []
+    : await Promise.all(
+        evidence.map(async (item) => {
           const derivative = derivativesByEvidenceId.get(item.id);
           const hasValidDerivative =
             derivative !== undefined &&
@@ -2434,9 +2482,14 @@ const toPublicWarningView = (
             derivative.metadataRemoved &&
             derivative.unrelatedPiiRedacted &&
             derivative.watermarkApplied;
-          const storageKey = hasValidDerivative
-            ? derivative.storageKey
-            : item.originalStorageKey;
+          const publicUrl = hasValidDerivative
+            ? createPublicMediaUrl(supabaseUrl, derivative.storageKey)
+            : await createSignedOriginalEvidenceUrl(
+                supabaseUrl,
+                supabaseSecretKey,
+                item.originalStorageKey,
+                fetchImpl
+              );
           const contentType = hasValidDerivative
             ? derivative.contentType
             : item.contentType;
@@ -2447,10 +2500,14 @@ const toPublicWarningView = (
             contentType,
             id: item.id,
             kind: item.kind,
-            publicUrl: createPublicMediaUrl(supabaseUrl, storageKey),
+            publicUrl,
             sizeBytes,
           };
-        }),
+        })
+      );
+  return {
+    claimedLoss: isRemoved ? null : report.claimedLoss,
+    evidence: formattedEvidence,
     externalSource: report.externalSource
       ? {
           bankName: report.externalBankName,
@@ -2529,7 +2586,7 @@ export const listPublicRiskWarnings = async (
         loadReportMaterials(database, report.id),
         getPublicSupportOutcome(database, report.id),
       ]);
-      return toPublicWarningView(
+      return await toPublicWarningView(
         report,
         materials.identifiers,
         materials.evidence,
@@ -2575,7 +2632,7 @@ export const getPublicRiskWarning = async (
     loadReportMaterials(database, report.id),
     getPublicSupportOutcome(database, report.id),
   ]);
-  return toPublicWarningView(
+  return await toPublicWarningView(
     { ...report, viewCount: report.viewCount + 1 },
     materials.identifiers,
     materials.evidence,

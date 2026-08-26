@@ -105,6 +105,50 @@ const formatWarningStatus = (status: string): string => {
   return "Đã xem xét";
 };
 
+const isLikelyUrl = (value: string): boolean => {
+  const trimmed = value.trim();
+  return (
+    trimmed.startsWith("http://") ||
+    trimmed.startsWith("https://") ||
+    trimmed.startsWith("facebook.com/") ||
+    trimmed.startsWith("fb.com/") ||
+    trimmed.startsWith("t.me/") ||
+    trimmed.startsWith("tiktok.com/") ||
+    trimmed.startsWith("zalo.me/") ||
+    trimmed.startsWith("instagram.com/") ||
+    trimmed.startsWith("youtube.com/") ||
+    trimmed.startsWith("twitter.com/") ||
+    trimmed.startsWith("x.com/")
+  );
+};
+
+const getNormalizedUrl = (value: string): string => {
+  const trimmed = value.trim();
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+  return `https://${trimmed}`;
+};
+
+const IdentifierValueDisplay = ({ value }: { value: string }) => {
+  if (isLikelyUrl(value)) {
+    const href = getNormalizedUrl(value);
+    return (
+      <a
+        className="inline-flex items-center gap-1.5 break-all font-mono text-primary underline underline-offset-4 hover:text-primary/80"
+        href={href}
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        <span>{value}</span>
+        <ArrowSquareOutIcon className="size-3.5 shrink-0" />
+      </a>
+    );
+  }
+
+  return <span className="font-mono">{value}</span>;
+};
+
 const DetailRow = ({
   children,
   className,
@@ -843,9 +887,9 @@ export const PublicRiskWarningDetailPage = () => {
               key={`${identifier.type}-${identifier.maskedValue}`}
               label={IDENTIFIER_LABELS[identifier.type] ?? identifier.type}
             >
-              <span className="font-mono">
-                {identifier.publicValue ?? identifier.maskedValue}
-              </span>
+              <IdentifierValueDisplay
+                value={identifier.publicValue ?? identifier.maskedValue}
+              />
             </DetailRow>
           ))}
 
@@ -856,9 +900,9 @@ export const PublicRiskWarningDetailPage = () => {
               label="Tài khoản/tài sản được báo cáo"
             >
               <div className="space-y-1">
-                <span className="font-mono">
-                  {identifier.publicValue ?? identifier.maskedValue}
-                </span>
+                <IdentifierValueDisplay
+                  value={identifier.publicValue ?? identifier.maskedValue}
+                />
                 <p className="font-normal text-muted-foreground text-xs">
                   Đây là cảnh báo về lịch sử giao dịch/tài sản; không phải kết
                   luận rằng chủ tài khoản hiện tại là kẻ lừa đảo.
@@ -873,9 +917,9 @@ export const PublicRiskWarningDetailPage = () => {
               key={`impersonated-${identifier.type}-${identifier.maskedValue}`}
               label="Danh tính chính chủ bị mạo danh"
             >
-              <span className="font-mono">
-                {identifier.publicValue ?? identifier.maskedValue}
-              </span>
+              <IdentifierValueDisplay
+                value={identifier.publicValue ?? identifier.maskedValue}
+              />
             </DetailRow>
           ))}
 
