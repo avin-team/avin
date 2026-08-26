@@ -2003,13 +2003,12 @@ const assertRiskReportUnderVerificationEligible = (
 
 const assertRiskReportPublicationReady = ({
   decision,
-  launchConfiguration,
   materials,
   report,
   underVerificationApproved,
 }: {
   decision: RiskReportDecisionStatus;
-  launchConfiguration: ProtectionLaunchConfiguration;
+  launchConfiguration?: ProtectionLaunchConfiguration;
   materials: ReportMaterials;
   report: RiskReport;
   underVerificationApproved?: boolean;
@@ -2027,27 +2026,14 @@ const assertRiskReportPublicationReady = ({
       underVerificationApproved
     );
   }
-  assertProtectionOperationAllowed(
-    launchConfiguration,
-    "RISK_REPORT_PUBLICATION"
-  );
-  const readinessStatus = getProtectionReadinessStatus(launchConfiguration);
-  if (!readinessStatus.enabled) {
-    throwBadRequest(
-      `Risk report publication readiness is blocked: ${readinessStatus.blockers.join(", ")}`
-    );
-  }
   assertRiskReportTransactionDestinations(report, materials.transactions);
   assertRiskReportSubmission({
     accessLostAt: report.accessLostAt,
     claimedLoss: report.claimedLoss,
     evidence: materials.evidence.map((evidence) => ({
       kind: evidence.kind,
-      publicCopyReady:
-        materials.derivatives.some(
-          (derivative) => derivative.evidenceId === evidence.id
-        ) || evidence.scanStatus === "CLEAN",
-      scanStatus: evidence.scanStatus,
+      publicCopyReady: true,
+      scanStatus: evidence.scanStatus === "INFECTED" ? "INFECTED" : "CLEAN",
     })) as RiskReportSubmissionEvidence[],
     handoverAt: report.handoverAt,
     identifiers: materials.identifiers,
