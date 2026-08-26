@@ -16,7 +16,7 @@ const { createNotificationEvent, listNotificationRecipientsByRole } =
 const { processProviderDepositEvent } =
   await import("./provider-deposit-intent-service");
 
-type Database = Parameters<typeof processProviderDepositEvent>[0];
+type Database = Parameters<typeof processProviderDepositEvent>[0]["database"];
 
 const now = new Date("2026-08-26T09:16:17.760Z");
 
