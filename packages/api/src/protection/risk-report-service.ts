@@ -1933,8 +1933,10 @@ const assertReadyDerivatives = (
         "Báo cáo cần có ít nhất một bằng chứng đính kèm trước khi công khai.",
     });
   }
-  const hasInfected = evidence.some((item) => item.scanStatus === "INFECTED");
-  if (hasInfected) {
+  const hasRejectedEvidence = evidence.some(
+    (item) => item.scanStatus === "INFECTED" || item.scanStatus === "REJECTED"
+  );
+  if (hasRejectedEvidence) {
     throw new ORPCError("BAD_REQUEST", {
       message:
         "Bằng chứng bị phát hiện chứa mã độc, không thể công khai báo cáo.",
@@ -2009,7 +2011,8 @@ const assertRiskReportPublicationReady = ({
     evidence: materials.evidence.map((evidence) => ({
       kind: evidence.kind,
       publicCopyReady: true,
-      scanStatus: evidence.scanStatus === "INFECTED" ? "INFECTED" : "CLEAN",
+      scanStatus:
+        evidence.scanStatus === "PENDING" ? "CLEAN" : evidence.scanStatus,
     })) as RiskReportSubmissionEvidence[],
     handoverAt: report.handoverAt,
     identifiers: materials.identifiers,

@@ -144,7 +144,7 @@ export const protectionRiskEvidenceKind = pgEnum(
 
 export const protectionRiskEvidenceScanStatus = pgEnum(
   "protection_risk_evidence_scan_status",
-  ["PENDING", "CLEAN", "REJECTED"]
+  ["PENDING", "CLEAN", "INFECTED", "REJECTED"]
 );
 
 export const protectionRiskEmailDeliveryStatus = pgEnum(

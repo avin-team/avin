@@ -185,6 +185,7 @@ export type RiskCorrectionRequesterRelationship =
 export const riskReportEvidenceScanStatuses = [
   "PENDING",
   "CLEAN",
+  "INFECTED",
   "REJECTED",
 ] as const;
 

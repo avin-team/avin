@@ -1,0 +1,1 @@
+ALTER TYPE "public"."protection_risk_evidence_scan_status" ADD VALUE 'INFECTED' BEFORE 'REJECTED';
