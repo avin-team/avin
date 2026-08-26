@@ -39,12 +39,7 @@ export const ProtectionLaunchGatesPage = () => {
 
   return (
     <>
-      <Header fixed>
-        <div className="ml-auto flex items-center gap-2">
-          <ShieldCheckIcon aria-hidden="true" className="size-4 text-primary" />
-          <span className="font-medium text-sm">Avin Check</span>
-        </div>
-      </Header>
+      <Header fixed />
       <Main className="flex flex-1 flex-col gap-6">
         <div>
           <p className="font-medium text-primary text-sm">AVIN CHECK</p>

@@ -20,7 +20,6 @@ import { lazy, Suspense, useState } from "react";
 
 import { Header } from "@/components/layout/header";
 import { Main } from "@/components/layout/main";
-import { ThemeSwitch } from "@/components/theme-switch";
 import { useAdminDisputes } from "@/features/disputes/api/disputes-api";
 import { useOperationsOverviewAnalytics } from "@/features/operations/api/operations-api";
 import { useAdminSellerApplications } from "@/features/seller-applications/api/seller-applications-api";
@@ -67,11 +66,7 @@ export const OverviewPage = () => {
 
   return (
     <>
-      <Header fixed>
-        <div className="ml-auto">
-          <ThemeSwitch />
-        </div>
-      </Header>
+      <Header fixed />
       <Main className="flex flex-1 flex-col gap-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>

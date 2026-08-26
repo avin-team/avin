@@ -1,16 +1,23 @@
 import {
-  WarningCircleIcon,
-  ClipboardTextIcon,
-  FolderIcon,
-  GavelIcon,
+  ArrowClockwiseIcon,
   BankIcon,
   ChartLineUpIcon,
-  BellIcon,
-  ShieldCheckIcon,
-  ArrowClockwiseIcon,
-  SquaresFourIcon,
+  ClipboardTextIcon,
+  CoinsIcon,
+  FileTextIcon,
+  FolderIcon,
+  GavelIcon,
   GearIcon,
+  HandCoinsIcon,
+  HeadsetIcon,
+  PaperPlaneTiltIcon,
+  ScrollIcon,
+  ShieldCheckIcon,
+  ShieldWarningIcon,
+  SquaresFourIcon,
   StorefrontIcon,
+  UserCheckIcon,
+  WarningCircleIcon,
 } from "@phosphor-icons/react";
 
 import type { SidebarData } from "../types";
@@ -19,120 +26,126 @@ export const sidebarData: SidebarData = {
   navGroups: [
     {
       items: [
-        { icon: SquaresFourIcon, title: "Tổng quan", url: "/" },
-        { icon: BellIcon, title: "Thông báo Admin", url: "/notifications" },
         {
-          icon: ClipboardTextIcon,
-          title: "Duyệt hồ sơ Seller",
-          url: "/seller-applications",
-        },
-      ],
-      title: "Tổng quan & Onboarding",
-    },
-    {
-      items: [
-        {
-          icon: FolderIcon,
-          title: "Danh mục & Chính sách",
-          url: "/categories",
-        },
-        {
-          icon: GavelIcon,
-          title: "Duyệt sản phẩm",
-          url: "/listings",
+          icon: SquaresFourIcon,
+          title: "Tổng quan",
+          url: "/",
         },
         {
           icon: StorefrontIcon,
-          title: "Quản lý Seller & Vi phạm",
-          url: "/sellers",
+          items: [
+            {
+              icon: ClipboardTextIcon,
+              title: "Duyệt hồ sơ",
+              url: "/seller-applications",
+            },
+            {
+              icon: StorefrontIcon,
+              title: "Danh sách Seller",
+              url: "/sellers",
+            },
+          ],
+          title: "Quản lý Seller",
+        },
+        {
+          icon: FolderIcon,
+          items: [
+            {
+              icon: GavelIcon,
+              title: "Duyệt sản phẩm",
+              url: "/listings",
+            },
+            {
+              icon: FolderIcon,
+              title: "Danh mục",
+              url: "/categories",
+            },
+          ],
+          title: "Sản phẩm & Danh mục",
         },
         {
           icon: WarningCircleIcon,
           title: "Hòa giải Tranh chấp",
           url: "/disputes",
         },
-      ],
-      title: "Quản trị & Rủi ro",
-    },
-    {
-      items: [
         {
           icon: BankIcon,
-          title: "Yêu cầu Rút tiền",
-          url: "/withdrawals",
-        },
-        {
-          icon: ChartLineUpIcon,
-          title: "Operations Console",
-          url: "/operations",
-        },
-      ],
-      title: "Tài chính & Payout",
-    },
-    {
-      items: [
-        {
-          icon: ShieldCheckIcon,
-          title: "Avin Check & Launch Gates",
-          url: "/avin-check",
+          items: [
+            {
+              icon: BankIcon,
+              title: "Yêu cầu Rút tiền",
+              url: "/withdrawals",
+            },
+            {
+              icon: ChartLineUpIcon,
+              title: "Operations",
+              url: "/operations",
+            },
+          ],
+          title: "Tài chính & Payout",
         },
         {
           icon: ShieldCheckIcon,
-          title: "Đối soát Provider Bond",
-          url: "/avin-check/bond",
+          items: [
+            {
+              icon: ShieldCheckIcon,
+              title: "Launch Gates",
+              url: "/avin-check",
+            },
+            {
+              icon: UserCheckIcon,
+              title: "Duyệt Provider",
+              url: "/avin-check/providers",
+            },
+            {
+              icon: FileTextIcon,
+              title: "Cập nhật Profile",
+              url: "/avin-check/provider-revisions",
+            },
+            {
+              icon: CoinsIcon,
+              title: "Đối soát Bond",
+              url: "/avin-check/bond",
+            },
+            {
+              icon: HandCoinsIcon,
+              title: "Rút tiền Bond",
+              url: "/avin-check/bond-withdrawals",
+            },
+            {
+              icon: ScrollIcon,
+              title: "Policy & Reaccept",
+              url: "/avin-check/policies",
+            },
+            {
+              icon: PaperPlaneTiltIcon,
+              title: "Invitation Pilot",
+              url: "/avin-check/pilot",
+            },
+            {
+              icon: HeadsetIcon,
+              title: "Support Review",
+              url: "/avin-check/support-reviews",
+            },
+            {
+              icon: ShieldWarningIcon,
+              title: "Risk Moderator",
+              url: "/avin-check/risk-reports",
+            },
+            {
+              icon: ArrowClockwiseIcon,
+              title: "Import cảnh báo",
+              url: "/avin-check/external-imports",
+            },
+          ],
+          title: "Bảo vệ giao dịch",
         },
-        {
-          icon: ShieldCheckIcon,
-          title: "Rút Provider Bond",
-          url: "/avin-check/bond-withdrawals",
-        },
-        {
-          icon: ShieldCheckIcon,
-          title: "Policy & Reacceptance",
-          url: "/avin-check/policies",
-        },
-        {
-          icon: ShieldCheckIcon,
-          title: "Invitation Pilot",
-          url: "/avin-check/pilot",
-        },
-        {
-          icon: ShieldCheckIcon,
-          title: "Support Review",
-          url: "/avin-check/support-reviews",
-        },
-        {
-          icon: ShieldCheckIcon,
-          title: "Duyệt Provider",
-          url: "/avin-check/providers",
-        },
-        {
-          icon: ShieldCheckIcon,
-          title: "Duyệt cập nhật profile",
-          url: "/avin-check/provider-revisions",
-        },
-        {
-          icon: ShieldCheckIcon,
-          title: "Risk Moderator",
-          url: "/avin-check/risk-reports",
-        },
-        {
-          icon: ArrowClockwiseIcon,
-          title: "Import cảnh báo external",
-          url: "/avin-check/external-imports",
-        },
-      ],
-      title: "Bảo vệ giao dịch bên ngoài",
-    },
-    {
-      items: [
         {
           icon: GearIcon,
           title: "Bảo mật & 2FA",
           url: "/settings",
         },
       ],
-      title: "Hệ thống",
     },
   ],
   teams: [],

@@ -209,9 +209,7 @@ export const ProtectionPolicyPage = () => {
 
   return (
     <>
-      <Header fixed>
-        <div className="ml-auto font-medium text-sm">Policy & Reacceptance</div>
-      </Header>
+      <Header fixed />
       <Main className="flex flex-1 flex-col gap-6">
         <div>
           <p className="font-medium text-primary text-sm">

@@ -28,7 +28,6 @@ import { useState } from "react";
 
 import { Header } from "@/components/layout/header";
 import { Main } from "@/components/layout/main";
-import { ThemeSwitch } from "@/components/theme-switch";
 
 import { useAdminProviderApplications } from "../api/provider-applications-api";
 import type { ProviderApplicationStatusFilter } from "../api/provider-applications-api";
@@ -65,11 +64,7 @@ export const ProviderApplicationQueuePage = () => {
 
   return (
     <>
-      <Header fixed>
-        <div className="ml-auto">
-          <ThemeSwitch />
-        </div>
-      </Header>
+      <Header fixed />
       <Main className="flex flex-1 flex-col gap-6">
         <div>
           <p className="font-medium text-primary text-sm">

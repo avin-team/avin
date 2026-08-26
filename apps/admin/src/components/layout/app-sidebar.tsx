@@ -25,9 +25,9 @@ export const AppSidebar = ({ user }: AppSidebarProps) => {
       <SidebarHeader>
         <AppTitle />
       </SidebarHeader>
-      <SidebarContent>
-        {sidebarData.navGroups.map((props) => (
-          <NavGroup key={props.title} {...props} />
+      <SidebarContent className="gap-1">
+        {sidebarData.navGroups.map((props, index) => (
+          <NavGroup key={props.title ?? `nav-group-${index}`} {...props} />
         ))}
       </SidebarContent>
       <SidebarFooter>
