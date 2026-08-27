@@ -1,0 +1,8 @@
+{
+  "extends": "@avin/config/tsconfig.base.json",
+  "compilerOptions": {
+    "strictNullChecks": true
+  },
+  "include": ["playwright.config.ts", "scripts/**/*.ts", "src/**/*.ts"],
+  "exclude": ["node_modules", "playwright-report", "test-results"]
+}

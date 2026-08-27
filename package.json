@@ -4,7 +4,8 @@
   "workspaces": {
     "packages": [
       "apps/*",
-      "packages/*"
+      "packages/*",
+      "e2e"
     ],
     "catalog": {
       "dotenv": "^17.4.2",
@@ -39,6 +40,8 @@
       "@tanstack/react-router-devtools": "^1.167.0",
       "@tanstack/router-plugin": "^1.168.23",
       "@types/node": "^26.1.1",
+      "@playwright/test": "^1.61.1",
+      "otpauth": "^9.5.1",
       "@vitejs/plugin-react": "^6.0.4",
       "class-variance-authority": "^0.7.1",
       "date-fns": "^4.4.0",
@@ -55,6 +58,13 @@
     "build": "turbo build",
     "check-types": "turbo check-types",
     "test": "turbo test",
+    "test:e2e": "bun run --cwd e2e e2e",
+    "test:e2e:auth": "bun run --cwd e2e e2e:auth",
+    "test:e2e:install": "bun run --cwd e2e install:browsers",
+    "test:e2e:prod": "bun run --cwd e2e e2e:prod",
+    "test:e2e:provision": "bun run --cwd e2e provision:accounts",
+    "test:e2e:smoke": "bun run --cwd e2e e2e:smoke",
+    "test:e2e:ui": "bun run --cwd e2e e2e:ui",
     "dev:web": "turbo -F web dev",
     "dev:server": "turbo -F server dev",
     "db:studio": "turbo -F @avin/db db:studio",
@@ -86,7 +96,6 @@
     "oxfmt": "^0.60.0",
     "oxlint": "^1.75.0",
     "oxlint-plugin-react-doctor": "^0.7.1",
-    "playwright": "catalog:",
     "turbo": "^2.10.5",
     "typescript": "catalog:",
     "ultracite": "7.9.4",
