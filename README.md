@@ -35,8 +35,10 @@ This project uses PostgreSQL with Drizzle ORM.
 3. Apply the schema to your database:
 
 ```bash
-bun run db:push
+bun run db:migrate
 ```
+
+For the Supabase Docker stack and a secure remote database clone/restore procedure, see [`docs/operations/local-supabase.md`](docs/operations/local-supabase.md).
 
 Then, run the development server:
 
@@ -97,8 +99,7 @@ avin/
 - `bun run dev:web`: Start only the web application
 - `bun run dev:server`: Start only the server
 - `bun run check-types`: Check TypeScript types across all apps
-- `bun run db:push`: Push schema changes to database
-- `bun run db:generate`: Generate database client/types
 - `bun run db:migrate`: Run database migrations
+- `bun run db:generate`: Generate database client/types
 - `bun run db:studio`: Open database studio UI
 - `bun run check`: Run Oxlint and Oxfmt

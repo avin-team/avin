@@ -1,6 +1,6 @@
 # Supabase project configuration
 
-This directory configures the hosted `avin` Supabase project (`gyvlawumcrymfsfoisgr`). It does not define a local Supabase development stack. Supabase CLI link state is intentionally ignored, so link each fresh clone:
+This directory configures the hosted `avin` Supabase project (`gyvlawumcrymfsfoisgr`) and the standard local Supabase CLI Docker stack. Supabase CLI link state is intentionally ignored, so link each fresh clone:
 
 ```sh
 supabase login
@@ -13,6 +13,8 @@ Drizzle remains the only database migration authority. Generate and run migratio
 bun run db:generate
 bun run db:migrate
 ```
+
+For a local Docker setup and a secure remote database clone/restore procedure, see [`docs/operations/local-supabase.md`](../docs/operations/local-supabase.md).
 
 The application uses the Supavisor session-pooler URL in `DATABASE_URL`. Drizzle Kit uses the direct PostgreSQL URL in `DATABASE_DIRECT_URL`.
 
