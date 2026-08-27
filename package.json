@@ -63,6 +63,8 @@
     "test:e2e:install": "bun run --cwd e2e install:browsers",
     "test:e2e:prod": "bun run --cwd e2e e2e:prod",
     "test:e2e:provision": "bun run --cwd e2e provision:accounts",
+    "test:e2e:risk-report": "bun run --cwd e2e e2e:risk-report",
+    "test:e2e:seller": "bun run --cwd e2e e2e:seller",
     "test:e2e:smoke": "bun run --cwd e2e e2e:smoke",
     "test:e2e:ui": "bun run --cwd e2e e2e:ui",
     "dev:web": "turbo -F web dev",

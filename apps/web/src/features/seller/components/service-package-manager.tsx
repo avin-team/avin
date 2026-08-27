@@ -349,6 +349,7 @@ export const ServicePackageManager = ({
                           isInvalid &&
                             "border-destructive text-destructive hover:text-destructive"
                         )}
+                        data-testid="package-description-trigger"
                         disabled={disabled || isPending}
                         type="button"
                         variant="outline"

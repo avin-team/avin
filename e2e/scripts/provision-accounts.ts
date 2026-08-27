@@ -14,7 +14,10 @@ const SERVER_ENVIRONMENT_URL = new URL(
 );
 const LOCAL_DATABASE_HOSTS = new Set(["127.0.0.1", "::1", "localhost"]);
 const STOREFRONT_EMAIL = "e2e-buyer@avin.test";
+const SELLER_EMAIL = "e2e-seller@avin.test";
 const ADMIN_EMAIL = "e2e-admin@avin.test";
+const SELLER_STORE_SLUG = "avin-e2e-store";
+const SELLER_AGREEMENT_VERSION = "v1.0";
 
 loadEnvironmentFile({ path: SERVER_ENVIRONMENT_URL, quiet: true });
 loadEnvironmentFile({ path: LOCAL_ENVIRONMENT_URL, quiet: true });
@@ -118,13 +121,17 @@ const generateTotpCode = (secret: string): string =>
 const localEnvironment = await readLocalEnvironment();
 const storefrontPassword =
   localEnvironment.E2E_USER_PASSWORD || createPassword();
+const sellerPassword = localEnvironment.E2E_SELLER_PASSWORD || createPassword();
 const adminPassword = localEnvironment.E2E_ADMIN_PASSWORD || createPassword();
 const storefrontEmail = localEnvironment.E2E_USER_EMAIL || STOREFRONT_EMAIL;
+const sellerEmail = localEnvironment.E2E_SELLER_EMAIL || SELLER_EMAIL;
 const adminEmail = localEnvironment.E2E_ADMIN_EMAIL || ADMIN_EMAIL;
 
 localEnvironment.E2E_TARGET = "local";
 localEnvironment.E2E_USER_EMAIL = storefrontEmail;
 localEnvironment.E2E_USER_PASSWORD = storefrontPassword;
+localEnvironment.E2E_SELLER_EMAIL = sellerEmail;
+localEnvironment.E2E_SELLER_PASSWORD = sellerPassword;
 localEnvironment.E2E_ADMIN_EMAIL = adminEmail;
 localEnvironment.E2E_ADMIN_PASSWORD = adminPassword;
 localEnvironment.E2E_ADMIN_TOTP_SECRET ||= "";
@@ -138,6 +145,8 @@ const [{ auth, adminAuth }, { db }, authSchema, drizzle] = await Promise.all([
   import("drizzle-orm"),
 ]);
 const { protectionAdminAssignment, user } = authSchema;
+const { sellerApplication, sellerProfile } =
+  await import("@avin/db/schema/seller");
 const { eq } = drizzle;
 const authContext = await auth.$context;
 
@@ -153,7 +162,7 @@ const ensureUser = async ({
   email: string;
   name: string;
   password: string;
-  role: "ADMIN" | "BUYER";
+  role: "ADMIN" | "BUYER" | "SELLER";
 }) => {
   const existingUser = await findUserByEmail(email);
 
@@ -200,12 +209,99 @@ const ensureUser = async ({
   return { created: true, user: createdUser };
 };
 
+const ensureSellerWorkspace = async (sellerUserId: string): Promise<void> => {
+  const existingProfile = await db.query.sellerProfile.findFirst({
+    where: eq(sellerProfile.userId, sellerUserId),
+  });
+
+  let sellerProfileId = existingProfile?.id;
+
+  if (existingProfile) {
+    await db
+      .update(sellerProfile)
+      .set({
+        avatarUrl: "https://example.com/avin-e2e-seller-avatar.png",
+        bio: "Tài khoản seller dùng cho kiểm thử E2E.",
+        phone: "0900000000",
+        phoneVerified: true,
+        storeSlug: existingProfile.storeSlug || SELLER_STORE_SLUG,
+        storefrontName: existingProfile.storefrontName || "Avin E2E Store",
+      })
+      .where(eq(sellerProfile.id, existingProfile.id));
+  } else {
+    const [createdProfile] = await db
+      .insert(sellerProfile)
+      .values({
+        avatarUrl: "https://example.com/avin-e2e-seller-avatar.png",
+        bio: "Tài khoản seller dùng cho kiểm thử E2E.",
+        phone: "0900000000",
+        phoneVerified: true,
+        storeSlug: SELLER_STORE_SLUG,
+        storefrontName: "Avin E2E Store",
+        userId: sellerUserId,
+      })
+      .returning({ id: sellerProfile.id });
+    sellerProfileId = createdProfile?.id;
+  }
+
+  if (!sellerProfileId) {
+    throw new Error(
+      `Unable to provision a seller profile for ${sellerUserId}.`
+    );
+  }
+
+  const existingApplication = await db.query.sellerApplication.findFirst({
+    orderBy: (table, { desc }) => [desc(table.createdAt)],
+    where: eq(sellerApplication.userId, sellerUserId),
+  });
+
+  const applicationValues = {
+    applicantName: "Avin E2E Seller",
+    bankAccount: {
+      accountName: "AVIN E2E",
+      accountNumber: "0000000000",
+      bankName: "Vietcombank",
+    },
+    email: sellerEmail,
+    phone: "0900000000",
+    reviewReason: null,
+    sellerAgreementAcceptedAt: new Date(),
+    sellerAgreementVersion: SELLER_AGREEMENT_VERSION,
+    sellerProfileId,
+    status: "APPROVED" as const,
+    storefrontName: "Avin E2E Store",
+  };
+
+  await (existingApplication
+    ? db
+        .update(sellerApplication)
+        .set(applicationValues)
+        .where(eq(sellerApplication.id, existingApplication.id))
+    : db.insert(sellerApplication).values({
+        ...applicationValues,
+        userId: sellerUserId,
+      }));
+
+  await db
+    .update(user)
+    .set({ emailVerified: true, hasSeenSellerOnboarding: true })
+    .where(eq(user.id, sellerUserId));
+};
+
 const storefrontAccount = await ensureUser({
   email: storefrontEmail,
   name: "Avin E2E Buyer",
   password: storefrontPassword,
   role: "BUYER",
 });
+
+const sellerAccount = await ensureUser({
+  email: sellerEmail,
+  name: "Avin E2E Seller",
+  password: sellerPassword,
+  role: "SELLER",
+});
+await ensureSellerWorkspace(sellerAccount.user.id);
 
 await auth.api.signInEmail({
   body: {
@@ -283,6 +379,7 @@ if (!adminAccount.created) {
 process.stdout.write(
   `${[
     `Storefront account: ${storefrontEmail} (${storefrontAccount.created ? "created" : "reused"})`,
+    `Seller account: ${sellerEmail} (${sellerAccount.created ? "created" : "reused"}, approved workspace)`,
     `Admin account: ${adminEmail} (${adminAccount.created ? "created" : "reused"}, 2FA verified)`,
     "Credentials saved to e2e/.env.local.",
   ].join("\n")}\n`

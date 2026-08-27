@@ -1923,14 +1923,23 @@ export const getRiskReportForAdmin = async (
 };
 
 const assertReadyDerivatives = (
-  _report: RiskReport,
   evidence: RiskEvidence[],
-  _derivatives: RiskDerivative[]
+  derivatives: RiskDerivative[]
 ): void => {
   if (evidence.length === 0) {
     throw new ORPCError("BAD_REQUEST", {
       message:
         "Báo cáo cần có ít nhất một bằng chứng đính kèm trước khi công khai.",
+    });
+  }
+  const evidenceIds = new Set(evidence.map((item) => item.id));
+  const hasPublicDerivative = derivatives.some((item) =>
+    evidenceIds.has(item.evidenceId)
+  );
+  if (!hasPublicDerivative) {
+    throw new ORPCError("BAD_REQUEST", {
+      message:
+        "Báo cáo cần có ít nhất một bản derivative công khai trước khi công khai.",
     });
   }
   const hasRejectedEvidence = evidence.some(
@@ -2005,12 +2014,16 @@ const assertRiskReportPublicationReady = ({
     );
   }
   assertRiskReportTransactionDestinations(report, materials.transactions);
+  assertReadyDerivatives(materials.evidence, materials.derivatives);
+  const derivativeEvidenceIds = new Set(
+    materials.derivatives.map((item) => item.evidenceId)
+  );
   assertRiskReportSubmission({
     accessLostAt: report.accessLostAt,
     claimedLoss: report.claimedLoss,
     evidence: materials.evidence.map((evidence) => ({
       kind: evidence.kind,
-      publicCopyReady: true,
+      publicCopyReady: derivativeEvidenceIds.has(evidence.id),
       scanStatus:
         evidence.scanStatus === "PENDING" ? "CLEAN" : evidence.scanStatus,
     })) as RiskReportSubmissionEvidence[],
@@ -2037,7 +2050,6 @@ const assertRiskReportPublicationReady = ({
     type: report.type,
     violationType: report.violationType,
   });
-  assertReadyDerivatives(report, materials.evidence, materials.derivatives);
   if (!report.publicNarrative?.trim()) {
     throwBadRequest("A public report narrative is required before publication");
   }
@@ -2247,9 +2259,12 @@ export const registerRiskReportDerivative = async ({
       message: "Derivative could not be registered",
     });
   }
+  // The reporter completes this preview gate before submission. A moderator
+  // registers derivatives after submission, when the reporter cannot preview
+  // the packet again from the submitted-report flow.
   await database
     .update(protectionRiskReport)
-    .set({ publicPacketPreviewedAt: null, updatedAt: now })
+    .set({ updatedAt: now })
     .where(eq(protectionRiskReport.id, reportId));
   return {
     contentType: derivative.contentType,

@@ -6,6 +6,7 @@ import { AUTH_STATE_PATHS } from "./src/support/auth-state";
 import {
   resolveAdminTestAccount,
   resolveE2EEnvironment,
+  resolveSellerTestAccount,
   resolveStorefrontTestAccount,
 } from "./src/support/environment";
 
@@ -21,6 +22,9 @@ const storefrontAccount = environment.isProduction
 const adminAccount = environment.isProduction
   ? null
   : resolveAdminTestAccount();
+const sellerAccount = environment.isProduction
+  ? null
+  : resolveSellerTestAccount();
 const isCI = Boolean(process.env.CI);
 const EMPTY_STORAGE_STATE = { cookies: [], origins: [] };
 
@@ -44,7 +48,7 @@ const projects: NonNullable<PlaywrightTestConfig["projects"]> = [
   {
     name: "web-anonymous",
     testDir: "./src/tests/web",
-    testIgnore: /.*\.authenticated\.spec\.ts/u,
+    testIgnore: /.*\.(?<suite>authenticated|seller)\.spec\.ts/u,
     use: {
       ...devices["Desktop Chrome"],
       baseURL: environment.webBaseURL,
@@ -73,6 +77,31 @@ if (storefrontAccount && !environment.isProduction) {
         ...devices["Desktop Chrome"],
         baseURL: environment.webBaseURL,
         storageState: AUTH_STATE_PATHS.storefront,
+      },
+    }
+  );
+}
+
+if (sellerAccount && !environment.isProduction) {
+  projects.push(
+    {
+      name: "seller-auth-setup",
+      testDir: "./src/setup",
+      testMatch: /seller\.setup\.ts/u,
+      use: {
+        baseURL: environment.apiBaseURL,
+        extraHTTPHeaders: { origin: environment.webBaseURL },
+      },
+    },
+    {
+      dependencies: ["seller-auth-setup"],
+      name: "web-seller-authenticated",
+      testDir: "./src/tests/web",
+      testMatch: /.*\.seller\.spec\.ts/u,
+      use: {
+        ...devices["Desktop Chrome"],
+        baseURL: environment.webBaseURL,
+        storageState: AUTH_STATE_PATHS.seller,
       },
     }
   );
@@ -116,12 +145,33 @@ if (adminAccount && environment.adminBaseURL && !environment.isProduction) {
   );
 }
 
+if (
+  adminAccount &&
+  storefrontAccount &&
+  environment.adminBaseURL &&
+  !environment.isProduction
+) {
+  projects.push({
+    dependencies: ["admin-auth-setup", "storefront-auth-setup"],
+    name: "risk-report-authenticated",
+    testDir: "./src/tests/risk",
+    testMatch: /.*\.authenticated\.spec\.ts/u,
+    use: {
+      ...devices["Desktop Chrome"],
+      baseURL: environment.adminBaseURL,
+      storageState: AUTH_STATE_PATHS.admin,
+    },
+  });
+}
+
 const webServer: NonNullable<PlaywrightTestConfig["webServer"]> = [];
 
 if (environment.shouldStartLocalApiServer) {
   webServer.push({
     command: "bun run --cwd ../apps/server dev",
     reuseExistingServer: !isCI,
+    stderr: "pipe",
+    stdout: "pipe",
     timeout: 120_000,
     url: environment.apiBaseURL,
   });
@@ -131,6 +181,8 @@ if (environment.shouldStartLocalWebServer) {
   webServer.push({
     command: "bun run --cwd ../apps/web dev --host localhost --strictPort",
     reuseExistingServer: !isCI,
+    stderr: "pipe",
+    stdout: "pipe",
     timeout: 120_000,
     url: environment.webBaseURL,
   });
@@ -140,6 +192,8 @@ if (environment.shouldStartLocalAdminServer && environment.adminBaseURL) {
   webServer.push({
     command: "bun run --cwd ../apps/admin dev --host localhost --strictPort",
     reuseExistingServer: !isCI,
+    stderr: "pipe",
+    stdout: "pipe",
     timeout: 120_000,
     url: environment.adminBaseURL,
   });
@@ -154,16 +208,16 @@ export default defineConfig({
   grep: environment.isProduction ? /@prod-safe/u : undefined,
   outputDir: "test-results",
   projects,
-  reporter: [
-    ["list"],
-    [
-      "html",
-      {
-        open: isCI ? "never" : "on-failure",
-        outputFolder: "playwright-report",
-      },
-    ],
-  ],
+  reporter: isCI
+    ? [
+        ["list"],
+        ["html", { open: "never", outputFolder: "playwright-report" }],
+        ["github"],
+      ]
+    : [
+        ["list"],
+        ["html", { open: "on-failure", outputFolder: "playwright-report" }],
+      ],
   retries: getRetryCount(),
   timeout: 30_000,
   use: {
@@ -172,7 +226,7 @@ export default defineConfig({
     navigationTimeout: 20_000,
     screenshot: "only-on-failure",
     timezoneId: "Asia/Ho_Chi_Minh",
-    trace: isCI ? "on-first-retry" : "retain-on-failure",
+    trace: isCI ? "on-first-retry" : "off",
     video: isCI ? "retain-on-failure" : "off",
   },
   webServer: webServer.length > 0 ? webServer : undefined,

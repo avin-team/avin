@@ -5,6 +5,7 @@ import {
   servicePackageDraftSchema,
   subCategory,
 } from "@avin/db/schema/catalog";
+import { orderItem } from "@avin/db/schema/commerce";
 import { ORPCError } from "@orpc/server";
 import { and, asc, eq, or } from "drizzle-orm";
 import { z } from "zod";
@@ -424,6 +425,49 @@ export const sellerWorkspaceRouter = {
       }
 
       return created;
+    }),
+
+  delete: sellerProcedure
+    .input(z.object({ id: z.string() }))
+    .handler(async ({ context, input }) => {
+      await assertEligibleSeller(context.session.user.id);
+      const found = await assertOwnedListing(input.id, context.session.user.id);
+
+      const existingOrder = await db.query.orderItem.findFirst({
+        where: eq(orderItem.listingId, found.id),
+      });
+
+      if (existingOrder) {
+        throw new ORPCError("BAD_REQUEST", {
+          message:
+            "Cannot delete a listing with existing orders. Archive it instead.",
+        });
+      }
+
+      const [deleted] = await db
+        .delete(listing)
+        .where(
+          and(
+            eq(listing.id, found.id),
+            eq(listing.sellerId, context.session.user.id)
+          )
+        )
+        .returning();
+
+      if (!deleted) {
+        throw new ORPCError("NOT_FOUND", {
+          message: "Listing not found",
+        });
+      }
+
+      await cleanupUnreferencedListingImages(context.storage, {
+        nextImages: [],
+        nextThumbnailUrl: null,
+        previousImages: deleted.images,
+        previousThumbnailUrl: deleted.thumbnailUrl,
+      });
+
+      return { id: deleted.id };
     }),
 
   deleteDraft: sellerProcedure

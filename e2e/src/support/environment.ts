@@ -114,6 +114,14 @@ export const resolveStorefrontTestAccount = (): PasswordTestAccount | null =>
     passwordName: "E2E_USER_PASSWORD",
   });
 
+export const resolveSellerTestAccount = (): PasswordTestAccount | null =>
+  resolvePasswordAccount({
+    email: process.env.E2E_SELLER_EMAIL,
+    emailName: "E2E_SELLER_EMAIL",
+    password: process.env.E2E_SELLER_PASSWORD,
+    passwordName: "E2E_SELLER_PASSWORD",
+  });
+
 export const resolveAdminTestAccount = (): AdminTestAccount | null => {
   const passwordAccount = resolvePasswordAccount({
     email: process.env.E2E_ADMIN_EMAIL,
