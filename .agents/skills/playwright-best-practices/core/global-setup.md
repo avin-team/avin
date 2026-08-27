@@ -308,12 +308,12 @@ export default globalSetup;
 
 ### When to Use Each
 
-| Use Global Setup                      | Use Setup Projects                       |
-| ------------------------------------- | ---------------------------------------- |
-| One-time setup (migrations, services) | Per-project setup (auth states)          |
-| No access to Playwright fixtures      | Need page, request fixtures              |
-| Runs once before all projects         | Can run per-project or have dependencies |
-| Shared across all workers             | Can be parallelized                      |
+| Use Global Setup | Use Setup Projects |
+| --- | --- |
+| One-time setup (migrations, services) | Per-project setup (auth states) |
+| No access to Playwright fixtures | Need page, request fixtures |
+| Runs once before all projects | Can run per-project or have dependencies |
+| Shared across all workers | Can be parallelized |
 
 ### Setup Project Pattern
 
@@ -395,12 +395,12 @@ export default defineConfig({
 
 Use **worker-scoped fixtures** instead of globalSetup when:
 
-| Scenario                             | Why Fixtures Are Better                              |
-| ------------------------------------ | ---------------------------------------------------- |
-| Each worker needs isolated resources | Fixtures can create per-worker databases, servers    |
-| Setup needs Playwright APIs          | Fixtures have access to `page`, `request`, `browser` |
-| Setup depends on test configuration  | Fixtures receive test context and options            |
-| Resources need cleanup per worker    | Worker fixtures auto-cleanup when worker exits       |
+| Scenario | Why Fixtures Are Better |
+| --- | --- |
+| Each worker needs isolated resources | Fixtures can create per-worker databases, servers |
+| Setup needs Playwright APIs | Fixtures have access to `page`, `request`, `browser` |
+| Setup depends on test configuration | Fixtures receive test context and options |
+| Resources need cleanup per worker | Worker fixtures auto-cleanup when worker exits |
 
 ### Common Parallel Pitfall
 
@@ -418,14 +418,14 @@ async function globalSetup() {
 
 ## Anti-Patterns to Avoid
 
-| Anti-Pattern                   | Problem                          | Solution                                   |
-| ------------------------------ | -------------------------------- | ------------------------------------------ |
-| Heavy setup in globalSetup     | Slow test startup                | Use setup projects for parallelizable work |
-| Not cleaning up in teardown    | Leaks resources, flaky CI        | Always clean up or use containers          |
-| Hardcoded URLs in setup        | Breaks in different environments | Use config.projects[0].use.baseURL         |
-| No timeout on service wait     | Hangs forever if service fails   | Add timeout with clear error               |
-| Shared mutable state           | Race conditions in parallel      | Use worker-scoped fixtures for isolation   |
-| Global setup for per-test data | Tests conflict                   | Use test-scoped fixtures                   |
+| Anti-Pattern | Problem | Solution |
+| --- | --- | --- |
+| Heavy setup in globalSetup | Slow test startup | Use setup projects for parallelizable work |
+| Not cleaning up in teardown | Leaks resources, flaky CI | Always clean up or use containers |
+| Hardcoded URLs in setup | Breaks in different environments | Use config.projects[0].use.baseURL |
+| No timeout on service wait | Hangs forever if service fails | Add timeout with clear error |
+| Shared mutable state | Race conditions in parallel | Use worker-scoped fixtures for isolation |
+| Global setup for per-test data | Tests conflict | Use test-scoped fixtures |
 
 ## Related References
 

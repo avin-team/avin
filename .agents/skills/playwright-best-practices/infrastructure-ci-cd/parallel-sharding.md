@@ -277,14 +277,14 @@ jobs:
 
 ## Decision Guide
 
-| Scenario                         | Workers        | Shards | Reason                                  |
-| -------------------------------- | -------------- | ------ | --------------------------------------- |
-| < 50 tests, < 5 min              | Auto (default) | None   | No optimization needed                  |
-| 50-200 tests, 5-15 min           | `'50%'` in CI  | 2-4    | Balance speed and cost                  |
-| 200+ tests, > 15 min             | `'50%'` in CI  | 4-8    | Keep feedback under 10 min              |
-| Flaky due to resource contention | Reduce to 2    | Keep   | Less CPU/memory pressure                |
-| Tests modify shared database     | 1 or isolate   | Useful | Sharding splits files; workers run them |
-| CI has limited resources         | 1 or `'25%'`   | More   | Compensate with more machines           |
+| Scenario | Workers | Shards | Reason |
+| --- | --- | --- | --- |
+| < 50 tests, < 5 min | Auto (default) | None | No optimization needed |
+| 50-200 tests, 5-15 min | `'50%'` in CI | 2-4 | Balance speed and cost |
+| 200+ tests, > 15 min | `'50%'` in CI | 4-8 | Keep feedback under 10 min |
+| Flaky due to resource contention | Reduce to 2 | Keep | Less CPU/memory pressure |
+| Tests modify shared database | 1 or isolate | Useful | Sharding splits files; workers run them |
+| CI has limited resources | 1 or `'25%'` | More | Compensate with more machines |
 
 | Aspect         | Workers (in-process)      | Shards (across machines)   |
 | -------------- | ------------------------- | -------------------------- |
@@ -296,16 +296,16 @@ jobs:
 
 ## Anti-Patterns
 
-| Anti-Pattern                            | Problem                                  | Solution                                             |
-| --------------------------------------- | ---------------------------------------- | ---------------------------------------------------- |
-| `fullyParallel: false` without reason   | Tests in files run serially              | Set `fullyParallel: true` unless tests need serial   |
-| `workers: 1` in CI "for safety"         | Negates parallelism                      | Fix isolation issues; use `workers: '50%'`           |
-| Hardcoded shared user account           | Race conditions in parallel runs         | Each test creates unique data                        |
-| Sharding without blob reporter          | Each shard produces separate HTML report | Configure `reporter: [['blob']]` for CI              |
-| Sharding with 3 tests                   | Setup overhead exceeds time saved        | Only shard when suite > 5 minutes                    |
-| `test.describe.serial()` everywhere     | Kills parallelism, creates dependencies  | Use only when tests genuinely need prior state       |
-| Workers > CPU cores                     | Context switching overhead               | Use `'50%'` or auto-detect                           |
-| Missing `fail-fast: false` in CI matrix | One shard failure cancels others         | Always set `fail-fast: false` for sharded strategies |
+| Anti-Pattern | Problem | Solution |
+| --- | --- | --- |
+| `fullyParallel: false` without reason | Tests in files run serially | Set `fullyParallel: true` unless tests need serial |
+| `workers: 1` in CI "for safety" | Negates parallelism | Fix isolation issues; use `workers: '50%'` |
+| Hardcoded shared user account | Race conditions in parallel runs | Each test creates unique data |
+| Sharding without blob reporter | Each shard produces separate HTML report | Configure `reporter: [['blob']]` for CI |
+| Sharding with 3 tests | Setup overhead exceeds time saved | Only shard when suite > 5 minutes |
+| `test.describe.serial()` everywhere | Kills parallelism, creates dependencies | Use only when tests genuinely need prior state |
+| Workers > CPU cores | Context switching overhead | Use `'50%'` or auto-detect |
+| Missing `fail-fast: false` in CI matrix | One shard failure cancels others | Always set `fail-fast: false` for sharded strategies |
 
 ## Troubleshooting
 

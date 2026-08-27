@@ -148,7 +148,7 @@ await level3.getByText("Deep content").click();
 // Helper to search all frames for an element
 async function findInAnyFrame(
   page: Page,
-  selector: string,
+  selector: string
 ): Promise<Locator | null> {
   // Check main page first
   const mainCount = await page.locator(selector).count();
@@ -347,7 +347,7 @@ test("handle iframe load failure", async ({ page }) => {
     // Fallback: refresh iframe
     await page.evaluate(() => {
       const iframe = document.querySelector(
-        "#unreliable-frame",
+        "#unreliable-frame"
       ) as HTMLIFrameElement;
       if (iframe) iframe.src = iframe.src;
     });
@@ -388,13 +388,13 @@ test("mock iframe response", async ({ page }) => {
 
 ## Anti-Patterns to Avoid
 
-| Anti-Pattern                          | Problem                           | Solution                                           |
-| ------------------------------------- | --------------------------------- | -------------------------------------------------- |
-| Using `page.frame()` for interactions | Less reliable than frameLocator   | Use `page.frameLocator()` for element interactions |
-| Hardcoding iframe index               | Fragile if DOM order changes      | Use name, id, or src attribute selectors           |
-| Not waiting for iframe load           | Race conditions                   | Wait for element inside iframe to be visible       |
-| Assuming same-origin                  | Cross-origin has different timing | Always wait for iframe content explicitly          |
-| Ignoring nested iframes               | Element not found                 | Chain frameLocator calls for nested frames         |
+| Anti-Pattern | Problem | Solution |
+| --- | --- | --- |
+| Using `page.frame()` for interactions | Less reliable than frameLocator | Use `page.frameLocator()` for element interactions |
+| Hardcoding iframe index | Fragile if DOM order changes | Use name, id, or src attribute selectors |
+| Not waiting for iframe load | Race conditions | Wait for element inside iframe to be visible |
+| Assuming same-origin | Cross-origin has different timing | Always wait for iframe content explicitly |
+| Ignoring nested iframes | Element not found | Chain frameLocator calls for nested frames |
 
 ## Related References
 

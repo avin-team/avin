@@ -447,15 +447,15 @@ export default defineConfig({
 
 ## Platform Comparison
 
-| Feature           | CircleCI                                        | Azure DevOps                     | Jenkins                |
-| ----------------- | ----------------------------------------------- | -------------------------------- | ---------------------- |
-| Docker support    | `docker:` executor                              | `vmImage` or container jobs      | Docker Pipeline plugin |
-| Parallelism       | `parallelism: N` + `CIRCLE_NODE_INDEX`          | `strategy.matrix`                | `parallel` stages      |
-| Artifact upload   | `store_artifacts`                               | `PublishPipelineArtifact@1`      | `archiveArtifacts`     |
-| JUnit integration | `store_test_results`                            | `PublishTestResults@2`           | `junit` step           |
-| Shard variable    | `$((CIRCLE_NODE_INDEX + 1))/$CIRCLE_NODE_TOTAL` | Define in matrix: `SHARD: '1/4'` | Hardcode per stage     |
-| Cache key         | `checksum "package-lock.json"`                  | `Cache@2` with key template      | `stash`/`unstash`      |
-| Secrets           | Context + env variables                         | Variable groups                  | Credentials plugin     |
+| Feature | CircleCI | Azure DevOps | Jenkins |
+| --- | --- | --- | --- |
+| Docker support | `docker:` executor | `vmImage` or container jobs | Docker Pipeline plugin |
+| Parallelism | `parallelism: N` + `CIRCLE_NODE_INDEX` | `strategy.matrix` | `parallel` stages |
+| Artifact upload | `store_artifacts` | `PublishPipelineArtifact@1` | `archiveArtifacts` |
+| JUnit integration | `store_test_results` | `PublishTestResults@2` | `junit` step |
+| Shard variable | `$((CIRCLE_NODE_INDEX + 1))/$CIRCLE_NODE_TOTAL` | Define in matrix: `SHARD: '1/4'` | Hardcode per stage |
+| Cache key | `checksum "package-lock.json"` | `Cache@2` with key template | `stash`/`unstash` |
+| Secrets | Context + env variables | Variable groups | Credentials plugin |
 
 ## Troubleshooting
 
@@ -511,11 +511,11 @@ command: npx playwright test --shard=$((CIRCLE_NODE_INDEX + 1))/$CIRCLE_NODE_TOT
 
 ## Anti-Patterns
 
-| Anti-Pattern                        | Problem                                   | Solution                                             |
-| ----------------------------------- | ----------------------------------------- | ---------------------------------------------------- |
-| Missing `--with-deps` on bare metal | OS libs missing, browser launch fails     | Use Playwright Docker image or `--with-deps`         |
-| No JUnit reporter                   | CI can't display test results             | Add `['junit', { outputFile: 'results/junit.xml' }]` |
-| No job timeout                      | Hung tests consume resources indefinitely | Set explicit timeout (20-30 min)                     |
-| No artifact upload on success       | Can't verify passing results              | Always upload reports (`condition: always()`)        |
-| Non-root in container without setup | Permission errors on browser binaries     | Run as root or configure permissions                 |
-| Hardcoded shard count               | Must update multiple places               | Use CI-native variables                              |
+| Anti-Pattern | Problem | Solution |
+| --- | --- | --- |
+| Missing `--with-deps` on bare metal | OS libs missing, browser launch fails | Use Playwright Docker image or `--with-deps` |
+| No JUnit reporter | CI can't display test results | Add `['junit', { outputFile: 'results/junit.xml' }]` |
+| No job timeout | Hung tests consume resources indefinitely | Set explicit timeout (20-30 min) |
+| No artifact upload on success | Can't verify passing results | Always upload reports (`condition: always()`) |
+| Non-root in container without setup | Permission errors on browser binaries | Run as root or configure permissions |
+| Hardcoded shard count | Must update multiple places | Use CI-native variables |

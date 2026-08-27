@@ -402,13 +402,13 @@ export const test = base.extend<TestData>({
 
 ## Anti-Patterns to Avoid
 
-| Anti-Pattern                              | Problem                                                    | Solution                                                                                                                                                                              |
-| ----------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Shared mutable state between tests        | Race conditions, order dependencies                        | Use fixtures for isolation                                                                                                                                                            |
-| Global variables in tests                 | Tests depend on execution order                            | Use fixtures or beforeEach for setup                                                                                                                                                  |
-| Not cleaning up test data                 | Tests interfere with each other                            | Use fixtures with teardown or database transactions                                                                                                                                   |
+| Anti-Pattern | Problem | Solution |
+| --- | --- | --- |
+| Shared mutable state between tests | Race conditions, order dependencies | Use fixtures for isolation |
+| Global variables in tests | Tests depend on execution order | Use fixtures or beforeEach for setup |
+| Not cleaning up test data | Tests interfere with each other | Use fixtures with teardown or database transactions |
 | Shared `page` or `context` in `beforeAll` | State leak between tests; flaky when tests run in parallel | Use default one-context-per-test, or `beforeEach` + fresh page; if serial is required, prefer `test.describe.configure({ mode: 'serial' })` and document that isolation is sacrificed |
-| Backend/DB state shared across workers    | Tests in different workers collide on same data            | Use worker-scoped fixture with `testInfo.workerIndex` to create unique data per worker                                                                                                |
+| Backend/DB state shared across workers | Tests in different workers collide on same data | Use worker-scoped fixture with `testInfo.workerIndex` to create unique data per worker |
 
 ## Related References
 

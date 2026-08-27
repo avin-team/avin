@@ -60,7 +60,7 @@ test("not on CI", async ({ page }) => {
 test.describe("Admin features", () => {
   test.skip(
     ({ browserName }) => browserName === "firefox",
-    "Firefox admin bug",
+    "Firefox admin bug"
   );
 
   test("admin dashboard", async ({ page }) => {
@@ -410,12 +410,12 @@ test.describe("Desktop features", () => {
 
 ## Anti-Patterns to Avoid
 
-| Anti-Pattern                | Problem                | Solution                         |
-| --------------------------- | ---------------------- | -------------------------------- |
-| Skipping without reason     | Hard to track why      | Always provide description       |
-| Too many skipped tests      | Test debt accumulates  | Review and clean up regularly    |
-| Using skip instead of fixme | Loses intent           | Use fixme for bugs, skip for N/A |
-| Not using steps             | Hard to debug failures | Group logical actions in steps   |
+| Anti-Pattern | Problem | Solution |
+| --- | --- | --- |
+| Skipping without reason | Hard to track why | Always provide description |
+| Too many skipped tests | Test debt accumulates | Review and clean up regularly |
+| Using skip instead of fixme | Loses intent | Use fixme for bugs, skip for N/A |
+| Not using steps | Hard to debug failures | Group logical actions in steps |
 
 ## Related References
 

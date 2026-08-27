@@ -112,7 +112,7 @@ type DownloadFixtures = {
   downloadDir: string;
   downloadAndVerify: (
     trigger: () => Promise<void>,
-    expectedFilename: string,
+    expectedFilename: string
   ) => Promise<string>;
 };
 
@@ -264,7 +264,7 @@ test("drag and drop file upload", async ({ page }) => {
       });
       dataTransfer.items.add(file);
     },
-    [dataTransfer, [...buffer]] as const,
+    [dataTransfer, [...buffer]] as const
   );
 
   // Dispatch drop event
@@ -364,12 +364,12 @@ test("verify JSON export", async ({ page }, testInfo) => {
 
 ## Anti-Patterns to Avoid
 
-| Anti-Pattern                          | Problem                         | Solution                                      |
-| ------------------------------------- | ------------------------------- | --------------------------------------------- |
-| Not waiting for download              | Race condition, test fails      | Always use `waitForEvent("download")`         |
-| Hardcoded download paths              | Conflicts in parallel runs      | Use `testInfo.outputPath()`                   |
-| Skipping content verification         | Download might be empty/corrupt | Verify file content when possible             |
-| Using `force: true` for hidden inputs | May not trigger proper events   | Use `setInputFiles` on hidden inputs directly |
+| Anti-Pattern | Problem | Solution |
+| --- | --- | --- |
+| Not waiting for download | Race condition, test fails | Always use `waitForEvent("download")` |
+| Hardcoded download paths | Conflicts in parallel runs | Use `testInfo.outputPath()` |
+| Skipping content verification | Download might be empty/corrupt | Verify file content when possible |
+| Using `force: true` for hidden inputs | May not trigger proper events | Use `setInputFiles` on hidden inputs directly |
 
 ## Related References
 

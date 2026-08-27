@@ -114,7 +114,7 @@ import { test as base, Page } from "@playwright/test";
 type TouchFixtures = {
   swipe: (
     element: Locator,
-    direction: "left" | "right" | "up" | "down",
+    direction: "left" | "right" | "up" | "down"
   ) => Promise<void>;
 };
 
@@ -210,7 +210,7 @@ test("pinch to zoom image", async ({ page }) => {
         new WheelEvent("wheel", {
           deltaY: -100, // Negative = zoom in
           ctrlKey: true, // Ctrl+wheel = pinch on many apps
-        }),
+        })
       );
     }
   });
@@ -394,12 +394,12 @@ test.describe("visual regression", () => {
 
 ## Anti-Patterns to Avoid
 
-| Anti-Pattern                | Problem                   | Solution                         |
-| --------------------------- | ------------------------- | -------------------------------- |
-| Only testing one viewport   | Misses responsive bugs    | Test multiple breakpoints        |
-| Ignoring touch events       | Features broken on mobile | Test tap, swipe, long press      |
-| Hardcoded viewport in tests | Can't test multiple sizes | Use `page.setViewportSize()`     |
-| Not testing orientation     | Landscape bugs missed     | Test both portrait and landscape |
+| Anti-Pattern | Problem | Solution |
+| --- | --- | --- |
+| Only testing one viewport | Misses responsive bugs | Test multiple breakpoints |
+| Ignoring touch events | Features broken on mobile | Test tap, swipe, long press |
+| Hardcoded viewport in tests | Can't test multiple sizes | Use `page.setViewportSize()` |
+| Not testing orientation | Landscape bugs missed | Test both portrait and landscape |
 
 ## Related References
 

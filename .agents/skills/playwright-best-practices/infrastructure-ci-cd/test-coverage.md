@@ -483,13 +483,13 @@ jobs:
 
 ## Anti-Patterns to Avoid
 
-| Anti-Pattern                 | Problem                                | Solution                    |
-| ---------------------------- | -------------------------------------- | --------------------------- |
-| Coverage for coverage's sake | Gaming metrics                         | Focus on critical paths     |
-| 100% coverage target         | Diminishing returns, tests for getters | Set realistic thresholds    |
-| Ignoring coverage drops      | Technical debt                         | Enforce thresholds in CI    |
-| No source map support        | Wrong line numbers                     | Enable source maps in build |
-| Coverage only in CI          | Late feedback                          | Run locally too             |
+| Anti-Pattern | Problem | Solution |
+| --- | --- | --- |
+| Coverage for coverage's sake | Gaming metrics | Focus on critical paths |
+| 100% coverage target | Diminishing returns, tests for getters | Set realistic thresholds |
+| Ignoring coverage drops | Technical debt | Enforce thresholds in CI |
+| No source map support | Wrong line numbers | Enable source maps in build |
+| Coverage only in CI | Late feedback | Run locally too |
 
 ## Related References
 

@@ -78,7 +78,7 @@ export function createProduct(
 
   const appliedTraits = traitNames.reduce(
     (acc, trait) => ({ ...acc, ...traits[trait] }),
-    {},
+    {}
   );
 
   return {
@@ -129,7 +129,7 @@ export function createOrder(overrides: Partial<Order> = {}): Order {
   const items = overrides.items ?? [{ product: createProduct(), quantity: 1 }];
   const total = items.reduce(
     (sum, item) => sum + item.product.price * item.quantity,
-    0,
+    0
   );
 
   return {
@@ -332,7 +332,7 @@ interface TestCase {
 
 // Load test data from JSON
 const testCases: TestCase[] = JSON.parse(
-  fs.readFileSync("./data/search-tests.json", "utf-8"),
+  fs.readFileSync("./data/search-tests.json", "utf-8")
 );
 
 test.describe("search functionality", () => {
@@ -384,7 +384,7 @@ test("add product to cart", async ({ page, testUser, testProducts }) => {
   // Mock API with test data
   await page.route("**/api/user", (route) => route.fulfill({ json: testUser }));
   await page.route("**/api/products", (route) =>
-    route.fulfill({ json: testProducts }),
+    route.fulfill({ json: testProducts })
   );
 
   await page.goto("/products");
@@ -463,7 +463,7 @@ export const test = base.extend<{}, { db: DbTransaction }>({
 
           const result = await client.query(
             `INSERT INTO ${table} (${keys.join(", ")}) VALUES (${placeholders.join(", ")}) RETURNING *`,
-            values,
+            values
           );
           return result.rows[0];
         },
@@ -479,12 +479,12 @@ export const test = base.extend<{}, { db: DbTransaction }>({
 
 ## Anti-Patterns to Avoid
 
-| Anti-Pattern                    | Problem                         | Solution                   |
-| ------------------------------- | ------------------------------- | -------------------------- |
-| Hardcoded test data             | Brittle, repetitive             | Use factories              |
-| Random data without seed        | Non-reproducible failures       | Seed faker per test        |
-| Shared mutable test data        | Tests interfere with each other | Create fresh data per test |
-| Manual data creation everywhere | Duplication, maintenance burden | Centralize in factories    |
+| Anti-Pattern | Problem | Solution |
+| --- | --- | --- |
+| Hardcoded test data | Brittle, repetitive | Use factories |
+| Random data without seed | Non-reproducible failures | Seed faker per test |
+| Shared mutable test data | Tests interfere with each other | Create fresh data per test |
+| Manual data creation everywhere | Duplication, maintenance burden | Centralize in factories |
 
 ## Related References
 

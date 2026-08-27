@@ -209,7 +209,7 @@ test("mock GraphQL mutation", async ({ page }) => {
               items: input.items,
               total: input.items.reduce(
                 (sum: number, item: any) => sum + item.price * item.quantity,
-                0,
+                0
               ),
             },
           },
@@ -439,12 +439,12 @@ export const test = base.extend<NetworkFixtures>({
 
 ## Anti-Patterns to Avoid
 
-| Anti-Pattern             | Problem                        | Solution                         |
-| ------------------------ | ------------------------------ | -------------------------------- |
-| Mocking all requests     | Tests don't reflect reality    | Mock only what's necessary       |
-| No cleanup of routes     | Routes persist across tests    | Use fixtures with cleanup        |
-| Ignoring request method  | Mock applies to wrong requests | Check `route.request().method()` |
-| Hardcoded mock responses | Brittle, hard to maintain      | Use factories for mock data      |
+| Anti-Pattern | Problem | Solution |
+| --- | --- | --- |
+| Mocking all requests | Tests don't reflect reality | Mock only what's necessary |
+| No cleanup of routes | Routes persist across tests | Use fixtures with cleanup |
+| Ignoring request method | Mock applies to wrong requests | Check `route.request().method()` |
+| Hardcoded mock responses | Brittle, hard to maintain | Use factories for mock data |
 
 ## Related References
 

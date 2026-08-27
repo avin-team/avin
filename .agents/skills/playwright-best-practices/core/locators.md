@@ -229,11 +229,11 @@ const exists = (await page.getByRole("button").count()) > 0;
 
 ## Anti-Patterns to Avoid
 
-| Anti-Pattern                      | Problem                           | Solution                                          |
-| --------------------------------- | --------------------------------- | ------------------------------------------------- |
-| `page.locator('.btn-primary')`    | Brittle, implementation-dependent | `page.getByRole('button', { name: 'Submit' })`    |
-| `page.locator('#dynamic-id-123')` | Breaks when IDs change            | Use stable attributes like role, text, or test-id |
-| Testing implementation details    | Breaks on refactoring             | Test user-visible behavior                        |
+| Anti-Pattern | Problem | Solution |
+| --- | --- | --- |
+| `page.locator('.btn-primary')` | Brittle, implementation-dependent | `page.getByRole('button', { name: 'Submit' })` |
+| `page.locator('#dynamic-id-123')` | Breaks when IDs change | Use stable attributes like role, text, or test-id |
+| Testing implementation details | Breaks on refactoring | Test user-visible behavior |
 
 ## Related References
 

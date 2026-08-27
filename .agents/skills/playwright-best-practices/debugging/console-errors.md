@@ -132,7 +132,7 @@ test("no unexpected console errors", async ({ page }) => {
 
   expect(
     unexpectedErrors,
-    `Unexpected console errors:\n${unexpectedErrors.join("\n")}`,
+    `Unexpected console errors:\n${unexpectedErrors.join("\n")}`
   ).toHaveLength(0);
 });
 ```
@@ -189,7 +189,7 @@ test("no uncaught exceptions", async ({ page }) => {
 
   expect(
     pageErrors,
-    `Uncaught exceptions:\n${pageErrors.map((e) => e.message).join("\n")}`,
+    `Uncaught exceptions:\n${pageErrors.map((e) => e.message).join("\n")}`
   ).toHaveLength(0);
 });
 ```
@@ -234,7 +234,7 @@ test("error boundary catches render error", async ({ page }) => {
   // Trigger component error via props
   await page.route(
     "**/api/data",
-    (route) => route.fulfill({ json: null }), // Will cause "cannot read property of null"
+    (route) => route.fulfill({ json: null }) // Will cause "cannot read property of null"
   );
 
   await page.goto("/dashboard");
@@ -298,12 +298,12 @@ test("no React warnings", async ({ page }) => {
     (w) =>
       w.includes("Each child in a list should have a unique") ||
       w.includes("Cannot update a component") ||
-      w.includes("Can't perform a React state update"),
+      w.includes("Can't perform a React state update")
   );
 
   expect(
     criticalWarnings,
-    `React warnings:\n${criticalWarnings.join("\n")}`,
+    `React warnings:\n${criticalWarnings.join("\n")}`
   ).toHaveLength(0);
 });
 ```
@@ -359,12 +359,12 @@ export const test = base.extend<ConsoleFixtures>({
     await use((allowedPatterns = []) => {
       const errors = getConsoleErrors();
       const unexpected = errors.filter(
-        (e) => !allowedPatterns.some((p) => p.test(e.text)),
+        (e) => !allowedPatterns.some((p) => p.test(e.text))
       );
 
       if (unexpected.length > 0) {
         throw new Error(
-          `Unexpected console errors:\n${unexpected.map((e) => e.text).join("\n")}`,
+          `Unexpected console errors:\n${unexpected.map((e) => e.text).join("\n")}`
         );
       }
     });
@@ -407,12 +407,12 @@ test("capture console for debugging", async ({ page }, testInfo) => {
 
 ## Anti-Patterns to Avoid
 
-| Anti-Pattern               | Problem                    | Solution                    |
-| -------------------------- | -------------------------- | --------------------------- |
-| Ignoring console errors    | Bugs go unnoticed          | Check for errors in tests   |
-| Too strict error checking  | Tests fail on minor issues | Allow known/expected errors |
-| Not capturing stack traces | Hard to debug              | Include location info       |
-| Checking only at end       | Miss errors during actions | Capture continuously        |
+| Anti-Pattern | Problem | Solution |
+| --- | --- | --- |
+| Ignoring console errors | Bugs go unnoticed | Check for errors in tests |
+| Too strict error checking | Tests fail on minor issues | Allow known/expected errors |
+| Not capturing stack traces | Hard to debug | Include location info |
+| Checking only at end | Miss errors during actions | Capture continuously |
 
 ## Related References
 

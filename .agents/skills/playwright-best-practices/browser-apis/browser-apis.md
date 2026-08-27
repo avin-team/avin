@@ -184,7 +184,7 @@ test("copy button works", async ({ page, context }) => {
 
   // Read clipboard content
   const clipboardContent = await page.evaluate(() =>
-    navigator.clipboard.readText(),
+    navigator.clipboard.readText()
   );
 
   expect(clipboardContent).toContain("https://example.com/share/");
@@ -371,19 +371,19 @@ test("handles camera access error", async ({ page }) => {
 
   await expect(page.getByText("Camera access denied")).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Join Audio Only" }),
+    page.getByRole("button", { name: "Join Audio Only" })
   ).toBeVisible();
 });
 ```
 
 ## Anti-Patterns to Avoid
 
-| Anti-Pattern                  | Problem                           | Solution                            |
-| ----------------------------- | --------------------------------- | ----------------------------------- |
-| Not granting permissions      | Tests fail with permission errors | Use `context.grantPermissions()`    |
-| Testing real geolocation      | Flaky, environment-dependent      | Mock with `setGeolocation()`        |
-| Not testing permission denial | Misses error handling             | Test both granted and denied states |
-| Using real camera/mic         | CI has no devices                 | Mock `getUserMedia`                 |
+| Anti-Pattern | Problem | Solution |
+| --- | --- | --- |
+| Not granting permissions | Tests fail with permission errors | Use `context.grantPermissions()` |
+| Testing real geolocation | Flaky, environment-dependent | Mock with `setGeolocation()` |
+| Not testing permission denial | Misses error handling | Test both granted and denied states |
+| Using real camera/mic | CI has no devices | Mock `getUserMedia` |
 
 ## Related References
 

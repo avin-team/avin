@@ -76,7 +76,7 @@ export const test = base.extend<A11yFixtures>({
         "wcag2aa",
         "wcag21a",
         "wcag21aa",
-      ]),
+      ])
     );
   },
 });
@@ -257,7 +257,7 @@ test("focus trapped in modal", async ({ page }) => {
 
   // Get all focusable elements in modal
   const focusableElements = modal.locator(
-    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
   );
   const count = await focusableElements.count();
 
@@ -314,7 +314,7 @@ test("respects reduced motion preference", async ({ page }) => {
   // Animations should be disabled
   const hero = page.getByTestId("hero-animation");
   const animation = await hero.evaluate(
-    (el) => getComputedStyle(el).animationDuration,
+    (el) => getComputedStyle(el).animationDuration
   );
 
   expect(animation).toBe("0s");
@@ -346,12 +346,12 @@ export default defineConfig({
 
 ## Anti-Patterns to Avoid
 
-| Anti-Pattern                  | Problem                      | Solution                                   |
-| ----------------------------- | ---------------------------- | ------------------------------------------ |
-| Testing a11y only on homepage | Misses issues on other pages | Test all critical user flows               |
-| Ignoring all violations       | No value from tests          | Address or explicitly exclude known issues |
-| Only automated testing        | Misses many a11y issues      | Combine with manual testing                |
-| Testing without screen reader | Misses interaction issues    | Test with VoiceOver/NVDA periodically      |
+| Anti-Pattern | Problem | Solution |
+| --- | --- | --- |
+| Testing a11y only on homepage | Misses issues on other pages | Test all critical user flows |
+| Ignoring all violations | No value from tests | Address or explicitly exclude known issues |
+| Only automated testing | Misses many a11y issues | Combine with manual testing |
+| Testing without screen reader | Misses interaction issues | Test with VoiceOver/NVDA periodically |
 
 ## Related References
 

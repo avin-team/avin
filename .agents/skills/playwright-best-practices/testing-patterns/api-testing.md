@@ -7,15 +7,13 @@
 3. [Anti-Patterns](#anti-patterns)
 4. [Troubleshooting](#troubleshooting)
 
-> **When to use**: Testing REST APIs directly — validating endpoints, seeding test data, or verifying backend behavior without browser overhead.
-> **See also**: [graphql-testing.md](graphql-testing.md) for GraphQL-specific patterns.
+> **When to use**: Testing REST APIs directly — validating endpoints, seeding test data, or verifying backend behavior without browser overhead. **See also**: [graphql-testing.md](graphql-testing.md) for GraphQL-specific patterns.
 
 ## Patterns
 
 ### Request Fixtures for Authenticated Clients
 
-**Use when**: Multiple tests need an authenticated API client with shared configuration.
-**Avoid when**: A single test makes one-off API calls — use the built-in `request` fixture directly.
+**Use when**: Multiple tests need an authenticated API client with shared configuration. **Avoid when**: A single test makes one-off API calls — use the built-in `request` fixture directly.
 
 ```typescript
 // fixtures/api-fixtures.ts
@@ -82,8 +80,7 @@ test("admin retrieves all accounts", async ({ adminApi }) => {
 
 ### CRUD Operations
 
-**Use when**: Making HTTP requests — GET, POST, PUT, PATCH, DELETE with headers, query params, and bodies.
-**Avoid when**: You need to test browser-rendered responses (redirects, cookies with `HttpOnly`).
+**Use when**: Making HTTP requests — GET, POST, PUT, PATCH, DELETE with headers, query params, and bodies. **Avoid when**: You need to test browser-rendered responses (redirects, cookies with `HttpOnly`).
 
 ```typescript
 import { test, expect } from "@playwright/test";
@@ -179,8 +176,7 @@ export default defineConfig({
 
 ### Response Assertions
 
-**Use when**: Validating response status, headers, and body structure.
-**Avoid when**: Never skip these — every API test should assert on status and body.
+**Use when**: Validating response status, headers, and body structure. **Avoid when**: Never skip these — every API test should assert on status and body.
 
 ```typescript
 import { test, expect } from "@playwright/test";
@@ -256,8 +252,7 @@ test("list response structure", async ({ request }) => {
 
 ### API Data Seeding
 
-**Use when**: E2E tests need specific data to exist before running. API seeding is 10-100x faster than UI-based setup.
-**Avoid when**: The test specifically validates the creation flow through the UI.
+**Use when**: E2E tests need specific data to exist before running. API seeding is 10-100x faster than UI-based setup. **Avoid when**: The test specifically validates the creation flow through the UI.
 
 ```typescript
 import { test as base, expect } from "@playwright/test";
@@ -411,8 +406,7 @@ test.describe("Error responses", () => {
 
 ### File Upload via API
 
-**Use when**: Testing file upload endpoints with multipart form data.
-**Avoid when**: You need to test the browser file picker dialog — use `page.setInputFiles()` instead.
+**Use when**: Testing file upload endpoints with multipart form data. **Avoid when**: You need to test the browser file picker dialog — use `page.setInputFiles()` instead.
 
 ```typescript
 import { test, expect } from "@playwright/test";
@@ -464,8 +458,7 @@ test("rejects oversized files", async ({ request }) => {
 
 ### Chained API Calls
 
-**Use when**: Testing multi-step workflows — create, read, update, delete sequences; order flows; state machine transitions.
-**Avoid when**: You can test each endpoint in isolation and the interactions are trivial.
+**Use when**: Testing multi-step workflows — create, read, update, delete sequences; order flows; state machine transitions. **Avoid when**: You can test each endpoint in isolation and the interactions are trivial.
 
 ```typescript
 import { test, expect } from "@playwright/test";
@@ -574,8 +567,7 @@ test("API + E2E hybrid — seed via API, verify in browser", async ({
 
 ### Schema Validation with Zod
 
-**Use when**: Verifying API responses match a contract — field types, required fields, value constraints.
-**Avoid when**: You only need to check one or two specific fields — use `toMatchObject` instead.
+**Use when**: Verifying API responses match a contract — field types, required fields, value constraints. **Avoid when**: You only need to check one or two specific fields — use `toMatchObject` instead.
 
 ```typescript
 import { test, expect } from "@playwright/test";
@@ -621,34 +613,34 @@ test("GET /api/items matches schema", async ({ request }) => {
 
 ## Decision Guide
 
-| Scenario                                         | Use API Tests               | Use E2E Tests                  | Why                                                                |
-| ------------------------------------------------ | --------------------------- | ------------------------------ | ------------------------------------------------------------------ |
-| Validate response status/body/headers            | Yes                         | No                             | No browser needed; 10-100x faster                                  |
-| Test business logic (calculations, rules)        | Yes                         | No                             | API tests isolate backend logic from UI                            |
-| Verify form submission creates correct data      | Seed via API, submit via UI | Yes                            | UI test validates the form; API check confirms persistence         |
-| Test error messages shown to user                | No                          | Yes                            | Error rendering is a UI concern                                    |
-| Validate pagination, filtering, sorting          | Yes                         | Maybe both                     | API test for correctness; E2E test only if the UI logic is complex |
-| Seed test data for E2E tests                     | Yes (fixture)               | No                             | API seeding is fast and reliable                                   |
-| Test auth flows (login/logout/RBAC)              | Yes for token/session logic | Yes for UI flow                | Both matter: API protects resources, UI guides users               |
-| Verify file upload processing                    | Yes                         | Only if testing file picker UI | API test validates backend processing                              |
-| Contract/schema regression testing               | Yes                         | No                             | Schema tests run in milliseconds                                   |
-| Test third-party webhook handling                | Yes                         | No                             | Webhooks are API-to-API; no UI involved                            |
-| Verify redirect behavior after action            | No                          | Yes                            | Redirects are browser/navigation concerns                          |
-| Test real-time updates (WebSocket + API trigger) | API triggers                | E2E verifies                   | Seed via API, observe in browser                                   |
+| Scenario | Use API Tests | Use E2E Tests | Why |
+| --- | --- | --- | --- |
+| Validate response status/body/headers | Yes | No | No browser needed; 10-100x faster |
+| Test business logic (calculations, rules) | Yes | No | API tests isolate backend logic from UI |
+| Verify form submission creates correct data | Seed via API, submit via UI | Yes | UI test validates the form; API check confirms persistence |
+| Test error messages shown to user | No | Yes | Error rendering is a UI concern |
+| Validate pagination, filtering, sorting | Yes | Maybe both | API test for correctness; E2E test only if the UI logic is complex |
+| Seed test data for E2E tests | Yes (fixture) | No | API seeding is fast and reliable |
+| Test auth flows (login/logout/RBAC) | Yes for token/session logic | Yes for UI flow | Both matter: API protects resources, UI guides users |
+| Verify file upload processing | Yes | Only if testing file picker UI | API test validates backend processing |
+| Contract/schema regression testing | Yes | No | Schema tests run in milliseconds |
+| Test third-party webhook handling | Yes | No | Webhooks are API-to-API; no UI involved |
+| Verify redirect behavior after action | No | Yes | Redirects are browser/navigation concerns |
+| Test real-time updates (WebSocket + API trigger) | API triggers | E2E verifies | Seed via API, observe in browser |
 
 ## Anti-Patterns
 
-| Don't Do This                                        | Problem                                                                                | Do This Instead                                                   |
-| ---------------------------------------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Use E2E tests to validate pure API responses         | Slow, flaky, launches a browser for no reason                                          | Use `request` fixture — no browser, direct HTTP                   |
-| Ignore `response.status()`                           | A 500 with a fallback body can pass all body assertions                                | Always assert status first: `expect(response.status()).toBe(200)` |
-| Skip response header checks                          | Missing `Content-Type`, `Cache-Control`, CORS headers cause production bugs            | Assert critical headers                                           |
-| Only test the happy path                             | Real users trigger 400, 401, 403, 404, 409, 422 — every one needs a test               | Dedicate a `describe` block to error responses                    |
-| Hardcode IDs in API tests                            | Tests break when database is reset or IDs are reassigned                               | Create resources in the test, use returned IDs                    |
-| Share mutable state between tests                    | Tests that depend on execution order are flaky and cannot run in parallel              | Each test creates and cleans up its own data                      |
-| Parse `response.text()` then `JSON.parse()` manually | Playwright's `response.json()` handles this and throws clear errors on non-JSON        | Use `await response.json()`                                       |
-| Forget cleanup after creating resources              | Test pollution: subsequent tests may see stale data or hit unique constraints          | Use fixtures with teardown or explicit `delete` calls             |
-| Use `page.request` when you don't need a page        | `page.request` shares cookies with the browser context, which may cause auth confusion | Use the standalone `request` fixture for pure API tests           |
+| Don't Do This | Problem | Do This Instead |
+| --- | --- | --- |
+| Use E2E tests to validate pure API responses | Slow, flaky, launches a browser for no reason | Use `request` fixture — no browser, direct HTTP |
+| Ignore `response.status()` | A 500 with a fallback body can pass all body assertions | Always assert status first: `expect(response.status()).toBe(200)` |
+| Skip response header checks | Missing `Content-Type`, `Cache-Control`, CORS headers cause production bugs | Assert critical headers |
+| Only test the happy path | Real users trigger 400, 401, 403, 404, 409, 422 — every one needs a test | Dedicate a `describe` block to error responses |
+| Hardcode IDs in API tests | Tests break when database is reset or IDs are reassigned | Create resources in the test, use returned IDs |
+| Share mutable state between tests | Tests that depend on execution order are flaky and cannot run in parallel | Each test creates and cleans up its own data |
+| Parse `response.text()` then `JSON.parse()` manually | Playwright's `response.json()` handles this and throws clear errors on non-JSON | Use `await response.json()` |
+| Forget cleanup after creating resources | Test pollution: subsequent tests may see stale data or hit unique constraints | Use fixtures with teardown or explicit `delete` calls |
+| Use `page.request` when you don't need a page | `page.request` shares cookies with the browser context, which may cause auth confusion | Use the standalone `request` fixture for pure API tests |
 
 ## Troubleshooting
 

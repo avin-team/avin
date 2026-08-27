@@ -89,8 +89,7 @@ jobs:
 
 ### Sharded Execution
 
-**Use when**: Test suite exceeds 10 minutes. Sharding cuts wall-clock time significantly.
-**Avoid when**: Suite runs under 5 minutes—sharding overhead negates benefits.
+**Use when**: Test suite exceeds 10 minutes. Sharding cuts wall-clock time significantly. **Avoid when**: Suite runs under 5 minutes—sharding overhead negates benefits.
 
 ```yaml
 # .github/workflows/e2e-sharded.yml
@@ -181,19 +180,18 @@ jobs:
 
 ```typescript
 // playwright.config.ts
-import { defineConfig } from '@playwright/test';
+import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   reporter: process.env.CI
-    ? [['blob'], ['github']]
-    : [['html', { open: 'on-failure' }]],
+    ? [["blob"], ["github"]]
+    : [["html", { open: "on-failure" }]],
 });
 ```
 
 ### Container-Based Execution
 
-**Use when**: Reproducible environment matching local Docker setup, or runner OS dependencies cause issues.
-**Avoid when**: Standard `ubuntu-latest` with `--with-deps` works fine.
+**Use when**: Reproducible environment matching local Docker setup, or runner OS dependencies cause issues. **Avoid when**: Standard `ubuntu-latest` with `--with-deps` works fine.
 
 ```yaml
 # .github/workflows/e2e-container.yml
@@ -230,8 +228,7 @@ jobs:
 
 ### Environment Secrets
 
-**Use when**: Tests target staging/production with credentials.
-**Avoid when**: Tests only run against local dev server.
+**Use when**: Tests target staging/production with credentials. **Avoid when**: Tests only run against local dev server.
 
 ```yaml
 # .github/workflows/e2e-staging.yml
@@ -287,8 +284,7 @@ jobs:
 
 ### Scheduled Runs
 
-**Use when**: Full regression suite is too slow for every PR—run nightly instead.
-**Avoid when**: Suite runs under 15 minutes and can run on every PR.
+**Use when**: Full regression suite is too slow for every PR—run nightly instead. **Avoid when**: Suite runs under 15 minutes and can run on every PR.
 
 ```yaml
 # .github/workflows/nightly.yml
@@ -296,7 +292,7 @@ name: Nightly Regression
 
 on:
   schedule:
-    - cron: '0 3 * * 1-5'
+    - cron: "0 3 * * 1-5"
   workflow_dispatch:
 
 jobs:
@@ -340,8 +336,7 @@ jobs:
 
 ### Reusable Workflow
 
-**Use when**: Multiple repositories share the same Playwright setup.
-**Avoid when**: Single repo with one workflow.
+**Use when**: Multiple repositories share the same Playwright setup. **Avoid when**: Single repo with one workflow.
 
 ```yaml
 # .github/workflows/pw-reusable.yml
@@ -352,10 +347,10 @@ on:
     inputs:
       node-version:
         type: string
-        default: 'lts/*'
+        default: "lts/*"
       test-command:
         type: string
-        default: 'npx playwright test'
+        default: "npx playwright test"
     secrets:
       BASE_URL:
         required: false
@@ -421,7 +416,7 @@ jobs:
   e2e:
     uses: ./.github/workflows/pw-reusable.yml
     with:
-      node-version: 'lts/*'
+      node-version: "lts/*"
     secrets:
       BASE_URL: ${{ secrets.STAGING_URL }}
       TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
@@ -429,21 +424,21 @@ jobs:
 
 ## Scenario Guide
 
-| Scenario | Approach |
-|---|---|
-| Small suite (< 5 min) | Single job, no sharding |
-| Medium suite (5-20 min) | 2-4 shards with matrix |
-| Large suite (20+ min) | 4-8 shards + blob merge |
-| Cross-browser on PRs | Chromium only on PRs; all browsers on main |
-| Staging/prod smoke tests | Separate workflow with `environment:` |
-| Nightly full regression | `schedule` trigger + `workflow_dispatch` |
-| Multiple repos, same setup | Reusable workflow with `workflow_call` |
-| Reproducible env needed | Container job with Playwright image |
+| Scenario                   | Approach                                   |
+| -------------------------- | ------------------------------------------ |
+| Small suite (< 5 min)      | Single job, no sharding                    |
+| Medium suite (5-20 min)    | 2-4 shards with matrix                     |
+| Large suite (20+ min)      | 4-8 shards + blob merge                    |
+| Cross-browser on PRs       | Chromium only on PRs; all browsers on main |
+| Staging/prod smoke tests   | Separate workflow with `environment:`      |
+| Nightly full regression    | `schedule` trigger + `workflow_dispatch`   |
+| Multiple repos, same setup | Reusable workflow with `workflow_call`     |
+| Reproducible env needed    | Container job with Playwright image        |
 
 ## Common Mistakes
 
 | Mistake | Problem | Fix |
-|---|---|---|
+| --- | --- | --- |
 | No `concurrency` group | Duplicate runs waste minutes | Add `concurrency: { group: ..., cancel-in-progress: true }` |
 | `fail-fast: true` with sharding | One failure cancels others | Set `fail-fast: false` |
 | No browser caching | 60-90 seconds wasted per run | Cache `~/.cache/ms-playwright` |
@@ -476,10 +471,10 @@ jobs:
 
 ```typescript
 // playwright.config.ts
-import { defineConfig } from '@playwright/test';
+import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
-  workers: process.env.CI ? '50%' : undefined,
+  workers: process.env.CI ? "50%" : undefined,
   use: {
     actionTimeout: process.env.CI ? 15_000 : 10_000,
     navigationTimeout: process.env.CI ? 30_000 : 15_000,
@@ -527,12 +522,12 @@ export default defineConfig({
 
 ```typescript
 // playwright.config.ts
-import { defineConfig } from '@playwright/test';
+import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   reporter: process.env.CI
-    ? [['html', { open: 'never' }], ['github']]
-    : [['html', { open: 'on-failure' }]],
+    ? [["html", { open: "never" }], ["github"]]
+    : [["html", { open: "on-failure" }]],
 });
 ```
 

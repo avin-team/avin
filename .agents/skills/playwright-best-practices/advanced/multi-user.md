@@ -172,10 +172,10 @@ test("shows other user cursors", async ({ browser }) => {
 
   // Mock to identify users
   await page1.route("**/api/me", (route) =>
-    route.fulfill({ json: { id: "user-1", name: "Alice" } }),
+    route.fulfill({ json: { id: "user-1", name: "Alice" } })
   );
   await page2.route("**/api/me", (route) =>
-    route.fulfill({ json: { id: "user-2", name: "Bob" } }),
+    route.fulfill({ json: { id: "user-2", name: "Bob" } })
   );
 
   await page1.goto("/whiteboard/123");
@@ -352,7 +352,7 @@ test("chat messages sync between users", async ({ browser }) => {
 
   // Setup user identities
   await alicePage.route("**/api/me", (r) =>
-    r.fulfill({ json: { name: "Alice" } }),
+    r.fulfill({ json: { name: "Alice" } })
   );
   await bobPage.route("**/api/me", (r) => r.fulfill({ json: { name: "Bob" } }));
 
@@ -380,12 +380,12 @@ test("chat messages sync between users", async ({ browser }) => {
 
 ## Anti-Patterns to Avoid
 
-| Anti-Pattern                  | Problem                       | Solution                     |
-| ----------------------------- | ----------------------------- | ---------------------------- |
-| Sharing context between users | State leaks, not isolated     | Create separate contexts     |
-| Not closing contexts          | Memory leak, browser overload | Always close in cleanup      |
-| Hardcoded timing for sync     | Flaky tests                   | Use `expect().toBeVisible()` |
-| Testing only single user      | Misses collaboration bugs     | Test multi-user scenarios    |
+| Anti-Pattern | Problem | Solution |
+| --- | --- | --- |
+| Sharing context between users | State leaks, not isolated | Create separate contexts |
+| Not closing contexts | Memory leak, browser overload | Always close in cleanup |
+| Hardcoded timing for sync | Flaky tests | Use `expect().toBeVisible()` |
+| Testing only single user | Misses collaboration bugs | Test multi-user scenarios |
 
 ## Related References
 

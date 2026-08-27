@@ -92,7 +92,7 @@ test.describe("API error handling", () => {
         route.fulfill({
           status,
           json: { error: `Error ${status}` },
-        }),
+        })
       );
 
       await page.goto("/dashboard");
@@ -273,7 +273,7 @@ test("shows empty state when no data", async ({ page }) => {
 
   await expect(page.getByText("No items yet")).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Create First Item" }),
+    page.getByRole("button", { name: "Create First Item" })
   ).toBeVisible();
 });
 ```
@@ -330,7 +330,7 @@ test("handles server validation errors", async ({ page }) => {
           username: "Username is taken",
         },
       },
-    }),
+    })
   );
 
   await page.goto("/signup");
@@ -347,12 +347,12 @@ test("handles server validation errors", async ({ page }) => {
 
 ## Anti-Patterns to Avoid
 
-| Anti-Pattern             | Problem                        | Solution                               |
-| ------------------------ | ------------------------------ | -------------------------------------- |
-| Only testing happy path  | Misses error handling bugs     | Test all error scenarios               |
-| No network failure tests | App crashes on poor connection | Test offline/slow/failed requests      |
-| Skipping loading states  | Janky UX not caught            | Assert loading UI appears              |
-| Ignoring validation      | Form bugs slip through         | Test both client and server validation |
+| Anti-Pattern | Problem | Solution |
+| --- | --- | --- |
+| Only testing happy path | Misses error handling bugs | Test all error scenarios |
+| No network failure tests | App crashes on poor connection | Test offline/slow/failed requests |
+| Skipping loading states | Janky UX not caught | Assert loading UI appears |
+| Ignoring validation | Form bugs slip through | Test both client and server validation |
 
 ## Related References
 

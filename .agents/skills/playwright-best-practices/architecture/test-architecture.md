@@ -14,23 +14,23 @@
 
 ## Decision Matrix
 
-| Scenario                    | Recommended Type | Rationale                                     |
-| --------------------------- | ---------------- | --------------------------------------------- |
-| Login / auth flow           | E2E              | Cross-page, cookies, redirects, session state |
-| Form submission             | Component        | Isolated validation logic, error states       |
-| CRUD operations             | API              | Data integrity matters more than UI           |
-| Search with results UI      | Component + API  | API for query logic; component for rendering  |
-| Cross-page navigation       | E2E              | Routing, history, deep linking                |
-| API error handling          | API              | Status codes, error shapes, edge cases        |
-| UI error feedback           | Component        | Toast, banner, inline error rendering         |
-| Accessibility               | Component        | ARIA roles, keyboard nav per-component        |
-| Responsive layout           | Component        | Viewport-specific rendering without full app  |
-| API contract validation     | API              | Response shapes, headers, auth                |
-| WebSocket/real-time         | E2E              | Requires full browser environment             |
-| Payment / checkout          | E2E              | Multi-step, third-party iframes               |
-| Onboarding wizard           | E2E              | Multi-step, state persists across pages       |
-| Widget behavior             | Component        | Toggle, accordion, date picker, modal         |
-| Permissions / authorization | API              | Role-based access is backend logic            |
+| Scenario | Recommended Type | Rationale |
+| --- | --- | --- |
+| Login / auth flow | E2E | Cross-page, cookies, redirects, session state |
+| Form submission | Component | Isolated validation logic, error states |
+| CRUD operations | API | Data integrity matters more than UI |
+| Search with results UI | Component + API | API for query logic; component for rendering |
+| Cross-page navigation | E2E | Routing, history, deep linking |
+| API error handling | API | Status codes, error shapes, edge cases |
+| UI error feedback | Component | Toast, banner, inline error rendering |
+| Accessibility | Component | ARIA roles, keyboard nav per-component |
+| Responsive layout | Component | Viewport-specific rendering without full app |
+| API contract validation | API | Response shapes, headers, auth |
+| WebSocket/real-time | E2E | Requires full browser environment |
+| Payment / checkout | E2E | Multi-step, third-party iframes |
+| Onboarding wizard | E2E | Multi-step, state persists across pages |
+| Widget behavior | Component | Toggle, accordion, date picker, modal |
+| Permissions / authorization | API | Role-based access is backend logic |
 
 ## API Tests
 
@@ -348,16 +348,16 @@ Total: 24 tests, ~22 seconds. API tests catch most regressions. Component tests 
 
 ## Common Mistakes
 
-| Anti-Pattern                              | Problem                                                  | Better Approach                                                |
-| ----------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------------- |
-| E2E for every validation rule             | 30-second browser test for something API covers in 200ms | API test for validation, one component test for error display  |
-| No API tests, all E2E                     | Slow suite, flaky from UI timing, hard to diagnose       | API tests for data/logic, E2E for critical paths only          |
-| Component tests mocking everything        | Tests pass but app broken because mocks drift            | Mock only external boundaries; API tests verify real contracts |
-| Same assertion in API, component, AND E2E | Triple maintenance cost                                  | Each layer tests what it uniquely verifies                     |
-| E2E creating test data via UI             | 2-minute test where 90 seconds is setup                  | Seed via API in `beforeEach`, test actual flow                 |
-| Testing third-party behavior              | Testing that Stripe validates cards (Stripe's job)       | Mock Stripe; trust their contract                              |
-| Skipping API layer                        | Can't tell if bug is frontend or backend                 | API tests isolate backend; component tests isolate frontend    |
-| One giant E2E for entire feature          | 5-minute test failing somewhere with no clear cause      | Focused E2E per critical path; use `test.step()`               |
+| Anti-Pattern | Problem | Better Approach |
+| --- | --- | --- |
+| E2E for every validation rule | 30-second browser test for something API covers in 200ms | API test for validation, one component test for error display |
+| No API tests, all E2E | Slow suite, flaky from UI timing, hard to diagnose | API tests for data/logic, E2E for critical paths only |
+| Component tests mocking everything | Tests pass but app broken because mocks drift | Mock only external boundaries; API tests verify real contracts |
+| Same assertion in API, component, AND E2E | Triple maintenance cost | Each layer tests what it uniquely verifies |
+| E2E creating test data via UI | 2-minute test where 90 seconds is setup | Seed via API in `beforeEach`, test actual flow |
+| Testing third-party behavior | Testing that Stripe validates cards (Stripe's job) | Mock Stripe; trust their contract |
+| Skipping API layer | Can't tell if bug is frontend or backend | API tests isolate backend; component tests isolate frontend |
+| One giant E2E for entire feature | 5-minute test failing somewhere with no clear cause | Focused E2E per critical path; use `test.step()` |
 
 ## Related
 

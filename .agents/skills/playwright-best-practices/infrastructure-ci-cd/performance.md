@@ -216,11 +216,11 @@ test.fixme("broken feature", async ({ page }) => {
 test.beforeEach(async ({ page }) => {
   // Mock slow/heavy endpoints
   await page.route("**/api/analytics", (route) =>
-    route.fulfill({ json: { views: 1000 } }),
+    route.fulfill({ json: { views: 1000 } })
   );
 
   await page.route("**/api/recommendations", (route) =>
-    route.fulfill({ json: [] }),
+    route.fulfill({ json: [] })
   );
 });
 ```
@@ -428,7 +428,7 @@ test("lighthouse audit", async ({ page }) => {
   });
 
   expect(audit.lhr.categories.performance.score * 100).toBeGreaterThanOrEqual(
-    80,
+    80
   );
 });
 ```

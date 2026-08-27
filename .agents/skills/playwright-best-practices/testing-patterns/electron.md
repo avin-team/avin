@@ -397,7 +397,7 @@ test("application menu", async ({ electronApp }) => {
     const menu = Menu.getApplicationMenu();
     const fileMenu = menu?.items.find((item) => item.label === "File");
     const newItem = fileMenu?.submenu?.items.find(
-      (item) => item.label === "New",
+      (item) => item.label === "New"
     );
     newItem?.click();
   });
@@ -477,7 +477,7 @@ export const test = base.extend({
         "MyApp.app",
         "Contents",
         "MacOS",
-        "MyApp",
+        "MyApp"
       );
     } else if (process.platform === "win32") {
       executablePath = path.join(distPath, "win-unpacked", "MyApp.exe");
@@ -494,13 +494,13 @@ export const test = base.extend({
 
 ## Anti-Patterns to Avoid
 
-| Anti-Pattern                          | Problem                      | Solution                                     |
-| ------------------------------------- | ---------------------------- | -------------------------------------------- |
-| Not closing ElectronApplication       | Resource leaks               | Always call `electronApp.close()` in cleanup |
-| Hardcoded executable paths            | Breaks cross-platform        | Use platform detection                       |
-| Testing packaged app without building | Outdated code                | Build before testing or test dev mode        |
-| Ignoring IPC in tests                 | Missing coverage             | Test IPC communication explicitly            |
-| Not mocking native dialogs            | Tests hang waiting for input | Mock dialog responses                        |
+| Anti-Pattern | Problem | Solution |
+| --- | --- | --- |
+| Not closing ElectronApplication | Resource leaks | Always call `electronApp.close()` in cleanup |
+| Hardcoded executable paths | Breaks cross-platform | Use platform detection |
+| Testing packaged app without building | Outdated code | Build before testing or test dev mode |
+| Ignoring IPC in tests | Missing coverage | Test IPC communication explicitly |
+| Not mocking native dialogs | Tests hang waiting for input | Mock dialog responses |
 
 ## Related References
 

@@ -269,27 +269,27 @@ test.describe(
 
 ## Common Tag Categories
 
-| Category        | Tags                                          | Purpose                       |
-| --------------- | --------------------------------------------- | ----------------------------- |
-| **Speed**       | `@fast`, `@slow`                              | Execution time classification |
-| **Priority**    | `@critical`, `@p0`, `@p1`, `@p2`              | Business importance           |
-| **Type**        | `@smoke`, `@regression`, `@e2e`               | Test suite categorization     |
-| **Feature**     | `@auth`, `@payments`, `@settings`             | Feature area grouping         |
-| **Pipeline**    | `@pr`, `@nightly`, `@release`                 | CI/CD execution timing        |
-| **Status**      | `@flaky`, `@wip`, `@quarantine`               | Test health tracking          |
-| **Environment** | `@local`, `@staging`, `@prod`                 | Target environment            |
-| **Team**        | `@team-frontend`, `@team-backend`, `@team-qa` | Team assignment               |
+| Category | Tags | Purpose |
+| --- | --- | --- |
+| **Speed** | `@fast`, `@slow` | Execution time classification |
+| **Priority** | `@critical`, `@p0`, `@p1`, `@p2` | Business importance |
+| **Type** | `@smoke`, `@regression`, `@e2e` | Test suite categorization |
+| **Feature** | `@auth`, `@payments`, `@settings` | Feature area grouping |
+| **Pipeline** | `@pr`, `@nightly`, `@release` | CI/CD execution timing |
+| **Status** | `@flaky`, `@wip`, `@quarantine` | Test health tracking |
+| **Environment** | `@local`, `@staging`, `@prod` | Target environment |
+| **Team** | `@team-frontend`, `@team-backend`, `@team-qa` | Team assignment |
 
 ## Anti-Patterns to Avoid
 
-| Anti-Pattern             | Problem                  | Solution                                       |
-| ------------------------ | ------------------------ | ---------------------------------------------- |
-| Too many tags per test   | Hard to maintain         | Limit to 2-3 relevant tags                     |
-| Inconsistent naming      | Confusing filtering      | Establish naming conventions                   |
-| Missing `@` prefix       | Tags won't match filters | Always prefix with `@`                         |
-| Overlapping tag meanings | Ambiguous categorization | Define clear tag semantics                     |
-| Not using tags           | Can't selectively run    | Tag by type, priority, or feature              |
-| Tags in test title       | Hard to parse/filter     | Use the details object for tags, not the title |
+| Anti-Pattern | Problem | Solution |
+| --- | --- | --- |
+| Too many tags per test | Hard to maintain | Limit to 2-3 relevant tags |
+| Inconsistent naming | Confusing filtering | Establish naming conventions |
+| Missing `@` prefix | Tags won't match filters | Always prefix with `@` |
+| Overlapping tag meanings | Ambiguous categorization | Define clear tag semantics |
+| Not using tags | Can't selectively run | Tag by type, priority, or feature |
+| Tags in test title | Hard to parse/filter | Use the details object for tags, not the title |
 
 ## Related References
 

@@ -230,7 +230,7 @@ await page.waitForFunction(() => {
 // With arguments
 await page.waitForFunction(
   (selector) => document.querySelector(selector)?.textContent === "Ready",
-  ".status",
+  ".status"
 );
 ```
 
@@ -268,7 +268,7 @@ await expect
     {
       intervals: [1000, 2000, 5000],
       timeout: 30000,
-    },
+    }
   )
   .toBe("completed");
 
@@ -348,11 +348,11 @@ await expect(page.getByRole("button")).toBeVisible({ timeout: 10000 });
 
 ## Anti-Patterns to Avoid
 
-| Anti-Pattern                                              | Problem                       | Solution                                     |
-| --------------------------------------------------------- | ----------------------------- | -------------------------------------------- |
-| `await page.waitForTimeout(5000)`                         | Slow, flaky, arbitrary timing | Use auto-waiting or `waitForResponse`        |
-| `await new Promise(resolve => setTimeout(resolve, 1000))` | Same as above                 | Use `waitForResponse` or element state waits |
-| Generic assertions on DOM elements                        | No auto-retry, flaky          | Use web-first assertions with `expect()`     |
+| Anti-Pattern | Problem | Solution |
+| --- | --- | --- |
+| `await page.waitForTimeout(5000)` | Slow, flaky, arbitrary timing | Use auto-waiting or `waitForResponse` |
+| `await new Promise(resolve => setTimeout(resolve, 1000))` | Same as above | Use `waitForResponse` or element state waits |
+| Generic assertions on DOM elements | No auto-retry, flaky | Use web-first assertions with `expect()` |
 
 ## Related References
 

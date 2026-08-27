@@ -73,8 +73,7 @@ e2e:
 
 ### Sharded Parallel Execution
 
-**Use when**: Test suite exceeds 10 minutes. GitLab's `parallel` keyword splits across jobs automatically.
-**Avoid when**: Suite runs under 5 minutes.
+**Use when**: Test suite exceeds 10 minutes. GitLab's `parallel` keyword splits across jobs automatically. **Avoid when**: Suite runs under 5 minutes.
 
 ```yaml
 image: mcr.microsoft.com/playwright:v1.48.0-noble
@@ -180,8 +179,7 @@ e2e:staging:
       allow_failure: true
 ```
 
-**Setting variables in GitLab:**
-Navigate to **Settings > CI/CD > Variables** and add:
+**Setting variables in GitLab:** Navigate to **Settings > CI/CD > Variables** and add:
 
 - `STAGING_URL` -- not masked, not protected
 - `TEST_PASSWORD` -- masked, protected
@@ -306,26 +304,26 @@ Set up the schedule in **CI/CD > Schedules**: `0 3 * * 1-5` (3 AM UTC, weekdays)
 
 ## Decision Guide
 
-| Scenario                             | Approach                                               | Why                                                 |
-| ------------------------------------ | ------------------------------------------------------ | --------------------------------------------------- |
-| Simple project, < 5 min suite        | Single `test` job using Playwright Docker image        | No sharding overhead; artifacts capture report      |
-| Suite > 10 min                       | `parallel: N` with `--shard`                           | GitLab auto-assigns `CI_NODE_INDEX`/`CI_NODE_TOTAL` |
-| Merge request fast feedback          | Chromium only on MRs; all browsers on main             | 3x fewer pipeline minutes on MRs                    |
-| External services needed (DB, Redis) | `services:` keyword with Postgres/Redis images         | GitLab manages service lifecycle                    |
-| Secrets for staging environment      | GitLab CI/CD Variables (masked + protected)            | Never hardcode secrets in `.gitlab-ci.yml`          |
-| Full nightly regression              | Pipeline schedule (`CI_PIPELINE_SOURCE == "schedule"`) | Avoids blocking MR pipelines                        |
-| Report browsing                      | `artifacts:` with `paths: [playwright-report/]`        | Browse directly in GitLab job artifacts UI          |
+| Scenario | Approach | Why |
+| --- | --- | --- |
+| Simple project, < 5 min suite | Single `test` job using Playwright Docker image | No sharding overhead; artifacts capture report |
+| Suite > 10 min | `parallel: N` with `--shard` | GitLab auto-assigns `CI_NODE_INDEX`/`CI_NODE_TOTAL` |
+| Merge request fast feedback | Chromium only on MRs; all browsers on main | 3x fewer pipeline minutes on MRs |
+| External services needed (DB, Redis) | `services:` keyword with Postgres/Redis images | GitLab manages service lifecycle |
+| Secrets for staging environment | GitLab CI/CD Variables (masked + protected) | Never hardcode secrets in `.gitlab-ci.yml` |
+| Full nightly regression | Pipeline schedule (`CI_PIPELINE_SOURCE == "schedule"`) | Avoids blocking MR pipelines |
+| Report browsing | `artifacts:` with `paths: [playwright-report/]` | Browse directly in GitLab job artifacts UI |
 
 ## Anti-Patterns
 
-| Anti-Pattern                                         | Problem                                                            | Do This Instead                                                           |
-| ---------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------- |
-| Not using the Playwright Docker image                | Installing browsers every run adds 1-2 minutes                     | Use `mcr.microsoft.com/playwright:v1.48.0-noble` as base image                   |
-| `artifacts: when: on_failure` only                   | No report when tests pass; can't verify results                    | Use `when: always` to capture reports regardless                          |
-| No `expire_in` on artifacts                          | Artifacts accumulate and consume storage                           | Set `expire_in: 14 days` for reports, `1 hour` for intermediate artifacts |
-| Hardcoding `CI_NODE_TOTAL` in shard flag             | Breaks when you change `parallel:` value                           | Use `--shard=$CI_NODE_INDEX/$CI_NODE_TOTAL`                               |
-| Skipping `needs:` between stages                     | Jobs wait for all previous stage jobs, not just their dependencies | Use `needs:` for precise dependency graphs                                |
-| Large `cache:` including `node_modules/` without key | Stale cache causes version conflicts                               | Key cache on `package-lock.json` hash                                     |
+| Anti-Pattern | Problem | Do This Instead |
+| --- | --- | --- |
+| Not using the Playwright Docker image | Installing browsers every run adds 1-2 minutes | Use `mcr.microsoft.com/playwright:v1.48.0-noble` as base image |
+| `artifacts: when: on_failure` only | No report when tests pass; can't verify results | Use `when: always` to capture reports regardless |
+| No `expire_in` on artifacts | Artifacts accumulate and consume storage | Set `expire_in: 14 days` for reports, `1 hour` for intermediate artifacts |
+| Hardcoding `CI_NODE_TOTAL` in shard flag | Breaks when you change `parallel:` value | Use `--shard=$CI_NODE_INDEX/$CI_NODE_TOTAL` |
+| Skipping `needs:` between stages | Jobs wait for all previous stage jobs, not just their dependencies | Use `needs:` for precise dependency graphs |
+| Large `cache:` including `node_modules/` without key | Stale cache causes version conflicts | Key cache on `package-lock.json` hash |
 
 ## Troubleshooting
 

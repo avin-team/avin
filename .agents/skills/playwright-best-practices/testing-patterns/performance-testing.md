@@ -105,7 +105,7 @@ test("page load performance", async ({ page }) => {
 
   const timing = await page.evaluate(() => {
     const nav = performance.getEntriesByType(
-      "navigation",
+      "navigation"
     )[0] as PerformanceNavigationTiming;
 
     return {
@@ -242,7 +242,7 @@ test("homepage meets performance budget", async ({ page }) => {
   // Measure resources
   const resources = await page.evaluate(() => {
     const entries = performance.getEntriesByType(
-      "resource",
+      "resource"
     ) as PerformanceResourceTiming[];
     return {
       totalSize: entries.reduce((sum, e) => sum + (e.transferSize || 0), 0),
@@ -256,13 +256,13 @@ test("homepage meets performance budget", async ({ page }) => {
   // Assert budgets
   expect(lcp, "LCP exceeds budget").toBeLessThan(budget.lcp);
   expect(resources.totalSize, "Total size exceeds budget").toBeLessThan(
-    budget.totalSize,
+    budget.totalSize
   );
   expect(resources.jsSize, "JS size exceeds budget").toBeLessThan(
-    budget.jsSize,
+    budget.jsSize
   );
   expect(resources.imageCount, "Too many images").toBeLessThanOrEqual(
-    budget.imageCount,
+    budget.imageCount
   );
 });
 ```
@@ -287,17 +287,17 @@ export const test = base.extend<PerformanceFixtures>({
     await use(async (budget) => {
       const metrics = await page.evaluate(() => {
         const nav = performance.getEntriesByType(
-          "navigation",
+          "navigation"
         )[0] as PerformanceNavigationTiming;
         const resources = performance.getEntriesByType(
-          "resource",
+          "resource"
         ) as PerformanceResourceTiming[];
 
         return {
           ttfb: nav.responseStart - nav.requestStart,
           totalSize: resources.reduce(
             (sum, r) => sum + (r.transferSize || 0),
-            0,
+            0
           ),
         };
       });
@@ -305,13 +305,13 @@ export const test = base.extend<PerformanceFixtures>({
       if (budget.ttfb) {
         expect(
           metrics.ttfb,
-          `TTFB ${metrics.ttfb}ms exceeds budget ${budget.ttfb}ms`,
+          `TTFB ${metrics.ttfb}ms exceeds budget ${budget.ttfb}ms`
         ).toBeLessThan(budget.ttfb);
       }
 
       if (budget.totalSize) {
         expect(metrics.totalSize, `Total size exceeds budget`).toBeLessThan(
-          budget.totalSize,
+          budget.totalSize
         );
       }
     });
@@ -347,10 +347,10 @@ test("lighthouse audit", async ({ page }) => {
 
   // Assertions
   expect(audit.lhr.categories.performance.score * 100).toBeGreaterThanOrEqual(
-    80,
+    80
   );
   expect(audit.lhr.categories.accessibility.score * 100).toBeGreaterThanOrEqual(
-    90,
+    90
   );
 });
 ```
@@ -405,7 +405,7 @@ class PerfReporter implements Reporter {
 
   onTestEnd(test: any, result: TestResult) {
     const perfAnnotation = test.annotations.find(
-      (a: any) => a.type === "performance",
+      (a: any) => a.type === "performance"
     );
 
     if (perfAnnotation) {
@@ -443,7 +443,7 @@ test("no performance regression", async ({ page }) => {
 
   const metrics = await page.evaluate(() => {
     const nav = performance.getEntriesByType(
-      "navigation",
+      "navigation"
     )[0] as PerformanceNavigationTiming;
     return {
       loadTime: nav.loadEventEnd - nav.startTime,
@@ -456,19 +456,19 @@ test("no performance regression", async ({ page }) => {
 
   expect(
     metrics.loadTime,
-    `Load time ${metrics.loadTime}ms is ${((metrics.loadTime / baseline - 1) * 100).toFixed(1)}% slower than baseline`,
+    `Load time ${metrics.loadTime}ms is ${((metrics.loadTime / baseline - 1) * 100).toFixed(1)}% slower than baseline`
   ).toBeLessThan(baseline * threshold);
 });
 ```
 
 ## Anti-Patterns to Avoid
 
-| Anti-Pattern                | Problem                   | Solution                         |
-| --------------------------- | ------------------------- | -------------------------------- |
-| Testing only once           | Results vary              | Run multiple times, use averages |
-| Ignoring network conditions | Unrealistic results       | Test with throttling             |
-| No baseline comparison      | Can't detect regressions  | Track metrics over time          |
-| Testing in dev mode         | Slow, not production-like | Test production builds           |
+| Anti-Pattern | Problem | Solution |
+| --- | --- | --- |
+| Testing only once | Results vary | Run multiple times, use averages |
+| Ignoring network conditions | Unrealistic results | Test with throttling |
+| No baseline comparison | Can't detect regressions | Track metrics over time |
+| Testing in dev mode | Slow, not production-like | Test production builds |
 
 ## Related References
 

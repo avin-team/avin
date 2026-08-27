@@ -377,7 +377,7 @@ test("handles push notification", async ({ context, page }) => {
     // Dispatch push event
     const pushEvent = new PushEvent("push", {
       data: new PushMessageData(
-        JSON.stringify({ title: "Test", body: "Push message" }),
+        JSON.stringify({ title: "Test", body: "Push message" })
       ),
     });
     self.dispatchEvent(pushEvent);
@@ -418,7 +418,7 @@ test("notification click opens page", async ({ context, page }) => {
     self.dispatchEvent(
       new NotificationEvent("notificationclick", {
         notification: { data: { url: "/notification-target" } } as any,
-      }),
+      })
     );
   });
 
@@ -488,13 +488,13 @@ test("sync event fires when online", async ({ context, page }) => {
 
 ## Anti-Patterns to Avoid
 
-| Anti-Pattern                   | Problem                 | Solution                                     |
-| ------------------------------ | ----------------------- | -------------------------------------------- |
-| Not clearing SW between tests  | Tests affect each other | Unregister SW in beforeEach                  |
-| Not waiting for SW ready       | Race conditions         | Always await `navigator.serviceWorker.ready` |
-| Testing in isolation only      | Misses real SW behavior | Test with actual caching                     |
-| Hardcoded timeouts for caching | Flaky tests             | Wait for cache to populate                   |
-| Ignoring SW update cycle       | Missing update bugs     | Test install, activate, update flows         |
+| Anti-Pattern | Problem | Solution |
+| --- | --- | --- |
+| Not clearing SW between tests | Tests affect each other | Unregister SW in beforeEach |
+| Not waiting for SW ready | Race conditions | Always await `navigator.serviceWorker.ready` |
+| Testing in isolation only | Misses real SW behavior | Test with actual caching |
+| Hardcoded timeouts for caching | Flaky tests | Wait for cache to populate |
+| Ignoring SW update cycle | Missing update bugs | Test install, activate, update flows |
 
 ## Related References
 

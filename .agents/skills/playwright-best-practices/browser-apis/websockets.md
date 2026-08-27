@@ -88,7 +88,7 @@ test("displays incoming chat message", async ({ page }) => {
 
   // Wait for WebSocket to be ready
   await page.waitForFunction(
-    () => (window as any).chatSocket?.readyState === 1,
+    () => (window as any).chatSocket?.readyState === 1
   );
 
   // Simulate incoming message
@@ -210,7 +210,7 @@ test("chat with mocked websocket", async ({ page, mockWebSocket }) => {
   // Verify sent message
   const sent = await mockWebSocket.getSentMessages();
   expect(sent).toContainEqual(
-    expect.objectContaining({ content: "Hello Bob!" }),
+    expect.objectContaining({ content: "Hello Bob!" })
   );
 });
 ```
@@ -389,12 +389,12 @@ test("reconnects after connection loss", async ({ page }) => {
 
 ## Anti-Patterns to Avoid
 
-| Anti-Pattern                          | Problem                       | Solution                           |
-| ------------------------------------- | ----------------------------- | ---------------------------------- |
-| Not waiting for WebSocket ready       | Messages sent too early       | Wait for `readyState === 1`        |
-| Testing against real WebSocket server | Flaky, timing-dependent       | Mock WebSocket messages            |
-| Ignoring connection state             | Tests pass but feature broken | Test connected/disconnected states |
-| No cleanup of listeners               | Memory leaks in tests         | Clean up event listeners           |
+| Anti-Pattern | Problem | Solution |
+| --- | --- | --- |
+| Not waiting for WebSocket ready | Messages sent too early | Wait for `readyState === 1` |
+| Testing against real WebSocket server | Flaky, timing-dependent | Mock WebSocket messages |
+| Ignoring connection state | Tests pass but feature broken | Test connected/disconnected states |
+| No cleanup of listeners | Memory leaks in tests | Clean up event listeners |
 
 ## Related References
 

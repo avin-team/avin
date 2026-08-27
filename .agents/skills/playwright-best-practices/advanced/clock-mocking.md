@@ -89,7 +89,7 @@ test("shows relative time correctly", async ({ page }) => {
         title: "Test Post",
         createdAt: "2025-06-15T12:00:00Z", // 2 hours before mock time
       },
-    }),
+    })
   );
 
   await page.goto("/posts/1");
@@ -351,12 +351,12 @@ await page.clock.install({ time: new Date("2025-01-15T09:00:00") });
 
 ## Anti-Patterns to Avoid
 
-| Anti-Pattern                             | Problem                         | Solution                               |
-| ---------------------------------------- | ------------------------------- | -------------------------------------- |
-| Installing clock after navigation        | Page already captured real time | Install clock before `goto()`          |
-| Hardcoded relative dates                 | Tests break over time           | Use fixed dates with clock mock        |
-| Not accounting for timezone              | Tests fail in different regions | Use explicit UTC times or set timezone |
-| Using `waitForTimeout` with mocked clock | Conflicts with mocked timers    | Use `fastForward` instead              |
+| Anti-Pattern | Problem | Solution |
+| --- | --- | --- |
+| Installing clock after navigation | Page already captured real time | Install clock before `goto()` |
+| Hardcoded relative dates | Tests break over time | Use fixed dates with clock mock |
+| Not accounting for timezone | Tests fail in different regions | Use explicit UTC times or set timezone |
+| Using `waitForTimeout` with mocked clock | Conflicts with mocked timers | Use `fastForward` instead |
 
 ## Related References
 
