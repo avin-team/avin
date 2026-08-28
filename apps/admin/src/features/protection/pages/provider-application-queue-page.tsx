@@ -157,6 +157,7 @@ export const ProviderApplicationQueuePage = () => {
                       </TableCell>
                       <TableCell className="text-end">
                         <Button
+                          data-testid="provider-application-review"
                           render={
                             <Link
                               params={{ applicationId: application.id }}

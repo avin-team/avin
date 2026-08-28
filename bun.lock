@@ -163,6 +163,7 @@
       "name": "@avin/e2e",
       "version": "0.0.0",
       "dependencies": {
+        "@avin/api": "workspace:*",
         "@avin/auth": "workspace:*",
         "@avin/db": "workspace:*",
         "dotenv": "catalog:",

@@ -630,7 +630,10 @@ const ProviderApplicationPendingReviewPanel = ({
 
   return (
     <div className="space-y-6">
-      <article className="rounded-3xl border border-amber-500/40 bg-linear-to-br from-amber-500/10 via-amber-500/5 to-transparent p-6 shadow-sm sm:p-8">
+      <article
+        className="rounded-3xl border border-amber-500/40 bg-linear-to-br from-amber-500/10 via-amber-500/5 to-transparent p-6 shadow-sm sm:p-8"
+        data-testid="provider-application-pending-review"
+      >
         <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
           <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-500">
             <Clock className="size-7" />
@@ -740,7 +743,10 @@ const InactiveOrApprovedWorkspaceContent = ({
     ) : null}
 
     {applicationStatus === "APPROVED" && workspaceData.publicProfile ? (
-      <article className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-6 shadow-sm">
+      <article
+        className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-6 shadow-sm"
+        data-testid="provider-profile-approved"
+      >
         <h2 className="font-semibold text-xl">Hồ sơ công khai đã phát hành</h2>
         <p className="mt-2 text-muted-foreground text-sm">
           Phiên bản hiện tại: {workspaceData.publicProfile.versionNumber} ·{" "}

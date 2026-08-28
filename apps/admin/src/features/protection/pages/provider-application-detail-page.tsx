@@ -242,7 +242,7 @@ const ProviderDecisionPanel = ({
   };
 
   return (
-    <Card className="h-fit">
+    <Card className="h-fit" data-testid="provider-decision-panel">
       <CardHeader>
         <CardTitle>Quyết định Reviewer</CardTitle>
         <CardDescription>
@@ -254,7 +254,10 @@ const ProviderDecisionPanel = ({
       <CardContent className="grid gap-3">
         {canDecide ? (
           <>
-            <Button onClick={() => chooseDecision("APPROVED")}>
+            <Button
+              data-testid="provider-approve-button"
+              onClick={() => chooseDecision("APPROVED")}
+            >
               <ShieldCheckIcon />
               Phê duyệt & phát hành
             </Button>
@@ -300,6 +303,7 @@ const ProviderDecisionPanel = ({
                 Hủy
               </Button>
               <Button
+                data-testid="provider-confirm-decision"
                 disabled={
                   decideMutation.isPending ||
                   (requiresReason && reason.trim().length === 0)
@@ -392,7 +396,10 @@ export const ProviderApplicationDetailPage = () => {
         </div>
 
         {publicProfile ? (
-          <Card className="border-emerald-500/30 bg-emerald-500/5">
+          <Card
+            className="border-emerald-500/30 bg-emerald-500/5"
+            data-testid="provider-public-profile-published"
+          >
             <CardHeader>
               <CardTitle>Profile public đã phát hành</CardTitle>
               <CardDescription>

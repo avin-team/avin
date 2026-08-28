@@ -6,6 +6,7 @@ import { AUTH_STATE_PATHS } from "./src/support/auth-state";
 import {
   resolveAdminTestAccount,
   resolveE2EEnvironment,
+  resolveProviderTestAccount,
   resolveSellerTestAccount,
   resolveStorefrontTestAccount,
 } from "./src/support/environment";
@@ -22,6 +23,9 @@ const storefrontAccount = environment.isProduction
 const adminAccount = environment.isProduction
   ? null
   : resolveAdminTestAccount();
+const providerAccount = environment.isProduction
+  ? null
+  : resolveProviderTestAccount();
 const sellerAccount = environment.isProduction
   ? null
   : resolveSellerTestAccount();
@@ -102,6 +106,31 @@ if (sellerAccount && !environment.isProduction) {
         ...devices["Desktop Chrome"],
         baseURL: environment.webBaseURL,
         storageState: AUTH_STATE_PATHS.seller,
+      },
+    }
+  );
+}
+
+if (providerAccount && !environment.isProduction) {
+  projects.push(
+    {
+      name: "provider-auth-setup",
+      testDir: "./src/setup",
+      testMatch: /provider\.setup\.ts/u,
+      use: {
+        baseURL: environment.apiBaseURL,
+        extraHTTPHeaders: { origin: environment.webBaseURL },
+      },
+    },
+    {
+      dependencies: ["provider-auth-setup"],
+      name: "provider-authenticated",
+      testDir: "./src/tests/provider",
+      testMatch: /.*\.authenticated\.spec\.ts/u,
+      use: {
+        ...devices["Desktop Chrome"],
+        baseURL: environment.webBaseURL,
+        storageState: AUTH_STATE_PATHS.provider,
       },
     }
   );

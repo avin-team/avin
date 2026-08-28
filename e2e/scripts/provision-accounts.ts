@@ -15,6 +15,7 @@ const SERVER_ENVIRONMENT_URL = new URL(
 const LOCAL_DATABASE_HOSTS = new Set(["127.0.0.1", "::1", "localhost"]);
 const STOREFRONT_EMAIL = "e2e-buyer@avin.test";
 const SELLER_EMAIL = "e2e-seller@avin.test";
+const PROVIDER_EMAIL = "e2e-provider@avin.test";
 const ADMIN_EMAIL = "e2e-admin@avin.test";
 const SELLER_STORE_SLUG = "avin-e2e-store";
 const SELLER_AGREEMENT_VERSION = "v1.0";
@@ -122,9 +123,12 @@ const localEnvironment = await readLocalEnvironment();
 const storefrontPassword =
   localEnvironment.E2E_USER_PASSWORD || createPassword();
 const sellerPassword = localEnvironment.E2E_SELLER_PASSWORD || createPassword();
+let providerPassword =
+  localEnvironment.E2E_PROVIDER_PASSWORD || createPassword();
 const adminPassword = localEnvironment.E2E_ADMIN_PASSWORD || createPassword();
 const storefrontEmail = localEnvironment.E2E_USER_EMAIL || STOREFRONT_EMAIL;
 const sellerEmail = localEnvironment.E2E_SELLER_EMAIL || SELLER_EMAIL;
+let providerEmail = localEnvironment.E2E_PROVIDER_EMAIL || PROVIDER_EMAIL;
 const adminEmail = localEnvironment.E2E_ADMIN_EMAIL || ADMIN_EMAIL;
 
 localEnvironment.E2E_TARGET = "local";
@@ -132,9 +136,15 @@ localEnvironment.E2E_USER_EMAIL = storefrontEmail;
 localEnvironment.E2E_USER_PASSWORD = storefrontPassword;
 localEnvironment.E2E_SELLER_EMAIL = sellerEmail;
 localEnvironment.E2E_SELLER_PASSWORD = sellerPassword;
+localEnvironment.E2E_PROVIDER_EMAIL = providerEmail;
+localEnvironment.E2E_PROVIDER_PASSWORD = providerPassword;
 localEnvironment.E2E_ADMIN_EMAIL = adminEmail;
 localEnvironment.E2E_ADMIN_PASSWORD = adminPassword;
 localEnvironment.E2E_ADMIN_TOTP_SECRET ||= "";
+localEnvironment.E2E_SEPAY_BANK_ACCOUNT ||=
+  process.env.SEPAY_BANK_ACCOUNT || "";
+localEnvironment.E2E_SEPAY_WEBHOOK_SECRET ||=
+  process.env.SEPAY_WEBHOOK_SECRET || "";
 
 await persistLocalEnvironment(localEnvironment);
 
@@ -145,6 +155,8 @@ const [{ auth, adminAuth }, { db }, authSchema, drizzle] = await Promise.all([
   import("drizzle-orm"),
 ]);
 const { protectionAdminAssignment, user } = authSchema;
+const { protectionProviderApplication } =
+  await import("@avin/db/schema/protection");
 const { sellerApplication, sellerProfile } =
   await import("@avin/db/schema/seller");
 const { eq } = drizzle;
@@ -152,6 +164,27 @@ const authContext = await auth.$context;
 
 const findUserByEmail = (email: string) =>
   db.query.user.findFirst({ where: eq(user.email, email) });
+
+const existingProviderUser = await findUserByEmail(providerEmail);
+const existingProviderApplication = existingProviderUser
+  ? await db.query.protectionProviderApplication.findFirst({
+      where: eq(
+        protectionProviderApplication.providerUserId,
+        existingProviderUser.id
+      ),
+    })
+  : undefined;
+
+if (
+  existingProviderApplication &&
+  !["DRAFT", "CHANGES_REQUESTED"].includes(existingProviderApplication.status)
+) {
+  providerEmail = `e2e-provider-${Date.now()}@avin.test`;
+  providerPassword = createPassword();
+  localEnvironment.E2E_PROVIDER_EMAIL = providerEmail;
+  localEnvironment.E2E_PROVIDER_PASSWORD = providerPassword;
+  await persistLocalEnvironment(localEnvironment);
+}
 
 const ensureUser = async ({
   email,
@@ -303,6 +336,13 @@ const sellerAccount = await ensureUser({
 });
 await ensureSellerWorkspace(sellerAccount.user.id);
 
+const providerAccount = await ensureUser({
+  email: providerEmail,
+  name: "Avin E2E Provider",
+  password: providerPassword,
+  role: "BUYER",
+});
+
 await auth.api.signInEmail({
   body: {
     email: storefrontEmail,
@@ -380,6 +420,7 @@ process.stdout.write(
   `${[
     `Storefront account: ${storefrontEmail} (${storefrontAccount.created ? "created" : "reused"})`,
     `Seller account: ${sellerEmail} (${sellerAccount.created ? "created" : "reused"}, approved workspace)`,
+    `Provider account: ${providerEmail} (${providerAccount.created ? "created" : "reused"})`,
     `Admin account: ${adminEmail} (${adminAccount.created ? "created" : "reused"}, 2FA verified)`,
     "Credentials saved to e2e/.env.local.",
   ].join("\n")}\n`

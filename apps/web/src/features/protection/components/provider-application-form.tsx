@@ -495,7 +495,10 @@ const ProviderDepositPanel = ({
     }
   };
   return (
-    <div className="mx-auto w-full max-w-3xl rounded-3xl border border-primary/30 bg-primary/5 p-6 shadow-sm">
+    <div
+      className="mx-auto w-full max-w-3xl rounded-3xl border border-primary/30 bg-primary/5 p-6 shadow-sm"
+      data-testid="provider-deposit-panel"
+    >
       <div className="flex items-center gap-2 font-bold text-base text-foreground">
         <QrCode aria-hidden="true" className="size-5 text-primary" />
         Chuyển khoản và chờ đối soát
@@ -525,6 +528,7 @@ const ProviderDepositPanel = ({
           </p>
           <button
             className="mt-1.5 inline-flex items-center gap-1.5 font-mono font-bold text-primary text-sm hover:underline"
+            data-testid="provider-payment-code"
             onClick={copyCode}
             type="button"
           >
@@ -542,6 +546,7 @@ const ProviderDepositPanel = ({
         <div className="mt-5 border-border/60 border-t pt-4">
           <Button
             className="text-xs"
+            data-testid="provider-edit-form"
             onClick={onEditForm}
             size="sm"
             type="button"
@@ -820,7 +825,11 @@ const ProviderApplicationFormContent = ({
   }
 
   return (
-    <form className="space-y-6" onSubmit={handleSubmit}>
+    <form
+      className="space-y-6"
+      data-testid="provider-application-form"
+      onSubmit={handleSubmit}
+    >
       <header className="flex w-full flex-wrap items-start justify-between gap-2 text-left">
         <div>
           <p className="font-medium text-primary text-sm">Avin Check</p>
@@ -1365,7 +1374,11 @@ const ProviderApplicationFormContent = ({
             >
               Quay lại
             </Button>
-            <Button disabled={isBusy || !canSubmit} type="submit">
+            <Button
+              data-testid="provider-submit-application"
+              disabled={isBusy || !canSubmit}
+              type="submit"
+            >
               {submitLabel}
             </Button>
           </div>

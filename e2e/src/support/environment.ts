@@ -122,6 +122,30 @@ export const resolveSellerTestAccount = (): PasswordTestAccount | null =>
     passwordName: "E2E_SELLER_PASSWORD",
   });
 
+export const resolveProviderTestAccount = (): PasswordTestAccount | null =>
+  resolvePasswordAccount({
+    email: process.env.E2E_PROVIDER_EMAIL,
+    emailName: "E2E_PROVIDER_EMAIL",
+    password: process.env.E2E_PROVIDER_PASSWORD,
+    passwordName: "E2E_PROVIDER_PASSWORD",
+  });
+
+export const resolveSePayTestConfiguration = (): {
+  receivingAccountNumber: string;
+  secret: string;
+} => {
+  const receivingAccountNumber = process.env.E2E_SEPAY_BANK_ACCOUNT?.trim();
+  const secret = process.env.E2E_SEPAY_WEBHOOK_SECRET?.trim();
+
+  if (!(receivingAccountNumber && secret)) {
+    throw new Error(
+      "E2E_SEPAY_BANK_ACCOUNT and E2E_SEPAY_WEBHOOK_SECRET are required for Provider payment E2E."
+    );
+  }
+
+  return { receivingAccountNumber, secret };
+};
+
 export const resolveAdminTestAccount = (): AdminTestAccount | null => {
   const passwordAccount = resolvePasswordAccount({
     email: process.env.E2E_ADMIN_EMAIL,
