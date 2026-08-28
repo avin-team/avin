@@ -18,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@avin/ui/components/dropdown-menu";
 import { Skeleton } from "@avin/ui/components/skeleton";
+import { cn } from "@avin/ui/lib/utils";
 import {
   WarningCircleIcon,
   ArrowSquareOutIcon,
@@ -38,12 +39,14 @@ import { orpc } from "@/utils/orpc";
 import { useSellerEnforcement } from "../api/seller-enforcement-api";
 import {
   formatSellerListingPrice,
+  formatSellerListingPriceSummary,
   getSellerListingActionLabel,
   getSellerListingStatusClass,
   getSellerListingStatusLabel,
   getSellerListingTypeLabel,
 } from "./store-products-logic";
 import type {
+  SellerListingPackageSummary,
   SellerListingStatus,
   SellerListingType,
 } from "./store-products-logic";
@@ -51,6 +54,7 @@ import type {
 interface SellerProductListItem {
   id: string;
   priceAmount: number | null;
+  servicePackages?: SellerListingPackageSummary[];
   slug: string | null;
   status: SellerListingStatus;
   title: string | null;
@@ -90,8 +94,34 @@ const ProductRow = ({
       </div>
       <p className="mt-1 text-xs text-muted-foreground">
         {getSellerListingTypeLabel(listing.type)} ·{" "}
-        {formatSellerListingPrice(listing.priceAmount)}
+        {formatSellerListingPriceSummary(
+          listing.type,
+          listing.priceAmount,
+          listing.servicePackages
+        )}
       </p>
+      {listing.type === "SERVICE" &&
+      listing.servicePackages &&
+      listing.servicePackages.length > 0 ? (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          {listing.servicePackages.map((pkg) => (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-lg border px-2 py-0.5 text-xs font-medium",
+                pkg.status === "AVAILABLE"
+                  ? "border-border/60 bg-muted/40 text-foreground"
+                  : "border-dashed border-border/40 bg-muted/20 text-muted-foreground opacity-60 line-through"
+              )}
+              key={pkg.id || pkg.name}
+            >
+              <span className="text-muted-foreground">{pkg.name}:</span>
+              <span className="font-semibold text-primary">
+                {formatSellerListingPrice(pkg.priceAmount)}
+              </span>
+            </span>
+          ))}
+        </div>
+      ) : null}
     </div>
     <div className="relative z-10 flex items-center gap-2">
       <Button onClick={onOpen} size="sm" variant="outline">

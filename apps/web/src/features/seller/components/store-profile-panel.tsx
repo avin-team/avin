@@ -209,8 +209,8 @@ const MediaProfileForm = ({
     <div>
       <h3 className="font-semibold">Hình ảnh gian hàng</h3>
       <p className="mt-1 text-sm text-muted-foreground">
-        Thêm ảnh đại diện bắt buộc và banner tùy chọn để khách nhận ra gian hàng
-        của bạn.
+        Thêm ảnh đại diện bắt buộc và ảnh bìa tùy chọn để khách nhận ra gian
+        hàng của bạn.
       </p>
     </div>
     <div className="grid gap-4 sm:grid-cols-[140px_minmax(0,1fr)]">
@@ -232,7 +232,7 @@ const MediaProfileForm = ({
           onBannerChange={onBannerChange}
           onUploadingChange={onUploadingChange}
         />
-        <p className="text-xs text-muted-foreground">Banner tùy chọn</p>
+        <p className="text-xs text-muted-foreground">Ảnh bìa tùy chọn</p>
       </div>
     </div>
   </div>
@@ -282,7 +282,7 @@ export const StorefrontPreviewCard = ({
         <div className="relative h-28 overflow-hidden bg-linear-to-br from-primary/30 via-primary/10 to-muted">
           {bannerUrl ? (
             <img
-              alt="Banner gian hàng"
+              alt="Ảnh bìa gian hàng"
               className="size-full object-cover"
               src={bannerUrl}
             />

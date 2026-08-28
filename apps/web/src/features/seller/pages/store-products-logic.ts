@@ -46,5 +46,41 @@ export const getSellerListingActionLabel = (
 export const getSellerListingTypeLabel = (type: SellerListingType): string =>
   type === "COURSE" ? "Khóa học" : "Dịch vụ";
 
+export interface SellerListingPackageSummary {
+  id?: string;
+  name: string;
+  priceAmount: number;
+  status: "AVAILABLE" | "UNAVAILABLE";
+}
+
 export const formatSellerListingPrice = (amount: number | null): string =>
   amount === null ? "Chưa đặt giá" : `${amount.toLocaleString("vi-VN")} ₫`;
+
+export const formatSellerListingPriceSummary = (
+  type: SellerListingType,
+  priceAmount: number | null,
+  packages?: readonly SellerListingPackageSummary[]
+): string => {
+  if (type === "COURSE") {
+    return formatSellerListingPrice(priceAmount);
+  }
+
+  if (!packages || packages.length === 0) {
+    return formatSellerListingPrice(priceAmount);
+  }
+
+  if (packages.length === 1) {
+    const [pkg] = packages;
+    return `${pkg.name}: ${formatSellerListingPrice(pkg.priceAmount)}`;
+  }
+
+  const prices = packages.map((pkg) => pkg.priceAmount);
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+
+  if (min === max) {
+    return `${packages.length} gói · ${formatSellerListingPrice(min)}`;
+  }
+
+  return `${packages.length} gói · ${formatSellerListingPrice(min)} – ${formatSellerListingPrice(max)}`;
+};

@@ -44,17 +44,17 @@ const getUploadErrorMessage = (error: unknown): string => {
     }
   }
 
-  return "Không thể tải banner lên. Vui lòng thử lại.";
+  return "Không thể tải ảnh bìa lên. Vui lòng thử lại.";
 };
 
 const getRejectionErrorMessage = (code: string | undefined): string => {
   if (code === "file-too-large") {
-    return "Banner phải có kích thước từ 5 MB trở xuống.";
+    return "Ảnh bìa phải có kích thước từ 5 MB trở xuống.";
   }
   if (code === "file-invalid-type") {
     return "Hãy chọn ảnh JPEG, PNG hoặc WebP.";
   }
-  return "Hãy chọn một ảnh banner hợp lệ.";
+  return "Hãy chọn một ảnh bìa hợp lệ.";
 };
 
 type FileRejectionList = Parameters<
@@ -119,7 +119,7 @@ export const SellerBannerUploader = ({
     accept: ACCEPTED_IMAGE_TYPES,
     disabled,
     error: errorMessage,
-    inputLabel: "Chọn banner gian hàng",
+    inputLabel: "Chọn ảnh bìa gian hàng",
     isUploading: upload.isPending,
     maxFiles: 1,
     maxSize: SELLER_BANNER_MAX_BYTES,
@@ -136,7 +136,7 @@ export const SellerBannerUploader = ({
           <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-muted/20 transition-colors group-hover:border-primary group-hover:bg-primary/5">
             <img
               alt={
-                fileName ? `Banner ${fileName}` : "Xem trước banner gian hàng"
+                fileName ? `Ảnh bìa ${fileName}` : "Xem trước ảnh bìa gian hàng"
               }
               className="aspect-[2.4/1] w-full object-cover"
               src={bannerUrl}
@@ -148,7 +148,7 @@ export const SellerBannerUploader = ({
             {upload.isPending ? (
               <div className="absolute inset-0 flex items-center justify-center bg-background/60">
                 <SpinnerIcon
-                  aria-label="Đang tải banner lên"
+                  aria-label="Đang tải ảnh bìa lên"
                   className="size-6 animate-spin text-primary"
                   data-icon="inline-start"
                 />
@@ -158,26 +158,26 @@ export const SellerBannerUploader = ({
           <FileDropzone
             {...dropzoneProps}
             className="sr-only"
-            label="Thay banner"
+            label="Thay ảnh bìa"
             renderTrigger={({ open }) => (
               <div className="pointer-events-none absolute right-2 top-2 z-10 flex gap-1 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100">
                 <Button
-                  aria-label="Thay banner"
+                  aria-label="Thay ảnh bìa"
                   disabled={isDisabled}
                   onClick={open}
                   size="icon-sm"
-                  title="Thay banner"
+                  title="Thay ảnh bìa"
                   type="button"
                   variant="secondary"
                 >
                   <ArrowClockwiseIcon data-icon="inline-start" />
                 </Button>
                 <Button
-                  aria-label="Xóa banner"
+                  aria-label="Xóa ảnh bìa"
                   disabled={isDisabled}
                   onClick={handleRemove}
                   size="icon-sm"
-                  title="Xóa banner"
+                  title="Xóa ảnh bìa"
                   type="button"
                   variant="secondary"
                 >
@@ -191,7 +191,7 @@ export const SellerBannerUploader = ({
         <FileDropzone
           {...dropzoneProps}
           className="aspect-[2.4/1] min-h-0 p-3"
-          label="Thêm banner"
+          label="Thêm ảnh bìa"
         />
       )}
     </div>

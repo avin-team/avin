@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from "@avin/ui/components/dialog";
 import { Label } from "@avin/ui/components/label";
+import { Spinner } from "@avin/ui/components/spinner";
 import { Textarea } from "@avin/ui/components/textarea";
 import { useState } from "react";
 
@@ -15,6 +16,7 @@ import type { SellerApplicationDecision } from "../types";
 
 interface ReviewDecisionDialogProps {
   readonly decision: SellerApplicationDecision | null;
+  readonly isPending?: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onConfirm: (reason?: string) => void;
 }
@@ -42,6 +44,7 @@ const DECISION_COPY: Record<
 
 export const ReviewDecisionDialog = ({
   decision,
+  isPending = false,
   onOpenChange,
   onConfirm,
 }: ReviewDecisionDialogProps) => {
@@ -73,6 +76,7 @@ export const ReviewDecisionDialog = ({
           <div className="grid gap-2 py-2">
             <Label htmlFor="review-reason">Lý do (Bắt buộc)</Label>
             <Textarea
+              disabled={isPending}
               id="review-reason"
               onChange={(event) => setReason(event.target.value)}
               placeholder="Giải thích chi tiết những thông tin cần bổ sung hoặc lý do từ chối..."
@@ -82,17 +86,23 @@ export const ReviewDecisionDialog = ({
           </div>
         )}
         <DialogFooter>
-          <Button onClick={() => onOpenChange(false)} variant="outline">
+          <Button
+            disabled={isPending}
+            onClick={() => onOpenChange(false)}
+            variant="outline"
+          >
             Hủy
           </Button>
           <Button
-            disabled={requiresReason && reason.trim().length === 0}
+            disabled={
+              isPending || (requiresReason && reason.trim().length === 0)
+            }
             onClick={() => {
               onConfirm(requiresReason ? reason : undefined);
-              setReason("");
             }}
             variant={decision === "REJECTED" ? "destructive" : "default"}
           >
+            {isPending && <Spinner data-icon="inline-start" />}
             Xác nhận
           </Button>
         </DialogFooter>

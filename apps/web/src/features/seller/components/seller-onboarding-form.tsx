@@ -163,12 +163,11 @@ const ApplicationStatusBanner = ({
           <CardTitle className="text-lg flex items-center gap-2">
             Trạng thái hồ sơ
             <Badge variant={getBadgeVariant(application.status)}>
-              {application.status === "PENDING_REVIEW" &&
-                "Đang chờ duyệt (PENDING_REVIEW)"}
-              {application.status === "APPROVED" && "Đã duyệt (APPROVED)"}
+              {application.status === "PENDING_REVIEW" && "Đang chờ duyệt"}
+              {application.status === "APPROVED" && "Đã duyệt"}
               {application.status === "CHANGES_REQUESTED" &&
-                "Yêu cầu chỉnh sửa (CHANGES_REQUESTED)"}
-              {application.status === "REJECTED" && "Từ chối (REJECTED)"}
+                "Yêu cầu chỉnh sửa"}
+              {application.status === "REJECTED" && "Từ chối"}
             </Badge>
           </CardTitle>
           {application.revisionCount > 0 && (
@@ -343,6 +342,450 @@ const getInitialOnboardingStep = (
   application: SellerApplicationData | null | undefined
 ): number => (application?.status ? 3 : 1);
 
+const validateStep1Input = (params: {
+  avatarUrl: string;
+  hasProfileAvatar: boolean;
+  hasProfilePhone: boolean;
+  phoneInput: string;
+  storefrontName: string;
+}): string | null => {
+  if (!params.avatarUrl.trim() && !params.hasProfileAvatar) {
+    return "Vui lòng tải lên ảnh đại diện / logo gian hàng";
+  }
+  if (!params.storefrontName.trim()) {
+    return "Vui lòng nhập tên gian hàng";
+  }
+  if (!params.phoneInput.trim() && !params.hasProfilePhone) {
+    return "Vui lòng nhập số điện thoại liên hệ";
+  }
+  return null;
+};
+
+const validateStep2Input = (params: {
+  accountName: string;
+  accountNumber: string;
+  agreementAccepted: boolean;
+  avatarUrl: string;
+  bankName: string;
+  hasProfile: boolean;
+  hasProfileAvatar: boolean;
+  hasProfilePhone: boolean;
+  phoneInput: string;
+  storefrontName: string;
+}): string | null => {
+  if (!params.avatarUrl.trim() && !params.hasProfileAvatar) {
+    return "Vui lòng tải lên ảnh đại diện / logo gian hàng ở Bước 1 trước";
+  }
+  if (!params.hasProfile && !params.storefrontName.trim()) {
+    return "Vui lòng hoàn tất thông tin gian hàng ở Bước 1 trước";
+  }
+  if (!params.phoneInput.trim() && !params.hasProfilePhone) {
+    return "Vui lòng nhập số điện thoại liên hệ ở Bước 1";
+  }
+  if (
+    !params.bankName.trim() ||
+    !params.accountNumber.trim() ||
+    !params.accountName.trim()
+  ) {
+    return "Vui lòng điền đầy đủ thông tin tài khoản ngân hàng";
+  }
+  if (!params.agreementAccepted) {
+    return "Bạn phải đồng ý với Điều khoản Người bán Avin";
+  }
+  return null;
+};
+
+const getStep1ButtonText = (
+  isApproved: boolean,
+  status: SellerApplicationStatus | string | undefined
+) => {
+  if (isApproved) {
+    return "Tiếp tục";
+  }
+  if (status) {
+    return "Cập nhật thông tin";
+  }
+  return "Lưu & Tiếp tục";
+};
+
+const getSubmitButtonText = (
+  isApproved: boolean,
+  status: SellerApplicationStatus | string | undefined
+) => {
+  if (isApproved) {
+    return "Xem kết quả";
+  }
+  if (status === "PENDING_REVIEW") {
+    return "Cập nhật thông tin";
+  }
+  if (status === "CHANGES_REQUESTED") {
+    return "Cập nhật & Nộp lại hồ sơ";
+  }
+  return "Nộp hồ sơ xét duyệt";
+};
+
+const StepIndicatorContent = ({
+  activeStep,
+  applicationStatus,
+  isStep1Completed,
+  isStep2Completed,
+  shouldReduceMotion,
+  stepNum,
+}: {
+  activeStep: number;
+  applicationStatus: string | undefined;
+  isStep1Completed: boolean;
+  isStep2Completed: boolean;
+  shouldReduceMotion: boolean;
+  stepNum: number;
+}) => {
+  const isCompleted = isOnboardingStepCompleted(
+    stepNum,
+    activeStep,
+    isStep1Completed,
+    isStep2Completed,
+    applicationStatus
+  );
+
+  const indicatorKey = isCompleted ? "completed" : `step-${stepNum}`;
+
+  return (
+    <span className="grid place-items-center">
+      <AnimatePresence initial={false} mode="sync">
+        <m.span
+          animate={{ opacity: 1, transform: "scale(1)" }}
+          className="col-start-1 row-start-1 flex items-center justify-center"
+          exit={{
+            opacity: shouldReduceMotion ? 0.88 : 0,
+            transform: shouldReduceMotion ? "scale(1)" : "scale(0.97)",
+          }}
+          initial={{
+            opacity: shouldReduceMotion ? 0.88 : 0,
+            transform: shouldReduceMotion ? "scale(1)" : "scale(0.97)",
+          }}
+          key={indicatorKey}
+          transition={{
+            duration: shouldReduceMotion
+              ? SELLER_ONBOARDING_MOTION_DURATION.reduced
+              : SELLER_ONBOARDING_MOTION_DURATION.standard,
+            ease: shouldReduceMotion ? "linear" : SELLER_ONBOARDING_EASE_OUT,
+          }}
+        >
+          {isCompleted ? (
+            <CheckIcon className="w-3.5 h-3.5" />
+          ) : (
+            <span>{stepNum}</span>
+          )}
+        </m.span>
+      </AnimatePresence>
+    </span>
+  );
+};
+
+const isStepDisabledByState = (
+  stepNum: number,
+  isStep1Completed: boolean,
+  isStep2Completed: boolean,
+  hasAppStatus: boolean
+) => {
+  if (stepNum === 1) {
+    return false;
+  }
+  if (stepNum === 2) {
+    return !isStep1Completed;
+  }
+  if (stepNum === 3) {
+    return !isStep2Completed && !hasAppStatus;
+  }
+  return false;
+};
+
+const getStepDisabledError = (targetStep: number): string | null => {
+  if (targetStep === 2) {
+    return "Vui lòng hoàn tất thông tin ở Bước 1 trước khi chuyển bước";
+  }
+  if (targetStep === 3) {
+    return "Vui lòng hoàn tất thông tin ở Bước 2 trước khi xem kết quả";
+  }
+  return null;
+};
+
+interface Step1StorefrontFormProps {
+  avatarName: string;
+  avatarUrl: string;
+  bio: string;
+  isApproved: boolean;
+  isPending: boolean;
+  isUploadingLogo: boolean;
+  onAvatarChange: (value: SellerLogoValue) => void;
+  onBioChange: (bio: string) => void;
+  onPhoneChange: (phone: string) => void;
+  onStorefrontNameChange: (name: string) => void;
+  onSubmit: (e: React.FormEvent) => void;
+  onUploadingChange: (uploading: boolean) => void;
+  phoneInput: string;
+  status: SellerApplicationStatus | string | undefined;
+  storefrontName: string;
+}
+
+const Step1StorefrontForm = ({
+  avatarName,
+  avatarUrl,
+  bio,
+  isApproved,
+  isPending,
+  isUploadingLogo,
+  onAvatarChange,
+  onBioChange,
+  onPhoneChange,
+  onStorefrontNameChange,
+  onSubmit,
+  onUploadingChange,
+  phoneInput,
+  status,
+  storefrontName,
+}: Step1StorefrontFormProps) => (
+  <form id="step1-form" onSubmit={onSubmit} className="space-y-6">
+    <div className="grid grid-cols-1 sm:grid-cols-[130px_1fr] gap-6 items-start">
+      <div className="flex flex-col items-center text-center space-y-2">
+        <div className="w-full max-w-32">
+          <SellerLogoUploader
+            disabled={isApproved || isPending}
+            fileName={avatarName}
+            logoUrl={avatarUrl}
+            onLogoChange={onAvatarChange}
+            onUploadingChange={onUploadingChange}
+          />
+        </div>
+        <p className="text-xs font-medium text-foreground">
+          Logo gian hàng <span className="text-red-500">*</span>
+        </p>
+        <p className="text-[11px] text-muted-foreground">
+          JPEG, PNG, WebP (Max 5MB)
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label
+            htmlFor="storefrontName"
+            className="text-foreground font-medium"
+          >
+            Tên gian hàng <span className="text-red-500">*</span>
+          </Label>
+          <Input
+            id="storefrontName"
+            placeholder="VD: GameKey Studio, DevTools VN..."
+            value={storefrontName}
+            onChange={(e) => onStorefrontNameChange(e.target.value)}
+            disabled={isApproved}
+            required
+            className="bg-background border-input text-foreground placeholder:text-muted-foreground"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="phone" className="text-foreground font-medium">
+            Số điện thoại liên hệ <span className="text-red-500">*</span>
+          </Label>
+          <Input
+            id="phone"
+            type="tel"
+            placeholder="VD: 0901234567"
+            value={phoneInput}
+            onChange={(e) => onPhoneChange(e.target.value)}
+            disabled={isApproved}
+            required
+            className="bg-background border-input text-foreground placeholder:text-muted-foreground"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="bio" className="text-foreground font-medium">
+            Mô tả gian hàng (Bio)
+          </Label>
+          <Textarea
+            id="bio"
+            placeholder="Giới thiệu ngắn về dịch vụ và sản phẩm của bạn..."
+            rows={3}
+            value={bio}
+            onChange={(e) => onBioChange(e.target.value)}
+            disabled={isApproved}
+            className="bg-background border-input text-foreground placeholder:text-muted-foreground"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div className="flex items-center justify-end gap-3 pt-6 border-t border-border">
+      <Button type="submit" disabled={isPending || isUploadingLogo}>
+        <RenderWhen when={isPending}>
+          <SpinnerIcon className="w-4 h-4 mr-2 animate-spin" />
+        </RenderWhen>
+        {getStep1ButtonText(isApproved, status)}
+        <ArrowRightIcon className="w-4 h-4 ml-2" />
+      </Button>
+    </div>
+  </form>
+);
+
+interface Step2BankingFormProps {
+  accountName: string;
+  accountNumber: string;
+  agreementAccepted: boolean;
+  bankName: string;
+  isApproved: boolean;
+  isPending: boolean;
+  onAccountNameChange: (name: string) => void;
+  onAccountNumberChange: (num: string) => void;
+  onAgreementAcceptedChange: (accepted: boolean) => void;
+  onBack: () => void;
+  onBankNameChange: (name: string) => void;
+  onSubmit: (e: React.FormEvent) => void;
+  status: SellerApplicationStatus | string | undefined;
+}
+
+const Step2BankingForm = ({
+  accountName,
+  accountNumber,
+  agreementAccepted,
+  bankName,
+  isApproved,
+  isPending,
+  onAccountNameChange,
+  onAccountNumberChange,
+  onAgreementAcceptedChange,
+  onBack,
+  onBankNameChange,
+  onSubmit,
+  status,
+}: Step2BankingFormProps) => (
+  <form id="step2-form" onSubmit={onSubmit} className="space-y-6">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="space-y-2">
+        <Label htmlFor="bankName" className="text-foreground font-medium">
+          Tên ngân hàng <span className="text-red-500">*</span>
+        </Label>
+        <Input
+          id="bankName"
+          placeholder="VD: MBBank, Vietcombank..."
+          value={bankName}
+          onChange={(e) => onBankNameChange(e.target.value)}
+          disabled={isApproved}
+          required
+          className="bg-background border-input text-foreground placeholder:text-muted-foreground"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="accountNumber" className="text-foreground font-medium">
+          Số tài khoản <span className="text-red-500">*</span>
+        </Label>
+        <Input
+          id="accountNumber"
+          placeholder="VD: 0381000123456"
+          value={accountNumber}
+          onChange={(e) => onAccountNumberChange(e.target.value)}
+          disabled={isApproved}
+          required
+          className="bg-background border-input text-foreground placeholder:text-muted-foreground"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="accountName" className="text-foreground font-medium">
+          Tên chủ tài khoản <span className="text-red-500">*</span>
+        </Label>
+        <Input
+          id="accountName"
+          placeholder="VD: NGUYEN VAN A"
+          className="uppercase bg-background border-input text-foreground placeholder:text-muted-foreground"
+          value={accountName}
+          onChange={(e) => onAccountNameChange(e.target.value)}
+          disabled={isApproved}
+          required
+        />
+      </div>
+    </div>
+
+    {/* Seller Agreement */}
+    <div className="space-y-3 pt-2">
+      <div className="flex items-center justify-between">
+        <Label className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <FileTextIcon className="w-4 h-4 text-primary" /> Thỏa thuận Người bán
+          Avin (v1.0)
+        </Label>
+        <Badge
+          variant="outline"
+          className="text-muted-foreground border-border"
+        >
+          v1.0
+        </Badge>
+      </div>
+
+      <div className="h-36 overflow-y-auto p-4 rounded-xl border border-border bg-muted/40 text-xs text-muted-foreground leading-relaxed space-y-2">
+        <p className="font-semibold text-foreground">
+          ĐIỀU KHOẢN VÀ DỊCH VỤ DÀNH CHO NGƯỜI BÁN TRÊN NỀN TẢNG AVIN (v1.0)
+        </p>
+        <p>
+          1. <strong>Doanh thu & Chiết khấu:</strong> Avin trích trừ chiết khấu
+          hoa hồng nền tảng theo quy định của từng Danh mục sản phẩm khi đơn
+          hàng hoàn tất.
+        </p>
+        <p>
+          2. <strong>Rút tiền:</strong> Người bán có thể yêu cầu rút tiền từ Ví
+          Seller về tài khoản ngân hàng đã xác minh khi số dư khả dụng đạt tối
+          thiểu 5.000 VNĐ.
+        </p>
+        <p>
+          3. <strong>Bảo hành & Khiếu nại:</strong> Tiền hàng sẽ được giữ ký quỹ
+          trong suốt thời gian giao hàng và thời gian bảo hành quy định của sản
+          phẩm.
+        </p>
+        <p>
+          4. <strong>Chính sách tuân thủ:</strong> Người bán cam kết cung cấp
+          dịch vụ/sản phẩm chính chủ, không vi phạm pháp luật và chính sách quy
+          định của Avin.
+        </p>
+      </div>
+
+      <div className="flex items-start space-x-2 pt-1">
+        <Checkbox
+          id="agreement"
+          checked={agreementAccepted}
+          onCheckedChange={(checked) =>
+            onAgreementAcceptedChange(Boolean(checked))
+          }
+          disabled={isApproved}
+        />
+        <Label
+          htmlFor="agreement"
+          className="text-xs text-muted-foreground leading-snug cursor-pointer"
+        >
+          Tôi đã đọc, hiểu rõ và chấp nhận toàn bộ Điều khoản Thỏa thuận Người
+          bán Avin (v1.0).
+        </Label>
+      </div>
+    </div>
+
+    <div className="flex items-center justify-between pt-6 border-t border-border">
+      <Button type="button" variant="outline" onClick={onBack}>
+        <CaretLeftIcon className="w-4 h-4 mr-2" /> Quay lại
+      </Button>
+
+      <Button
+        type="submit"
+        disabled={isPending || (!agreementAccepted && !isApproved)}
+      >
+        <RenderWhen when={isPending}>
+          <SpinnerIcon className="w-4 h-4 mr-2 animate-spin" />
+        </RenderWhen>
+        {getSubmitButtonText(isApproved, status)}
+      </Button>
+    </div>
+  </form>
+);
+
 interface SellerOnboardingFormContentProps {
   application?: SellerApplicationData | null;
   profile?: SellerProfileData | null;
@@ -417,29 +860,6 @@ const SellerOnboardingFormContent = ({
     Boolean(application?.createdAt)
   );
 
-  const getStep1ButtonText = () => {
-    if (isApproved) {
-      return "Tiếp tục";
-    }
-    if (application?.status) {
-      return "Cập nhật thông tin";
-    }
-    return "Lưu & Tiếp tục";
-  };
-
-  const getSubmitButtonText = () => {
-    if (isApproved) {
-      return "Xem kết quả";
-    }
-    if (application?.status === "PENDING_REVIEW") {
-      return "Cập nhật thông tin";
-    }
-    if (application?.status === "CHANGES_REQUESTED") {
-      return "Cập nhật & Nộp lại hồ sơ";
-    }
-    return "Nộp hồ sơ xét duyệt";
-  };
-
   // Mutations
   const updateDraftMutation = useMutation(
     orpc.sellerApplication.updateDraftProfile.mutationOptions({
@@ -472,8 +892,16 @@ const SellerOnboardingFormContent = ({
       changeActiveStep(2);
       return;
     }
-    if (!storefrontName.trim()) {
-      toast.error("Vui lòng nhập tên gian hàng");
+
+    const validationError = validateStep1Input({
+      avatarUrl,
+      hasProfileAvatar: Boolean(profile?.avatarUrl),
+      hasProfilePhone: Boolean(profile?.phone),
+      phoneInput,
+      storefrontName,
+    });
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
 
@@ -499,23 +927,20 @@ const SellerOnboardingFormContent = ({
       return;
     }
 
-    if (!profile && !storefrontName.trim()) {
-      toast.error("Vui lòng hoàn tất thông tin gian hàng ở Bước 1 trước");
-      return;
-    }
-
-    if (!phoneInput.trim() && !profile?.phone) {
-      toast.error("Vui lòng nhập số điện thoại liên hệ ở Bước 1");
-      return;
-    }
-
-    if (!bankName.trim() || !accountNumber.trim() || !accountName.trim()) {
-      toast.error("Vui lòng điền đầy đủ thông tin tài khoản ngân hàng");
-      return;
-    }
-
-    if (!agreementAccepted) {
-      toast.error("Bạn phải đồng ý với Điều khoản Người bán Avin");
+    const validationError = validateStep2Input({
+      accountName,
+      accountNumber,
+      agreementAccepted,
+      avatarUrl,
+      bankName,
+      hasProfile: Boolean(profile),
+      hasProfileAvatar: Boolean(profile?.avatarUrl),
+      hasProfilePhone: Boolean(profile?.phone),
+      phoneInput,
+      storefrontName,
+    });
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
 
@@ -551,8 +976,9 @@ const SellerOnboardingFormContent = ({
   };
 
   const isStep1Completed = Boolean(
-    profile?.id ||
-    (storefrontName.trim() && (phoneInput.trim() || profile?.phone))
+    (avatarUrl.trim() || profile?.avatarUrl) &&
+    (storefrontName.trim() || profile?.storefrontName) &&
+    (phoneInput.trim() || profile?.phone)
   );
 
   const isStep2Completed = Boolean(
@@ -564,77 +990,23 @@ const SellerOnboardingFormContent = ({
       agreementAccepted)
   );
 
-  const isStepDisabled = (stepNum: number) => {
-    if (stepNum === 1) {
-      return false;
-    }
-    if (stepNum === 2) {
-      return !isStep1Completed;
-    }
-    if (stepNum === 3) {
-      return !isStep2Completed && !application?.status;
-    }
-    return false;
-  };
+  const isStepDisabled = (stepNum: number) =>
+    isStepDisabledByState(
+      stepNum,
+      isStep1Completed,
+      isStep2Completed,
+      Boolean(application?.status)
+    );
 
   const handleStepChange = (targetStep: number) => {
     if (targetStep > activeStep && isStepDisabled(targetStep)) {
-      if (targetStep === 2) {
-        toast.error(
-          "Vui lòng hoàn tất thông tin ở Bước 1 trước khi chuyển bước"
-        );
-      } else if (targetStep === 3) {
-        toast.error(
-          "Vui lòng hoàn tất thông tin ở Bước 2 trước khi xem kết quả"
-        );
+      const errorMsg = getStepDisabledError(targetStep);
+      if (errorMsg) {
+        toast.error(errorMsg);
       }
       return;
     }
     changeActiveStep(targetStep);
-  };
-
-  const renderStepIndicatorContent = (stepNum: number) => {
-    const isCompleted = isOnboardingStepCompleted(
-      stepNum,
-      activeStep,
-      isStep1Completed,
-      isStep2Completed,
-      application?.status
-    );
-
-    const indicatorKey = isCompleted ? "completed" : `step-${stepNum}`;
-
-    return (
-      <span className="grid place-items-center">
-        <AnimatePresence initial={false} mode="sync">
-          <m.span
-            animate={{ opacity: 1, transform: "scale(1)" }}
-            className="col-start-1 row-start-1 flex items-center justify-center"
-            exit={{
-              opacity: shouldReduceMotion ? 0.88 : 0,
-              transform: shouldReduceMotion ? "scale(1)" : "scale(0.97)",
-            }}
-            initial={{
-              opacity: shouldReduceMotion ? 0.88 : 0,
-              transform: shouldReduceMotion ? "scale(1)" : "scale(0.97)",
-            }}
-            key={indicatorKey}
-            transition={{
-              duration: shouldReduceMotion
-                ? SELLER_ONBOARDING_MOTION_DURATION.reduced
-                : SELLER_ONBOARDING_MOTION_DURATION.standard,
-              ease: shouldReduceMotion ? "linear" : SELLER_ONBOARDING_EASE_OUT,
-            }}
-          >
-            {isCompleted ? (
-              <CheckIcon className="w-3.5 h-3.5" />
-            ) : (
-              <span>{stepNum}</span>
-            )}
-          </m.span>
-        </AnimatePresence>
-      </span>
-    );
   };
 
   return (
@@ -691,7 +1063,14 @@ const SellerOnboardingFormContent = ({
                   >
                     <StepperTrigger className="w-full text-left gap-3 focus:outline-none disabled:cursor-not-allowed">
                       <StepperIndicator className="w-8 h-8 rounded-full border border-border bg-background text-muted-foreground group-data-[state=active]/step:bg-primary group-data-[state=active]/step:text-primary-foreground group-data-[state=completed]/step:bg-emerald-500 group-data-[state=completed]/step:text-white transition-colors">
-                        {renderStepIndicatorContent(s.step)}
+                        <StepIndicatorContent
+                          activeStep={activeStep}
+                          applicationStatus={application?.status}
+                          isStep1Completed={isStep1Completed}
+                          isStep2Completed={isStep2Completed}
+                          shouldReduceMotion={shouldReduceMotion}
+                          stepNum={s.step}
+                        />
                       </StepperIndicator>
                       <div className="flex flex-col">
                         <StepperTitle className="text-sm font-semibold text-muted-foreground group-data-[state=active]/step:text-foreground group-data-[state=completed]/step:text-foreground">
@@ -785,7 +1164,14 @@ const SellerOnboardingFormContent = ({
                   >
                     <StepperTrigger className="p-1 disabled:cursor-not-allowed">
                       <StepperIndicator className="w-6 h-6 text-xs rounded-full border border-border bg-background text-muted-foreground group-data-[state=active]/step:bg-primary group-data-[state=active]/step:text-primary-foreground group-data-[state=completed]/step:bg-emerald-500 group-data-[state=completed]/step:text-white">
-                        {renderStepIndicatorContent(s.step)}
+                        <StepIndicatorContent
+                          activeStep={activeStep}
+                          applicationStatus={application?.status}
+                          isStep1Completed={isStep1Completed}
+                          isStep2Completed={isStep2Completed}
+                          shouldReduceMotion={shouldReduceMotion}
+                          stepNum={s.step}
+                        />
                       </StepperIndicator>
                     </StepperTrigger>
                   </StepperItem>
@@ -868,107 +1254,26 @@ const SellerOnboardingFormContent = ({
                     </RenderWhen>
                   </div>
 
-                  <form
-                    id="step1-form"
+                  <Step1StorefrontForm
+                    avatarName={avatarName}
+                    avatarUrl={avatarUrl}
+                    bio={bio}
+                    isApproved={isApproved}
+                    isPending={updateDraftMutation.isPending}
+                    isUploadingLogo={isUploadingLogo}
+                    onAvatarChange={(value: SellerLogoValue) => {
+                      setAvatarUrl(value.url);
+                      setAvatarName(value.name);
+                    }}
+                    onBioChange={setBio}
+                    onPhoneChange={setPhoneInput}
+                    onStorefrontNameChange={setStorefrontName}
                     onSubmit={handleSaveStep1}
-                    className="space-y-6"
-                  >
-                    <div className="grid grid-cols-1 sm:grid-cols-[130px_1fr] gap-6 items-start">
-                      <div className="flex flex-col items-center text-center space-y-2">
-                        <div className="w-full max-w-32">
-                          <SellerLogoUploader
-                            disabled={
-                              isApproved || updateDraftMutation.isPending
-                            }
-                            fileName={avatarName}
-                            logoUrl={avatarUrl}
-                            onLogoChange={(value: SellerLogoValue) => {
-                              setAvatarUrl(value.url);
-                              setAvatarName(value.name);
-                            }}
-                            onUploadingChange={setIsUploadingLogo}
-                          />
-                        </div>
-                        <p className="text-[11px] text-muted-foreground">
-                          JPEG, PNG (Max 5MB)
-                        </p>
-                      </div>
-
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <Label
-                            htmlFor="storefrontName"
-                            className="text-foreground font-medium"
-                          >
-                            Tên gian hàng{" "}
-                            <span className="text-red-500">*</span>
-                          </Label>
-                          <Input
-                            id="storefrontName"
-                            placeholder="VD: GameKey Studio, DevTools VN..."
-                            value={storefrontName}
-                            onChange={(e) => setStorefrontName(e.target.value)}
-                            disabled={isApproved}
-                            required
-                            className="bg-background border-input text-foreground placeholder:text-muted-foreground"
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label
-                            htmlFor="phone"
-                            className="text-foreground font-medium"
-                          >
-                            Số điện thoại liên hệ{" "}
-                            <span className="text-red-500">*</span>
-                          </Label>
-                          <Input
-                            id="phone"
-                            type="tel"
-                            placeholder="VD: 0901234567"
-                            value={phoneInput}
-                            onChange={(e) => setPhoneInput(e.target.value)}
-                            disabled={isApproved}
-                            required
-                            className="bg-background border-input text-foreground placeholder:text-muted-foreground"
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label
-                            htmlFor="bio"
-                            className="text-foreground font-medium"
-                          >
-                            Mô tả gian hàng (Bio)
-                          </Label>
-                          <Textarea
-                            id="bio"
-                            placeholder="Giới thiệu ngắn về dịch vụ và sản phẩm của bạn..."
-                            rows={3}
-                            value={bio}
-                            onChange={(e) => setBio(e.target.value)}
-                            disabled={isApproved}
-                            className="bg-background border-input text-foreground placeholder:text-muted-foreground"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-end gap-3 pt-6 border-t border-border">
-                      <Button
-                        type="submit"
-                        disabled={
-                          updateDraftMutation.isPending || isUploadingLogo
-                        }
-                      >
-                        <RenderWhen when={updateDraftMutation.isPending}>
-                          <SpinnerIcon className="w-4 h-4 mr-2 animate-spin" />
-                        </RenderWhen>
-                        {getStep1ButtonText()}
-                        <ArrowRightIcon className="w-4 h-4 ml-2" />
-                      </Button>
-                    </div>
-                  </form>
+                    onUploadingChange={setIsUploadingLogo}
+                    phoneInput={phoneInput}
+                    status={application?.status}
+                    storefrontName={storefrontName}
+                  />
                 </m.div>
               </RenderWhen>
 
@@ -1002,152 +1307,21 @@ const SellerOnboardingFormContent = ({
                     </RenderWhen>
                   </div>
 
-                  <form
-                    id="step2-form"
+                  <Step2BankingForm
+                    accountName={accountName}
+                    accountNumber={accountNumber}
+                    agreementAccepted={agreementAccepted}
+                    bankName={bankName}
+                    isApproved={isApproved}
+                    isPending={submitAppMutation.isPending}
+                    onAccountNameChange={setAccountName}
+                    onAccountNumberChange={setAccountNumber}
+                    onAgreementAcceptedChange={setAgreementAccepted}
+                    onBack={() => changeActiveStep(1)}
+                    onBankNameChange={setBankName}
                     onSubmit={handleSubmitStep2}
-                    className="space-y-6"
-                  >
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label
-                          htmlFor="bankName"
-                          className="text-foreground font-medium"
-                        >
-                          Tên ngân hàng <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                          id="bankName"
-                          placeholder="VD: MBBank, Vietcombank..."
-                          value={bankName}
-                          onChange={(e) => setBankName(e.target.value)}
-                          disabled={isApproved}
-                          required
-                          className="bg-background border-input text-foreground placeholder:text-muted-foreground"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label
-                          htmlFor="accountNumber"
-                          className="text-foreground font-medium"
-                        >
-                          Số tài khoản <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                          id="accountNumber"
-                          placeholder="VD: 0381000123456"
-                          value={accountNumber}
-                          onChange={(e) => setAccountNumber(e.target.value)}
-                          disabled={isApproved}
-                          required
-                          className="bg-background border-input text-foreground placeholder:text-muted-foreground"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label
-                          htmlFor="accountName"
-                          className="text-foreground font-medium"
-                        >
-                          Tên chủ tài khoản{" "}
-                          <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                          id="accountName"
-                          placeholder="VD: NGUYEN VAN A"
-                          className="uppercase bg-background border-input text-foreground placeholder:text-muted-foreground"
-                          value={accountName}
-                          onChange={(e) => setAccountName(e.target.value)}
-                          disabled={isApproved}
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    {/* Seller Agreement */}
-                    <div className="space-y-3 pt-2">
-                      <div className="flex items-center justify-between">
-                        <Label className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                          <FileTextIcon className="w-4 h-4 text-primary" /> Thỏa
-                          thuận Người bán Avin (v1.0)
-                        </Label>
-                        <Badge
-                          variant="outline"
-                          className="text-muted-foreground border-border"
-                        >
-                          v1.0
-                        </Badge>
-                      </div>
-
-                      <div className="h-36 overflow-y-auto p-4 rounded-xl border border-border bg-muted/40 text-xs text-muted-foreground leading-relaxed space-y-2">
-                        <p className="font-semibold text-foreground">
-                          ĐIỀU KHOẢN VÀ DỊCH VỤ DÀNH CHO NGƯỜI BÁN TRÊN NỀN TẢNG
-                          AVIN (v1.0)
-                        </p>
-                        <p>
-                          1. <strong>Doanh thu & Chiết khấu:</strong> Avin trích
-                          trừ chiết khấu hoa hồng nền tảng theo quy định của
-                          từng Danh mục sản phẩm khi đơn hàng hoàn tất.
-                        </p>
-                        <p>
-                          2. <strong>Rút tiền:</strong> Người bán có thể yêu cầu
-                          rút tiền từ Ví Seller về tài khoản ngân hàng đã xác
-                          minh khi số dư khả dụng đạt tối thiểu 5.000 VNĐ.
-                        </p>
-                        <p>
-                          3. <strong>Bảo hành & Khiếu nại:</strong> Tiền hàng sẽ
-                          được giữ ký quỹ trong suốt thời gian giao hàng và thời
-                          gian bảo hành quy định của sản phẩm.
-                        </p>
-                        <p>
-                          4. <strong>Chính sách tuân thủ:</strong> Người bán cam
-                          kết cung cấp dịch vụ/sản phẩm chính chủ, không vi phạm
-                          pháp luật và chính sách quy định của Avin.
-                        </p>
-                      </div>
-
-                      <div className="flex items-start space-x-2 pt-1">
-                        <Checkbox
-                          id="agreement"
-                          checked={agreementAccepted}
-                          onCheckedChange={(checked) =>
-                            setAgreementAccepted(Boolean(checked))
-                          }
-                          disabled={isApproved}
-                        />
-                        <Label
-                          htmlFor="agreement"
-                          className="text-xs text-muted-foreground leading-snug cursor-pointer"
-                        >
-                          Tôi đã đọc, hiểu rõ và chấp nhận toàn bộ Điều khoản
-                          Thỏa thuận Người bán Avin (v1.0).
-                        </Label>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-6 border-t border-border">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => changeActiveStep(1)}
-                      >
-                        <CaretLeftIcon className="w-4 h-4 mr-2" /> Quay lại
-                      </Button>
-
-                      <Button
-                        type="submit"
-                        disabled={
-                          submitAppMutation.isPending ||
-                          (!agreementAccepted && !isApproved)
-                        }
-                      >
-                        <RenderWhen when={submitAppMutation.isPending}>
-                          <SpinnerIcon className="w-4 h-4 mr-2 animate-spin" />
-                        </RenderWhen>
-                        {getSubmitButtonText()}
-                      </Button>
-                    </div>
-                  </form>
+                    status={application?.status}
+                  />
                 </m.div>
               </RenderWhen>
 

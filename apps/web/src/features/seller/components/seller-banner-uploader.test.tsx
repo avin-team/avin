@@ -78,7 +78,7 @@ describe("SellerBannerUploader", () => {
     );
 
     const file = new File(["banner"], "banner.png", { type: "image/png" });
-    await user.upload(screen.getByLabelText("Chọn banner gian hàng"), file);
+    await user.upload(screen.getByLabelText("Chọn ảnh bìa gian hàng"), file);
 
     expect(uploadAsync).toHaveBeenCalledWith(file, { metadata: {} });
     expect(onBannerChange).toHaveBeenCalledWith({

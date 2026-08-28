@@ -111,17 +111,22 @@ export const SellerApplicationDetailPage = () => {
     if (canDecide) {
       return (
         <>
-          <Button onClick={() => handleDecision("APPROVED")}>
+          <Button
+            disabled={decideMutation.isPending}
+            onClick={() => handleDecision("APPROVED")}
+          >
             <ShieldCheckIcon />
             Phê duyệt hồ sơ
           </Button>
           <Button
+            disabled={decideMutation.isPending}
             onClick={() => handleDecision("CHANGES_REQUESTED")}
             variant="outline"
           >
             Yêu cầu chỉnh sửa
           </Button>
           <Button
+            disabled={decideMutation.isPending}
             onClick={() => handleDecision("REJECTED")}
             variant="destructive"
           >
@@ -272,6 +277,7 @@ export const SellerApplicationDetailPage = () => {
       </Main>
       <ReviewDecisionDialog
         decision={decision}
+        isPending={decideMutation.isPending}
         onConfirm={confirmDecision}
         onOpenChange={(open) => {
           if (!open) {

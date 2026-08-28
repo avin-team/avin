@@ -396,6 +396,13 @@ export const sellerApplicationRouter = {
         });
       }
 
+      if (!profile.avatarUrl?.trim()) {
+        throw new ORPCError("BAD_REQUEST", {
+          message:
+            "Vui lòng tải lên ảnh đại diện / logo gian hàng trước khi nộp đơn",
+        });
+      }
+
       const { phone } = profile;
       if (!phone) {
         throw new ORPCError("BAD_REQUEST", {

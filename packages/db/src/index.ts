@@ -6,7 +6,15 @@ import * as schema from "./schema";
 
 export * from "./uuid";
 
+const globalForDb = globalThis as unknown as {
+  db: NodePgDatabase<typeof schema> | undefined;
+};
+
 export const createDb = (): NodePgDatabase<typeof schema> =>
   drizzle(env.DATABASE_URL, { schema });
 
-export const db: NodePgDatabase<typeof schema> = createDb();
+export const db: NodePgDatabase<typeof schema> = globalForDb.db ?? createDb();
+
+if (process.env.NODE_ENV !== "production") {
+  globalForDb.db = db;
+}

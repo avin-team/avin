@@ -30,6 +30,7 @@ import {
 import { assertEligibleSeller as assertSellerListingAccess } from "./seller-listing-access";
 import {
   assertServicePackageNameUnique,
+  getServicePackageSummaryPrice,
   parseServicePackageDraft,
 } from "./service-packages";
 
@@ -587,7 +588,7 @@ export const sellerWorkspaceRouter = {
     .input(z.object({ status: listingStatusSchema.optional() }).optional())
     .handler(async ({ context, input }) => {
       await assertEligibleSeller(context.session.user.id);
-      return db.query.listing.findMany({
+      const listings = await db.query.listing.findMany({
         orderBy: (table, { desc }) => [desc(table.updatedAt)],
         where: and(
           eq(listing.sellerId, context.session.user.id),
@@ -600,6 +601,33 @@ export const sellerWorkspaceRouter = {
                 eq(listing.status, "HIDDEN")
               )
         ),
+        with: {
+          servicePackages: {
+            columns: {
+              id: true,
+              name: true,
+              priceAmount: true,
+              status: true,
+            },
+            orderBy: (table) => [asc(table.priceAmount), asc(table.name)],
+          },
+        },
+      });
+
+      return listings.map((item) => {
+        let { priceAmount } = item;
+        if (item.type === "SERVICE" && item.servicePackages) {
+          const availablePrice = getServicePackageSummaryPrice(
+            item.servicePackages
+          );
+          priceAmount =
+            availablePrice ?? item.servicePackages[0]?.priceAmount ?? null;
+        }
+
+        return {
+          ...item,
+          priceAmount,
+        };
       });
     }),
 
