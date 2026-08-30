@@ -84,7 +84,7 @@ test.describe(
         await page
           .getByPlaceholder(/Số điện thoại Zalo chính/u)
           .fill(zaloPhone);
-        await page.locator("#app-services").fill(serviceDescription);
+        await page.getByLabel(/^Dịch vụ cung cấp/u).fill(serviceDescription);
         await page
           .getByRole("button", { exact: true, name: "Tiếp tục" })
           .click();
