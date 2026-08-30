@@ -7,14 +7,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@avin/ui/components/dialog";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@avin/ui/components/field";
 import { Input } from "@avin/ui/components/input";
-import { Label } from "@avin/ui/components/label";
 import { Textarea } from "@avin/ui/components/textarea";
-import { useState } from "react";
-import type { FormEvent } from "react";
+import { useForm } from "@tanstack/react-form";
 import { toast } from "sonner";
 
 import { useUpdateParentCategory } from "../api/categories-api";
+import { editParentCategoryFormSchema } from "../schemas/category-form-schema";
 import type { ParentCategory } from "../types";
 
 interface Props {
@@ -29,59 +34,104 @@ interface FormProps {
 }
 
 const EditParentCategoryForm = ({ category, onClose }: FormProps) => {
-  const [name, setName] = useState(category.name);
-  const [description, setDescription] = useState(category.description ?? "");
-
   const updateMutation = useUpdateParentCategory();
 
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    updateMutation.mutate(
-      {
-        description: description.trim() || undefined,
-        id: category.id,
-        name: name.trim(),
-      },
-      {
-        onError: (error) => {
-          toast.error(error.message || "Có lỗi xảy ra");
-        },
-        onSuccess: () => {
-          toast.success("Cập nhật danh mục cha thành công");
-          onClose();
-        },
+  const form = useForm({
+    defaultValues: {
+      description: category.description ?? "",
+      name: category.name,
+    },
+    onSubmit: async ({ value }) => {
+      try {
+        await updateMutation.mutateAsync({
+          description: value.description.trim() || undefined,
+          id: category.id,
+          name: value.name.trim(),
+        });
+        toast.success("Cập nhật danh mục cha thành công");
+        onClose();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Có lỗi xảy ra");
       }
-    );
-  };
+    },
+    validators: {
+      onSubmit: editParentCategoryFormSchema,
+    },
+  });
 
   return (
-    <form onSubmit={handleSubmit}>
-      <div className="grid gap-4 py-4">
-        <div className="grid gap-2">
-          <Label htmlFor="name">Tên</Label>
-          <Input
-            id="name"
-            onChange={(e) => setName(e.target.value)}
-            required
-            value={name}
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="description">Mô tả</Label>
-          <Textarea
-            id="description"
-            onChange={(e) => setDescription(e.target.value)}
-            value={description}
-          />
-        </div>
-      </div>
+    <form
+      id="edit-parent-category-form"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        await form.handleSubmit();
+      }}
+    >
+      <FieldGroup className="py-4">
+        <form.Field name="name">
+          {(field) => {
+            const isInvalid =
+              field.state.meta.isTouched && !field.state.meta.isValid;
+            return (
+              <Field data-invalid={isInvalid}>
+                <FieldLabel htmlFor={field.name}>Tên</FieldLabel>
+                <Input
+                  aria-invalid={isInvalid}
+                  id={field.name}
+                  name={field.name}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  required
+                  value={field.state.value}
+                />
+                {isInvalid && <FieldError errors={field.state.meta.errors} />}
+              </Field>
+            );
+          }}
+        </form.Field>
+        <form.Field name="description">
+          {(field) => {
+            const isInvalid =
+              field.state.meta.isTouched && !field.state.meta.isValid;
+            return (
+              <Field data-invalid={isInvalid}>
+                <FieldLabel htmlFor={field.name}>Mô tả</FieldLabel>
+                <Textarea
+                  aria-invalid={isInvalid}
+                  id={field.name}
+                  name={field.name}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  value={field.state.value}
+                />
+                {isInvalid && <FieldError errors={field.state.meta.errors} />}
+              </Field>
+            );
+          }}
+        </form.Field>
+      </FieldGroup>
       <DialogFooter>
         <Button onClick={onClose} type="button" variant="outline">
           Hủy
         </Button>
-        <Button disabled={updateMutation.isPending} type="submit">
-          Lưu
-        </Button>
+        <form.Subscribe
+          selector={(state) => ({
+            canSubmit: state.canSubmit,
+            isSubmitting: state.isSubmitting,
+          })}
+        >
+          {({ canSubmit, isSubmitting }) => (
+            <Button
+              disabled={!canSubmit || isSubmitting || updateMutation.isPending}
+              type="submit"
+            >
+              {isSubmitting || updateMutation.isPending
+                ? "Đang xử lý..."
+                : "Lưu"}
+            </Button>
+          )}
+        </form.Subscribe>
       </DialogFooter>
     </form>
   );

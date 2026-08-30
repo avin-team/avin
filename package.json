@@ -29,7 +29,6 @@
       "tailwindcss": "^4.3.3",
       "playwright": "^1.61.1",
       "vitest": "^4.1.10",
-      "@hookform/resolvers": "^5.4.0",
       "@orpc/tanstack-query": "^1.14.8",
       "@phosphor-icons/react": "^2.1.10",
       "@tailwindcss/vite": "^4.3.3",

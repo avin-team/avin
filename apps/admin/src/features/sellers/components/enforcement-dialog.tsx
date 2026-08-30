@@ -9,7 +9,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@avin/ui/components/dialog";
-import { Label } from "@avin/ui/components/label";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@avin/ui/components/field";
 import {
   Popover,
   PopoverContent,
@@ -23,20 +29,20 @@ import {
   SelectValue,
 } from "@avin/ui/components/select";
 import { Textarea } from "@avin/ui/components/textarea";
-import { cn } from "@avin/ui/lib/utils";
 import {
   CalendarBlankIcon,
   ProhibitIcon,
   ShieldWarningIcon,
 } from "@phosphor-icons/react";
+import { useForm } from "@tanstack/react-form";
 import { format } from "date-fns";
-import { useReducer } from "react";
 import { toast } from "sonner";
 
 import {
   useApplySellerEnforcement,
   useLiftSellerEnforcement,
 } from "../api/seller-enforcement-api";
+import { createSellerEnforcementFormSchema } from "../schemas/seller-enforcement-form-schema";
 import type {
   SellerEnforcementReasonCode,
   SellerEnforcementStatus,
@@ -56,72 +62,16 @@ interface Props {
   readonly targetStatus?: SellerEnforcementStatus | null;
 }
 
-const REASON_OPTIONS: { label: string; value: SellerEnforcementReasonCode }[] =
-  [
-    { label: REASON_CODE_LABELS.POLICY_VIOLATION, value: "POLICY_VIOLATION" },
-    { label: REASON_CODE_LABELS.FRAUD_RISK, value: "FRAUD_RISK" },
-    { label: REASON_CODE_LABELS.FULFILLMENT_RISK, value: "FULFILLMENT_RISK" },
-    { label: REASON_CODE_LABELS.FINANCIAL_RISK, value: "FINANCIAL_RISK" },
-    { label: REASON_CODE_LABELS.OTHER, value: "OTHER" },
-  ];
-
-interface DialogFormState {
-  adminNote: string;
-  confirmEscrowHolds: boolean;
-  confirmOrderItems: boolean;
-  confirmWithdrawals: boolean;
-  expiresAt: Date | undefined;
-  reasonCode: SellerEnforcementReasonCode;
-  sellerReason: string;
-}
-
-type DialogFormAction =
-  | { type: "RESET" }
-  | { field: "adminNote"; type: "SET_TEXT"; value: string }
-  | { field: "sellerReason"; type: "SET_TEXT"; value: string }
-  | {
-      field: "reasonCode";
-      type: "SET_REASON";
-      value: SellerEnforcementReasonCode;
-    }
-  | {
-      field: "confirmOrderItems" | "confirmEscrowHolds" | "confirmWithdrawals";
-      type: "SET_BOOL";
-      value: boolean;
-    }
-  | { type: "SET_EXPIRES_AT"; value: Date | undefined };
-
-const INITIAL_FORM_STATE: DialogFormState = {
-  adminNote: "",
-  confirmEscrowHolds: false,
-  confirmOrderItems: false,
-  confirmWithdrawals: false,
-  expiresAt: undefined,
-  reasonCode: "POLICY_VIOLATION",
-  sellerReason: "",
-};
-
-const formReducer = (
-  state: DialogFormState,
-  action: DialogFormAction
-): DialogFormState => {
-  if (action.type === "RESET") {
-    return INITIAL_FORM_STATE;
-  }
-  if (action.type === "SET_TEXT") {
-    return { ...state, [action.field]: action.value };
-  }
-  if (action.type === "SET_REASON") {
-    return { ...state, reasonCode: action.value };
-  }
-  if (action.type === "SET_BOOL") {
-    return { ...state, [action.field]: action.value };
-  }
-  if (action.type === "SET_EXPIRES_AT") {
-    return { ...state, expiresAt: action.value };
-  }
-  return state;
-};
+const REASON_OPTIONS: {
+  label: string;
+  value: SellerEnforcementReasonCode;
+}[] = [
+  { label: REASON_CODE_LABELS.POLICY_VIOLATION, value: "POLICY_VIOLATION" },
+  { label: REASON_CODE_LABELS.FRAUD_RISK, value: "FRAUD_RISK" },
+  { label: REASON_CODE_LABELS.FULFILLMENT_RISK, value: "FULFILLMENT_RISK" },
+  { label: REASON_CODE_LABELS.FINANCIAL_RISK, value: "FINANCIAL_RISK" },
+  { label: REASON_CODE_LABELS.OTHER, value: "OTHER" },
+];
 
 const getConfirmLabel = (status: SellerEnforcementStatus): string => {
   if (status === "ACTIVE") {
@@ -133,120 +83,128 @@ const getConfirmLabel = (status: SellerEnforcementStatus): string => {
   return "Cấm vĩnh viễn";
 };
 
+const getEffectiveTargetStatus = (
+  seller: SellerRef | null,
+  targetStatus?: SellerEnforcementStatus | null
+): SellerEnforcementStatus => {
+  if (!seller) {
+    return "SUSPENDED";
+  }
+  if (targetStatus) {
+    return targetStatus;
+  }
+  if (seller.enforcementStatus === "ACTIVE") {
+    return "SUSPENDED";
+  }
+  if (seller.enforcementStatus === "SUSPENDED") {
+    return "BANNED";
+  }
+  return "ACTIVE";
+};
+
+const getDialogTitle = (status: SellerEnforcementStatus): string => {
+  if (status === "ACTIVE") {
+    return "Khôi phục hoạt động gian hàng";
+  }
+  if (status === "SUSPENDED") {
+    return "Tạm dừng hoạt động gian hàng";
+  }
+  return "Cấm vĩnh viễn gian hàng";
+};
+
 export const EnforcementDialog = ({
   onOpenChange,
   open,
   seller,
   targetStatus,
 }: Props) => {
-  const [form, dispatch] = useReducer(formReducer, INITIAL_FORM_STATE);
-  const {
-    adminNote,
-    confirmEscrowHolds,
-    confirmOrderItems,
-    confirmWithdrawals,
-    expiresAt,
-    reasonCode,
-    sellerReason,
-  } = form;
-
   const applyMutation = useApplySellerEnforcement();
   const liftMutation = useLiftSellerEnforcement();
+  const effectiveTargetStatus = getEffectiveTargetStatus(seller, targetStatus);
+  const enforcementForm = useForm({
+    defaultValues: {
+      adminNote: "",
+      confirmEscrowHolds: false,
+      confirmOrderItems: false,
+      confirmWithdrawals: false,
+      expiresAt: undefined as Date | undefined,
+      reasonCode: "POLICY_VIOLATION" as SellerEnforcementReasonCode,
+      sellerReason: "",
+    },
+    onSubmit: async ({ value }) => {
+      if (!seller) {
+        return;
+      }
+
+      try {
+        await (effectiveTargetStatus === "ACTIVE"
+          ? liftMutation.mutateAsync({
+              adminNote: value.adminNote.trim() || undefined,
+              idempotencyKey: crypto.randomUUID(),
+              reasonCode: value.reasonCode,
+              sellerId: seller.id,
+              sellerReason: value.sellerReason.trim(),
+            })
+          : applyMutation.mutateAsync({
+              adminNote: value.adminNote.trim() || undefined,
+              confirmAffectedEscrowHolds:
+                effectiveTargetStatus === "BANNED"
+                  ? value.confirmEscrowHolds
+                  : undefined,
+              confirmAffectedOrderItems:
+                effectiveTargetStatus === "BANNED"
+                  ? value.confirmOrderItems
+                  : undefined,
+              confirmAffectedWithdrawals:
+                effectiveTargetStatus === "BANNED"
+                  ? value.confirmWithdrawals
+                  : undefined,
+              expiresAt:
+                effectiveTargetStatus === "SUSPENDED" && value.expiresAt
+                  ? value.expiresAt
+                  : null,
+              idempotencyKey: crypto.randomUUID(),
+              reasonCode: value.reasonCode,
+              sellerId: seller.id,
+              sellerReason: value.sellerReason.trim(),
+              state: effectiveTargetStatus,
+            }));
+
+        toast.success("Cập nhật trạng thái gian hàng thành công", {
+          description: `Đã áp dụng chế tài cho ${seller.storefrontName}`,
+        });
+        enforcementForm.reset();
+        onOpenChange(false);
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Thao tác thất bại"
+        );
+      }
+    },
+    validators: {
+      onSubmit: createSellerEnforcementFormSchema(effectiveTargetStatus),
+    },
+  });
 
   if (!seller) {
     return null;
   }
 
-  // Derive targetStatus when not explicitly passed
-  // Active → SUSPENDED, Suspended → BANNED, Banned → ACTIVE (lift)
-  let effectiveTargetStatus: SellerEnforcementStatus;
-  if (targetStatus) {
-    effectiveTargetStatus = targetStatus;
-  } else if (seller.enforcementStatus === "ACTIVE") {
-    effectiveTargetStatus = "SUSPENDED";
-  } else if (seller.enforcementStatus === "SUSPENDED") {
-    effectiveTargetStatus = "BANNED";
-  } else {
-    effectiveTargetStatus = "ACTIVE";
-  }
-
   const isPending = applyMutation.isPending || liftMutation.isPending;
   const isDestructive =
     effectiveTargetStatus === "BANNED" || effectiveTargetStatus === "SUSPENDED";
-
-  const handleConfirm = async () => {
-    const trimmedReason = sellerReason.trim();
-    if (!trimmedReason) {
-      toast.error("Vui lòng nhập lý do xử lý vi phạm gửi tới Seller.");
-      return;
-    }
-
-    if (
-      effectiveTargetStatus === "BANNED" &&
-      (!confirmOrderItems || !confirmEscrowHolds || !confirmWithdrawals)
-    ) {
-      toast.error(
-        "Việc cấm gian hàng yêu cầu xác nhận đủ cả 3 cam kết xử lý đơn hàng, khoản tiền tạm giữ và rút tiền."
-      );
-      return;
-    }
-
-    try {
-      await (effectiveTargetStatus === "ACTIVE"
-        ? liftMutation.mutateAsync({
-            adminNote: adminNote.trim() || undefined,
-            idempotencyKey: crypto.randomUUID(),
-            reasonCode,
-            sellerId: seller.id,
-            sellerReason: trimmedReason,
-          })
-        : applyMutation.mutateAsync({
-            adminNote: adminNote.trim() || undefined,
-            confirmAffectedEscrowHolds:
-              effectiveTargetStatus === "BANNED"
-                ? confirmEscrowHolds
-                : undefined,
-            confirmAffectedOrderItems:
-              effectiveTargetStatus === "BANNED"
-                ? confirmOrderItems
-                : undefined,
-            confirmAffectedWithdrawals:
-              effectiveTargetStatus === "BANNED"
-                ? confirmWithdrawals
-                : undefined,
-            expiresAt:
-              effectiveTargetStatus === "SUSPENDED" && expiresAt
-                ? expiresAt
-                : null,
-            idempotencyKey: crypto.randomUUID(),
-            reasonCode,
-            sellerId: seller.id,
-            sellerReason: trimmedReason,
-            state: effectiveTargetStatus,
-          }));
-
-      toast.success("Cập nhật trạng thái gian hàng thành công", {
-        description: `Đã áp dụng chế tài cho ${seller.storefrontName}`,
-      });
-      onOpenChange(false);
-      dispatch({ type: "RESET" });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Thao tác thất bại");
-    }
-  };
-
-  const renderTitle = () => {
-    if (effectiveTargetStatus === "ACTIVE") {
-      return "Khôi phục hoạt động gian hàng";
-    }
-    if (effectiveTargetStatus === "SUSPENDED") {
-      return "Tạm dừng hoạt động gian hàng";
-    }
-    return "Cấm vĩnh viễn gian hàng";
-  };
+  const title = getDialogTitle(effectiveTargetStatus);
 
   return (
-    <Dialog onOpenChange={onOpenChange} open={open}>
+    <Dialog
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen && !isPending) {
+          enforcementForm.reset();
+        }
+        onOpenChange(nextOpen);
+      }}
+      open={open}
+    >
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <div className="flex items-center gap-2">
@@ -255,7 +213,7 @@ export const EnforcementDialog = ({
             ) : (
               <ShieldWarningIcon className="size-5 text-primary" />
             )}
-            <DialogTitle>{renderTitle()}</DialogTitle>
+            <DialogTitle>{title}</DialogTitle>
           </div>
           <DialogDescription>
             Thực hiện trên gian hàng <strong>{seller.storefrontName}</strong>.
@@ -264,201 +222,284 @@ export const EnforcementDialog = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 py-2 text-sm">
-          <div className="grid gap-1.5">
-            <Label htmlFor="reason-code">Mã phân loại vi phạm</Label>
-            <Select
-              items={REASON_OPTIONS}
-              onValueChange={(val) =>
-                dispatch({
-                  field: "reasonCode",
-                  type: "SET_REASON",
-                  value: val as SellerEnforcementReasonCode,
-                })
-              }
-              value={reasonCode}
+        <form
+          id="seller-enforcement-form"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            await enforcementForm.handleSubmit();
+          }}
+        >
+          <FieldGroup className="gap-4 py-2 text-sm">
+            <enforcementForm.Field name="reasonCode">
+              {(field) => (
+                <Field>
+                  <FieldLabel htmlFor="reason-code">
+                    Mã phân loại vi phạm
+                  </FieldLabel>
+                  <Select
+                    items={REASON_OPTIONS}
+                    onValueChange={(value) => {
+                      const nextReasonCode = REASON_OPTIONS.find(
+                        (option) => option.value === value
+                      )?.value;
+                      if (nextReasonCode) {
+                        field.handleChange(nextReasonCode);
+                      }
+                    }}
+                    value={field.state.value}
+                  >
+                    <SelectTrigger id="reason-code">
+                      <SelectValue placeholder="Chọn mã vi phạm" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {REASON_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              )}
+            </enforcementForm.Field>
+
+            <enforcementForm.Field name="sellerReason">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
+                return (
+                  <Field data-invalid={isInvalid}>
+                    <FieldLabel htmlFor="seller-reason">
+                      Lý do gửi tới Người bán (Bắt buộc, công khai với Người
+                      bán) <span className="text-destructive">*</span>
+                    </FieldLabel>
+                    <Textarea
+                      aria-invalid={isInvalid}
+                      disabled={isPending}
+                      id="seller-reason"
+                      maxLength={2000}
+                      name={field.name}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      placeholder="Nhập chi tiết căn cứ xử phạt hoặc vi phạm điều khoản..."
+                      rows={3}
+                      value={field.state.value}
+                    />
+                    <p className="text-xs text-muted-foreground text-end">
+                      {field.state.value.length}/2000 ký tự
+                    </p>
+                    {isInvalid ? (
+                      <FieldError errors={field.state.meta.errors} />
+                    ) : null}
+                  </Field>
+                );
+              }}
+            </enforcementForm.Field>
+
+            <enforcementForm.Field name="adminNote">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
+                return (
+                  <Field data-invalid={isInvalid}>
+                    <FieldLabel htmlFor="admin-note">
+                      Ghi chú nội bộ (Tùy chọn, chỉ Quản trị viên xem được)
+                    </FieldLabel>
+                    <Textarea
+                      aria-invalid={isInvalid}
+                      disabled={isPending}
+                      id="admin-note"
+                      maxLength={5000}
+                      name={field.name}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      placeholder="Ghi chú hồ sơ điều tra, đối chứng giao dịch nội bộ..."
+                      rows={2}
+                      value={field.state.value}
+                    />
+                    {isInvalid ? (
+                      <FieldError errors={field.state.meta.errors} />
+                    ) : null}
+                  </Field>
+                );
+              }}
+            </enforcementForm.Field>
+
+            {effectiveTargetStatus === "SUSPENDED" ? (
+              <enforcementForm.Field name="expiresAt">
+                {(field) => (
+                  <Field>
+                    <FieldLabel htmlFor="suspension-expires-at">
+                      Thời hạn tạm dừng (Tùy chọn, để trống nếu không xác định
+                      hạn)
+                    </FieldLabel>
+                    <Popover>
+                      <PopoverTrigger
+                        className="flex h-9 w-full items-center justify-start rounded-3xl border border-transparent bg-input/50 px-3 text-left text-base font-normal text-muted-foreground transition-[color,box-shadow,background-color] outline-none hover:bg-input/70 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm cursor-pointer"
+                        disabled={isPending}
+                        id="suspension-expires-at"
+                        type="button"
+                      >
+                        <CalendarBlankIcon className="mr-2 size-4 shrink-0 text-muted-foreground" />
+                        {field.state.value
+                          ? format(field.state.value, "dd/MM/yyyy")
+                          : "dd/mm/yyyy"}
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          onSelect={(date) => field.handleChange(date)}
+                          selected={field.state.value}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FieldDescription>
+                      Nếu đặt thời hạn, hệ thống sẽ tự động khôi phục gian hàng
+                      khi hết hạn.
+                    </FieldDescription>
+                  </Field>
+                )}
+              </enforcementForm.Field>
+            ) : null}
+
+            {effectiveTargetStatus === "BANNED" ? (
+              <FieldGroup className="gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-xs">
+                <p className="font-semibold text-destructive">
+                  Xác nhận bắt buộc để cấm gian hàng (Hệ thống bảo vệ khách
+                  hàng):
+                </p>
+
+                <enforcementForm.Field name="confirmOrderItems">
+                  {(field) => {
+                    const isInvalid =
+                      field.state.meta.isTouched && !field.state.meta.isValid;
+                    return (
+                      <Field data-invalid={isInvalid} orientation="horizontal">
+                        <Checkbox
+                          aria-invalid={isInvalid}
+                          checked={field.state.value}
+                          disabled={isPending}
+                          id="confirm-order-items"
+                          onCheckedChange={(checked) =>
+                            field.handleChange(Boolean(checked))
+                          }
+                          onBlur={field.handleBlur}
+                        />
+                        <FieldLabel
+                          className="cursor-pointer leading-snug"
+                          htmlFor="confirm-order-items"
+                        >
+                          Xác nhận tự động hủy và hoàn tiền toàn bộ các sản phẩm
+                          trong đơn hàng chưa bàn giao.
+                        </FieldLabel>
+                        {isInvalid ? (
+                          <FieldError errors={field.state.meta.errors} />
+                        ) : null}
+                      </Field>
+                    );
+                  }}
+                </enforcementForm.Field>
+
+                <enforcementForm.Field name="confirmEscrowHolds">
+                  {(field) => {
+                    const isInvalid =
+                      field.state.meta.isTouched && !field.state.meta.isValid;
+                    return (
+                      <Field data-invalid={isInvalid} orientation="horizontal">
+                        <Checkbox
+                          aria-invalid={isInvalid}
+                          checked={field.state.value}
+                          disabled={isPending}
+                          id="confirm-escrow-holds"
+                          onCheckedChange={(checked) =>
+                            field.handleChange(Boolean(checked))
+                          }
+                          onBlur={field.handleBlur}
+                        />
+                        <FieldLabel
+                          className="cursor-pointer leading-snug"
+                          htmlFor="confirm-escrow-holds"
+                        >
+                          Xác nhận đóng băng và tự động xử lý các khoản tiền tạm
+                          giữ tương ứng.
+                        </FieldLabel>
+                        {isInvalid ? (
+                          <FieldError errors={field.state.meta.errors} />
+                        ) : null}
+                      </Field>
+                    );
+                  }}
+                </enforcementForm.Field>
+
+                <enforcementForm.Field name="confirmWithdrawals">
+                  {(field) => {
+                    const isInvalid =
+                      field.state.meta.isTouched && !field.state.meta.isValid;
+                    return (
+                      <Field data-invalid={isInvalid} orientation="horizontal">
+                        <Checkbox
+                          aria-invalid={isInvalid}
+                          checked={field.state.value}
+                          disabled={isPending}
+                          id="confirm-withdrawals"
+                          onCheckedChange={(checked) =>
+                            field.handleChange(Boolean(checked))
+                          }
+                          onBlur={field.handleBlur}
+                        />
+                        <FieldLabel
+                          className="cursor-pointer leading-snug"
+                          htmlFor="confirm-withdrawals"
+                        >
+                          Xác nhận đóng băng các yêu cầu rút tiền đang chờ xử
+                          lý.
+                        </FieldLabel>
+                        {isInvalid ? (
+                          <FieldError errors={field.state.meta.errors} />
+                        ) : null}
+                      </Field>
+                    );
+                  }}
+                </enforcementForm.Field>
+              </FieldGroup>
+            ) : null}
+          </FieldGroup>
+
+          <DialogFooter className="gap-2 pt-4 sm:justify-end">
+            <Button
+              disabled={isPending}
+              onClick={() => onOpenChange(false)}
+              type="button"
+              variant="outline"
             >
-              <SelectTrigger id="reason-code">
-                <SelectValue placeholder="Chọn mã vi phạm" />
-              </SelectTrigger>
-              <SelectContent>
-                {REASON_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="grid gap-1.5">
-            <Label htmlFor="seller-reason">
-              Lý do gửi tới Người bán (Bắt buộc, công khai với Người bán){" "}
-              <span className="text-destructive">*</span>
-            </Label>
-            <Textarea
-              disabled={isPending}
-              id="seller-reason"
-              maxLength={2000}
-              onChange={(e) =>
-                dispatch({
-                  field: "sellerReason",
-                  type: "SET_TEXT",
-                  value: e.target.value,
-                })
-              }
-              placeholder="Nhập chi tiết căn cứ xử phạt hoặc vi phạm điều khoản..."
-              rows={3}
-              value={sellerReason}
-            />
-            <p className="text-xs text-muted-foreground text-end">
-              {sellerReason.length}/2000 ký tự
-            </p>
-          </div>
-
-          <div className="grid gap-1.5">
-            <Label htmlFor="admin-note">
-              Ghi chú nội bộ (Tùy chọn, chỉ Quản trị viên xem được)
-            </Label>
-            <Textarea
-              disabled={isPending}
-              id="admin-note"
-              maxLength={5000}
-              onChange={(e) =>
-                dispatch({
-                  field: "adminNote",
-                  type: "SET_TEXT",
-                  value: e.target.value,
-                })
-              }
-              placeholder="Ghi chú hồ sơ điều tra, đối chứng giao dịch nội bộ..."
-              rows={2}
-              value={adminNote}
-            />
-          </div>
-
-          {effectiveTargetStatus === "SUSPENDED" ? (
-            <div className="grid gap-1.5">
-              <Label>
-                Thời hạn tạm dừng (Tùy chọn, để trống nếu không xác định hạn)
-              </Label>
-              <Popover>
-                <PopoverTrigger
-                  className={cn(
-                    "flex h-9 w-full items-center justify-start rounded-3xl border border-transparent bg-input/50 px-3 text-left text-base font-normal transition-[color,box-shadow,background-color] outline-none hover:bg-input/70 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm cursor-pointer",
-                    expiresAt ? "text-foreground" : "text-muted-foreground"
-                  )}
-                  disabled={isPending}
+              Hủy
+            </Button>
+            <enforcementForm.Subscribe
+              selector={(state) => ({
+                canSubmit: state.canSubmit,
+                isSubmitting: state.isSubmitting,
+              })}
+            >
+              {({ canSubmit, isSubmitting }) => (
+                <Button
+                  disabled={isPending || isSubmitting || !canSubmit}
+                  form="seller-enforcement-form"
+                  type="submit"
+                  variant={isDestructive ? "destructive" : "default"}
                 >
-                  <CalendarBlankIcon className="mr-2 size-4 shrink-0 text-muted-foreground" />
-                  {expiresAt ? format(expiresAt, "dd/MM/yyyy") : "dd/mm/yyyy"}
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={expiresAt}
-                    onSelect={(date) =>
-                      dispatch({ type: "SET_EXPIRES_AT", value: date })
-                    }
-                  />
-                </PopoverContent>
-              </Popover>
-              <p className="text-xs text-muted-foreground">
-                Nếu đặt thời hạn, hệ thống sẽ tự động khôi phục gian hàng khi
-                hết hạn.
-              </p>
-            </div>
-          ) : null}
-
-          {effectiveTargetStatus === "BANNED" ? (
-            <div className="space-y-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-xs">
-              <p className="font-semibold text-destructive">
-                Xác nhận bắt buộc để cấm gian hàng (Hệ thống bảo vệ khách hàng):
-              </p>
-              <div className="flex items-start gap-2.5">
-                <Checkbox
-                  checked={confirmOrderItems}
-                  id="confirm-order-items"
-                  onCheckedChange={(c) =>
-                    dispatch({
-                      field: "confirmOrderItems",
-                      type: "SET_BOOL",
-                      value: Boolean(c),
-                    })
-                  }
-                />
-                <label
-                  className="leading-snug cursor-pointer"
-                  htmlFor="confirm-order-items"
-                >
-                  Xác nhận tự động hủy và hoàn tiền toàn bộ các sản phẩm trong
-                  đơn hàng chưa bàn giao.
-                </label>
-              </div>
-
-              <div className="flex items-start gap-2.5">
-                <Checkbox
-                  checked={confirmEscrowHolds}
-                  id="confirm-escrow-holds"
-                  onCheckedChange={(c) =>
-                    dispatch({
-                      field: "confirmEscrowHolds",
-                      type: "SET_BOOL",
-                      value: Boolean(c),
-                    })
-                  }
-                />
-                <label
-                  className="leading-snug cursor-pointer"
-                  htmlFor="confirm-escrow-holds"
-                >
-                  Xác nhận đóng băng và tự động xử lý các khoản tiền tạm giữ
-                  tương ứng.
-                </label>
-              </div>
-
-              <div className="flex items-start gap-2.5">
-                <Checkbox
-                  checked={confirmWithdrawals}
-                  id="confirm-withdrawals"
-                  onCheckedChange={(c) =>
-                    dispatch({
-                      field: "confirmWithdrawals",
-                      type: "SET_BOOL",
-                      value: Boolean(c),
-                    })
-                  }
-                />
-                <label
-                  className="leading-snug cursor-pointer"
-                  htmlFor="confirm-withdrawals"
-                >
-                  Xác nhận đóng băng các yêu cầu rút tiền đang chờ xử lý.
-                </label>
-              </div>
-            </div>
-          ) : null}
-        </div>
-
-        <DialogFooter className="gap-2 sm:justify-end">
-          <Button
-            disabled={isPending}
-            onClick={() => onOpenChange(false)}
-            type="button"
-            variant="outline"
-          >
-            Hủy
-          </Button>
-          <Button
-            disabled={isPending}
-            onClick={() => void handleConfirm()}
-            variant={isDestructive ? "destructive" : "default"}
-          >
-            {isPending
-              ? "Đang xử lý..."
-              : getConfirmLabel(effectiveTargetStatus)}
-          </Button>
-        </DialogFooter>
+                  {isPending || isSubmitting
+                    ? "Đang xử lý..."
+                    : getConfirmLabel(effectiveTargetStatus)}
+                </Button>
+              )}
+            </enforcementForm.Subscribe>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

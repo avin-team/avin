@@ -14,6 +14,10 @@ export const sellerCancellationSchema = z.object({
   reason: reasonSchema,
 });
 
+export const buyerDisputeCancellationSchema = z.object({
+  reason: reasonSchema,
+});
+
 export const sellerDeliverySchema = z.object({
   deliveryNote: z
     .string()

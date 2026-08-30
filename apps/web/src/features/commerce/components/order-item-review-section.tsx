@@ -7,9 +7,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@avin/ui/components/dialog";
-import { Field, FieldLabel } from "@avin/ui/components/field";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@avin/ui/components/field";
 import { Textarea } from "@avin/ui/components/textarea";
 import { StarIcon } from "@phosphor-icons/react";
+import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -18,6 +24,7 @@ import {
   StarRating,
   StarRatingInput,
 } from "@/features/catalog/components/star-rating";
+import { orderItemReviewFormSchema } from "@/features/commerce/schemas/order-item-review-schema";
 import { getErrorMessage } from "@/utils/get-error-message";
 import { orpc } from "@/utils/orpc";
 
@@ -32,8 +39,7 @@ export const OrderItemReviewSection = ({
 }: OrderItemReviewSectionProps) => {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [rating, setRating] = useState(5);
-  const [comment, setComment] = useState("");
+  const reviewFormId = `order-item-review-form-${orderItemId}`;
 
   const reviewQuery = useQuery(
     orpc.commerce.review.getForOrderItem.queryOptions({
@@ -47,9 +53,6 @@ export const OrderItemReviewSection = ({
         toast.error(getErrorMessage(error, "Không thể gửi đánh giá."));
       },
       onSuccess: async () => {
-        setOpen(false);
-        setComment("");
-        toast.success("Đã gửi đánh giá thành công! Cảm ơn ý kiến của bạn.");
         await queryClient.invalidateQueries({
           queryKey: orpc.commerce.review.getForOrderItem.queryOptions({
             input: { orderItemId },
@@ -58,6 +61,35 @@ export const OrderItemReviewSection = ({
       },
     })
   );
+
+  const reviewForm = useForm({
+    defaultValues: {
+      comment: "",
+      rating: 5,
+    },
+    onSubmit: async ({ value }) => {
+      try {
+        await createMutation.mutateAsync({
+          comment: value.comment.trim(),
+          orderItemId,
+          rating: value.rating,
+        });
+        reviewForm.reset();
+        setOpen(false);
+        toast.success("Đã gửi đánh giá thành công! Cảm ơn ý kiến của bạn.");
+      } catch {
+        // The mutation's onError callback provides the user-facing message.
+      }
+    },
+    validators: { onSubmit: orderItemReviewFormSchema },
+  });
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (!nextOpen) {
+      reviewForm.reset();
+    }
+  };
 
   const [now, setNow] = useState(() => Date.now());
   void setNow;
@@ -125,7 +157,7 @@ export const OrderItemReviewSection = ({
         </Button>
       </div>
 
-      <Dialog onOpenChange={setOpen} open={open}>
+      <Dialog onOpenChange={handleOpenChange} open={open}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Đánh giá sản phẩm & dịch vụ</DialogTitle>
@@ -134,46 +166,98 @@ export const OrderItemReviewSection = ({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex flex-col gap-4 py-2">
-            <Field>
-              <FieldLabel>Mức độ hài lòng</FieldLabel>
-              <div className="mt-1 flex justify-center">
-                <StarRatingInput onChange={setRating} value={rating} />
-              </div>
-            </Field>
+          <form
+            id={reviewFormId}
+            onSubmit={async (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              await reviewForm.handleSubmit();
+            }}
+          >
+            <FieldGroup className="py-2">
+              <reviewForm.Field name="rating">
+                {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
+                  return (
+                    <Field data-invalid={isInvalid}>
+                      <FieldLabel>Mức độ hài lòng</FieldLabel>
+                      <div className="mt-1 flex justify-center">
+                        <StarRatingInput
+                          disabled={createMutation.isPending}
+                          onChange={field.handleChange}
+                          value={field.state.value}
+                        />
+                      </div>
+                      {isInvalid && (
+                        <FieldError errors={field.state.meta.errors} />
+                      )}
+                    </Field>
+                  );
+                }}
+              </reviewForm.Field>
 
-            <Field>
-              <FieldLabel>Nhận xét (không bắt buộc)</FieldLabel>
-              <Textarea
-                maxLength={2000}
-                onChange={(e) => setComment(e.target.value)}
-                placeholder="Dịch vụ chu đáo, giao hàng nhanh, chất lượng tuyệt vời..."
-                rows={4}
-                value={comment}
-              />
-            </Field>
-          </div>
+              <reviewForm.Field name="comment">
+                {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
+                  return (
+                    <Field data-invalid={isInvalid}>
+                      <FieldLabel htmlFor={field.name}>
+                        Nhận xét (không bắt buộc)
+                      </FieldLabel>
+                      <Textarea
+                        aria-invalid={isInvalid}
+                        id={field.name}
+                        maxLength={2000}
+                        name={field.name}
+                        onBlur={field.handleBlur}
+                        onChange={(event) =>
+                          field.handleChange(event.target.value)
+                        }
+                        placeholder="Dịch vụ chu đáo, giao hàng nhanh, chất lượng tuyệt vời..."
+                        rows={4}
+                        value={field.state.value}
+                      />
+                      {isInvalid && (
+                        <FieldError errors={field.state.meta.errors} />
+                      )}
+                    </Field>
+                  );
+                }}
+              </reviewForm.Field>
+            </FieldGroup>
+          </form>
 
           <DialogFooter>
             <Button
               disabled={createMutation.isPending}
-              onClick={() => setOpen(false)}
+              onClick={() => handleOpenChange(false)}
+              type="button"
               variant="outline"
             >
               Hủy
             </Button>
-            <Button
-              disabled={createMutation.isPending}
-              onClick={() => {
-                createMutation.mutate({
-                  comment,
-                  orderItemId,
-                  rating,
-                });
-              }}
+            <reviewForm.Subscribe
+              selector={(state) => ({
+                canSubmit: state.canSubmit,
+                isSubmitting: state.isSubmitting,
+              })}
             >
-              {createMutation.isPending ? "Đang gửi…" : "Gửi đánh giá"}
-            </Button>
+              {({ canSubmit, isSubmitting }) => (
+                <Button
+                  disabled={
+                    !canSubmit || isSubmitting || createMutation.isPending
+                  }
+                  form={reviewFormId}
+                  type="submit"
+                >
+                  {isSubmitting || createMutation.isPending
+                    ? "Đang gửi…"
+                    : "Gửi đánh giá"}
+                </Button>
+              )}
+            </reviewForm.Subscribe>
           </DialogFooter>
         </DialogContent>
       </Dialog>

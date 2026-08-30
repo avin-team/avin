@@ -7,14 +7,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@avin/ui/components/dialog";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@avin/ui/components/field";
 import { Input } from "@avin/ui/components/input";
-import { Label } from "@avin/ui/components/label";
 import { Textarea } from "@avin/ui/components/textarea";
-import { useState } from "react";
-import type { FormEvent } from "react";
+import { useForm } from "@tanstack/react-form";
 import { toast } from "sonner";
 
 import { useUpdateSubCategory } from "../api/categories-api";
+import { editSubCategoryFormSchema } from "../schemas/category-form-schema";
 import type { SubCategory } from "../types";
 
 interface Props {
@@ -29,125 +34,218 @@ interface FormProps {
 }
 
 const EditSubCategoryForm = ({ onClose, subCategory }: FormProps) => {
-  const [name, setName] = useState(subCategory.name);
-  const [commissionRatePercent, setCommissionRatePercent] = useState(() =>
-    subCategory.commissionRatePercent.toString()
-  );
-  const [defaultWarrantyDurationHours, setDefaultWarrantyDurationHours] =
-    useState(
-      () => subCategory.defaultWarrantyPolicy?.durationHours.toString() ?? "72"
-    );
-  const [minWarrantyHours, setMinWarrantyHours] = useState(
-    () => subCategory.warrantyBounds?.minHours.toString() ?? "24"
-  );
-  const [maxWarrantyHours, setMaxWarrantyHours] = useState(
-    () => subCategory.warrantyBounds?.maxHours.toString() ?? "720"
-  );
-  const [warrantyTerms, setWarrantyTerms] = useState(
-    subCategory.defaultWarrantyPolicy?.terms ?? ""
-  );
-
   const updateMutation = useUpdateSubCategory();
 
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    updateMutation.mutate(
-      {
-        commissionRatePercent: Number(commissionRatePercent),
-        defaultWarrantyDurationHours: Number(defaultWarrantyDurationHours),
-        defaultWarrantyTerms: warrantyTerms,
-        id: subCategory.id,
-        maxWarrantyHours: Number(maxWarrantyHours),
-        minWarrantyHours: Number(minWarrantyHours),
-        name: name.trim(),
-      },
-      {
-        onError: (error) => {
-          toast.error(error.message || "Có lỗi xảy ra");
-        },
-        onSuccess: () => {
-          toast.success("Cập nhật Sub-Category thành công");
-          onClose();
-        },
+  const form = useForm({
+    defaultValues: {
+      commissionRate: subCategory.commissionRatePercent.toString(),
+      maxWarranty: subCategory.warrantyBounds?.maxHours.toString() ?? "720",
+      minWarranty: subCategory.warrantyBounds?.minHours.toString() ?? "24",
+      name: subCategory.name,
+      warrantyHours:
+        subCategory.defaultWarrantyPolicy?.durationHours.toString() ?? "72",
+      warrantyTerms: subCategory.defaultWarrantyPolicy?.terms ?? "",
+    },
+    onSubmit: async ({ value }) => {
+      try {
+        await updateMutation.mutateAsync({
+          commissionRatePercent: Number(value.commissionRate),
+          defaultWarrantyDurationHours: Number(value.warrantyHours),
+          defaultWarrantyTerms: value.warrantyTerms.trim(),
+          id: subCategory.id,
+          maxWarrantyHours: Number(value.maxWarranty),
+          minWarrantyHours: Number(value.minWarranty),
+          name: value.name.trim(),
+        });
+        toast.success("Cập nhật Sub-Category thành công");
+        onClose();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Có lỗi xảy ra");
       }
-    );
-  };
+    },
+    validators: {
+      onSubmit: editSubCategoryFormSchema,
+    },
+  });
 
   return (
-    <form onSubmit={handleSubmit}>
-      <div className="grid gap-4 py-4">
-        <div className="grid gap-2">
-          <Label htmlFor="name">Tên</Label>
-          <Input
-            id="name"
-            onChange={(e) => setName(e.target.value)}
-            required
-            value={name}
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="commissionRate">Chiết khấu sàn (%)</Label>
-          <Input
-            id="commissionRate"
-            max="100"
-            min="0"
-            onChange={(e) => setCommissionRatePercent(e.target.value)}
-            required
-            step="0.5"
-            type="number"
-            value={commissionRatePercent}
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="defaultWarranty">Bảo hành mặc định (Giờ)</Label>
-          <Input
-            id="defaultWarranty"
-            min="0"
-            onChange={(e) => setDefaultWarrantyDurationHours(e.target.value)}
-            required
-            type="number"
-            value={defaultWarrantyDurationHours}
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="minWarranty">Hạn bảo hành tối thiểu (Giờ)</Label>
-          <Input
-            id="minWarranty"
-            min="0"
-            onChange={(e) => setMinWarrantyHours(e.target.value)}
-            required
-            type="number"
-            value={minWarrantyHours}
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="maxWarranty">Hạn bảo hành tối đa (Giờ)</Label>
-          <Input
-            id="maxWarranty"
-            min="0"
-            onChange={(e) => setMaxWarrantyHours(e.target.value)}
-            required
-            type="number"
-            value={maxWarrantyHours}
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="warrantyTerms">Điều khoản bảo hành mẫu</Label>
-          <Textarea
-            id="warrantyTerms"
-            onChange={(e) => setWarrantyTerms(e.target.value)}
-            required
-            value={warrantyTerms}
-          />
-        </div>
-      </div>
+    <form
+      id="edit-sub-category-form"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        await form.handleSubmit();
+      }}
+    >
+      <FieldGroup className="py-4">
+        <form.Field name="name">
+          {(field) => {
+            const isInvalid =
+              field.state.meta.isTouched && !field.state.meta.isValid;
+            return (
+              <Field data-invalid={isInvalid}>
+                <FieldLabel htmlFor={field.name}>Tên</FieldLabel>
+                <Input
+                  aria-invalid={isInvalid}
+                  id={field.name}
+                  name={field.name}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  required
+                  value={field.state.value}
+                />
+                {isInvalid && <FieldError errors={field.state.meta.errors} />}
+              </Field>
+            );
+          }}
+        </form.Field>
+        <form.Field name="commissionRate">
+          {(field) => {
+            const isInvalid =
+              field.state.meta.isTouched && !field.state.meta.isValid;
+            return (
+              <Field data-invalid={isInvalid}>
+                <FieldLabel htmlFor="commissionRate">
+                  Chiết khấu sàn (%)
+                </FieldLabel>
+                <Input
+                  aria-invalid={isInvalid}
+                  id="commissionRate"
+                  max="100"
+                  min="0"
+                  name={field.name}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  required
+                  step="0.5"
+                  type="number"
+                  value={field.state.value}
+                />
+                {isInvalid && <FieldError errors={field.state.meta.errors} />}
+              </Field>
+            );
+          }}
+        </form.Field>
+        <form.Field name="warrantyHours">
+          {(field) => {
+            const isInvalid =
+              field.state.meta.isTouched && !field.state.meta.isValid;
+            return (
+              <Field data-invalid={isInvalid}>
+                <FieldLabel htmlFor="defaultWarranty">
+                  Bảo hành mặc định (Giờ)
+                </FieldLabel>
+                <Input
+                  aria-invalid={isInvalid}
+                  id="defaultWarranty"
+                  min="0"
+                  name={field.name}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  required
+                  type="number"
+                  value={field.state.value}
+                />
+                {isInvalid && <FieldError errors={field.state.meta.errors} />}
+              </Field>
+            );
+          }}
+        </form.Field>
+        <form.Field name="minWarranty">
+          {(field) => {
+            const isInvalid =
+              field.state.meta.isTouched && !field.state.meta.isValid;
+            return (
+              <Field data-invalid={isInvalid}>
+                <FieldLabel htmlFor="minWarranty">
+                  Hạn bảo hành tối thiểu (Giờ)
+                </FieldLabel>
+                <Input
+                  aria-invalid={isInvalid}
+                  id="minWarranty"
+                  min="0"
+                  name={field.name}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  required
+                  type="number"
+                  value={field.state.value}
+                />
+                {isInvalid && <FieldError errors={field.state.meta.errors} />}
+              </Field>
+            );
+          }}
+        </form.Field>
+        <form.Field name="maxWarranty">
+          {(field) => {
+            const isInvalid =
+              field.state.meta.isTouched && !field.state.meta.isValid;
+            return (
+              <Field data-invalid={isInvalid}>
+                <FieldLabel htmlFor="maxWarranty">
+                  Hạn bảo hành tối đa (Giờ)
+                </FieldLabel>
+                <Input
+                  aria-invalid={isInvalid}
+                  id="maxWarranty"
+                  min="0"
+                  name={field.name}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  required
+                  type="number"
+                  value={field.state.value}
+                />
+                {isInvalid && <FieldError errors={field.state.meta.errors} />}
+              </Field>
+            );
+          }}
+        </form.Field>
+        <form.Field name="warrantyTerms">
+          {(field) => {
+            const isInvalid =
+              field.state.meta.isTouched && !field.state.meta.isValid;
+            return (
+              <Field data-invalid={isInvalid}>
+                <FieldLabel htmlFor="warrantyTerms">
+                  Điều khoản bảo hành mẫu
+                </FieldLabel>
+                <Textarea
+                  aria-invalid={isInvalid}
+                  id="warrantyTerms"
+                  name={field.name}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  required
+                  value={field.state.value}
+                />
+                {isInvalid && <FieldError errors={field.state.meta.errors} />}
+              </Field>
+            );
+          }}
+        </form.Field>
+      </FieldGroup>
       <DialogFooter>
         <Button onClick={onClose} type="button" variant="outline">
           Hủy
         </Button>
-        <Button disabled={updateMutation.isPending} type="submit">
-          Lưu
-        </Button>
+        <form.Subscribe
+          selector={(state) => ({
+            canSubmit: state.canSubmit,
+            isSubmitting: state.isSubmitting,
+          })}
+        >
+          {({ canSubmit, isSubmitting }) => (
+            <Button
+              disabled={!canSubmit || isSubmitting || updateMutation.isPending}
+              type="submit"
+            >
+              {isSubmitting || updateMutation.isPending
+                ? "Đang xử lý..."
+                : "Lưu"}
+            </Button>
+          )}
+        </form.Subscribe>
       </DialogFooter>
     </form>
   );

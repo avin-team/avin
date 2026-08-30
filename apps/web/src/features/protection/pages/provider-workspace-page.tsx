@@ -4,6 +4,12 @@ import {
   providerTierLabel as providerTierLabels,
 } from "@avin/api/protection/provider-tier";
 import { Button } from "@avin/ui/components/button";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@avin/ui/components/field";
 import { Input } from "@avin/ui/components/input";
 import {
   ArrowLeftIcon,
@@ -11,8 +17,8 @@ import {
   Clock,
   ShieldCheck,
 } from "@phosphor-icons/react";
+import { useForm } from "@tanstack/react-form";
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
 import { toast } from "sonner";
 
 import { Shell } from "@/components/shell";
@@ -30,6 +36,7 @@ import {
   ProviderApplicationFormSkeleton,
 } from "../components/provider-application-form";
 import { ProviderRiskIncidentPanel } from "../components/provider-risk-incident-panel";
+import { providerBondTopUpFormSchema } from "../schemas/provider-workspace-schema";
 
 const PROFILE_STATUS_LABELS = {
   ACTIVE: "Đang hoạt động",
@@ -218,22 +225,24 @@ const ProviderBondSummary = ({
 }) => {
   const { request } = useProviderBondWithdrawalActions();
   const { createTopUpIntent } = useProviderBondActions();
-  const [topUpAmount, setTopUpAmount] = useState(1_000_000);
-
-  const createTopUp = async () => {
-    try {
-      await createTopUpIntent.mutateAsync({ amount: topUpAmount });
-      toast.success(
-        "Đã tạo lệnh nạp thêm vào quỹ đảm bảo. Hãy chuyển đúng số tiền trong 24 giờ."
-      );
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Không thể tạo lệnh nạp vào quỹ đảm bảo."
-      );
-    }
-  };
+  const topUpForm = useForm({
+    defaultValues: { amount: "1000000" },
+    onSubmit: async ({ value }) => {
+      try {
+        await createTopUpIntent.mutateAsync({ amount: Number(value.amount) });
+        toast.success(
+          "Đã tạo lệnh nạp thêm vào quỹ đảm bảo. Hãy chuyển đúng số tiền trong 24 giờ."
+        );
+      } catch (error) {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Không thể tạo lệnh nạp vào quỹ đảm bảo."
+        );
+      }
+    },
+    validators: { onSubmit: providerBondTopUpFormSchema },
+  });
 
   const requestWithdrawal = async () => {
     try {
@@ -291,30 +300,68 @@ const ProviderBondSummary = ({
           Tạo một lệnh riêng và chuyển đúng số tiền theo QR trong 24 giờ. Hệ
           thống tự cập nhật hạng và hạn mức sau khi đối soát.
         </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Input
-            className="max-w-48"
-            inputMode="numeric"
-            min={1_000_000}
-            onChange={(event) =>
-              setTopUpAmount(
-                Number(event.target.value.replaceAll(/\D/gu, "")) || 0
-              )
-            }
-            type="number"
-            value={topUpAmount || ""}
-          />
-          <Button
-            disabled={createTopUpIntent.isPending || topUpAmount < 1_000_000}
-            onClick={() => void createTopUp()}
-            type="button"
-            variant="outline"
-          >
-            {createTopUpIntent.isPending
-              ? "Đang tạo..."
-              : "Tạo lệnh nạp vào quỹ đảm bảo"}
-          </Button>
-        </div>
+        <form
+          id="provider-bond-top-up-form"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            await topUpForm.handleSubmit();
+          }}
+        >
+          <FieldGroup className="mt-3 flex flex-wrap items-end gap-2">
+            <topUpForm.Field name="amount">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
+                return (
+                  <Field className="max-w-48" data-invalid={isInvalid}>
+                    <FieldLabel htmlFor={field.name}>
+                      Số tiền nạp (₫)
+                    </FieldLabel>
+                    <Input
+                      aria-invalid={isInvalid}
+                      id={field.name}
+                      inputMode="numeric"
+                      min={1_000_000}
+                      name={field.name}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(
+                          event.target.value.replaceAll(/\D/gu, "")
+                        )
+                      }
+                      type="number"
+                      value={field.state.value}
+                    />
+                    {isInvalid && (
+                      <FieldError errors={field.state.meta.errors} />
+                    )}
+                  </Field>
+                );
+              }}
+            </topUpForm.Field>
+            <topUpForm.Subscribe
+              selector={(state) => ({
+                canSubmit: state.canSubmit,
+                isSubmitting: state.isSubmitting,
+              })}
+            >
+              {({ canSubmit, isSubmitting }) => (
+                <Button
+                  disabled={
+                    !canSubmit || isSubmitting || createTopUpIntent.isPending
+                  }
+                  type="submit"
+                  variant="outline"
+                >
+                  {isSubmitting || createTopUpIntent.isPending
+                    ? "Đang tạo..."
+                    : "Tạo lệnh nạp vào quỹ đảm bảo"}
+                </Button>
+              )}
+            </topUpForm.Subscribe>
+          </FieldGroup>
+        </form>
         {depositIntent?.kind === "TOP_UP" &&
         depositIntent.status === "PENDING" ? (
           <div className="mt-3 rounded-xl border bg-background p-3 text-sm">

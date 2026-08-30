@@ -9,8 +9,13 @@ import {
 } from "@avin/api/protection/provider-tier";
 import { Button } from "@avin/ui/components/button";
 import { Checkbox } from "@avin/ui/components/checkbox";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@avin/ui/components/field";
 import { Input } from "@avin/ui/components/input";
-import { Label } from "@avin/ui/components/label";
 import {
   Select,
   SelectContent,
@@ -21,9 +26,9 @@ import {
 } from "@avin/ui/components/select";
 import { Textarea } from "@avin/ui/components/textarea";
 import { Bank, Copy, Plus, QrCode, Trash } from "@phosphor-icons/react";
+import { useForm, useStore } from "@tanstack/react-form";
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import type { FormEvent } from "react";
 import { toast } from "sonner";
 
 import {
@@ -35,6 +40,7 @@ import type {
   ProviderApplication,
   ProviderProfileRevision,
 } from "../api/provider-api";
+import { providerApplicationFormSchema } from "../schemas/provider-application-form-schema";
 import { ProviderAvatarUploader } from "./provider-avatar-uploader";
 
 const DEFAULT_BOND_AMOUNT = 1_000_000;
@@ -59,8 +65,6 @@ const BANK_ITEMS = [
 const BOND_PRESETS = [
   1_000_000, 5_000_000, 10_000_000, 20_000_000, 50_000_000, 100_000_000,
 ];
-const ACCOUNT_NUMBER_PATTERN = /^\d{4,30}$/u;
-const CITIZEN_ID_PATTERN = /^\d{12}$/u;
 const OPTIONAL_CHANNEL_LABELS = {
   telegramCommunityUrl: "Telegram",
   tiktokUrl: "TikTok",
@@ -572,9 +576,6 @@ const ProviderApplicationFormContent = ({
   currentPolicyVersion = CURRENT_PROVIDER_POLICY_VERSION,
   mode = "application",
 }: ProviderApplicationFormProps) => {
-  const [form, setForm] = useState(() =>
-    getFormState(application, currentPolicyVersion)
-  );
   const [activeTab, setActiveTab] = useState<
     "identity_and_channels" | "payout_and_policy"
   >("identity_and_channels");
@@ -602,116 +603,61 @@ const ProviderApplicationFormContent = ({
     ("createDepositIntent" in applicationActions &&
       applicationActions.createDepositIntent.isPending);
 
-  const updateField = <K extends keyof ProviderApplicationFormState>(
-    field: K,
-    value: ProviderApplicationFormState[K]
-  ) => {
-    setForm((previous) => ({ ...previous, [field]: value }));
-  };
-  const updateChannel = (field: keyof OfficialChannelsState, value: string) => {
-    setForm((previous) => ({
-      ...previous,
-      officialChannels: { ...previous.officialChannels, [field]: value },
-    }));
-  };
-  const updateZalo = (index: number, value: string) => {
-    setForm((previous) => ({
-      ...previous,
-      zalos: previous.zalos.map((account, accountIndex) =>
-        accountIndex === index ? { ...account, phone: value } : account
-      ),
-    }));
-  };
-  const addZalo = () => {
-    setForm((previous) => ({
-      ...previous,
-      zalos: [...previous.zalos, emptyZaloAccount()],
-    }));
-  };
-  const removeZalo = (index: number) => {
-    setForm((previous) => {
-      const next = previous.zalos.filter(
-        (_, accountIndex) => accountIndex !== index
-      );
-      return {
-        ...previous,
-        zalos: next.length > 0 ? next : [emptyZaloAccount()],
-      };
-    });
-  };
-  const updateFacebook = (index: number, value: string) => {
-    setForm((previous) => ({
-      ...previous,
-      facebooks: previous.facebooks.map((account, accountIndex) =>
-        accountIndex === index ? { ...account, url: value } : account
-      ),
-    }));
-  };
-  const addFacebook = () => {
-    setForm((previous) => ({
-      ...previous,
-      facebooks: [...previous.facebooks, emptyFacebookAccount()],
-    }));
-  };
-  const removeFacebook = (index: number) => {
-    setForm((previous) => {
-      const next = previous.facebooks.filter(
-        (_, accountIndex) => accountIndex !== index
-      );
-      return {
-        ...previous,
-        facebooks: next.length > 0 ? next : [emptyFacebookAccount()],
-      };
-    });
-  };
-  const updateBank = (
-    index: number,
-    field: keyof BankAccountState,
-    value: string | boolean
-  ) => {
-    setForm((previous) => {
-      const registeredBankAccounts = previous.registeredBankAccounts.map(
-        (account, accountIndex) => {
-          if (accountIndex === index) {
-            return { ...account, [field]: value };
+  const defaultValues = useMemo(
+    () => getFormState(application, currentPolicyVersion),
+    [application, currentPolicyVersion]
+  );
+  const applicationForm = useForm({
+    defaultValues,
+    onSubmit: async ({ value }) => {
+      try {
+        if (mode === "application") {
+          await applicationActions.saveDraft.mutateAsync(
+            toDraft(value, currentPolicyVersion)
+          );
+          const existingIntent = depositIntentQuery.data;
+          if (existingIntent?.status !== "MATCHED") {
+            const createdIntent =
+              await applicationActions.createDepositIntent.mutateAsync({
+                amount: value.bondAmount,
+              });
+            setCreatedDepositIntent(createdIntent);
+            setIsEditingForm(false);
+            toast.success(
+              "Đã tạo lệnh chuyển khoản. Vui lòng chuyển khoản và chờ hệ thống đối soát."
+            );
+            return;
           }
-          if (field === "isPrimary" && value === true) {
-            return { ...account, isPrimary: false };
-          }
-          return account;
         }
-      );
-      return { ...previous, registeredBankAccounts };
-    });
-  };
-  const addBank = () => {
-    setForm((previous) => ({
-      ...previous,
-      registeredBankAccounts: [
-        ...previous.registeredBankAccounts,
-        emptyBankAccount(false),
-      ],
-    }));
-  };
-  const removeBank = (index: number) => {
-    setForm((previous) => {
-      const next = previous.registeredBankAccounts.filter(
-        (_, accountIndex) => accountIndex !== index
-      );
-      if (!next.some((account) => account.isPrimary) && next[0]) {
-        next[0] = { ...next[0], isPrimary: true };
+        await (
+          mode === "revision"
+            ? revisionActions.submit
+            : applicationActions.submit
+        ).mutateAsync(toSubmission(value, currentPolicyVersion));
+        toast.success(
+          mode === "revision"
+            ? "Đã gửi yêu cầu cập nhật hồ sơ."
+            : "Đã gửi hồ sơ đăng ký đối tác."
+        );
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Không thể gửi hồ sơ."
+        );
       }
-      return {
-        ...previous,
-        registeredBankAccounts: next.length > 0 ? next : [emptyBankAccount()],
-      };
-    });
-  };
+    },
+    validators: { onSubmit: providerApplicationFormSchema },
+  });
+  const form = useStore(applicationForm.store, (state) => state.values);
   const fillDevelopmentForm = () => {
     if (!import.meta.env.DEV) {
       return;
     }
-    setForm(createDevelopmentFormState());
+    const nextForm = createDevelopmentFormState();
+    // Keep the hook's original defaults in sync with its render options. The
+    // form hook re-applies `defaultValues` after a state update, so replacing
+    // defaults imperatively here would immediately overwrite the sample data
+    // on the next render.
+    applicationForm.reset(nextForm, { keepDefaultValues: true });
     setActiveTab("identity_and_channels");
     toast.success("Đã điền dữ liệu mẫu cho môi trường dev.");
   };
@@ -720,87 +666,18 @@ const ProviderApplicationFormContent = ({
     () => getProviderTier(form.bondAmount),
     [form.bondAmount]
   );
-  const validZalos =
-    form.zalos.length > 0 && form.zalos.every((z) => z.phone.trim().length > 0);
-
-  const validFacebooks =
-    form.facebooks.length === 1 && !form.facebooks[0]?.url.trim()
-      ? true
-      : form.facebooks.every((fb) => fb.url.trim().length > 0);
-
-  const validBankAccounts = form.registeredBankAccounts.every(
-    (account) =>
-      account.accountName.trim() &&
-      ACCOUNT_NUMBER_PATTERN.test(account.accountNumber.trim()) &&
-      account.bankCode.trim()
-  );
-  const hasOnePrimaryBankAccount =
-    form.registeredBankAccounts.filter((account) => account.isPrimary)
-      .length === 1;
-  const canSubmit = Boolean(
-    form.bondAmount >= DEFAULT_BOND_AMOUNT &&
-    form.fullName.trim() &&
-    form.location.trim() &&
-    CITIZEN_ID_PATTERN.test(form.citizenIdNumber.trim()) &&
-    validZalos &&
-    validFacebooks &&
-    form.services.trim() &&
-    form.policyAccepted &&
-    form.publicDataConsent &&
-    form.registeredBankAccounts.length > 0 &&
-    validBankAccounts &&
-    hasOnePrimaryBankAccount
-  );
-
   const handleSaveDraft = async () => {
     try {
-      await saveDraft.mutateAsync(toDraft(form, currentPolicyVersion) as never);
+      const draft = toDraft(form, currentPolicyVersion);
+      await (
+        mode === "revision"
+          ? revisionActions.saveDraft
+          : applicationActions.saveDraft
+      ).mutateAsync(draft);
       toast.success("Đã lưu bản nháp.");
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Không thể lưu bản nháp."
-      );
-    }
-  };
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!canSubmit) {
-      toast.error(
-        "Vui lòng hoàn thiện CCCD, địa điểm, kênh liên hệ, tài khoản ngân hàng và các xác nhận."
-      );
-      return;
-    }
-    try {
-      if (mode === "application") {
-        await applicationActions.saveDraft.mutateAsync(
-          toDraft(form, currentPolicyVersion) as never
-        );
-        const existingIntent = depositIntentQuery.data;
-        if (existingIntent?.status !== "MATCHED") {
-          const createdIntent =
-            await applicationActions.createDepositIntent.mutateAsync({
-              amount: form.bondAmount,
-            });
-          setCreatedDepositIntent(createdIntent);
-          setIsEditingForm(false);
-          toast.success(
-            "Đã tạo lệnh chuyển khoản. Vui lòng chuyển khoản và chờ hệ thống đối soát."
-          );
-          return;
-        }
-      }
-      await submit.mutateAsync(
-        toSubmission(form, currentPolicyVersion) as never
-      );
-      toast.success(
-        mode === "revision"
-          ? "Đã gửi yêu cầu cập nhật hồ sơ."
-          : "Đã gửi hồ sơ đăng ký đối tác."
-      );
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Không thể gửi hồ sơ."
       );
     }
   };
@@ -828,7 +705,12 @@ const ProviderApplicationFormContent = ({
     <form
       className="space-y-6"
       data-testid="provider-application-form"
-      onSubmit={handleSubmit}
+      id="provider-application-form"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        await applicationForm.handleSubmit();
+      }}
     >
       <header className="flex w-full flex-wrap items-start justify-between gap-2 text-left">
         <div>
@@ -880,510 +762,912 @@ const ProviderApplicationFormContent = ({
         </button>
       </div>
 
-      {activeTab === "identity_and_channels" ? (
-        <section
-          className="space-y-5 rounded-3xl border bg-card p-6"
-          aria-labelledby="provider-identity-heading"
-        >
-          <div>
-            <h3 className="font-bold text-lg" id="provider-identity-heading">
-              Thông tin định danh và địa điểm
-            </h3>
-            <p className="text-muted-foreground text-xs">
-              CCCD chỉ dùng để xác minh, không hiển thị công khai và không nhận
-              ảnh CCCD.
-            </p>
-          </div>
-
-          <ProviderAvatarUploader
-            avatarUrl={form.officialChannels.avatarUrl}
-            disabled={isBusy}
-            onAvatarChange={(value) => updateChannel("avatarUrl", value.url)}
-            onUploadingChange={setIsUploadingAvatar}
-          />
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="app-full-name">
-                Họ và tên <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                disabled={isBusy}
-                id="app-full-name"
-                onChange={(event) =>
-                  updateField("fullName", event.target.value)
-                }
-                value={form.fullName}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="app-bio">Dòng giới thiệu ngắn</Label>
-              <Input
-                disabled={isBusy}
-                id="app-bio"
-                maxLength={150}
-                onChange={(event) => updateField("bio", event.target.value)}
-                placeholder="VD: Giao dịch qua Zalo nhé mọi người"
-                value={form.bio}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="app-citizen-id">
-                Căn cước công dân (12 số){" "}
-                <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                disabled={isBusy}
-                id="app-citizen-id"
-                inputMode="numeric"
-                maxLength={12}
-                onChange={(event) =>
-                  updateField(
-                    "citizenIdNumber",
-                    event.target.value.replaceAll(/\D/gu, "")
-                  )
-                }
-                value={form.citizenIdNumber}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="app-location">
-                Địa điểm <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                disabled={isBusy}
-                id="app-location"
-                placeholder="Tỉnh/Thành Phố"
-                onChange={(event) =>
-                  updateField("location", event.target.value)
-                }
-                value={form.location}
-              />
-            </div>
-          </div>
-          <div className="space-y-4 rounded-2xl border bg-muted/20 p-4 sm:p-5">
+      <FieldGroup className="space-y-6">
+        {activeTab === "identity_and_channels" ? (
+          <section
+            className="space-y-5 rounded-3xl border bg-card p-6"
+            aria-labelledby="provider-identity-heading"
+          >
             <div>
-              <h4 className="font-semibold text-sm">Kênh liên hệ</h4>
+              <h3 className="font-bold text-lg" id="provider-identity-heading">
+                Thông tin định danh và địa điểm
+              </h3>
               <p className="text-muted-foreground text-xs">
-                Khai báo các kênh liên hệ chính thức; tài khoản đầu tiên là tài
-                khoản chính.
+                CCCD chỉ dùng để xác minh, không hiển thị công khai và không
+                nhận ảnh CCCD.
               </p>
             </div>
 
+            <applicationForm.Field name="officialChannels.avatarUrl">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
+                return (
+                  <Field data-invalid={isInvalid}>
+                    <ProviderAvatarUploader
+                      avatarUrl={field.state.value}
+                      disabled={isBusy}
+                      onAvatarChange={(value) => field.handleChange(value.url)}
+                      onUploadingChange={setIsUploadingAvatar}
+                    />
+                    {isInvalid ? (
+                      <FieldError errors={field.state.meta.errors} />
+                    ) : null}
+                  </Field>
+                );
+              }}
+            </applicationForm.Field>
+
             <div className="grid gap-4 sm:grid-cols-2">
-              {/* Zalo column */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="zalo-phone-0">
-                    Số điện thoại Zalo{" "}
-                    <span className="text-destructive">*</span>
-                  </Label>
-                  <Button
-                    className="size-7 rounded-lg"
-                    disabled={isBusy || form.zalos.length >= 10}
-                    onClick={addZalo}
-                    size="icon"
-                    title="Thêm tài khoản Zalo"
-                    type="button"
-                    variant="outline"
-                  >
-                    <Plus className="size-3.5" />
-                    <span className="sr-only">Thêm tài khoản Zalo</span>
-                  </Button>
-                </div>
-                <div className="space-y-2">
-                  {form.zalos.map((zalo, index) => (
-                    <div className="flex items-center gap-1.5" key={zalo.id}>
-                      <div className="flex-1">
-                        <Label
-                          className="sr-only"
-                          htmlFor={`zalo-phone-${index}`}
-                        >
-                          {index === 0
-                            ? "Số điện thoại Zalo chính"
-                            : `Số điện thoại Zalo phụ ${index}`}
-                        </Label>
-                        <Input
-                          disabled={isBusy}
-                          id={`zalo-phone-${index}`}
-                          inputMode="tel"
-                          onChange={(event) =>
-                            updateZalo(index, event.target.value)
-                          }
-                          placeholder={
-                            index === 0
-                              ? "Số điện thoại Zalo chính (VD: 0901234567)"
-                              : `Zalo phụ #${index} (VD: 0901234567)`
-                          }
-                          value={zalo.phone}
-                        />
-                      </div>
-                      {form.zalos.length > 1 && index > 0 ? (
-                        <Button
-                          className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
-                          onClick={() => removeZalo(index)}
-                          size="icon"
-                          title="Xóa"
-                          type="button"
-                          variant="ghost"
-                        >
-                          <Trash className="size-4" />
-                          <span className="sr-only">Xóa Zalo</span>
-                        </Button>
+              <applicationForm.Field name="fullName">
+                {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
+                  return (
+                    <Field data-invalid={isInvalid}>
+                      <FieldLabel htmlFor={field.name}>
+                        Họ và tên <span className="text-destructive">*</span>
+                      </FieldLabel>
+                      <Input
+                        aria-invalid={isInvalid}
+                        disabled={isBusy}
+                        id={field.name}
+                        name={field.name}
+                        onBlur={field.handleBlur}
+                        onChange={(event) =>
+                          field.handleChange(event.target.value)
+                        }
+                        value={field.state.value}
+                      />
+                      {isInvalid ? (
+                        <FieldError errors={field.state.meta.errors} />
                       ) : null}
-                    </div>
-                  ))}
-                </div>
+                    </Field>
+                  );
+                }}
+              </applicationForm.Field>
+              <applicationForm.Field name="bio">
+                {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
+                  return (
+                    <Field data-invalid={isInvalid}>
+                      <FieldLabel htmlFor={field.name}>
+                        Dòng giới thiệu ngắn
+                      </FieldLabel>
+                      <Input
+                        aria-invalid={isInvalid}
+                        disabled={isBusy}
+                        id={field.name}
+                        maxLength={150}
+                        name={field.name}
+                        onBlur={field.handleBlur}
+                        onChange={(event) =>
+                          field.handleChange(event.target.value)
+                        }
+                        placeholder="VD: Giao dịch qua Zalo nhé mọi người"
+                        value={field.state.value}
+                      />
+                      {isInvalid ? (
+                        <FieldError errors={field.state.meta.errors} />
+                      ) : null}
+                    </Field>
+                  );
+                }}
+              </applicationForm.Field>
+              <applicationForm.Field name="citizenIdNumber">
+                {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
+                  return (
+                    <Field data-invalid={isInvalid}>
+                      <FieldLabel htmlFor={field.name}>
+                        Căn cước công dân (12 số){" "}
+                        <span className="text-destructive">*</span>
+                      </FieldLabel>
+                      <Input
+                        aria-invalid={isInvalid}
+                        disabled={isBusy}
+                        id={field.name}
+                        inputMode="numeric"
+                        maxLength={12}
+                        name={field.name}
+                        onBlur={field.handleBlur}
+                        onChange={(event) =>
+                          field.handleChange(
+                            event.target.value.replaceAll(/\D/gu, "")
+                          )
+                        }
+                        value={field.state.value}
+                      />
+                      {isInvalid ? (
+                        <FieldError errors={field.state.meta.errors} />
+                      ) : null}
+                    </Field>
+                  );
+                }}
+              </applicationForm.Field>
+              <applicationForm.Field name="location">
+                {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
+                  return (
+                    <Field data-invalid={isInvalid}>
+                      <FieldLabel htmlFor={field.name}>
+                        Địa điểm <span className="text-destructive">*</span>
+                      </FieldLabel>
+                      <Input
+                        aria-invalid={isInvalid}
+                        disabled={isBusy}
+                        id={field.name}
+                        name={field.name}
+                        onBlur={field.handleBlur}
+                        onChange={(event) =>
+                          field.handleChange(event.target.value)
+                        }
+                        placeholder="Tỉnh/Thành Phố"
+                        value={field.state.value}
+                      />
+                      {isInvalid ? (
+                        <FieldError errors={field.state.meta.errors} />
+                      ) : null}
+                    </Field>
+                  );
+                }}
+              </applicationForm.Field>
+            </div>
+            <div className="space-y-4 rounded-2xl border bg-muted/20 p-4 sm:p-5">
+              <div>
+                <h4 className="font-semibold text-sm">Kênh liên hệ</h4>
+                <p className="text-muted-foreground text-xs">
+                  Khai báo các kênh liên hệ chính thức; tài khoản đầu tiên là
+                  tài khoản chính.
+                </p>
               </div>
 
-              {/* Facebook column */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="fb-url-0">Link Facebook</Label>
-                  <Button
-                    className="size-7 rounded-lg"
-                    disabled={isBusy || form.facebooks.length >= 10}
-                    onClick={addFacebook}
-                    size="icon"
-                    title="Thêm tài khoản Facebook"
-                    type="button"
-                    variant="outline"
-                  >
-                    <Plus className="size-3.5" />
-                    <span className="sr-only">Thêm tài khoản Facebook</span>
-                  </Button>
-                </div>
-                <div className="space-y-2">
-                  {form.facebooks.map((facebook, index) => (
-                    <div
-                      className="flex items-center gap-1.5"
-                      key={facebook.id}
-                    >
-                      <div className="flex-1">
-                        <Label className="sr-only" htmlFor={`fb-url-${index}`}>
-                          {index === 0
-                            ? "Link Facebook chính"
-                            : `Link Facebook phụ ${index}`}
-                        </Label>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {/* Zalo column */}
+                <applicationForm.Field name="zalos">
+                  {(field) => {
+                    const isInvalid =
+                      field.state.meta.isTouched && !field.state.meta.isValid;
+                    return (
+                      <Field data-invalid={isInvalid}>
+                        <div className="flex items-center justify-between">
+                          <FieldLabel>
+                            Số điện thoại Zalo{" "}
+                            <span className="text-destructive">*</span>
+                          </FieldLabel>
+                          <Button
+                            className="size-7 rounded-lg"
+                            disabled={isBusy || field.state.value.length >= 10}
+                            onClick={() =>
+                              field.handleChange([
+                                ...field.state.value,
+                                emptyZaloAccount(),
+                              ])
+                            }
+                            size="icon"
+                            title="Thêm tài khoản Zalo"
+                            type="button"
+                            variant="outline"
+                          >
+                            <Plus className="size-3.5" />
+                            <span className="sr-only">Thêm tài khoản Zalo</span>
+                          </Button>
+                        </div>
+                        <div className="space-y-2">
+                          {field.state.value.map((zalo, index) => (
+                            <div
+                              className="flex items-center gap-1.5"
+                              key={zalo.id}
+                            >
+                              <div className="flex-1">
+                                <FieldLabel
+                                  className="sr-only"
+                                  htmlFor={`zalo-phone-${index}`}
+                                >
+                                  {index === 0
+                                    ? "Số điện thoại Zalo chính"
+                                    : `Số điện thoại Zalo phụ ${index}`}
+                                </FieldLabel>
+                                <Input
+                                  aria-invalid={isInvalid}
+                                  disabled={isBusy}
+                                  id={`zalo-phone-${index}`}
+                                  inputMode="tel"
+                                  name={`zalos[${index}].phone`}
+                                  onBlur={field.handleBlur}
+                                  onChange={(event) =>
+                                    field.handleChange(
+                                      field.state.value.map(
+                                        (account, accountIndex) =>
+                                          accountIndex === index
+                                            ? {
+                                                ...account,
+                                                phone: event.target.value,
+                                              }
+                                            : account
+                                      )
+                                    )
+                                  }
+                                  placeholder={
+                                    index === 0
+                                      ? "Số điện thoại Zalo chính (VD: 0901234567)"
+                                      : `Zalo phụ #${index} (VD: 0901234567)`
+                                  }
+                                  value={zalo.phone}
+                                />
+                              </div>
+                              {field.state.value.length > 1 && index > 0 ? (
+                                <Button
+                                  className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
+                                  onClick={() => {
+                                    const next = field.state.value.filter(
+                                      (_, accountIndex) =>
+                                        accountIndex !== index
+                                    );
+                                    field.handleChange(
+                                      next.length > 0
+                                        ? next
+                                        : [emptyZaloAccount()]
+                                    );
+                                  }}
+                                  size="icon"
+                                  title="Xóa"
+                                  type="button"
+                                  variant="ghost"
+                                >
+                                  <Trash className="size-4" />
+                                  <span className="sr-only">Xóa Zalo</span>
+                                </Button>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                        {isInvalid ? (
+                          <FieldError errors={field.state.meta.errors} />
+                        ) : null}
+                      </Field>
+                    );
+                  }}
+                </applicationForm.Field>
+
+                {/* Facebook column */}
+                <applicationForm.Field name="facebooks">
+                  {(field) => {
+                    const isInvalid =
+                      field.state.meta.isTouched && !field.state.meta.isValid;
+                    return (
+                      <Field data-invalid={isInvalid}>
+                        <div className="flex items-center justify-between">
+                          <FieldLabel>Link Facebook</FieldLabel>
+                          <Button
+                            className="size-7 rounded-lg"
+                            disabled={isBusy || field.state.value.length >= 10}
+                            onClick={() =>
+                              field.handleChange([
+                                ...field.state.value,
+                                emptyFacebookAccount(),
+                              ])
+                            }
+                            size="icon"
+                            title="Thêm tài khoản Facebook"
+                            type="button"
+                            variant="outline"
+                          >
+                            <Plus className="size-3.5" />
+                            <span className="sr-only">
+                              Thêm tài khoản Facebook
+                            </span>
+                          </Button>
+                        </div>
+                        <div className="space-y-2">
+                          {field.state.value.map((facebook, index) => (
+                            <div
+                              className="flex items-center gap-1.5"
+                              key={facebook.id}
+                            >
+                              <div className="flex-1">
+                                <FieldLabel
+                                  className="sr-only"
+                                  htmlFor={`fb-url-${index}`}
+                                >
+                                  {index === 0
+                                    ? "Link Facebook chính"
+                                    : `Link Facebook phụ ${index}`}
+                                </FieldLabel>
+                                <Input
+                                  aria-invalid={isInvalid}
+                                  disabled={isBusy}
+                                  id={`fb-url-${index}`}
+                                  name={`facebooks[${index}].url`}
+                                  onBlur={field.handleBlur}
+                                  onChange={(event) =>
+                                    field.handleChange(
+                                      field.state.value.map(
+                                        (account, accountIndex) =>
+                                          accountIndex === index
+                                            ? {
+                                                ...account,
+                                                url: event.target.value,
+                                              }
+                                            : account
+                                      )
+                                    )
+                                  }
+                                  placeholder={
+                                    index === 0
+                                      ? "Link Facebook chính (https://facebook.com/...)"
+                                      : `Facebook phụ #${index} (https://facebook.com/...)`
+                                  }
+                                  type="url"
+                                  value={facebook.url}
+                                />
+                              </div>
+                              {field.state.value.length > 1 && index > 0 ? (
+                                <Button
+                                  className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
+                                  onClick={() => {
+                                    const next = field.state.value.filter(
+                                      (_, accountIndex) =>
+                                        accountIndex !== index
+                                    );
+                                    field.handleChange(
+                                      next.length > 0
+                                        ? next
+                                        : [emptyFacebookAccount()]
+                                    );
+                                  }}
+                                  size="icon"
+                                  title="Xóa"
+                                  type="button"
+                                  variant="ghost"
+                                >
+                                  <Trash className="size-4" />
+                                  <span className="sr-only">Xóa Facebook</span>
+                                </Button>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                        {isInvalid ? (
+                          <FieldError errors={field.state.meta.errors} />
+                        ) : null}
+                      </Field>
+                    );
+                  }}
+                </applicationForm.Field>
+
+                {/* Other channels */}
+                <applicationForm.Field name="officialChannels.hotline">
+                  {(field) => {
+                    const isInvalid =
+                      field.state.meta.isTouched && !field.state.meta.isValid;
+                    return (
+                      <Field data-invalid={isInvalid}>
+                        <FieldLabel htmlFor={field.name}>
+                          Số điện thoại / Hotline
+                        </FieldLabel>
                         <Input
+                          aria-invalid={isInvalid}
                           disabled={isBusy}
-                          id={`fb-url-${index}`}
+                          id={field.name}
+                          inputMode="tel"
+                          name={field.name}
+                          onBlur={field.handleBlur}
                           onChange={(event) =>
-                            updateFacebook(index, event.target.value)
+                            field.handleChange(event.target.value)
                           }
-                          placeholder={
-                            index === 0
-                              ? "Link Facebook chính (https://facebook.com/...)"
-                              : `Facebook phụ #${index} (https://facebook.com/...)`
+                          placeholder="VD: 0901234567"
+                          type="tel"
+                          value={field.state.value}
+                        />
+                        {isInvalid ? (
+                          <FieldError errors={field.state.meta.errors} />
+                        ) : null}
+                      </Field>
+                    );
+                  }}
+                </applicationForm.Field>
+                <applicationForm.Field name="officialChannels.telegramCommunityUrl">
+                  {(field) => {
+                    const isInvalid =
+                      field.state.meta.isTouched && !field.state.meta.isValid;
+                    return (
+                      <Field data-invalid={isInvalid}>
+                        <FieldLabel htmlFor={field.name}>
+                          {OPTIONAL_CHANNEL_LABELS.telegramCommunityUrl}
+                        </FieldLabel>
+                        <Input
+                          aria-invalid={isInvalid}
+                          disabled={isBusy}
+                          id={field.name}
+                          name={field.name}
+                          onBlur={field.handleBlur}
+                          onChange={(event) =>
+                            field.handleChange(event.target.value)
                           }
                           type="url"
-                          value={facebook.url}
+                          value={field.state.value}
                         />
-                      </div>
-                      {form.facebooks.length > 1 && index > 0 ? (
-                        <Button
-                          className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
-                          onClick={() => removeFacebook(index)}
-                          size="icon"
-                          title="Xóa"
-                          type="button"
-                          variant="ghost"
-                        >
-                          <Trash className="size-4" />
-                          <span className="sr-only">Xóa Facebook</span>
-                        </Button>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
+                        {isInvalid ? (
+                          <FieldError errors={field.state.meta.errors} />
+                        ) : null}
+                      </Field>
+                    );
+                  }}
+                </applicationForm.Field>
+                <applicationForm.Field name="officialChannels.tiktokUrl">
+                  {(field) => {
+                    const isInvalid =
+                      field.state.meta.isTouched && !field.state.meta.isValid;
+                    return (
+                      <Field data-invalid={isInvalid}>
+                        <FieldLabel htmlFor={field.name}>
+                          {OPTIONAL_CHANNEL_LABELS.tiktokUrl}
+                        </FieldLabel>
+                        <Input
+                          aria-invalid={isInvalid}
+                          disabled={isBusy}
+                          id={field.name}
+                          name={field.name}
+                          onBlur={field.handleBlur}
+                          onChange={(event) =>
+                            field.handleChange(event.target.value)
+                          }
+                          type="url"
+                          value={field.state.value}
+                        />
+                        {isInvalid ? (
+                          <FieldError errors={field.state.meta.errors} />
+                        ) : null}
+                      </Field>
+                    );
+                  }}
+                </applicationForm.Field>
+                <applicationForm.Field name="officialChannels.youtubeUrl">
+                  {(field) => {
+                    const isInvalid =
+                      field.state.meta.isTouched && !field.state.meta.isValid;
+                    return (
+                      <Field data-invalid={isInvalid}>
+                        <FieldLabel htmlFor={field.name}>
+                          {OPTIONAL_CHANNEL_LABELS.youtubeUrl}
+                        </FieldLabel>
+                        <Input
+                          aria-invalid={isInvalid}
+                          disabled={isBusy}
+                          id={field.name}
+                          name={field.name}
+                          onBlur={field.handleBlur}
+                          onChange={(event) =>
+                            field.handleChange(event.target.value)
+                          }
+                          type="url"
+                          value={field.state.value}
+                        />
+                        {isInvalid ? (
+                          <FieldError errors={field.state.meta.errors} />
+                        ) : null}
+                      </Field>
+                    );
+                  }}
+                </applicationForm.Field>
+                <applicationForm.Field name="officialChannels.websiteUrl">
+                  {(field) => {
+                    const isInvalid =
+                      field.state.meta.isTouched && !field.state.meta.isValid;
+                    return (
+                      <Field data-invalid={isInvalid}>
+                        <FieldLabel htmlFor={field.name}>
+                          {OPTIONAL_CHANNEL_LABELS.websiteUrl}
+                        </FieldLabel>
+                        <Input
+                          aria-invalid={isInvalid}
+                          disabled={isBusy}
+                          id={field.name}
+                          name={field.name}
+                          onBlur={field.handleBlur}
+                          onChange={(event) =>
+                            field.handleChange(event.target.value)
+                          }
+                          type="url"
+                          value={field.state.value}
+                        />
+                        {isInvalid ? (
+                          <FieldError errors={field.state.meta.errors} />
+                        ) : null}
+                      </Field>
+                    );
+                  }}
+                </applicationForm.Field>
               </div>
-
-              {/* Other channels */}
-              <div className="space-y-2">
-                <Label htmlFor="app-hotline">Số điện thoại / Hotline</Label>
-                <Input
-                  disabled={isBusy}
-                  id="app-hotline"
-                  inputMode="tel"
-                  onChange={(event) =>
-                    updateChannel("hotline", event.target.value)
-                  }
-                  placeholder="VD: 0901234567"
-                  type="tel"
-                  value={form.officialChannels.hotline}
-                />
-              </div>
-              {(
-                [
-                  "telegramCommunityUrl",
-                  "tiktokUrl",
-                  "youtubeUrl",
-                  "websiteUrl",
-                ] as const
-              ).map((field) => (
-                <div className="space-y-2" key={field}>
-                  <Label htmlFor={`app-${field}`}>
-                    {OPTIONAL_CHANNEL_LABELS[field]}
-                  </Label>
-                  <Input
-                    disabled={isBusy}
-                    id={`app-${field}`}
-                    onChange={(event) =>
-                      updateChannel(field, event.target.value)
-                    }
-                    type="url"
-                    value={form.officialChannels[field]}
-                  />
-                </div>
-              ))}
             </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="app-services">
-              Dịch vụ cung cấp <span className="text-destructive">*</span>
-            </Label>
-            <Textarea
-              disabled={isBusy}
-              id="app-services"
-              maxLength={4000}
-              onChange={(event) => updateField("services", event.target.value)}
-              rows={7}
-              value={form.services}
-            />
-          </div>
-          <div className="flex justify-end">
-            <Button
-              onClick={() => setActiveTab("payout_and_policy")}
-              type="button"
-            >
-              Tiếp tục
-            </Button>
-          </div>
-        </section>
-      ) : (
-        <section
-          className="space-y-5 rounded-3xl border bg-card p-6"
-          aria-labelledby="provider-bond-heading"
-        >
-          <div>
-            <h3 className="font-bold text-lg" id="provider-bond-heading">
-              Quỹ đảm bảo và tài khoản ngân hàng
-            </h3>
-            <p className="text-muted-foreground text-xs">
-              Có thể khai nhiều tài khoản; đúng một tài khoản là tài khoản
-              chính. Các số tài khoản sẽ được công khai sau khi duyệt.
-            </p>
-          </div>
-          <div className="space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-4">
-            <Label htmlFor="app-bond">
-              Số tiền quỹ đảm bảo (VND){" "}
-              <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              disabled={isBusy}
-              id="app-bond"
-              inputMode="numeric"
-              min={DEFAULT_BOND_AMOUNT}
-              onChange={(event) =>
-                updateField(
-                  "bondAmount",
-                  Number(event.target.value.replaceAll(/\D/gu, "")) || 0
-                )
-              }
-              type="number"
-              value={form.bondAmount || ""}
-            />
-            <div className="flex flex-wrap gap-2">
-              {BOND_PRESETS.map((amount) => (
-                <Button
-                  className="h-8 rounded-full text-xs"
-                  key={amount}
-                  onClick={() => updateField("bondAmount", amount)}
-                  size="sm"
-                  type="button"
-                  variant={form.bondAmount === amount ? "default" : "outline"}
-                >
-                  {formatVnd(amount)}
-                </Button>
-              ))}
-            </div>
-            <p className="text-muted-foreground text-xs">
-              Hạng hiện tại theo số tiền trong quỹ đảm bảo:{" "}
-              <strong className="text-foreground">
-                {providerTierLabel(tier)}
-              </strong>
-              . Hạn mức giao dịch đề xuất tối đa bằng 80% số tiền trong quỹ đảm
-              bảo.
-            </p>
-          </div>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="font-semibold text-sm">
-                <Bank aria-hidden="true" className="mr-1 inline size-4" />
-                Tài khoản ngân hàng
-              </h4>
+            <applicationForm.Field name="services">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
+                return (
+                  <Field data-invalid={isInvalid}>
+                    <FieldLabel htmlFor={field.name}>
+                      Dịch vụ cung cấp{" "}
+                      <span className="text-destructive">*</span>
+                    </FieldLabel>
+                    <Textarea
+                      aria-invalid={isInvalid}
+                      disabled={isBusy}
+                      id={field.name}
+                      maxLength={4000}
+                      name={field.name}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      rows={7}
+                      value={field.state.value}
+                    />
+                    {isInvalid ? (
+                      <FieldError errors={field.state.meta.errors} />
+                    ) : null}
+                  </Field>
+                );
+              }}
+            </applicationForm.Field>
+            <div className="flex justify-end">
               <Button
-                disabled={isBusy || form.registeredBankAccounts.length >= 10}
-                onClick={addBank}
-                size="sm"
+                onClick={() => setActiveTab("payout_and_policy")}
+                type="button"
+              >
+                Tiếp tục
+              </Button>
+            </div>
+          </section>
+        ) : (
+          <section
+            className="space-y-5 rounded-3xl border bg-card p-6"
+            aria-labelledby="provider-bond-heading"
+          >
+            <div>
+              <h3 className="font-bold text-lg" id="provider-bond-heading">
+                Quỹ đảm bảo và tài khoản ngân hàng
+              </h3>
+              <p className="text-muted-foreground text-xs">
+                Có thể khai nhiều tài khoản; đúng một tài khoản là tài khoản
+                chính. Các số tài khoản sẽ được công khai sau khi duyệt.
+              </p>
+            </div>
+            <applicationForm.Field name="bondAmount">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
+                return (
+                  <Field
+                    className="space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-4"
+                    data-invalid={isInvalid}
+                  >
+                    <FieldLabel htmlFor={field.name}>
+                      Số tiền quỹ đảm bảo (VND){" "}
+                      <span className="text-destructive">*</span>
+                    </FieldLabel>
+                    <Input
+                      aria-invalid={isInvalid}
+                      disabled={isBusy}
+                      id={field.name}
+                      inputMode="numeric"
+                      min={DEFAULT_BOND_AMOUNT}
+                      name={field.name}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(
+                          Number(event.target.value.replaceAll(/\D/gu, "")) || 0
+                        )
+                      }
+                      type="number"
+                      value={field.state.value || ""}
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      {BOND_PRESETS.map((amount) => (
+                        <Button
+                          className="h-8 rounded-full text-xs"
+                          key={amount}
+                          onClick={() => field.handleChange(amount)}
+                          size="sm"
+                          type="button"
+                          variant={
+                            field.state.value === amount ? "default" : "outline"
+                          }
+                        >
+                          {formatVnd(amount)}
+                        </Button>
+                      ))}
+                    </div>
+                    <p className="text-muted-foreground text-xs">
+                      Hạng hiện tại theo số tiền trong quỹ đảm bảo:{" "}
+                      <strong className="text-foreground">
+                        {providerTierLabel(tier)}
+                      </strong>
+                      . Hạn mức giao dịch đề xuất tối đa bằng 80% số tiền trong
+                      quỹ đảm bảo.
+                    </p>
+                    {isInvalid ? (
+                      <FieldError errors={field.state.meta.errors} />
+                    ) : null}
+                  </Field>
+                );
+              }}
+            </applicationForm.Field>
+            <applicationForm.Field name="registeredBankAccounts">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
+                const updateAccount = (
+                  index: number,
+                  update: Partial<BankAccountState>
+                ) => {
+                  const nextAccounts = field.state.value.map(
+                    (account, accountIndex) => {
+                      if (accountIndex === index) {
+                        return { ...account, ...update };
+                      }
+                      if (update.isPrimary === true) {
+                        return { ...account, isPrimary: false };
+                      }
+                      return account;
+                    }
+                  );
+                  field.handleChange(nextAccounts);
+                };
+                return (
+                  <Field data-invalid={isInvalid}>
+                    <div className="flex items-center justify-between">
+                      <FieldLabel>
+                        <Bank
+                          aria-hidden="true"
+                          className="mr-1 inline size-4"
+                        />
+                        Tài khoản ngân hàng
+                      </FieldLabel>
+                      <Button
+                        disabled={isBusy || field.state.value.length >= 10}
+                        onClick={() =>
+                          field.handleChange([
+                            ...field.state.value,
+                            emptyBankAccount(false),
+                          ])
+                        }
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                      >
+                        Thêm tài khoản
+                      </Button>
+                    </div>
+                    {field.state.value.map((account, index) => (
+                      <div
+                        className="grid gap-3 rounded-2xl border p-4 sm:grid-cols-4"
+                        key={account.id}
+                      >
+                        <div className="space-y-2 sm:col-span-2">
+                          <FieldLabel htmlFor={`bank-name-${index}`}>
+                            Tên chủ tài khoản
+                          </FieldLabel>
+                          <Input
+                            aria-invalid={isInvalid}
+                            disabled={isBusy}
+                            id={`bank-name-${index}`}
+                            name={`registeredBankAccounts[${index}].accountName`}
+                            onBlur={field.handleBlur}
+                            onChange={(event) =>
+                              updateAccount(index, {
+                                accountName: event.target.value,
+                              })
+                            }
+                            value={account.accountName}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <FieldLabel htmlFor={`bank-number-${index}`}>
+                            Số tài khoản
+                          </FieldLabel>
+                          <Input
+                            aria-invalid={isInvalid}
+                            disabled={isBusy}
+                            id={`bank-number-${index}`}
+                            inputMode="numeric"
+                            name={`registeredBankAccounts[${index}].accountNumber`}
+                            onBlur={field.handleBlur}
+                            onChange={(event) =>
+                              updateAccount(index, {
+                                accountNumber: event.target.value.replaceAll(
+                                  /\D/gu,
+                                  ""
+                                ),
+                              })
+                            }
+                            value={account.accountNumber}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <FieldLabel htmlFor={`bank-code-${index}`}>
+                            Ngân hàng
+                          </FieldLabel>
+                          <Select
+                            items={BANK_ITEMS}
+                            onValueChange={(value) =>
+                              updateAccount(index, { bankCode: value ?? "" })
+                            }
+                            value={account.bankCode || null}
+                          >
+                            <SelectTrigger
+                              className="w-full"
+                              disabled={isBusy}
+                              id={`bank-code-${index}`}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectGroup>
+                                {BANK_ITEMS.map((item) => (
+                                  <SelectItem
+                                    key={item.value ?? "empty"}
+                                    value={item.value}
+                                  >
+                                    {item.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex items-center gap-3 sm:col-span-4">
+                          <Checkbox
+                            checked={account.isPrimary}
+                            disabled={isBusy}
+                            id={`bank-primary-${index}`}
+                            onCheckedChange={(checked) =>
+                              updateAccount(index, {
+                                isPrimary: Boolean(checked),
+                              })
+                            }
+                          />
+                          <FieldLabel htmlFor={`bank-primary-${index}`}>
+                            Tài khoản chính
+                          </FieldLabel>
+                          {field.state.value.length > 1 ? (
+                            <Button
+                              className="ml-auto"
+                              onClick={() => {
+                                const next = field.state.value.filter(
+                                  (_, accountIndex) => accountIndex !== index
+                                );
+                                if (
+                                  !next.some((item) => item.isPrimary) &&
+                                  next[0]
+                                ) {
+                                  next[0] = { ...next[0], isPrimary: true };
+                                }
+                                field.handleChange(
+                                  next.length > 0 ? next : [emptyBankAccount()]
+                                );
+                              }}
+                              size="sm"
+                              type="button"
+                              variant="ghost"
+                            >
+                              Xóa
+                            </Button>
+                          ) : null}
+                        </div>
+                      </div>
+                    ))}
+                    {isInvalid ? (
+                      <FieldError errors={field.state.meta.errors} />
+                    ) : null}
+                  </Field>
+                );
+              }}
+            </applicationForm.Field>
+            <div className="space-y-3 rounded-2xl border bg-muted/20 p-4">
+              <applicationForm.Field name="publicDataConsent">
+                {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
+                  return (
+                    <Field data-invalid={isInvalid} orientation="horizontal">
+                      <Checkbox
+                        aria-invalid={isInvalid}
+                        checked={field.state.value}
+                        disabled={isBusy}
+                        id={field.name}
+                        onCheckedChange={(checked) =>
+                          field.handleChange(Boolean(checked))
+                        }
+                      />
+                      <FieldLabel
+                        className="text-xs leading-5"
+                        htmlFor={field.name}
+                      >
+                        Tôi đồng ý công khai chính xác số tiền trong quỹ đảm
+                        bảo, hạng, hạn mức giao dịch đề xuất, địa điểm, kênh
+                        liên hệ và toàn bộ số tài khoản ngân hàng sau khi được
+                        duyệt.
+                      </FieldLabel>
+                      {isInvalid ? (
+                        <FieldError errors={field.state.meta.errors} />
+                      ) : null}
+                    </Field>
+                  );
+                }}
+              </applicationForm.Field>
+              <applicationForm.Field name="policyAccepted">
+                {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
+                  return (
+                    <Field data-invalid={isInvalid} orientation="horizontal">
+                      <Checkbox
+                        aria-invalid={isInvalid}
+                        checked={field.state.value}
+                        disabled={isBusy}
+                        id={field.name}
+                        onCheckedChange={(checked) =>
+                          field.handleChange(Boolean(checked))
+                        }
+                      />
+                      <FieldLabel
+                        className="text-xs leading-5"
+                        htmlFor={field.name}
+                      >
+                        Tôi đồng ý{" "}
+                        <Link
+                          className="text-primary underline"
+                          rel="noopener noreferrer"
+                          target="_blank"
+                          to="/avin-check/partner-policy"
+                        >
+                          Quy chế Hoạt động Đối tác Avin Check (
+                          {currentPolicyVersion})
+                        </Link>
+                        .
+                      </FieldLabel>
+                      {isInvalid ? (
+                        <FieldError errors={field.state.meta.errors} />
+                      ) : null}
+                    </Field>
+                  );
+                }}
+              </applicationForm.Field>
+            </div>
+            <ProviderDepositPanel intent={paymentIntent} />
+            <div className="flex justify-between">
+              <Button
+                onClick={() => setActiveTab("identity_and_channels")}
                 type="button"
                 variant="outline"
               >
-                Thêm tài khoản
+                Quay lại
               </Button>
-            </div>
-            {form.registeredBankAccounts.map((account, index) => (
-              <div
-                className="grid gap-3 rounded-2xl border p-4 sm:grid-cols-4"
-                key={account.id}
+              <applicationForm.Subscribe
+                selector={(state) => ({
+                  canSubmit: state.canSubmit,
+                  isSubmitting: state.isSubmitting,
+                })}
               >
-                <div className="space-y-2 sm:col-span-2">
-                  <Label htmlFor={`bank-name-${index}`}>
-                    Tên chủ tài khoản
-                  </Label>
-                  <Input
-                    disabled={isBusy}
-                    id={`bank-name-${index}`}
-                    onChange={(event) =>
-                      updateBank(index, "accountName", event.target.value)
-                    }
-                    value={account.accountName}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor={`bank-number-${index}`}>Số tài khoản</Label>
-                  <Input
-                    disabled={isBusy}
-                    id={`bank-number-${index}`}
-                    inputMode="numeric"
-                    onChange={(event) =>
-                      updateBank(
-                        index,
-                        "accountNumber",
-                        event.target.value.replaceAll(/\D/gu, "")
-                      )
-                    }
-                    value={account.accountNumber}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor={`bank-code-${index}`}>Ngân hàng</Label>
-                  <Select
-                    items={BANK_ITEMS}
-                    onValueChange={(value) =>
-                      updateBank(index, "bankCode", value ?? "")
-                    }
-                    value={account.bankCode || null}
+                {({ canSubmit, isSubmitting }) => (
+                  <Button
+                    data-testid="provider-submit-application"
+                    disabled={isBusy || !canSubmit || isSubmitting}
+                    type="submit"
                   >
-                    <SelectTrigger
-                      className="w-full"
-                      disabled={isBusy}
-                      id={`bank-code-${index}`}
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {BANK_ITEMS.map((item) => (
-                          <SelectItem
-                            key={item.value ?? "empty"}
-                            value={item.value}
-                          >
-                            {item.label}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center gap-3 sm:col-span-4">
-                  <Checkbox
-                    checked={account.isPrimary}
-                    disabled={isBusy}
-                    id={`bank-primary-${index}`}
-                    onCheckedChange={(checked) =>
-                      updateBank(index, "isPrimary", Boolean(checked))
-                    }
-                  />
-                  <Label htmlFor={`bank-primary-${index}`}>
-                    Tài khoản chính
-                  </Label>
-                  {form.registeredBankAccounts.length > 1 ? (
-                    <Button
-                      className="ml-auto"
-                      onClick={() => removeBank(index)}
-                      size="sm"
-                      type="button"
-                      variant="ghost"
-                    >
-                      Xóa
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="space-y-3 rounded-2xl border bg-muted/20 p-4">
-            <div className="flex items-start gap-3">
-              <Checkbox
-                checked={form.publicDataConsent}
-                disabled={isBusy}
-                id="app-public-consent"
-                onCheckedChange={(checked) =>
-                  updateField("publicDataConsent", Boolean(checked))
-                }
-              />
-              <Label className="text-xs leading-5" htmlFor="app-public-consent">
-                Tôi đồng ý công khai chính xác số tiền trong quỹ đảm bảo, hạng,
-                hạn mức giao dịch đề xuất, địa điểm, kênh liên hệ và toàn bộ số
-                tài khoản ngân hàng sau khi được duyệt.
-              </Label>
+                    {isSubmitting || isBusy ? "Đang xử lý…" : submitLabel}
+                  </Button>
+                )}
+              </applicationForm.Subscribe>
             </div>
-            <div className="flex items-start gap-3">
-              <Checkbox
-                checked={form.policyAccepted}
-                disabled={isBusy}
-                id="app-policy-accepted"
-                onCheckedChange={(checked) =>
-                  updateField("policyAccepted", Boolean(checked))
-                }
-              />
-              <Label
-                className="text-xs leading-5"
-                htmlFor="app-policy-accepted"
-              >
-                Tôi đồng ý{" "}
-                <Link
-                  className="text-primary underline"
-                  rel="noopener noreferrer"
-                  target="_blank"
-                  to="/avin-check/partner-policy"
-                >
-                  Quy chế Hoạt động Đối tác Avin Check ({currentPolicyVersion})
-                </Link>
-                .
-              </Label>
-            </div>
-          </div>
-          <ProviderDepositPanel intent={paymentIntent} />
-          <div className="flex justify-between">
-            <Button
-              onClick={() => setActiveTab("identity_and_channels")}
-              type="button"
-              variant="outline"
-            >
-              Quay lại
-            </Button>
-            <Button
-              data-testid="provider-submit-application"
-              disabled={isBusy || !canSubmit}
-              type="submit"
-            >
-              {submitLabel}
-            </Button>
-          </div>
-        </section>
-      )}
+          </section>
+        )}
+      </FieldGroup>
 
       <div className="flex flex-wrap justify-between gap-3">
         <Button

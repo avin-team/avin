@@ -12,8 +12,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@avin/ui/components/field";
 import { FileDropzone } from "@avin/ui/components/file-dropzone";
-import { Label } from "@avin/ui/components/label";
 import { Textarea } from "@avin/ui/components/textarea";
 import { useUploadFile } from "@better-upload/client";
 import {
@@ -21,9 +26,10 @@ import {
   DownloadSimpleIcon,
   ShieldCheckIcon,
 } from "@phosphor-icons/react";
+import { useForm } from "@tanstack/react-form";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Header } from "@/components/layout/header";
@@ -38,6 +44,10 @@ import {
 } from "../api/risk-reports-api";
 import type { RiskReportDetail } from "../api/risk-reports-api";
 import { ProviderRiskIncidentPanel } from "../components/provider-risk-incident-panel";
+import {
+  createRiskReportDecisionFormSchema,
+  riskReportDerivativeFormSchema,
+} from "../schemas/risk-report-detail-form-schema";
 
 const numberFormatter = new Intl.NumberFormat("vi-VN");
 
@@ -131,10 +141,8 @@ const RiskDerivativeUploader = ({
   evidence: RiskReportDetail["evidence"][number];
   reportId: string;
 }) => {
-  const [metadataRemoved, setMetadataRemoved] = useState(false);
-  const [unrelatedPiiRedacted, setUnrelatedPiiRedacted] = useState(false);
-  const [watermarkApplied, setWatermarkApplied] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>();
+  const selectedFileRef = useRef<File | null>(null);
   const upload = useUploadFile({
     api: `${serverURL}/api/risk-report-derivative-upload`,
     credentials: "include",
@@ -143,39 +151,50 @@ const RiskDerivativeUploader = ({
     route: RISK_REPORT_DERIVATIVE_UPLOAD_ROUTE,
   });
   const register = useRegisterRiskReportDerivative();
+  const derivativeForm = useForm({
+    defaultValues: {
+      metadataRemoved: false,
+      unrelatedPiiRedacted: false,
+      watermarkApplied: false,
+    },
+    onSubmit: async ({ value }) => {
+      const file = selectedFileRef.current;
+      if (!file) {
+        return;
+      }
+      setErrorMessage(undefined);
+      try {
+        const result = await upload.uploadAsync(file, {
+          metadata: { evidenceId: evidence.id, reportId },
+        });
+        await register.mutateAsync({
+          contentType: file.type,
+          evidenceId: evidence.id,
+          metadataRemoved: value.metadataRemoved,
+          reportId,
+          sizeBytes: file.size,
+          storageKey: result.file.objectInfo.key,
+          unrelatedPiiRedacted: value.unrelatedPiiRedacted,
+          watermarkApplied: value.watermarkApplied,
+        });
+        toast.success("Đã lưu derivative công khai riêng biệt.");
+        selectedFileRef.current = null;
+      } catch (error) {
+        setErrorMessage(
+          error instanceof Error ? error.message : "Không thể lưu derivative."
+        );
+      }
+    },
+    validators: { onSubmit: riskReportDerivativeFormSchema },
+  });
 
   const handleFilesSelected = async (files: File[]) => {
     const [file] = files;
     if (!file) {
       return;
     }
-    if (!metadataRemoved || !unrelatedPiiRedacted || !watermarkApplied) {
-      setErrorMessage(
-        "Phải xác nhận đủ ba bước kiểm tra derivative trước khi tải."
-      );
-      return;
-    }
-    setErrorMessage(undefined);
-    try {
-      const result = await upload.uploadAsync(file, {
-        metadata: { evidenceId: evidence.id, reportId },
-      });
-      await register.mutateAsync({
-        contentType: file.type,
-        evidenceId: evidence.id,
-        metadataRemoved,
-        reportId,
-        sizeBytes: file.size,
-        storageKey: result.file.objectInfo.key,
-        unrelatedPiiRedacted,
-        watermarkApplied,
-      });
-      toast.success("Đã lưu derivative công khai riêng biệt.");
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "Không thể lưu derivative."
-      );
-    }
+    selectedFileRef.current = file;
+    await derivativeForm.handleSubmit();
   };
 
   if (evidence.derivative) {
@@ -199,32 +218,96 @@ const RiskDerivativeUploader = ({
       <p className="text-muted-foreground text-xs">
         Dùng khi cần tải bản ảnh/tài liệu đã được biên tập và che riêng biệt.
       </p>
-      <label className="flex items-start gap-2 text-xs">
-        <input
-          checked={metadataRemoved}
-          onChange={(event) => setMetadataRemoved(event.target.checked)}
-          type="checkbox"
-        />
-        <span>Đã xoá metadata nhạy cảm khỏi bản derivative.</span>
-      </label>
-      <label className="flex items-start gap-2 text-xs">
-        <input
-          checked={unrelatedPiiRedacted}
-          onChange={(event) => setUnrelatedPiiRedacted(event.target.checked)}
-          type="checkbox"
-        />
-        <span>
-          Đã che PII không liên quan và nội dung ngoài phạm vi warning.
-        </span>
-      </label>
-      <label className="flex items-start gap-2 text-xs">
-        <input
-          checked={watermarkApplied}
-          onChange={(event) => setWatermarkApplied(event.target.checked)}
-          type="checkbox"
-        />
-        <span>Đã đóng watermark Avin Check lên derivative.</span>
-      </label>
+      <form
+        id={`risk-derivative-form-${evidence.id}`}
+        onSubmit={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          return derivativeForm.handleSubmit();
+        }}
+      >
+        <FieldGroup className="gap-2">
+          <derivativeForm.Field name="metadataRemoved">
+            {(field) => {
+              const isInvalid =
+                field.state.meta.isTouched && !field.state.meta.isValid;
+              return (
+                <Field data-invalid={isInvalid} orientation="horizontal">
+                  <FieldLabel htmlFor={field.name}>
+                    <input
+                      checked={field.state.value}
+                      id={field.name}
+                      name={field.name}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.checked)
+                      }
+                      type="checkbox"
+                    />
+                    Đã xoá metadata nhạy cảm khỏi bản derivative.
+                  </FieldLabel>
+                  {isInvalid ? (
+                    <FieldError errors={field.state.meta.errors} />
+                  ) : null}
+                </Field>
+              );
+            }}
+          </derivativeForm.Field>
+          <derivativeForm.Field name="unrelatedPiiRedacted">
+            {(field) => {
+              const isInvalid =
+                field.state.meta.isTouched && !field.state.meta.isValid;
+              return (
+                <Field data-invalid={isInvalid} orientation="horizontal">
+                  <FieldLabel htmlFor={field.name}>
+                    <input
+                      checked={field.state.value}
+                      id={field.name}
+                      name={field.name}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.checked)
+                      }
+                      type="checkbox"
+                    />
+                    Đã che PII không liên quan và nội dung ngoài phạm vi
+                    warning.
+                  </FieldLabel>
+                  {isInvalid ? (
+                    <FieldError errors={field.state.meta.errors} />
+                  ) : null}
+                </Field>
+              );
+            }}
+          </derivativeForm.Field>
+          <derivativeForm.Field name="watermarkApplied">
+            {(field) => {
+              const isInvalid =
+                field.state.meta.isTouched && !field.state.meta.isValid;
+              return (
+                <Field data-invalid={isInvalid} orientation="horizontal">
+                  <FieldLabel htmlFor={field.name}>
+                    <input
+                      checked={field.state.value}
+                      id={field.name}
+                      name={field.name}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.checked)
+                      }
+                      type="checkbox"
+                    />
+                    Đã đóng watermark Avin Check lên derivative.
+                  </FieldLabel>
+                  {isInvalid ? (
+                    <FieldError errors={field.state.meta.errors} />
+                  ) : null}
+                </Field>
+              );
+            }}
+          </derivativeForm.Field>
+        </FieldGroup>
+      </form>
       <FileDropzone
         accept={ACCEPTED_CONTENT_TYPES}
         disabled={upload.isPending || register.isPending}
@@ -483,56 +566,95 @@ const RiskReportDecisionConfirmation = ({
   isPending,
   onCancel,
   onConfirm,
-  onReasonChange,
-  reason,
 }: {
   decision?: InitialRiskReportDecision;
   isPending: boolean;
   onCancel: () => void;
-  onConfirm: () => void;
-  onReasonChange: (value: string) => void;
-  reason: string;
+  onConfirm: (reason: string) => Promise<void>;
 }) => {
+  const decisionForm = useForm({
+    defaultValues: { reason: "" },
+    onSubmit: async ({ value }) => {
+      await onConfirm(value.reason);
+    },
+    validators: {
+      onSubmit: createRiskReportDecisionFormSchema(decision ?? "PUBLISHED"),
+    },
+  });
+
   if (!decision) {
     return null;
   }
 
   const requiresReason = riskDecisionRequiresReason(decision);
-  const isValid = !requiresReason || Boolean(reason.trim());
 
   return (
-    <div className="grid gap-3 rounded-xl border bg-muted/20 p-4">
+    <form
+      className="grid gap-3 rounded-xl border bg-muted/20 p-4"
+      id="risk-report-decision-form"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        await decisionForm.handleSubmit();
+      }}
+    >
       <p className="font-medium text-sm">Xác nhận: {STATUS_LABELS[decision]}</p>
       {requiresReason ? (
-        <div className="grid gap-2">
-          <Label htmlFor="risk-review-reason">Lý do (bắt buộc)</Label>
-          <Textarea
-            id="risk-review-reason"
-            onChange={(event) => onReasonChange(event.target.value)}
-            rows={4}
-            value={reason}
-          />
-        </div>
+        <decisionForm.Field name="reason">
+          {(field) => {
+            const isInvalid =
+              field.state.meta.isTouched && !field.state.meta.isValid;
+            return (
+              <Field data-invalid={isInvalid}>
+                <FieldLabel htmlFor={field.name}>Lý do (bắt buộc)</FieldLabel>
+                <Textarea
+                  aria-invalid={isInvalid}
+                  id={field.name}
+                  name={field.name}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  rows={4}
+                  value={field.state.value}
+                />
+                {isInvalid ? (
+                  <FieldError errors={field.state.meta.errors} />
+                ) : null}
+              </Field>
+            );
+          }}
+        </decisionForm.Field>
       ) : null}
       <div className="flex gap-2">
-        <Button onClick={onCancel} variant="outline">
+        <Button onClick={onCancel} type="button" variant="outline">
           Huỷ
         </Button>
-        <Button disabled={isPending || !isValid} onClick={onConfirm}>
-          {isPending ? "Đang ghi…" : "Xác nhận"}
-        </Button>
+        <decisionForm.Subscribe
+          selector={(state) => ({
+            canSubmit: state.canSubmit,
+            isSubmitting: state.isSubmitting,
+          })}
+        >
+          {({ canSubmit, isSubmitting }) => (
+            <Button
+              disabled={!canSubmit || isSubmitting || isPending}
+              form="risk-report-decision-form"
+              type="submit"
+            >
+              {isSubmitting || isPending ? "Đang ghi…" : "Xác nhận"}
+            </Button>
+          )}
+        </decisionForm.Subscribe>
       </div>
-    </div>
+    </form>
   );
 };
 
 const DecisionPanel = ({ report }: { report: RiskReportDetail }) => {
   const [decision, setDecision] = useState<InitialRiskReportDecision>();
-  const [reason, setReason] = useState("");
   const decide = useDecideAdminRiskReport();
 
-  const confirm = async () => {
-    if (!decision || (riskDecisionRequiresReason(decision) && !reason.trim())) {
+  const confirm = async (reason: string) => {
+    if (!decision) {
       return;
     }
     try {
@@ -543,7 +665,6 @@ const DecisionPanel = ({ report }: { report: RiskReportDetail }) => {
       });
       toast.success("Đã duyệt và công khai cảnh báo thành công!");
       setDecision(undefined);
-      setReason("");
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Không thể ghi quyết định."
@@ -561,14 +682,16 @@ const DecisionPanel = ({ report }: { report: RiskReportDetail }) => {
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3">
-        <RiskReportDecisionActions onChoose={setDecision} report={report} />
+        <RiskReportDecisionActions
+          onChoose={(nextDecision) => setDecision(nextDecision)}
+          report={report}
+        />
         <RiskReportDecisionConfirmation
+          key={decision ?? "none"}
           decision={decision}
           isPending={decide.isPending}
           onCancel={() => setDecision(undefined)}
-          onConfirm={() => void confirm()}
-          onReasonChange={setReason}
-          reason={reason}
+          onConfirm={confirm}
         />
       </CardContent>
     </Card>

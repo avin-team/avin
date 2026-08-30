@@ -12,12 +12,18 @@ import {
 import {
   Field,
   FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
 } from "@avin/ui/components/field";
 import { Input } from "@avin/ui/components/input";
 import { Textarea } from "@avin/ui/components/textarea";
 import { EyeIcon, SpinnerIcon, StorefrontIcon } from "@phosphor-icons/react";
+import { useForm, useStore } from "@tanstack/react-form";
+import type {
+  FormValidateOrFn,
+  ReactFormExtendedApi,
+} from "@tanstack/react-form";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
@@ -25,10 +31,10 @@ import { toast } from "sonner";
 
 import { orpc } from "@/utils/orpc";
 
+import { storeProfileFormSchema } from "../schemas/store-profile-form-schema";
+import type { StoreProfileFormValues } from "../schemas/store-profile-form-schema";
 import { SellerBannerUploader } from "./seller-banner-uploader";
-import type { SellerBannerValue } from "./seller-banner-uploader";
 import { SellerLogoUploader } from "./seller-logo-uploader";
-import type { SellerLogoValue } from "./seller-logo-uploader";
 
 interface StoreProfileData {
   avatarUrl: string | null;
@@ -38,21 +44,21 @@ interface StoreProfileData {
   storefrontName: string;
 }
 
-interface StoreProfileDraft {
-  avatarName: string;
-  avatarUrl: string;
-  bannerName: string;
-  bannerUrl: string;
-  bio: string;
-  slugCustomized: boolean;
-  storeSlug: string;
-  storefrontName: string;
-}
-
-interface StoreProfileEditorState {
-  draft: StoreProfileDraft;
-  savedDraft: StoreProfileDraft;
-}
+type StoreProfileDraft = StoreProfileFormValues;
+type StoreProfileFormApi = ReactFormExtendedApi<
+  StoreProfileFormValues,
+  undefined,
+  undefined,
+  undefined,
+  undefined,
+  undefined,
+  FormValidateOrFn<StoreProfileFormValues>,
+  undefined,
+  undefined,
+  undefined,
+  undefined,
+  unknown
+>;
 
 type StoreVisibilityStatus = "PRIVATE" | "PUBLIC";
 
@@ -85,27 +91,27 @@ const getStoreVisibilityDescription = (
 };
 
 interface BasicProfileFormProps {
-  draft: StoreProfileDraft;
-  onBioChange: (value: string) => void;
-  onNameChange: (value: string) => void;
-  onSlugChange: (value: string) => void;
+  form: StoreProfileFormApi;
   slugLocked: boolean;
   status: StoreVisibilityStatus;
   visibilityReason: StoreVisibilityReason;
 }
 
 interface MediaProfileFormProps {
+  avatarName: string;
+  bannerName: string;
   disabled: boolean;
-  draft: StoreProfileDraft;
-  onBannerChange: (value: SellerBannerValue) => void;
-  onLogoChange: (value: SellerLogoValue) => void;
+  form: StoreProfileFormApi;
+  onAvatarNameChange: (name: string) => void;
+  onBannerNameChange: (name: string) => void;
   onUploadingChange: (isUploading: boolean) => void;
 }
 
 interface ProfileActionsProps {
+  canSubmit: boolean;
   isSaving: boolean;
+  isSubmitting: boolean;
   onCancel: () => void;
-  onSave: () => void;
 }
 
 interface StorefrontPreviewCardProps {
@@ -119,9 +125,7 @@ interface StorefrontPreviewCardProps {
 const FIELD_CLASS_NAME = "bg-background";
 
 const createDraft = (profile: StoreProfileData | null): StoreProfileDraft => ({
-  avatarName: "",
   avatarUrl: profile?.avatarUrl ?? "",
-  bannerName: "",
   bannerUrl: profile?.bannerUrl ?? "",
   bio: profile?.bio ?? "",
   slugCustomized: Boolean(profile?.storeSlug),
@@ -130,60 +134,114 @@ const createDraft = (profile: StoreProfileData | null): StoreProfileDraft => ({
 });
 
 const BasicProfileForm = ({
-  draft,
-  onBioChange,
-  onNameChange,
-  onSlugChange,
+  form,
   slugLocked,
   status,
   visibilityReason,
 }: BasicProfileFormProps) => (
   <FieldGroup className="gap-6">
     <div className="grid gap-4 sm:grid-cols-2">
-      <Field>
-        <FieldLabel htmlFor="store-name">
-          Tên gian hàng <span className="text-primary">*</span>
-        </FieldLabel>
-        <Input
-          className={FIELD_CLASS_NAME}
-          id="store-name"
-          onChange={(event) => onNameChange(event.target.value)}
-          value={draft.storefrontName}
-        />
-        <FieldDescription>Tên hiển thị trên trang gian hàng.</FieldDescription>
-      </Field>
-      <Field>
-        <FieldLabel htmlFor="store-slug">
-          Đường dẫn gian hàng <span className="text-primary">*</span>
-        </FieldLabel>
-        <Input
-          className={FIELD_CLASS_NAME}
-          disabled={slugLocked}
-          id="store-slug"
-          onChange={(event) => onSlugChange(event.target.value)}
-          value={draft.storeSlug}
-        />
-        <FieldDescription>
-          {slugLocked
-            ? "Đường dẫn được giữ nguyên để các liên kết đã chia sẻ không bị hỏng."
-            : "Địa chỉ công khai của gian hàng, chỉ dùng chữ thường, số và dấu gạch ngang."}
-        </FieldDescription>
-      </Field>
+      <form.Field name="storefrontName">
+        {(field) => {
+          const isInvalid =
+            field.state.meta.isTouched && !field.state.meta.isValid;
+          return (
+            <Field data-invalid={isInvalid}>
+              <FieldLabel htmlFor={field.name}>
+                Tên gian hàng <span className="text-primary">*</span>
+              </FieldLabel>
+              <Input
+                aria-invalid={isInvalid}
+                className={FIELD_CLASS_NAME}
+                id={field.name}
+                name={field.name}
+                onBlur={field.handleBlur}
+                onChange={(event) => {
+                  const storefrontName = event.target.value;
+                  field.handleChange(storefrontName);
+                  if (
+                    !form.state.values.slugCustomized &&
+                    storefrontName.trim()
+                  ) {
+                    form.setFieldValue(
+                      "storeSlug",
+                      createStoreSlug(storefrontName)
+                    );
+                  }
+                }}
+                value={field.state.value}
+              />
+              <FieldDescription>
+                Tên hiển thị trên trang gian hàng.
+              </FieldDescription>
+              {isInvalid ? (
+                <FieldError errors={field.state.meta.errors} />
+              ) : null}
+            </Field>
+          );
+        }}
+      </form.Field>
+      <form.Field name="storeSlug">
+        {(field) => {
+          const isInvalid =
+            field.state.meta.isTouched && !field.state.meta.isValid;
+          return (
+            <Field data-invalid={isInvalid}>
+              <FieldLabel htmlFor={field.name}>
+                Đường dẫn gian hàng <span className="text-primary">*</span>
+              </FieldLabel>
+              <Input
+                aria-invalid={isInvalid}
+                className={FIELD_CLASS_NAME}
+                disabled={slugLocked}
+                id={field.name}
+                name={field.name}
+                onBlur={field.handleBlur}
+                onChange={(event) => {
+                  field.handleChange(event.target.value);
+                  form.setFieldValue("slugCustomized", true);
+                }}
+                value={field.state.value}
+              />
+              <FieldDescription>
+                {slugLocked
+                  ? "Đường dẫn được giữ nguyên để các liên kết đã chia sẻ không bị hỏng."
+                  : "Địa chỉ công khai của gian hàng, chỉ dùng chữ thường, số và dấu gạch ngang."}
+              </FieldDescription>
+              {isInvalid ? (
+                <FieldError errors={field.state.meta.errors} />
+              ) : null}
+            </Field>
+          );
+        }}
+      </form.Field>
     </div>
-    <Field>
-      <FieldLabel htmlFor="store-description">
-        Mô tả gian hàng <span className="text-primary">*</span>
-      </FieldLabel>
-      <Textarea
-        className={`min-h-32 resize-y leading-6 ${FIELD_CLASS_NAME}`}
-        id="store-description"
-        onChange={(event) => onBioChange(event.target.value)}
-        value={draft.bio ?? ""}
-      />
-      <FieldDescription>
-        Nói rõ bạn cung cấp gì, dành cho ai và khách nhận được điều gì.
-      </FieldDescription>
-    </Field>
+    <form.Field name="bio">
+      {(field) => {
+        const isInvalid =
+          field.state.meta.isTouched && !field.state.meta.isValid;
+        return (
+          <Field data-invalid={isInvalid}>
+            <FieldLabel htmlFor={field.name}>
+              Mô tả gian hàng <span className="text-primary">*</span>
+            </FieldLabel>
+            <Textarea
+              aria-invalid={isInvalid}
+              className={`min-h-32 resize-y leading-6 ${FIELD_CLASS_NAME}`}
+              id={field.name}
+              name={field.name}
+              onBlur={field.handleBlur}
+              onChange={(event) => field.handleChange(event.target.value)}
+              value={field.state.value}
+            />
+            <FieldDescription>
+              Nói rõ bạn cung cấp gì, dành cho ai và khách nhận được điều gì.
+            </FieldDescription>
+            {isInvalid ? <FieldError errors={field.state.meta.errors} /> : null}
+          </Field>
+        );
+      }}
+    </form.Field>
     <Field>
       <FieldLabel>Trạng thái gian hàng</FieldLabel>
       <div className="flex h-10 items-center rounded-xl border border-border bg-background px-3">
@@ -199,10 +257,12 @@ const BasicProfileForm = ({
 );
 
 const MediaProfileForm = ({
+  avatarName,
+  bannerName,
   disabled,
-  draft,
-  onBannerChange,
-  onLogoChange,
+  form,
+  onAvatarNameChange,
+  onBannerNameChange,
   onUploadingChange,
 }: MediaProfileFormProps) => (
   <div className="flex flex-col gap-4">
@@ -215,23 +275,55 @@ const MediaProfileForm = ({
     </div>
     <div className="grid gap-4 sm:grid-cols-[140px_minmax(0,1fr)]">
       <div className="flex flex-col gap-2">
-        <SellerLogoUploader
-          disabled={disabled}
-          fileName={draft.avatarName}
-          logoUrl={draft.avatarUrl ?? ""}
-          onLogoChange={onLogoChange}
-          onUploadingChange={onUploadingChange}
-        />
+        <form.Field name="avatarUrl">
+          {(field) => {
+            const isInvalid =
+              field.state.meta.isTouched && !field.state.meta.isValid;
+            return (
+              <Field data-invalid={isInvalid}>
+                <SellerLogoUploader
+                  disabled={disabled}
+                  fileName={avatarName}
+                  logoUrl={field.state.value}
+                  onLogoChange={(value) => {
+                    field.handleChange(value.url);
+                    onAvatarNameChange(value.name);
+                  }}
+                  onUploadingChange={onUploadingChange}
+                />
+                {isInvalid ? (
+                  <FieldError errors={field.state.meta.errors} />
+                ) : null}
+              </Field>
+            );
+          }}
+        </form.Field>
         <p className="text-xs text-muted-foreground">Ảnh đại diện *</p>
       </div>
       <div className="flex flex-col gap-2">
-        <SellerBannerUploader
-          bannerUrl={draft.bannerUrl ?? ""}
-          disabled={disabled}
-          fileName={draft.bannerName}
-          onBannerChange={onBannerChange}
-          onUploadingChange={onUploadingChange}
-        />
+        <form.Field name="bannerUrl">
+          {(field) => {
+            const isInvalid =
+              field.state.meta.isTouched && !field.state.meta.isValid;
+            return (
+              <Field data-invalid={isInvalid}>
+                <SellerBannerUploader
+                  bannerUrl={field.state.value}
+                  disabled={disabled}
+                  fileName={bannerName}
+                  onBannerChange={(value) => {
+                    field.handleChange(value.url);
+                    onBannerNameChange(value.name);
+                  }}
+                  onUploadingChange={onUploadingChange}
+                />
+                {isInvalid ? (
+                  <FieldError errors={field.state.meta.errors} />
+                ) : null}
+              </Field>
+            );
+          }}
+        </form.Field>
         <p className="text-xs text-muted-foreground">Ảnh bìa tùy chọn</p>
       </div>
     </div>
@@ -239,9 +331,10 @@ const MediaProfileForm = ({
 );
 
 const ProfileActions = ({
+  canSubmit,
   isSaving,
+  isSubmitting,
   onCancel,
-  onSave,
 }: ProfileActionsProps) => (
   <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border/60 pt-5">
     <Button
@@ -253,14 +346,13 @@ const ProfileActions = ({
       Hủy bỏ
     </Button>
     <Button
-      disabled={isSaving}
-      onClick={onSave}
-      type="button"
+      disabled={isSaving || isSubmitting || !canSubmit}
+      type="submit"
       variant="outline"
     >
       Lưu nháp
     </Button>
-    <Button disabled={isSaving} onClick={onSave} type="button">
+    <Button disabled={isSaving || isSubmitting || !canSubmit} type="submit">
       {isSaving ? (
         <SpinnerIcon className="animate-spin" data-icon="inline-start" />
       ) : null}
@@ -369,99 +461,66 @@ const StoreProfileEditor = ({
   status,
   visibilityReason,
 }: StoreProfileEditorProps) => {
-  const [editorState, setEditorState] = useState<StoreProfileEditorState>(
-    () => {
-      const draft = createDraft(profile);
-      return { draft, savedDraft: draft };
-    }
-  );
+  const [savedDraft, setSavedDraft] = useState(() => createDraft(profile));
+  const [avatarName, setAvatarName] = useState("");
+  const [bannerName, setBannerName] = useState("");
   const [isMediaUploading, setIsMediaUploading] = useState(false);
-  const { draft } = editorState;
   const updateProfileMutation = useMutation(
     orpc.sellerStore.updateProfile.mutationOptions({
       onError: (error) => {
         toast.error(error.message || "Không thể lưu hồ sơ gian hàng");
       },
-      onSuccess: ({ profile: savedProfile }) => {
-        const nextDraft: StoreProfileDraft = {
-          ...draft,
-          avatarUrl: savedProfile.avatarUrl ?? "",
-          bannerUrl: savedProfile.bannerUrl ?? "",
-          bio: savedProfile.bio ?? "",
-          slugCustomized: true,
-          storeSlug: savedProfile.storeSlug,
-          storefrontName: savedProfile.storefrontName,
-        };
-        setEditorState({ draft: nextDraft, savedDraft: nextDraft });
-        toast.success("Đã lưu hồ sơ gian hàng");
-        onSaved();
-      },
     })
   );
 
-  const handleNameChange = (storefrontName: string) => {
-    setEditorState((previous) => ({
-      ...previous,
-      draft: {
-        ...previous.draft,
-        storeSlug:
-          !previous.draft.slugCustomized && storefrontName.trim()
-            ? createStoreSlug(storefrontName)
-            : previous.draft.storeSlug,
-        storefrontName,
-      },
-    }));
-  };
-
-  const handleLogoChange = (value: SellerLogoValue) => {
-    setEditorState((previous) => ({
-      ...previous,
-      draft: {
-        ...previous.draft,
-        avatarName: value.name,
-        avatarUrl: value.url,
-      },
-    }));
-  };
-
-  const handleBannerChange = (value: SellerBannerValue) => {
-    setEditorState((previous) => ({
-      ...previous,
-      draft: {
-        ...previous.draft,
-        bannerName: value.name,
-        bannerUrl: value.url,
-      },
-    }));
-  };
-
-  const handleSave = () => {
-    const input = {
-      avatarUrl: draft.avatarUrl.trim(),
-      bannerUrl: draft.bannerUrl.trim(),
-      bio: draft.bio.trim(),
-      storeSlug: draft.storeSlug.trim(),
-      storefrontName: draft.storefrontName.trim(),
-    };
-
-    if (
-      !input.avatarUrl ||
-      !input.bio ||
-      !input.storeSlug ||
-      !input.storefrontName
-    ) {
+  const profileForm = useForm<
+    StoreProfileFormValues,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    FormValidateOrFn<StoreProfileFormValues>,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    unknown
+  >({
+    defaultValues: savedDraft,
+    onSubmit: async ({ value }) => {
+      const { profile: savedProfile } = await updateProfileMutation.mutateAsync(
+        {
+          avatarUrl: value.avatarUrl.trim(),
+          bannerUrl: value.bannerUrl.trim(),
+          bio: value.bio.trim(),
+          storeSlug: value.storeSlug.trim(),
+          storefrontName: value.storefrontName.trim(),
+        }
+      );
+      const nextDraft: StoreProfileDraft = {
+        ...value,
+        avatarUrl: savedProfile.avatarUrl ?? "",
+        bannerUrl: savedProfile.bannerUrl ?? "",
+        bio: savedProfile.bio ?? "",
+        slugCustomized: true,
+        storeSlug: savedProfile.storeSlug,
+        storefrontName: savedProfile.storefrontName,
+      };
+      setSavedDraft(nextDraft);
+      profileForm.reset(nextDraft);
+      toast.success("Đã lưu hồ sơ gian hàng");
+      onSaved();
+    },
+    onSubmitInvalid: () => {
       toast.error("Vui lòng nhập đủ thông tin và thêm ảnh đại diện");
-      return;
-    }
-
-    updateProfileMutation.mutate(input);
-  };
+    },
+    validators: { onSubmit: storeProfileFormSchema },
+  });
+  const draft = useStore(profileForm.store, (state) => state.values);
 
   const handleCancel = () => {
-    setEditorState((previous) => ({
-      ...previous,
-      draft: previous.savedDraft,
-    }));
+    profileForm.reset(savedDraft);
   };
 
   return (
@@ -494,43 +553,49 @@ const StoreProfileEditor = ({
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-8">
-            <BasicProfileForm
-              draft={draft}
-              onBioChange={(bio) =>
-                setEditorState((previous) => ({
-                  ...previous,
-                  draft: { ...previous.draft, bio },
-                }))
-              }
-              onNameChange={handleNameChange}
-              onSlugChange={(storeSlug) => {
-                setEditorState((previous) => ({
-                  ...previous,
-                  draft: {
-                    ...previous.draft,
-                    slugCustomized: true,
-                    storeSlug,
-                  },
-                }));
+            <form
+              id="store-profile-form"
+              onSubmit={async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                await profileForm.handleSubmit();
               }}
-              slugLocked={slugLocked}
-              status={status}
-              visibilityReason={visibilityReason}
-            />
-            <div className="border-t border-border/60 pt-6">
-              <MediaProfileForm
-                disabled={updateProfileMutation.isPending || isMediaUploading}
-                draft={draft}
-                onBannerChange={handleBannerChange}
-                onLogoChange={handleLogoChange}
-                onUploadingChange={setIsMediaUploading}
+            >
+              <BasicProfileForm
+                form={profileForm}
+                slugLocked={slugLocked}
+                status={status}
+                visibilityReason={visibilityReason}
               />
-            </div>
-            <ProfileActions
-              isSaving={updateProfileMutation.isPending || isMediaUploading}
-              onCancel={handleCancel}
-              onSave={handleSave}
-            />
+              <div className="border-t border-border/60 pt-6">
+                <MediaProfileForm
+                  avatarName={avatarName}
+                  bannerName={bannerName}
+                  disabled={updateProfileMutation.isPending || isMediaUploading}
+                  form={profileForm}
+                  onAvatarNameChange={setAvatarName}
+                  onBannerNameChange={setBannerName}
+                  onUploadingChange={setIsMediaUploading}
+                />
+              </div>
+              <profileForm.Subscribe
+                selector={(state) => ({
+                  canSubmit: state.canSubmit,
+                  isSubmitting: state.isSubmitting,
+                })}
+              >
+                {({ canSubmit, isSubmitting }) => (
+                  <ProfileActions
+                    canSubmit={canSubmit}
+                    isSaving={
+                      updateProfileMutation.isPending || isMediaUploading
+                    }
+                    isSubmitting={isSubmitting}
+                    onCancel={handleCancel}
+                  />
+                )}
+              </profileForm.Subscribe>
+            </form>
           </CardContent>
         </Card>
         <aside className="flex flex-col gap-5 xl:sticky xl:top-24 xl:self-start">

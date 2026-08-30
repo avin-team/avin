@@ -6,9 +6,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@avin/ui/components/field";
 import { Input } from "@avin/ui/components/input";
 import { Textarea } from "@avin/ui/components/textarea";
-import { useState } from "react";
+import { useForm } from "@tanstack/react-form";
 import { toast } from "sonner";
 
 import { Header } from "@/components/layout/header";
@@ -19,6 +25,7 @@ import {
   usePublishAdminProtectionPolicy,
 } from "../api/policy-api";
 import type { AdminProtectionPolicy } from "../api/policy-api";
+import { protectionPolicyFormSchema } from "../schemas/protection-policy-form-schema";
 
 interface PolicyFormState {
   bronzeMinimumBondAmount: string;
@@ -147,65 +154,52 @@ const PolicyCard = ({ policy }: { policy: AdminProtectionPolicy }) => (
 export const ProtectionPolicyPage = () => {
   const policiesQuery = useAdminProtectionPolicies();
   const publish = usePublishAdminProtectionPolicy();
-  const [form, setForm] = useState(createInitialForm);
-
-  const update = <K extends keyof PolicyFormState>(
-    field: K,
-    value: PolicyFormState[K]
-  ): void => {
-    setForm((current) => ({ ...current, [field]: value }));
-  };
-
-  const submit = async (): Promise<void> => {
-    const changedAreas = form.changedAreas
-      .split(",")
-      .map((area) => area.trim())
-      .filter(Boolean);
-    if (
-      !form.version.trim() ||
-      !form.title.trim() ||
-      !form.summary.trim() ||
-      !form.terms.trim() ||
-      !form.rationale.trim() ||
-      changedAreas.length === 0
-    ) {
-      toast.error("Cần nhập đầy đủ version, nội dung và vùng thay đổi.");
-      return;
-    }
-    try {
-      await publish.mutateAsync({
-        bronzeMinimumBondAmount: Number(form.bronzeMinimumBondAmount),
-        diamondMinimumBondAmount: Number(form.diamondMinimumBondAmount),
-        effectiveAt: form.effectiveAt,
-        goldMinimumBondAmount: Number(form.goldMinimumBondAmount),
-        materialChange: form.materialChange,
-        materialChangeMetadata: {
-          changedAreas,
-          rationale: form.rationale.trim(),
-        },
-        membershipFeeAmount: 0,
-        minimumBondAmount: Number(form.minimumBondAmount),
-        reacceptDeadlineAt: form.materialChange
-          ? form.reacceptDeadlineAt
-          : null,
-        recommendedLimitPercentage: Number(form.recommendedLimitPercentage),
-        recommendedLimitRounding: Number(form.recommendedLimitRounding),
-        retentionPolicyReference: form.retentionPolicyReference.trim(),
-        silverMinimumBondAmount: Number(form.silverMinimumBondAmount),
-        summary: form.summary.trim(),
-        terms: form.terms.trim(),
-        title: form.title.trim(),
-        version: form.version.trim(),
-        vipMinimumBondAmount: Number(form.vipMinimumBondAmount),
-      });
-      toast.success("Đã phát hành policy version bất biến.");
-      setForm(createInitialForm());
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Không thể phát hành policy."
-      );
-    }
-  };
+  const policyForm = useForm({
+    defaultValues: createInitialForm(),
+    onSubmit: async ({ value }) => {
+      const changedAreas = value.changedAreas
+        .split(",")
+        .map((area) => area.trim())
+        .filter(Boolean);
+      try {
+        await publish.mutateAsync({
+          bronzeMinimumBondAmount: Number(value.bronzeMinimumBondAmount),
+          diamondMinimumBondAmount: Number(value.diamondMinimumBondAmount),
+          effectiveAt: value.effectiveAt,
+          goldMinimumBondAmount: Number(value.goldMinimumBondAmount),
+          materialChange: value.materialChange,
+          materialChangeMetadata: {
+            changedAreas,
+            rationale: value.rationale.trim(),
+          },
+          membershipFeeAmount: 0,
+          minimumBondAmount: Number(value.minimumBondAmount),
+          reacceptDeadlineAt: value.materialChange
+            ? value.reacceptDeadlineAt
+            : null,
+          recommendedLimitPercentage: Number(value.recommendedLimitPercentage),
+          recommendedLimitRounding: Number(value.recommendedLimitRounding),
+          retentionPolicyReference: value.retentionPolicyReference.trim(),
+          silverMinimumBondAmount: Number(value.silverMinimumBondAmount),
+          summary: value.summary.trim(),
+          terms: value.terms.trim(),
+          title: value.title.trim(),
+          version: value.version.trim(),
+          vipMinimumBondAmount: Number(value.vipMinimumBondAmount),
+        });
+        toast.success("Đã phát hành policy version bất biến.");
+        policyForm.reset();
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Không thể phát hành policy."
+        );
+      }
+    },
+    onSubmitInvalid: () => {
+      toast.error("Vui lòng kiểm tra các trường bắt buộc của policy.");
+    },
+    validators: { onSubmit: protectionPolicyFormSchema },
+  });
 
   return (
     <>
@@ -232,171 +226,398 @@ export const ProtectionPolicyPage = () => {
               Chỉ SUPER_ADMIN có capability phù hợp mới có thể phát hành.
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="grid gap-2 text-sm" htmlFor="policy-version">
-                <span className="font-medium">Version</span>
-                <Input
-                  id="policy-version"
-                  onChange={(event) => update("version", event.target.value)}
-                  value={form.version}
-                />
-              </label>
-              <label className="grid gap-2 text-sm" htmlFor="policy-title">
-                <span className="font-medium">Title</span>
-                <Input
-                  id="policy-title"
-                  onChange={(event) => update("title", event.target.value)}
-                  value={form.title}
-                />
-              </label>
-            </div>
-            <label className="grid gap-2 text-sm" htmlFor="policy-summary">
-              <span className="font-medium">Summary</span>
-              <Textarea
-                id="policy-summary"
-                onChange={(event) => update("summary", event.target.value)}
-                value={form.summary}
-              />
-            </label>
-            <label className="grid gap-2 text-sm" htmlFor="policy-terms">
-              <span className="font-medium">Terms</span>
-              <Textarea
-                id="policy-terms"
-                onChange={(event) => update("terms", event.target.value)}
-                rows={7}
-                value={form.terms}
-              />
-            </label>
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="grid gap-2 text-sm" htmlFor="policy-effective">
-                <span className="font-medium">Effective at</span>
-                <Input
-                  id="policy-effective"
-                  onChange={(event) =>
-                    update("effectiveAt", event.target.value)
-                  }
-                  type="datetime-local"
-                  value={form.effectiveAt}
-                />
-              </label>
-              <label className="grid gap-2 text-sm" htmlFor="policy-deadline">
-                <span className="font-medium">Reaccept deadline</span>
-                <Input
-                  disabled={!form.materialChange}
-                  id="policy-deadline"
-                  onChange={(event) =>
-                    update("reacceptDeadlineAt", event.target.value)
-                  }
-                  type="datetime-local"
-                  value={form.reacceptDeadlineAt}
-                />
-              </label>
-            </div>
-            <label className="flex items-center gap-3 text-sm">
-              <input
-                checked={form.materialChange}
-                onChange={(event) =>
-                  update("materialChange", event.target.checked)
-                }
-                type="checkbox"
-              />
-              <span className="font-medium">Đây là material change</span>
-            </label>
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="grid gap-2 text-sm" htmlFor="policy-areas">
-                <span className="font-medium">
-                  Changed areas (phân cách bằng dấu phẩy)
-                </span>
-                <Input
-                  id="policy-areas"
-                  onChange={(event) =>
-                    update("changedAreas", event.target.value)
-                  }
-                  value={form.changedAreas}
-                />
-              </label>
-              <label className="grid gap-2 text-sm" htmlFor="policy-rationale">
-                <span className="font-medium">Material-change rationale</span>
-                <Input
-                  id="policy-rationale"
-                  onChange={(event) => update("rationale", event.target.value)}
-                  value={form.rationale}
-                />
-              </label>
-            </div>
-            <div className="grid gap-4 md:grid-cols-3">
-              <label className="grid gap-2 text-sm" htmlFor="policy-bond">
-                <span className="font-medium">Minimum Bond (VND)</span>
-                <Input
-                  id="policy-bond"
-                  inputMode="numeric"
-                  onChange={(event) =>
-                    update("minimumBondAmount", event.target.value)
-                  }
-                  value={form.minimumBondAmount}
-                />
-              </label>
-              <label className="grid gap-2 text-sm" htmlFor="policy-fee">
-                <span className="font-medium">Membership Fee (VND)</span>
-                <Input
-                  disabled
-                  id="policy-fee"
-                  value={form.membershipFeeAmount}
-                />
-                <span className="text-muted-foreground text-xs">
-                  P0 cố định 0 VND; muốn bật phí phải có policy/luồng hoàn tiền
-                  riêng.
-                </span>
-              </label>
-              <label className="grid gap-2 text-sm" htmlFor="policy-retention">
-                <span className="font-medium">Retention policy reference</span>
-                <Input
-                  id="policy-retention"
-                  onChange={(event) =>
-                    update("retentionPolicyReference", event.target.value)
-                  }
-                  value={form.retentionPolicyReference}
-                />
-              </label>
-            </div>
-            <div className="grid gap-4 md:grid-cols-3">
-              {(
-                [
-                  ["bronzeMinimumBondAmount", "Đồng từ (VND)"],
-                  ["silverMinimumBondAmount", "Bạc từ (VND)"],
-                  ["goldMinimumBondAmount", "Vàng từ (VND)"],
-                  ["diamondMinimumBondAmount", "Kim cương từ (VND)"],
-                  ["vipMinimumBondAmount", "VIP từ (VND)"],
-                  ["recommendedLimitPercentage", "% hạn mức khuyến nghị"],
-                  ["recommendedLimitRounding", "Đơn vị làm tròn (VND)"],
-                ] as const
-              ).map(([field, label]) => (
-                <label
-                  className="grid gap-2 text-sm"
-                  htmlFor={`policy-${field}`}
-                  key={field}
-                >
-                  <span className="font-medium">{label}</span>
-                  <Input
-                    id={`policy-${field}`}
-                    inputMode="numeric"
-                    onChange={(event) => update(field, event.target.value)}
-                    value={form[field]}
-                  />
-                </label>
-              ))}
-            </div>
-            <Button
-              className="w-fit"
-              disabled={publish.isPending}
-              onClick={() => void submit()}
-              type="button"
+          <CardContent>
+            <form
+              id="protection-policy-form"
+              onSubmit={async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                await policyForm.handleSubmit();
+              }}
             >
-              {publish.isPending
-                ? "Đang phát hành..."
-                : "Phát hành policy version"}
-            </Button>
+              <FieldGroup className="gap-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <policyForm.Field name="version">
+                    {(field) => {
+                      const isInvalid =
+                        field.state.meta.isTouched && !field.state.meta.isValid;
+                      return (
+                        <Field data-invalid={isInvalid}>
+                          <FieldLabel htmlFor={field.name}>Version</FieldLabel>
+                          <Input
+                            aria-invalid={isInvalid}
+                            id={field.name}
+                            name={field.name}
+                            onBlur={field.handleBlur}
+                            onChange={(event) =>
+                              field.handleChange(event.target.value)
+                            }
+                            value={field.state.value}
+                          />
+                          {isInvalid ? (
+                            <FieldError errors={field.state.meta.errors} />
+                          ) : null}
+                        </Field>
+                      );
+                    }}
+                  </policyForm.Field>
+                  <policyForm.Field name="title">
+                    {(field) => {
+                      const isInvalid =
+                        field.state.meta.isTouched && !field.state.meta.isValid;
+                      return (
+                        <Field data-invalid={isInvalid}>
+                          <FieldLabel htmlFor={field.name}>Title</FieldLabel>
+                          <Input
+                            aria-invalid={isInvalid}
+                            id={field.name}
+                            name={field.name}
+                            onBlur={field.handleBlur}
+                            onChange={(event) =>
+                              field.handleChange(event.target.value)
+                            }
+                            value={field.state.value}
+                          />
+                          {isInvalid ? (
+                            <FieldError errors={field.state.meta.errors} />
+                          ) : null}
+                        </Field>
+                      );
+                    }}
+                  </policyForm.Field>
+                </div>
+
+                <policyForm.Field name="summary">
+                  {(field) => {
+                    const isInvalid =
+                      field.state.meta.isTouched && !field.state.meta.isValid;
+                    return (
+                      <Field data-invalid={isInvalid}>
+                        <FieldLabel htmlFor={field.name}>Summary</FieldLabel>
+                        <Textarea
+                          aria-invalid={isInvalid}
+                          id={field.name}
+                          name={field.name}
+                          onBlur={field.handleBlur}
+                          onChange={(event) =>
+                            field.handleChange(event.target.value)
+                          }
+                          value={field.state.value}
+                        />
+                        {isInvalid ? (
+                          <FieldError errors={field.state.meta.errors} />
+                        ) : null}
+                      </Field>
+                    );
+                  }}
+                </policyForm.Field>
+                <policyForm.Field name="terms">
+                  {(field) => {
+                    const isInvalid =
+                      field.state.meta.isTouched && !field.state.meta.isValid;
+                    return (
+                      <Field data-invalid={isInvalid}>
+                        <FieldLabel htmlFor={field.name}>Terms</FieldLabel>
+                        <Textarea
+                          aria-invalid={isInvalid}
+                          id={field.name}
+                          name={field.name}
+                          onBlur={field.handleBlur}
+                          onChange={(event) =>
+                            field.handleChange(event.target.value)
+                          }
+                          rows={7}
+                          value={field.state.value}
+                        />
+                        {isInvalid ? (
+                          <FieldError errors={field.state.meta.errors} />
+                        ) : null}
+                      </Field>
+                    );
+                  }}
+                </policyForm.Field>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <policyForm.Field name="effectiveAt">
+                    {(field) => {
+                      const isInvalid =
+                        field.state.meta.isTouched && !field.state.meta.isValid;
+                      return (
+                        <Field data-invalid={isInvalid}>
+                          <FieldLabel htmlFor={field.name}>
+                            Effective at
+                          </FieldLabel>
+                          <Input
+                            aria-invalid={isInvalid}
+                            id={field.name}
+                            name={field.name}
+                            onBlur={field.handleBlur}
+                            onChange={(event) =>
+                              field.handleChange(event.target.value)
+                            }
+                            type="datetime-local"
+                            value={field.state.value}
+                          />
+                          {isInvalid ? (
+                            <FieldError errors={field.state.meta.errors} />
+                          ) : null}
+                        </Field>
+                      );
+                    }}
+                  </policyForm.Field>
+                  <policyForm.Field name="reacceptDeadlineAt">
+                    {(field) => (
+                      <policyForm.Field name="materialChange">
+                        {(materialField) => {
+                          const isInvalid =
+                            field.state.meta.isTouched &&
+                            !field.state.meta.isValid;
+                          return (
+                            <Field data-invalid={isInvalid}>
+                              <FieldLabel htmlFor={field.name}>
+                                Reaccept deadline
+                              </FieldLabel>
+                              <Input
+                                aria-invalid={isInvalid}
+                                disabled={!materialField.state.value}
+                                id={field.name}
+                                name={field.name}
+                                onBlur={field.handleBlur}
+                                onChange={(event) =>
+                                  field.handleChange(event.target.value)
+                                }
+                                type="datetime-local"
+                                value={field.state.value}
+                              />
+                              {isInvalid ? (
+                                <FieldError errors={field.state.meta.errors} />
+                              ) : null}
+                            </Field>
+                          );
+                        }}
+                      </policyForm.Field>
+                    )}
+                  </policyForm.Field>
+                </div>
+
+                <policyForm.Field name="materialChange">
+                  {(field) => (
+                    <Field orientation="horizontal">
+                      <FieldLabel htmlFor={field.name}>
+                        <input
+                          checked={field.state.value}
+                          id={field.name}
+                          name={field.name}
+                          onBlur={field.handleBlur}
+                          onChange={(event) => {
+                            field.handleChange(event.target.checked);
+                            if (!event.target.checked) {
+                              policyForm.setFieldValue(
+                                "reacceptDeadlineAt",
+                                ""
+                              );
+                            }
+                          }}
+                          type="checkbox"
+                        />
+                        Đây là material change
+                      </FieldLabel>
+                    </Field>
+                  )}
+                </policyForm.Field>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <policyForm.Field name="changedAreas">
+                    {(field) => {
+                      const isInvalid =
+                        field.state.meta.isTouched && !field.state.meta.isValid;
+                      return (
+                        <Field data-invalid={isInvalid}>
+                          <FieldLabel htmlFor={field.name}>
+                            Changed areas (phân cách bằng dấu phẩy)
+                          </FieldLabel>
+                          <Input
+                            aria-invalid={isInvalid}
+                            id={field.name}
+                            name={field.name}
+                            onBlur={field.handleBlur}
+                            onChange={(event) =>
+                              field.handleChange(event.target.value)
+                            }
+                            value={field.state.value}
+                          />
+                          {isInvalid ? (
+                            <FieldError errors={field.state.meta.errors} />
+                          ) : null}
+                        </Field>
+                      );
+                    }}
+                  </policyForm.Field>
+                  <policyForm.Field name="rationale">
+                    {(field) => {
+                      const isInvalid =
+                        field.state.meta.isTouched && !field.state.meta.isValid;
+                      return (
+                        <Field data-invalid={isInvalid}>
+                          <FieldLabel htmlFor={field.name}>
+                            Material-change rationale
+                          </FieldLabel>
+                          <Input
+                            aria-invalid={isInvalid}
+                            id={field.name}
+                            name={field.name}
+                            onBlur={field.handleBlur}
+                            onChange={(event) =>
+                              field.handleChange(event.target.value)
+                            }
+                            value={field.state.value}
+                          />
+                          {isInvalid ? (
+                            <FieldError errors={field.state.meta.errors} />
+                          ) : null}
+                        </Field>
+                      );
+                    }}
+                  </policyForm.Field>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-3">
+                  <policyForm.Field name="minimumBondAmount">
+                    {(field) => {
+                      const isInvalid =
+                        field.state.meta.isTouched && !field.state.meta.isValid;
+                      return (
+                        <Field data-invalid={isInvalid}>
+                          <FieldLabel htmlFor={field.name}>
+                            Minimum Bond (VND)
+                          </FieldLabel>
+                          <Input
+                            aria-invalid={isInvalid}
+                            id={field.name}
+                            inputMode="numeric"
+                            name={field.name}
+                            onBlur={field.handleBlur}
+                            onChange={(event) =>
+                              field.handleChange(event.target.value)
+                            }
+                            value={field.state.value}
+                          />
+                          {isInvalid ? (
+                            <FieldError errors={field.state.meta.errors} />
+                          ) : null}
+                        </Field>
+                      );
+                    }}
+                  </policyForm.Field>
+                  <policyForm.Field name="membershipFeeAmount">
+                    {(field) => (
+                      <Field>
+                        <FieldLabel htmlFor={field.name}>
+                          Membership Fee (VND)
+                        </FieldLabel>
+                        <Input
+                          disabled
+                          id={field.name}
+                          value={field.state.value}
+                        />
+                        <p className="text-muted-foreground text-xs">
+                          P0 cố định 0 VND; muốn bật phí phải có policy/luồng
+                          hoàn tiền riêng.
+                        </p>
+                      </Field>
+                    )}
+                  </policyForm.Field>
+                  <policyForm.Field name="retentionPolicyReference">
+                    {(field) => {
+                      const isInvalid =
+                        field.state.meta.isTouched && !field.state.meta.isValid;
+                      return (
+                        <Field data-invalid={isInvalid}>
+                          <FieldLabel htmlFor={field.name}>
+                            Retention policy reference
+                          </FieldLabel>
+                          <Input
+                            aria-invalid={isInvalid}
+                            id={field.name}
+                            name={field.name}
+                            onBlur={field.handleBlur}
+                            onChange={(event) =>
+                              field.handleChange(event.target.value)
+                            }
+                            value={field.state.value}
+                          />
+                          {isInvalid ? (
+                            <FieldError errors={field.state.meta.errors} />
+                          ) : null}
+                        </Field>
+                      );
+                    }}
+                  </policyForm.Field>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-3">
+                  {(
+                    [
+                      ["bronzeMinimumBondAmount", "Đồng từ (VND)"],
+                      ["silverMinimumBondAmount", "Bạc từ (VND)"],
+                      ["goldMinimumBondAmount", "Vàng từ (VND)"],
+                      ["diamondMinimumBondAmount", "Kim cương từ (VND)"],
+                      ["vipMinimumBondAmount", "VIP từ (VND)"],
+                      ["recommendedLimitPercentage", "% hạn mức khuyến nghị"],
+                      ["recommendedLimitRounding", "Đơn vị làm tròn (VND)"],
+                    ] as const
+                  ).map(([fieldName, label]) => (
+                    <policyForm.Field key={fieldName} name={fieldName}>
+                      {(field) => {
+                        const isInvalid =
+                          field.state.meta.isTouched &&
+                          !field.state.meta.isValid;
+                        return (
+                          <Field data-invalid={isInvalid}>
+                            <FieldLabel htmlFor={field.name}>
+                              {label}
+                            </FieldLabel>
+                            <Input
+                              aria-invalid={isInvalid}
+                              id={field.name}
+                              inputMode="numeric"
+                              name={field.name}
+                              onBlur={field.handleBlur}
+                              onChange={(event) =>
+                                field.handleChange(event.target.value)
+                              }
+                              value={field.state.value}
+                            />
+                            {isInvalid ? (
+                              <FieldError errors={field.state.meta.errors} />
+                            ) : null}
+                          </Field>
+                        );
+                      }}
+                    </policyForm.Field>
+                  ))}
+                </div>
+              </FieldGroup>
+              <policyForm.Subscribe
+                selector={(state) => ({
+                  canSubmit: state.canSubmit,
+                  isSubmitting: state.isSubmitting,
+                })}
+              >
+                {({ canSubmit, isSubmitting }) => (
+                  <Button
+                    className="mt-4 w-fit"
+                    disabled={!canSubmit || isSubmitting || publish.isPending}
+                    form="protection-policy-form"
+                    type="submit"
+                  >
+                    {isSubmitting || publish.isPending
+                      ? "Đang phát hành..."
+                      : "Phát hành policy version"}
+                  </Button>
+                )}
+              </policyForm.Subscribe>
+            </form>
           </CardContent>
         </Card>
 

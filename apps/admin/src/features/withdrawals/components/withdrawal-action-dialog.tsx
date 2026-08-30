@@ -7,11 +7,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@avin/ui/components/dialog";
-import { Field, FieldGroup, FieldLabel } from "@avin/ui/components/field";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@avin/ui/components/field";
 import { Input } from "@avin/ui/components/input";
 import { Textarea } from "@avin/ui/components/textarea";
-import { useState } from "react";
+import { useForm } from "@tanstack/react-form";
 
+import { createWithdrawalActionFormSchema } from "../schemas/withdrawal-action-form-schema";
 import type { AdminWithdrawal, WithdrawalAction } from "../types";
 
 const ACTION_COPY: Record<
@@ -50,19 +56,30 @@ export const WithdrawalActionDialog = ({
   pending: boolean;
   request: AdminWithdrawal | null;
 }) => {
-  const [value, setValue] = useState("");
+  const actionForm = useForm({
+    defaultValues: { value: "" },
+    onSubmit: ({ value }) => {
+      onConfirm(value.value.trim() || undefined);
+      actionForm.reset();
+    },
+    validators: {
+      onSubmit: createWithdrawalActionFormSchema(action),
+    },
+  });
+
   if (!action || !request) {
     return null;
   }
+
   const isReason = action === "REJECT";
   const isPaymentReference = action === "MARK_PAID";
   const copy = ACTION_COPY[action];
-  const valid = (!isReason && !isPaymentReference) || value.trim().length > 0;
+
   return (
     <Dialog
       onOpenChange={(nextOpen) => {
-        if (!nextOpen) {
-          setValue("");
+        if (!nextOpen && !pending) {
+          actionForm.reset();
         }
         onOpenChange(nextOpen);
       }}
@@ -83,46 +100,89 @@ export const WithdrawalActionDialog = ({
             {request.bankAccount.accountName}
           </p>
         </div>
-        {isReason || isPaymentReference ? (
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="withdrawal-action-value">
-                {isReason ? "Lý do từ chối" : "Mã giao dịch ngân hàng"}
-              </FieldLabel>
-              {isReason ? (
-                <Textarea
-                  id="withdrawal-action-value"
-                  onChange={(event) => setValue(event.target.value)}
-                  value={value}
-                />
-              ) : (
-                <Input
-                  id="withdrawal-action-value"
-                  onChange={(event) => setValue(event.target.value)}
-                  value={value}
-                />
+
+        <form
+          id="withdrawal-action-form"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            await actionForm.handleSubmit();
+          }}
+        >
+          {isReason || isPaymentReference ? (
+            <FieldGroup>
+              <actionForm.Field name="value">
+                {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
+                  return (
+                    <Field data-invalid={isInvalid}>
+                      <FieldLabel htmlFor="withdrawal-action-value">
+                        {isReason ? "Lý do từ chối" : "Mã giao dịch ngân hàng"}
+                      </FieldLabel>
+                      {isReason ? (
+                        <Textarea
+                          aria-invalid={isInvalid}
+                          disabled={pending}
+                          id="withdrawal-action-value"
+                          name={field.name}
+                          onBlur={field.handleBlur}
+                          onChange={(event) =>
+                            field.handleChange(event.target.value)
+                          }
+                          value={field.state.value}
+                        />
+                      ) : (
+                        <Input
+                          aria-invalid={isInvalid}
+                          disabled={pending}
+                          id="withdrawal-action-value"
+                          name={field.name}
+                          onBlur={field.handleBlur}
+                          onChange={(event) =>
+                            field.handleChange(event.target.value)
+                          }
+                          value={field.state.value}
+                        />
+                      )}
+                      {isInvalid ? (
+                        <FieldError errors={field.state.meta.errors} />
+                      ) : null}
+                    </Field>
+                  );
+                }}
+              </actionForm.Field>
+            </FieldGroup>
+          ) : null}
+
+          <DialogFooter className="pt-4">
+            <Button
+              disabled={pending}
+              onClick={() => onOpenChange(false)}
+              type="button"
+              variant="outline"
+            >
+              Hủy
+            </Button>
+            <actionForm.Subscribe
+              selector={(state) => ({
+                canSubmit: state.canSubmit,
+                isSubmitting: state.isSubmitting,
+              })}
+            >
+              {({ canSubmit, isSubmitting }) => (
+                <Button
+                  disabled={pending || isSubmitting || !canSubmit}
+                  form="withdrawal-action-form"
+                  type="submit"
+                  variant={isReason ? "destructive" : "default"}
+                >
+                  {pending || isSubmitting ? "Đang xử lý..." : "Xác nhận"}
+                </Button>
               )}
-            </Field>
-          </FieldGroup>
-        ) : null}
-        <DialogFooter>
-          <Button
-            disabled={pending}
-            onClick={() => onOpenChange(false)}
-            type="button"
-            variant="outline"
-          >
-            Hủy
-          </Button>
-          <Button
-            disabled={pending || !valid}
-            onClick={() => onConfirm(value.trim() || undefined)}
-            type="button"
-            variant={isReason ? "destructive" : "default"}
-          >
-            {pending ? "Đang xử lý..." : "Xác nhận"}
-          </Button>
-        </DialogFooter>
+            </actionForm.Subscribe>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

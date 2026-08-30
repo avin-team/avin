@@ -6,6 +6,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@avin/ui/components/field";
 import { Input } from "@avin/ui/components/input";
 import {
   Select,
@@ -16,7 +22,7 @@ import {
   SelectValue,
 } from "@avin/ui/components/select";
 import { Textarea } from "@avin/ui/components/textarea";
-import { useState } from "react";
+import { useForm } from "@tanstack/react-form";
 import { toast } from "sonner";
 
 import { Header } from "@/components/layout/header";
@@ -30,6 +36,12 @@ import {
   useReconsiderAdminSupportReview,
 } from "../api/support-reviews-api";
 import type { SupportReview } from "../api/support-reviews-api";
+import {
+  createSupportReviewOutcomeFormSchema,
+  supportReviewApprovalFormSchema,
+  supportReviewEligibilityFormSchema,
+  supportReviewReconsiderationFormSchema,
+} from "../schemas/support-review-form-schema";
 
 const STATUS_LABELS = {
   APPROVED: "Đã duyệt",
@@ -144,555 +156,775 @@ const ReviewSummary = ({ review }: { review: SupportReview }) => (
 
 const EligibilityForm = ({ review }: { review: SupportReview }) => {
   const evaluate = useEvaluateAdminSupportReview();
-  const [channel, setChannel] = useState<"FACEBOOK" | "ZALO" | "OTHER">(
-    "FACEBOOK"
-  );
-  const [scope, setScope] =
-    useState<keyof typeof TRANSACTION_SCOPE_LABELS>("DIRECT");
-  const [transactionAt, setTransactionAt] = useState(() =>
-    toDateTimeLocal(review.transactionOccurredAt)
-  );
-  const [profileVersionId, setProfileVersionId] = useState(
-    review.transactionProfileVersionId ?? review.profileVersion.versionId
-  );
-  const [actualLoss, setActualLoss] = useState(
-    String(review.verifiedActualLoss ?? "")
-  );
-  const [privateEvidenceReference, setPrivateEvidenceReference] = useState(
-    review.privateEvidenceReference ?? ""
-  );
-  const [reason, setReason] = useState("");
-  const [checks, setChecks] = useState({
-    approvedServiceConfirmed: false,
-    evidenceSufficient: false,
-    preTransactionVideoPresent: false,
-    providerIdentityConfirmed: false,
-    registeredPaymentIdentityConfirmed: false,
-    requiredProcessCompleted: false,
-    transactionLawfulConfirmed: false,
-  });
   const profileVersionItems = review.profileVersions.map((version) => ({
     label: `v${version.versionNumber} · limit ${version.recommendedTransactionLimit}`,
     value: version.versionId,
   }));
-
-  const updateCheck = (key: keyof typeof checks, value: boolean): void => {
-    setChecks((current) => ({ ...current, [key]: value }));
-  };
-
-  const submit = async () => {
-    if (!transactionAt || !privateEvidenceReference.trim() || !reason.trim()) {
-      toast.error("Cần nhập thời điểm, evidence private và lý do.");
-      return;
-    }
-    try {
-      await evaluate.mutateAsync({
-        ...checks,
-        privateEvidenceReference: privateEvidenceReference.trim(),
-        reason: reason.trim(),
-        reviewId: review.id,
-        transactionChannel: channel,
-        transactionOccurredAt: toIsoDateTime(transactionAt),
-        transactionProfileVersionId: profileVersionId,
-        transactionScope: scope,
-        verifiedActualLoss: Number(actualLoss),
-      });
-      toast.success("Đã lưu kết quả xét điều kiện Support Review.");
-      setReason("");
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Không thể xét điều kiện."
-      );
-    }
-  };
+  const eligibilityForm = useForm({
+    defaultValues: {
+      actualLoss: String(review.verifiedActualLoss ?? ""),
+      approvedServiceConfirmed: false,
+      channel: "FACEBOOK" as "FACEBOOK" | "ZALO" | "OTHER",
+      evidenceSufficient: false,
+      preTransactionVideoPresent: false,
+      privateEvidenceReference: review.privateEvidenceReference ?? "",
+      profileVersionId:
+        review.transactionProfileVersionId ?? review.profileVersion.versionId,
+      providerIdentityConfirmed: false,
+      reason: "",
+      registeredPaymentIdentityConfirmed: false,
+      requiredProcessCompleted: false,
+      scope: "DIRECT" as keyof typeof TRANSACTION_SCOPE_LABELS,
+      transactionAt: toDateTimeLocal(review.transactionOccurredAt),
+      transactionLawfulConfirmed: false,
+    },
+    onSubmit: async ({ value }) => {
+      try {
+        await evaluate.mutateAsync({
+          approvedServiceConfirmed: value.approvedServiceConfirmed,
+          evidenceSufficient: value.evidenceSufficient,
+          preTransactionVideoPresent: value.preTransactionVideoPresent,
+          privateEvidenceReference: value.privateEvidenceReference.trim(),
+          providerIdentityConfirmed: value.providerIdentityConfirmed,
+          reason: value.reason.trim(),
+          registeredPaymentIdentityConfirmed:
+            value.registeredPaymentIdentityConfirmed,
+          requiredProcessCompleted: value.requiredProcessCompleted,
+          reviewId: review.id,
+          transactionChannel: value.channel,
+          transactionLawfulConfirmed: value.transactionLawfulConfirmed,
+          transactionOccurredAt: toIsoDateTime(value.transactionAt),
+          transactionProfileVersionId: value.profileVersionId,
+          transactionScope: value.scope,
+          verifiedActualLoss: Number(value.actualLoss),
+        });
+        toast.success("Đã lưu kết quả xét điều kiện Support Review.");
+        eligibilityForm.reset();
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Không thể xét điều kiện."
+        );
+      }
+    },
+    validators: { onSubmit: supportReviewEligibilityFormSchema },
+  });
 
   return (
-    <div className="grid gap-4 rounded-xl border bg-muted/20 p-4">
-      <div className="grid gap-3 md:grid-cols-2">
-        <label
-          className="grid gap-2 text-sm"
-          htmlFor={`support-channel-${review.id}`}
-        >
-          Kênh giao dịch
-          <Select
-            items={SUPPORT_CHANNEL_ITEMS}
-            onValueChange={(value) =>
-              setChannel(value as "FACEBOOK" | "ZALO" | "OTHER")
-            }
-            value={channel}
-          >
-            <SelectTrigger
-              className="h-9 w-full rounded-md border border-input bg-background px-3"
-              id={`support-channel-${review.id}`}
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {SUPPORT_CHANNEL_ITEMS.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </label>
-        <label
-          className="grid gap-2 text-sm"
-          htmlFor={`support-scope-${review.id}`}
-        >
-          Phạm vi giao dịch
-          <Select
-            items={TRANSACTION_SCOPE_ITEMS}
-            onValueChange={(value) =>
-              setScope(value as keyof typeof TRANSACTION_SCOPE_LABELS)
-            }
-            value={scope}
-          >
-            <SelectTrigger
-              className="h-9 w-full rounded-md border border-input bg-background px-3"
-              id={`support-scope-${review.id}`}
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {TRANSACTION_SCOPE_ITEMS.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </label>
-        <label
-          className="grid gap-2 text-sm"
-          htmlFor={`support-time-${review.id}`}
-        >
-          Thời điểm giao dịch
-          <Input
-            id={`support-time-${review.id}`}
-            onChange={(event) => setTransactionAt(event.target.value)}
-            type="datetime-local"
-            value={transactionAt}
-          />
-        </label>
-        <label
-          className="grid gap-2 text-sm"
-          htmlFor={`support-version-${review.id}`}
-        >
-          Profile version tại thời điểm giao dịch
-          <Select
-            items={profileVersionItems}
-            onValueChange={(value) => setProfileVersionId(value ?? "")}
-            value={profileVersionId}
-          >
-            <SelectTrigger
-              className="h-9 w-full rounded-md border border-input bg-background px-3"
-              id={`support-version-${review.id}`}
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {profileVersionItems.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </label>
-        <label
-          className="grid gap-2 text-sm"
-          htmlFor={`support-loss-${review.id}`}
-        >
-          Verified actual loss (VND)
-          <Input
-            id={`support-loss-${review.id}`}
-            inputMode="numeric"
-            min={0}
-            onChange={(event) => setActualLoss(event.target.value)}
-            type="number"
-            value={actualLoss}
-          />
-        </label>
-        <label
-          className="grid gap-2 text-sm"
-          htmlFor={`support-evidence-${review.id}`}
-        >
-          Private evidence reference
-          <Input
-            id={`support-evidence-${review.id}`}
-            onChange={(event) =>
-              setPrivateEvidenceReference(event.target.value)
-            }
-            value={privateEvidenceReference}
-          />
-        </label>
-      </div>
-      <div className="grid gap-2 text-sm sm:grid-cols-2">
-        {(
-          [
-            ["providerIdentityConfirmed", "Đúng Provider"],
-            ["approvedServiceConfirmed", "Đúng dịch vụ đã duyệt"],
+    <form
+      className="grid gap-4 rounded-xl border bg-muted/20 p-4"
+      id={`support-eligibility-form-${review.id}`}
+      onSubmit={async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        await eligibilityForm.handleSubmit();
+      }}
+    >
+      <FieldGroup className="gap-3">
+        <div className="grid gap-3 md:grid-cols-2">
+          <eligibilityForm.Field name="channel">
+            {(field) => (
+              <Field>
+                <FieldLabel htmlFor={field.name}>Kênh giao dịch</FieldLabel>
+                <Select
+                  items={SUPPORT_CHANNEL_ITEMS}
+                  onValueChange={(value) =>
+                    field.handleChange(value as "FACEBOOK" | "ZALO" | "OTHER")
+                  }
+                  value={field.state.value}
+                >
+                  <SelectTrigger
+                    className="h-9 w-full rounded-md border border-input bg-background px-3"
+                    id={field.name}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {SUPPORT_CHANNEL_ITEMS.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+            )}
+          </eligibilityForm.Field>
+          <eligibilityForm.Field name="scope">
+            {(field) => (
+              <Field>
+                <FieldLabel htmlFor={field.name}>Phạm vi giao dịch</FieldLabel>
+                <Select
+                  items={TRANSACTION_SCOPE_ITEMS}
+                  onValueChange={(value) =>
+                    field.handleChange(
+                      value as keyof typeof TRANSACTION_SCOPE_LABELS
+                    )
+                  }
+                  value={field.state.value}
+                >
+                  <SelectTrigger
+                    className="h-9 w-full rounded-md border border-input bg-background px-3"
+                    id={field.name}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {TRANSACTION_SCOPE_ITEMS.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+            )}
+          </eligibilityForm.Field>
+          <eligibilityForm.Field name="transactionAt">
+            {(field) => {
+              const isInvalid =
+                field.state.meta.isTouched && !field.state.meta.isValid;
+              return (
+                <Field data-invalid={isInvalid}>
+                  <FieldLabel htmlFor={field.name}>
+                    Thời điểm giao dịch
+                  </FieldLabel>
+                  <Input
+                    aria-invalid={isInvalid}
+                    id={field.name}
+                    name={field.name}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                    type="datetime-local"
+                    value={field.state.value}
+                  />
+                  {isInvalid ? (
+                    <FieldError errors={field.state.meta.errors} />
+                  ) : null}
+                </Field>
+              );
+            }}
+          </eligibilityForm.Field>
+          <eligibilityForm.Field name="profileVersionId">
+            {(field) => (
+              <Field>
+                <FieldLabel htmlFor={field.name}>
+                  Profile version tại thời điểm giao dịch
+                </FieldLabel>
+                <Select
+                  items={profileVersionItems}
+                  onValueChange={(value) => field.handleChange(value ?? "")}
+                  value={field.state.value}
+                >
+                  <SelectTrigger
+                    className="h-9 w-full rounded-md border border-input bg-background px-3"
+                    id={field.name}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {profileVersionItems.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+            )}
+          </eligibilityForm.Field>
+          <eligibilityForm.Field name="actualLoss">
+            {(field) => {
+              const isInvalid =
+                field.state.meta.isTouched && !field.state.meta.isValid;
+              return (
+                <Field data-invalid={isInvalid}>
+                  <FieldLabel htmlFor={field.name}>
+                    Verified actual loss (VND)
+                  </FieldLabel>
+                  <Input
+                    aria-invalid={isInvalid}
+                    id={field.name}
+                    inputMode="numeric"
+                    min={0}
+                    name={field.name}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                    type="number"
+                    value={field.state.value}
+                  />
+                  {isInvalid ? (
+                    <FieldError errors={field.state.meta.errors} />
+                  ) : null}
+                </Field>
+              );
+            }}
+          </eligibilityForm.Field>
+          <eligibilityForm.Field name="privateEvidenceReference">
+            {(field) => {
+              const isInvalid =
+                field.state.meta.isTouched && !field.state.meta.isValid;
+              return (
+                <Field data-invalid={isInvalid}>
+                  <FieldLabel htmlFor={field.name}>
+                    Private evidence reference
+                  </FieldLabel>
+                  <Input
+                    aria-invalid={isInvalid}
+                    id={field.name}
+                    name={field.name}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                    value={field.state.value}
+                  />
+                  {isInvalid ? (
+                    <FieldError errors={field.state.meta.errors} />
+                  ) : null}
+                </Field>
+              );
+            }}
+          </eligibilityForm.Field>
+        </div>
+        <div className="grid gap-2 text-sm sm:grid-cols-2">
+          {(
             [
-              "registeredPaymentIdentityConfirmed",
-              "Đúng payment identity đăng ký",
-            ],
-            ["transactionLawfulConfirmed", "Giao dịch lawful và trực tiếp"],
-            ["evidenceSufficient", "Evidence đủ để xác minh"],
-            ["requiredProcessCompleted", "Đủ transaction process"],
-            ["preTransactionVideoPresent", "Có video pre-transaction bắt buộc"],
-          ] as const
-        ).map(([key, label]) => (
-          <label
-            className="flex items-start gap-2"
-            htmlFor={`support-check-${review.id}-${key}`}
-            key={key}
+              ["providerIdentityConfirmed", "Đúng Provider"],
+              ["approvedServiceConfirmed", "Đúng dịch vụ đã duyệt"],
+              [
+                "registeredPaymentIdentityConfirmed",
+                "Đúng payment identity đăng ký",
+              ],
+              ["transactionLawfulConfirmed", "Giao dịch lawful và trực tiếp"],
+              ["evidenceSufficient", "Evidence đủ để xác minh"],
+              ["requiredProcessCompleted", "Đủ transaction process"],
+              [
+                "preTransactionVideoPresent",
+                "Có video pre-transaction bắt buộc",
+              ],
+            ] as const
+          ).map(([key, label]) => (
+            <eligibilityForm.Field key={key} name={key}>
+              {(field) => (
+                <Field orientation="horizontal">
+                  <FieldLabel htmlFor={field.name}>
+                    <input
+                      checked={field.state.value}
+                      id={field.name}
+                      name={field.name}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.checked)
+                      }
+                      type="checkbox"
+                    />
+                    {label}
+                  </FieldLabel>
+                </Field>
+              )}
+            </eligibilityForm.Field>
+          ))}
+        </div>
+        <eligibilityForm.Field name="reason">
+          {(field) => {
+            const isInvalid =
+              field.state.meta.isTouched && !field.state.meta.isValid;
+            return (
+              <Field data-invalid={isInvalid}>
+                <FieldLabel htmlFor={field.name}>
+                  Ghi chú xét điều kiện
+                </FieldLabel>
+                <Textarea
+                  aria-invalid={isInvalid}
+                  id={field.name}
+                  name={field.name}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  rows={3}
+                  value={field.state.value}
+                />
+                {isInvalid ? (
+                  <FieldError errors={field.state.meta.errors} />
+                ) : null}
+              </Field>
+            );
+          }}
+        </eligibilityForm.Field>
+      </FieldGroup>
+      <eligibilityForm.Subscribe
+        selector={(state) => ({
+          canSubmit: state.canSubmit,
+          isSubmitting: state.isSubmitting,
+        })}
+      >
+        {({ canSubmit, isSubmitting }) => (
+          <Button
+            className="w-fit"
+            disabled={!canSubmit || isSubmitting || evaluate.isPending}
+            form={`support-eligibility-form-${review.id}`}
+            type="submit"
           >
-            <input
-              checked={checks[key]}
-              id={`support-check-${review.id}-${key}`}
-              onChange={(event) => updateCheck(key, event.target.checked)}
-              type="checkbox"
-            />
-            <span>{label}</span>
-          </label>
-        ))}
-      </div>
-      <label
-        className="grid gap-2 text-sm"
-        htmlFor={`support-reason-${review.id}`}
-      >
-        Ghi chú xét điều kiện
-        <Textarea
-          id={`support-reason-${review.id}`}
-          onChange={(event) => setReason(event.target.value)}
-          rows={3}
-          value={reason}
-        />
-      </label>
-      <Button
-        className="w-fit"
-        disabled={evaluate.isPending}
-        onClick={() => void submit()}
-        type="button"
-      >
-        {evaluate.isPending ? "Đang lưu..." : "Lưu kết quả xét điều kiện"}
-      </Button>
-    </div>
+            {isSubmitting || evaluate.isPending
+              ? "Đang lưu..."
+              : "Lưu kết quả xét điều kiện"}
+          </Button>
+        )}
+      </eligibilityForm.Subscribe>
+    </form>
   );
 };
 
 const OutcomeForm = ({ review }: { review: SupportReview }) => {
   const record = useRecordAdminSupportReviewOutcome();
-  const [outcome, setOutcome] = useState<
-    | "HANDLED_BY_PROVIDER"
-    | "HANDLED_BY_PROGRAM"
-    | "UNDER_VERIFICATION"
-    | "VIOLATION_CONFIRMED"
-  >("HANDLED_BY_PROGRAM");
-  const [supportAmount, setSupportAmount] = useState(
-    String(review.recommendedSupportAmount ?? 0)
-  );
-  const [externalReference, setExternalReference] = useState("");
-  const [evidenceReference, setEvidenceReference] = useState(
-    review.privateEvidenceReference ?? ""
-  );
-  const [reason, setReason] = useState("");
-
-  const submit = async () => {
-    if (
-      !externalReference.trim() ||
-      !evidenceReference.trim() ||
-      !reason.trim()
-    ) {
-      toast.error("Cần nhập external action reference, evidence và lý do.");
-      return;
-    }
-    try {
-      await record.mutateAsync({
-        externalActionReference: externalReference.trim(),
-        privateEvidenceReference: evidenceReference.trim(),
-        publicOutcome: outcome,
-        reason: reason.trim(),
-        reviewId: review.id,
-        supportAmount: Number(supportAmount),
-      });
-      toast.success("Đã ghi outcome và hoàn tất bằng quyền SUPER_ADMIN.");
-      setReason("");
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Không thể ghi outcome."
-      );
-    }
-  };
+  const outcomeForm = useForm({
+    defaultValues: {
+      evidenceReference: review.privateEvidenceReference ?? "",
+      externalReference: "",
+      outcome: "HANDLED_BY_PROGRAM" as (typeof SUPPORT_OUTCOME_OPTIONS)[number],
+      reason: "",
+      supportAmount: String(review.recommendedSupportAmount ?? 0),
+    },
+    onSubmit: async ({ value }) => {
+      try {
+        await record.mutateAsync({
+          externalActionReference: value.externalReference.trim(),
+          privateEvidenceReference: value.evidenceReference.trim(),
+          publicOutcome: value.outcome,
+          reason: value.reason.trim(),
+          reviewId: review.id,
+          supportAmount: Number(value.supportAmount),
+        });
+        toast.success("Đã ghi outcome và hoàn tất bằng quyền SUPER_ADMIN.");
+        outcomeForm.reset();
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Không thể ghi outcome."
+        );
+      }
+    },
+    validators: {
+      onSubmit: createSupportReviewOutcomeFormSchema(
+        review.recommendedSupportAmount
+      ),
+    },
+  });
 
   return (
-    <div className="grid gap-3 rounded-xl border bg-muted/20 p-4">
+    <form
+      className="grid gap-3 rounded-xl border bg-muted/20 p-4"
+      id={`support-outcome-form-${review.id}`}
+      onSubmit={async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        await outcomeForm.handleSubmit();
+      }}
+    >
       <p className="font-medium text-sm">
         Ghi kết quả off-platform và Bond Allocation
       </p>
       <div className="grid gap-3 md:grid-cols-2">
-        <label
-          className="grid gap-2 text-sm"
-          htmlFor={`support-outcome-${review.id}`}
-        >
-          Public outcome label
-          <Select
-            items={SUPPORT_OUTCOME_ITEMS}
-            onValueChange={(value) => setOutcome(value as typeof outcome)}
-            value={outcome}
-          >
-            <SelectTrigger
-              className="h-9 w-full rounded-md border border-input bg-background px-3"
-              id={`support-outcome-${review.id}`}
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {SUPPORT_OUTCOME_ITEMS.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </label>
-        <label
-          className="grid gap-2 text-sm"
-          htmlFor={`support-amount-${review.id}`}
-        >
-          Support amount (≤ cap)
-          <Input
-            id={`support-amount-${review.id}`}
-            inputMode="numeric"
-            max={review.recommendedSupportAmount ?? 0}
-            min={0}
-            onChange={(event) => setSupportAmount(event.target.value)}
-            type="number"
-            value={supportAmount}
-          />
-        </label>
-        <label
-          className="grid gap-2 text-sm"
-          htmlFor={`support-external-${review.id}`}
-        >
-          External action reference
-          <Input
-            id={`support-external-${review.id}`}
-            onChange={(event) => setExternalReference(event.target.value)}
-            value={externalReference}
-          />
-        </label>
-        <label
-          className="grid gap-2 text-sm"
-          htmlFor={`support-outcome-evidence-${review.id}`}
-        >
-          Private evidence reference
-          <Input
-            id={`support-outcome-evidence-${review.id}`}
-            onChange={(event) => setEvidenceReference(event.target.value)}
-            value={evidenceReference}
-          />
-        </label>
+        <outcomeForm.Field name="outcome">
+          {(field) => (
+            <Field>
+              <FieldLabel htmlFor={field.name}>Public outcome label</FieldLabel>
+              <Select
+                items={SUPPORT_OUTCOME_ITEMS}
+                onValueChange={(value) =>
+                  field.handleChange(
+                    value as (typeof SUPPORT_OUTCOME_OPTIONS)[number]
+                  )
+                }
+                value={field.state.value}
+              >
+                <SelectTrigger
+                  className="h-9 w-full rounded-md border border-input bg-background px-3"
+                  id={field.name}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {SUPPORT_OUTCOME_ITEMS.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
+          )}
+        </outcomeForm.Field>
+        <outcomeForm.Field name="supportAmount">
+          {(field) => {
+            const isInvalid =
+              field.state.meta.isTouched && !field.state.meta.isValid;
+            return (
+              <Field data-invalid={isInvalid}>
+                <FieldLabel htmlFor={field.name}>
+                  Support amount (≤ cap)
+                </FieldLabel>
+                <Input
+                  aria-invalid={isInvalid}
+                  id={field.name}
+                  inputMode="numeric"
+                  max={review.recommendedSupportAmount ?? 0}
+                  min={0}
+                  name={field.name}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  type="number"
+                  value={field.state.value}
+                />
+                {isInvalid ? (
+                  <FieldError errors={field.state.meta.errors} />
+                ) : null}
+              </Field>
+            );
+          }}
+        </outcomeForm.Field>
+        <outcomeForm.Field name="externalReference">
+          {(field) => {
+            const isInvalid =
+              field.state.meta.isTouched && !field.state.meta.isValid;
+            return (
+              <Field data-invalid={isInvalid}>
+                <FieldLabel htmlFor={field.name}>
+                  External action reference
+                </FieldLabel>
+                <Input
+                  aria-invalid={isInvalid}
+                  id={field.name}
+                  name={field.name}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  value={field.state.value}
+                />
+                {isInvalid ? (
+                  <FieldError errors={field.state.meta.errors} />
+                ) : null}
+              </Field>
+            );
+          }}
+        </outcomeForm.Field>
+        <outcomeForm.Field name="evidenceReference">
+          {(field) => {
+            const isInvalid =
+              field.state.meta.isTouched && !field.state.meta.isValid;
+            return (
+              <Field data-invalid={isInvalid}>
+                <FieldLabel htmlFor={field.name}>
+                  Private evidence reference
+                </FieldLabel>
+                <Input
+                  aria-invalid={isInvalid}
+                  id={field.name}
+                  name={field.name}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  value={field.state.value}
+                />
+                {isInvalid ? (
+                  <FieldError errors={field.state.meta.errors} />
+                ) : null}
+              </Field>
+            );
+          }}
+        </outcomeForm.Field>
       </div>
-      <label
-        className="grid gap-2 text-sm"
-        htmlFor={`support-outcome-reason-${review.id}`}
+      <outcomeForm.Field name="reason">
+        {(field) => {
+          const isInvalid =
+            field.state.meta.isTouched && !field.state.meta.isValid;
+          return (
+            <Field data-invalid={isInvalid}>
+              <FieldLabel htmlFor={field.name}>Ghi chú outcome</FieldLabel>
+              <Textarea
+                aria-invalid={isInvalid}
+                id={field.name}
+                name={field.name}
+                onBlur={field.handleBlur}
+                onChange={(event) => field.handleChange(event.target.value)}
+                rows={3}
+                value={field.state.value}
+              />
+              {isInvalid ? (
+                <FieldError errors={field.state.meta.errors} />
+              ) : null}
+            </Field>
+          );
+        }}
+      </outcomeForm.Field>
+      <outcomeForm.Subscribe
+        selector={(state) => ({
+          canSubmit: state.canSubmit,
+          isSubmitting: state.isSubmitting,
+        })}
       >
-        Ghi chú outcome
-        <Textarea
-          id={`support-outcome-reason-${review.id}`}
-          onChange={(event) => setReason(event.target.value)}
-          rows={3}
-          value={reason}
-        />
-      </label>
-      <Button
-        className="w-fit"
-        disabled={record.isPending}
-        onClick={() => void submit()}
-        type="button"
-      >
-        {record.isPending ? "Đang ghi..." : "Ghi outcome & hoàn tất"}
-      </Button>
-    </div>
+        {({ canSubmit, isSubmitting }) => (
+          <Button
+            className="w-fit"
+            disabled={!canSubmit || isSubmitting || record.isPending}
+            form={`support-outcome-form-${review.id}`}
+            type="submit"
+          >
+            {isSubmitting || record.isPending
+              ? "Đang ghi..."
+              : "Ghi outcome & hoàn tất"}
+          </Button>
+        )}
+      </outcomeForm.Subscribe>
+    </form>
   );
 };
 
 const ApprovalPanel = ({ review }: { review: SupportReview }) => {
   const approve = useApproveAdminSupportReview();
-  const [reason, setReason] = useState("");
-
-  const decide = async (decision: "APPROVED" | "REJECTED") => {
-    if (decision === "REJECTED" && !reason.trim()) {
-      toast.error("Cần nhập lý do từ chối.");
-      return;
-    }
-    try {
-      await approve.mutateAsync({
-        decision,
-        reason: reason.trim() || undefined,
-        reviewId: review.id,
-      });
-      toast.success(
-        decision === "APPROVED"
-          ? "Đã duyệt Support Review và Bond Adjustment."
-          : "Đã từ chối Support Review."
-      );
-      setReason("");
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Không thể quyết định review."
-      );
-    }
-  };
+  const approvalForm = useForm({
+    defaultValues: {
+      decision: "APPROVED" as "APPROVED" | "REJECTED",
+      reason: "",
+    },
+    onSubmit: async ({ value }) => {
+      try {
+        await approve.mutateAsync({
+          decision: value.decision,
+          reason: value.reason.trim() || undefined,
+          reviewId: review.id,
+        });
+        toast.success(
+          value.decision === "APPROVED"
+            ? "Đã duyệt Support Review và Bond Adjustment."
+            : "Đã từ chối Support Review."
+        );
+        approvalForm.reset();
+      } catch (error) {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Không thể quyết định review."
+        );
+      }
+    },
+    validators: { onSubmit: supportReviewApprovalFormSchema },
+  });
 
   return (
-    <div className="grid gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+    <form
+      className="grid gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4"
+      id={`support-approval-form-${review.id}`}
+      onSubmit={async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const submitter = (event.nativeEvent as SubmitEvent)
+          .submitter as HTMLButtonElement | null;
+        const decision =
+          submitter?.value === "REJECTED" ? "REJECTED" : "APPROVED";
+        approvalForm.setFieldValue("decision", decision);
+        await approvalForm.handleSubmit();
+      }}
+    >
       <p className="font-medium text-sm">SUPER_ADMIN review</p>
       <p className="text-muted-foreground text-sm">
         Recorder: {review.outcomeRecordedByUserId ?? "—"}. SUPER_ADMIN kiểm tra
         và quyết định; Avin chỉ ghi sổ, không chuyển tiền.
       </p>
-      <label
-        className="grid gap-2 text-sm"
-        htmlFor={`support-approval-reason-${review.id}`}
-      >
-        Lý do duyệt / từ chối
-        <Textarea
-          id={`support-approval-reason-${review.id}`}
-          onChange={(event) => setReason(event.target.value)}
-          rows={2}
-          value={reason}
-        />
-      </label>
+      <approvalForm.Field name="reason">
+        {(field) => {
+          const isInvalid =
+            field.state.meta.isTouched && !field.state.meta.isValid;
+          return (
+            <Field data-invalid={isInvalid}>
+              <FieldLabel htmlFor={field.name}>
+                Lý do duyệt / từ chối
+              </FieldLabel>
+              <Textarea
+                aria-invalid={isInvalid}
+                id={field.name}
+                name={field.name}
+                onBlur={field.handleBlur}
+                onChange={(event) => field.handleChange(event.target.value)}
+                rows={2}
+                value={field.state.value}
+              />
+              {isInvalid ? (
+                <FieldError errors={field.state.meta.errors} />
+              ) : null}
+            </Field>
+          );
+        }}
+      </approvalForm.Field>
       <div className="flex flex-wrap gap-2">
         <Button
+          form={`support-approval-form-${review.id}`}
+          name="decision"
+          value="APPROVED"
           disabled={approve.isPending}
-          onClick={() => void decide("APPROVED")}
-          type="button"
+          type="submit"
         >
           Duyệt
         </Button>
         <Button
+          form={`support-approval-form-${review.id}`}
+          name="decision"
+          value="REJECTED"
           disabled={approve.isPending}
-          onClick={() => void decide("REJECTED")}
-          type="button"
+          type="submit"
           variant="outline"
         >
           Từ chối
         </Button>
       </div>
-    </div>
+    </form>
   );
 };
 
 const ReconsiderationForm = ({ review }: { review: SupportReview }) => {
   const reconsider = useReconsiderAdminSupportReview();
-  const [basis, setBasis] = useState<"NEW_EVIDENCE" | "PROCEDURAL_ERROR">(
-    "NEW_EVIDENCE"
-  );
-  const [evidenceReference, setEvidenceReference] = useState("");
-  const [reason, setReason] = useState("");
-
-  const submit = async () => {
-    if (
-      !reason.trim() ||
-      (basis === "NEW_EVIDENCE" && !evidenceReference.trim())
-    ) {
-      toast.error("Cần nhập lý do và evidence nếu là bằng chứng mới.");
-      return;
-    }
-    try {
-      await reconsider.mutateAsync({
-        basis,
-        privateEvidenceReference: evidenceReference.trim() || undefined,
-        reason: reason.trim(),
-        reviewId: review.id,
-      });
-      toast.success("Đã mở một lần reconsideration cho Support Review.");
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Không thể reconsider."
-      );
-    }
-  };
+  const reconsiderationForm = useForm({
+    defaultValues: {
+      basis: "NEW_EVIDENCE" as "NEW_EVIDENCE" | "PROCEDURAL_ERROR",
+      evidenceReference: "",
+      reason: "",
+    },
+    onSubmit: async ({ value }) => {
+      try {
+        await reconsider.mutateAsync({
+          basis: value.basis,
+          privateEvidenceReference: value.evidenceReference.trim() || undefined,
+          reason: value.reason.trim(),
+          reviewId: review.id,
+        });
+        toast.success("Đã mở một lần reconsideration cho Support Review.");
+        reconsiderationForm.reset();
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Không thể reconsider."
+        );
+      }
+    },
+    validators: { onSubmit: supportReviewReconsiderationFormSchema },
+  });
 
   return (
-    <div className="grid gap-3 rounded-xl border bg-muted/20 p-4">
+    <form
+      className="grid gap-3 rounded-xl border bg-muted/20 p-4"
+      id={`support-reconsideration-form-${review.id}`}
+      onSubmit={async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        await reconsiderationForm.handleSubmit();
+      }}
+    >
       <p className="font-medium text-sm">Một lần reconsideration</p>
       <div className="grid gap-3 md:grid-cols-2">
-        <label
-          className="grid gap-2 text-sm"
-          htmlFor={`support-reconsider-basis-${review.id}`}
-        >
-          Căn cứ
-          <Select
-            items={RECONSIDERATION_BASIS_ITEMS}
-            onValueChange={(value) =>
-              setBasis(value as "NEW_EVIDENCE" | "PROCEDURAL_ERROR")
-            }
-            value={basis}
-          >
-            <SelectTrigger
-              className="h-9 w-full rounded-md border border-input bg-background px-3"
-              id={`support-reconsider-basis-${review.id}`}
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {RECONSIDERATION_BASIS_ITEMS.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </label>
-        <label
-          className="grid gap-2 text-sm"
-          htmlFor={`support-reconsider-evidence-${review.id}`}
-        >
-          Evidence mới (nếu có)
-          <Input
-            id={`support-reconsider-evidence-${review.id}`}
-            onChange={(event) => setEvidenceReference(event.target.value)}
-            value={evidenceReference}
-          />
-        </label>
+        <reconsiderationForm.Field name="basis">
+          {(field) => (
+            <Field>
+              <FieldLabel htmlFor={field.name}>Căn cứ</FieldLabel>
+              <Select
+                items={RECONSIDERATION_BASIS_ITEMS}
+                onValueChange={(value) =>
+                  field.handleChange(
+                    value as "NEW_EVIDENCE" | "PROCEDURAL_ERROR"
+                  )
+                }
+                value={field.state.value}
+              >
+                <SelectTrigger
+                  className="h-9 w-full rounded-md border border-input bg-background px-3"
+                  id={field.name}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {RECONSIDERATION_BASIS_ITEMS.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
+          )}
+        </reconsiderationForm.Field>
+        <reconsiderationForm.Field name="evidenceReference">
+          {(field) => {
+            const isInvalid =
+              field.state.meta.isTouched && !field.state.meta.isValid;
+            return (
+              <Field data-invalid={isInvalid}>
+                <FieldLabel htmlFor={field.name}>
+                  Evidence mới (nếu có)
+                </FieldLabel>
+                <Input
+                  aria-invalid={isInvalid}
+                  id={field.name}
+                  name={field.name}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  value={field.state.value}
+                />
+                {isInvalid ? (
+                  <FieldError errors={field.state.meta.errors} />
+                ) : null}
+              </Field>
+            );
+          }}
+        </reconsiderationForm.Field>
       </div>
-      <label
-        className="grid gap-2 text-sm"
-        htmlFor={`support-reconsider-reason-${review.id}`}
+      <reconsiderationForm.Field name="reason">
+        {(field) => {
+          const isInvalid =
+            field.state.meta.isTouched && !field.state.meta.isValid;
+          return (
+            <Field data-invalid={isInvalid}>
+              <FieldLabel htmlFor={field.name}>
+                Lý do reconsideration
+              </FieldLabel>
+              <Textarea
+                aria-invalid={isInvalid}
+                id={field.name}
+                name={field.name}
+                onBlur={field.handleBlur}
+                onChange={(event) => field.handleChange(event.target.value)}
+                rows={2}
+                value={field.state.value}
+              />
+              {isInvalid ? (
+                <FieldError errors={field.state.meta.errors} />
+              ) : null}
+            </Field>
+          );
+        }}
+      </reconsiderationForm.Field>
+      <reconsiderationForm.Subscribe
+        selector={(state) => ({
+          canSubmit: state.canSubmit,
+          isSubmitting: state.isSubmitting,
+        })}
       >
-        Lý do reconsideration
-        <Textarea
-          id={`support-reconsider-reason-${review.id}`}
-          onChange={(event) => setReason(event.target.value)}
-          rows={2}
-          value={reason}
-        />
-      </label>
-      <Button
-        className="w-fit"
-        disabled={reconsider.isPending}
-        onClick={() => void submit()}
-        type="button"
-        variant="outline"
-      >
-        Mở reconsideration
-      </Button>
-    </div>
+        {({ canSubmit, isSubmitting }) => (
+          <Button
+            className="w-fit"
+            disabled={!canSubmit || isSubmitting || reconsider.isPending}
+            form={`support-reconsideration-form-${review.id}`}
+            type="submit"
+            variant="outline"
+          >
+            {isSubmitting || reconsider.isPending
+              ? "Đang mở..."
+              : "Mở reconsideration"}
+          </Button>
+        )}
+      </reconsiderationForm.Subscribe>
+    </form>
   );
 };
 

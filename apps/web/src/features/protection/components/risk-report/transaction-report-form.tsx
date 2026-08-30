@@ -1,10 +1,20 @@
 import { Alert, AlertDescription, AlertTitle } from "@avin/ui/components/alert";
 import { Button } from "@avin/ui/components/button";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@avin/ui/components/field";
 import { Input } from "@avin/ui/components/input";
 import { Textarea } from "@avin/ui/components/textarea";
-import { useState } from "react";
+import { useForm } from "@tanstack/react-form";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { transactionReportFormSchema } from "../../schemas/risk-report-form-schema";
+import type { TransactionReportFormValues } from "../../schemas/risk-report-form-schema";
 import { EvidenceUploader } from "./evidence-uploader";
 import type { SelectedFileItem } from "./evidence-uploader";
 import { OptionalDetailsSection } from "./optional-details-section";
@@ -22,31 +32,19 @@ export interface TransactionReportData {
   optionalDetails: OptionalDetailsState;
 }
 
-interface FormState {
-  accountNumber: string;
-  amount: string;
-  attestationAccepted: boolean;
-  bankName: string;
-  evidenceFiles: SelectedFileItem[];
-  holderName: string;
-  narrative: string;
-  optionalDetails: OptionalDetailsState;
-}
-
 interface TransactionReportFormProps {
   initialData?: Partial<TransactionReportData>;
   isSubmitting?: boolean;
   onSubmit: (data: TransactionReportData) => Promise<void>;
 }
 
-const getInitialFormState = (
+const getInitialFormValues = (
   initialData?: Partial<TransactionReportData>
-): FormState => ({
+): TransactionReportFormValues => ({
   accountNumber: initialData?.accountNumber ?? "",
   amount: initialData?.amount ?? "",
   attestationAccepted: false,
   bankName: initialData?.bankName ?? "",
-  evidenceFiles: initialData?.evidenceFiles ?? [],
   holderName: initialData?.holderName ?? "",
   narrative: initialData?.narrative ?? "",
   optionalDetails: initialData?.optionalDetails ?? {
@@ -59,108 +57,117 @@ const getInitialFormState = (
   },
 });
 
+const getDevelopmentValues = (): TransactionReportFormValues => ({
+  accountNumber: "1029384756",
+  amount: "1500000",
+  attestationAccepted: true,
+  bankName: "MB Bank",
+  holderName: "NGUYEN VAN SCAM",
+  narrative:
+    "Ngày 25/08 tôi có thỏa thuận mua tài khoản game qua Facebook với đối tượng này. Sau khi tôi chuyển khoản 1.500.000đ vào tài khoản MB Bank nêu trên, đối tượng lập tức chặn Facebook và xóa toàn bộ tin nhắn mà không bàn giao tài khoản.",
+  optionalDetails: {
+    facebookUrl: "https://facebook.com/nguyen.van.scam.fake",
+    incidentDate: todayInput(),
+    ongoing: false,
+    phoneNumber: "0987654321",
+    telegramUrl: "https://t.me/scammer_crypto",
+    tiktokUrl: "https://tiktok.com/@scammer_vn",
+  },
+});
+
+const getDevelopmentEvidenceFiles = (): SelectedFileItem[] => [
+  {
+    file: new File(["evidence-content-preview"], "bill_chuyen_khoan_mau.png", {
+      type: "image/png",
+    }),
+    id: globalThis.crypto.randomUUID(),
+  },
+];
+
 export const TransactionReportForm = ({
   initialData,
   isSubmitting = false,
   onSubmit,
 }: TransactionReportFormProps) => {
-  const [form, setForm] = useState<FormState>(() =>
-    getInitialFormState(initialData)
-  );
   const [errorMessage, setErrorMessage] = useState<string>();
+  const [evidenceFiles, setEvidenceFiles] = useState<SelectedFileItem[]>(
+    () => initialData?.evidenceFiles ?? []
+  );
+  const initialAccountNumber = initialData?.accountNumber ?? "";
+  const initialAmount = initialData?.amount ?? "";
+  const initialBankName = initialData?.bankName ?? "";
+  const initialHolderName = initialData?.holderName ?? "";
+  const initialNarrative = initialData?.narrative ?? "";
+  const initialOptionalDetails = initialData?.optionalDetails;
+  const defaultValues = useMemo(
+    () =>
+      getInitialFormValues({
+        accountNumber: initialAccountNumber,
+        amount: initialAmount,
+        bankName: initialBankName,
+        holderName: initialHolderName,
+        narrative: initialNarrative,
+        optionalDetails: initialOptionalDetails,
+      }),
+    [
+      initialAccountNumber,
+      initialAmount,
+      initialBankName,
+      initialHolderName,
+      initialNarrative,
+      initialOptionalDetails,
+    ]
+  );
+  const reportForm = useForm({
+    defaultValues,
+    onSubmit: async ({ value }) => {
+      if (evidenceFiles.length === 0) {
+        setErrorMessage(
+          "Vui lòng tải lên ít nhất một bằng chứng (ảnh Bill, đoạn chat giao dịch...)."
+        );
+        return;
+      }
+      setErrorMessage(undefined);
+      try {
+        await onSubmit({
+          accountNumber: value.accountNumber.trim(),
+          amount: String(Number(value.amount.replaceAll(/[,.\s]/gu, ""))),
+          bankName: value.bankName.trim(),
+          evidenceFiles,
+          holderName: value.holderName.trim(),
+          narrative: value.narrative.trim(),
+          optionalDetails: value.optionalDetails,
+        });
+      } catch (error) {
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Đã xảy ra lỗi khi gửi tố cáo."
+        );
+      }
+    },
+    validators: { onSubmit: transactionReportFormSchema },
+  });
 
   const fillDevelopmentData = () => {
     if (!import.meta.env.DEV) {
       return;
     }
-    const sampleFile = new File(
-      ["evidence-content-preview"],
-      "bill_chuyen_khoan_mau.png",
-      { type: "image/png" }
-    );
-    setForm({
-      accountNumber: "1029384756",
-      amount: "1500000",
-      attestationAccepted: true,
-      bankName: "MB Bank",
-      evidenceFiles: [
-        {
-          file: sampleFile,
-          id: globalThis.crypto.randomUUID(),
-        },
-      ],
-      holderName: "NGUYEN VAN SCAM",
-      narrative:
-        "Ngày 25/08 tôi có thỏa thuận mua tài khoản game qua Facebook với đối tượng này. Sau khi tôi chuyển khoản 1.500.000đ vào tài khoản MB Bank nêu trên, đối tượng lập tức chặn Facebook và xóa toàn bộ tin nhắn mà không bàn giao tài khoản.",
-      optionalDetails: {
-        facebookUrl: "https://facebook.com/nguyen.van.scam.fake",
-        incidentDate: todayInput(),
-        ongoing: false,
-        phoneNumber: "0987654321",
-        telegramUrl: "https://t.me/scammer_crypto",
-        tiktokUrl: "https://tiktok.com/@scammer_vn",
-      },
-    });
+    reportForm.reset(getDevelopmentValues(), { keepDefaultValues: true });
+    setEvidenceFiles(getDevelopmentEvidenceFiles());
     toast.success("Đã điền dữ liệu mẫu cho môi trường dev.");
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage(undefined);
-
-    if (!form.holderName.trim()) {
-      setErrorMessage("Vui lòng nhập tên chủ tài khoản.");
-      return;
-    }
-    if (!form.accountNumber.trim()) {
-      setErrorMessage("Vui lòng nhập số tài khoản ngân hàng.");
-      return;
-    }
-    if (!form.bankName.trim()) {
-      setErrorMessage("Vui lòng nhập tên ngân hàng nhận tiền.");
-      return;
-    }
-    const cleanAmount = Number(form.amount.replaceAll(/[,.\s]/gu, ""));
-    if (!cleanAmount || cleanAmount <= 0) {
-      setErrorMessage("Vui lòng nhập số tiền hợp lệ lớn hơn 0.");
-      return;
-    }
-    if (form.evidenceFiles.length === 0) {
-      setErrorMessage(
-        "Vui lòng tải lên ít nhất một bằng chứng (ảnh Bill, đoạn chat giao dịch...)."
-      );
-      return;
-    }
-    if (form.narrative.trim().length < 50) {
-      setErrorMessage(
-        "Nội dung tố cáo cần tối thiểu 50 ký tự để nêu rõ sự việc."
-      );
-      return;
-    }
-    if (!form.attestationAccepted) {
-      setErrorMessage("Vui lòng xác nhận cam kết thông tin trước khi gửi.");
-      return;
-    }
-
-    try {
-      await onSubmit({
-        accountNumber: form.accountNumber.trim(),
-        amount: String(cleanAmount),
-        bankName: form.bankName.trim(),
-        evidenceFiles: form.evidenceFiles,
-        holderName: form.holderName.trim(),
-        narrative: form.narrative.trim(),
-        optionalDetails: form.optionalDetails,
-      });
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "Đã xảy ra lỗi khi gửi tố cáo."
-      );
-    }
-  };
-
   return (
-    <form className="space-y-6" onSubmit={handleSubmit}>
+    <form
+      className="space-y-6"
+      id="transaction-risk-report-form"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        await reportForm.handleSubmit();
+      }}
+    >
       <section
         aria-labelledby="tx-heading"
         className="space-y-6 rounded-3xl border bg-card p-6 sm:p-8"
@@ -208,146 +215,233 @@ export const TransactionReportForm = ({
           </Alert>
         ) : null}
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label
-            className="grid gap-1.5 font-medium text-sm"
-            htmlFor="tx-holder"
+        <FieldGroup className="gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <reportForm.Field name="holderName">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
+                return (
+                  <Field data-invalid={isInvalid}>
+                    <FieldLabel htmlFor={field.name}>
+                      Tên chủ tài khoản *
+                    </FieldLabel>
+                    <Input
+                      aria-invalid={isInvalid}
+                      autoComplete="off"
+                      id={field.name}
+                      name={field.name}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      placeholder="Chủ tài khoản nhận tiền"
+                      value={field.state.value}
+                    />
+                    {isInvalid ? (
+                      <FieldError errors={field.state.meta.errors} />
+                    ) : null}
+                  </Field>
+                );
+              }}
+            </reportForm.Field>
+            <reportForm.Field name="accountNumber">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
+                return (
+                  <Field data-invalid={isInvalid}>
+                    <FieldLabel htmlFor={field.name}>Số tài khoản *</FieldLabel>
+                    <Input
+                      aria-invalid={isInvalid}
+                      autoComplete="off"
+                      id={field.name}
+                      name={field.name}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      placeholder="Số tài khoản nhận tiền"
+                      value={field.state.value}
+                    />
+                    {isInvalid ? (
+                      <FieldError errors={field.state.meta.errors} />
+                    ) : null}
+                  </Field>
+                );
+              }}
+            </reportForm.Field>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <reportForm.Field name="bankName">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
+                return (
+                  <Field data-invalid={isInvalid}>
+                    <FieldLabel htmlFor={field.name}>Ngân hàng *</FieldLabel>
+                    <Input
+                      aria-invalid={isInvalid}
+                      autoComplete="off"
+                      id={field.name}
+                      name={field.name}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      placeholder="VIB, MB, Vietcombank..."
+                      value={field.state.value}
+                    />
+                    {isInvalid ? (
+                      <FieldError errors={field.state.meta.errors} />
+                    ) : null}
+                  </Field>
+                );
+              }}
+            </reportForm.Field>
+            <reportForm.Field name="amount">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
+                return (
+                  <Field data-invalid={isInvalid}>
+                    <FieldLabel htmlFor={field.name}>
+                      Số tiền chiếm đoạt (VNĐ) *
+                    </FieldLabel>
+                    <Input
+                      aria-invalid={isInvalid}
+                      autoComplete="off"
+                      id={field.name}
+                      inputMode="numeric"
+                      name={field.name}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      placeholder="Nhập chính xác số tiền bạn bị lừa"
+                      value={field.state.value}
+                    />
+                    {isInvalid ? (
+                      <FieldError errors={field.state.meta.errors} />
+                    ) : null}
+                  </Field>
+                );
+              }}
+            </reportForm.Field>
+          </div>
+
+          <reportForm.Subscribe
+            selector={(state) => state.values.optionalDetails}
           >
-            Tên chủ tài khoản *
-            <Input
-              autoComplete="off"
-              id="tx-holder"
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, holderName: e.target.value }))
-              }
-              placeholder="Chủ tài khoản nhận tiền"
-              value={form.holderName}
-            />
-          </label>
+            {(optionalDetails) => (
+              <OptionalDetailsSection
+                dateLabel="Ngày xảy ra chuyển tiền"
+                onChange={(updates) =>
+                  reportForm.setFieldValue("optionalDetails", (previous) => ({
+                    ...previous,
+                    ...updates,
+                  }))
+                }
+                values={optionalDetails}
+              />
+            )}
+          </reportForm.Subscribe>
 
-          <label
-            className="grid gap-1.5 font-medium text-sm"
-            htmlFor="tx-account"
+          <div className="grid gap-2">
+            <FieldLabel>Bằng chứng giao dịch *</FieldLabel>
+            <EvidenceUploader
+              disabled={isSubmitting}
+              onFilesChange={setEvidenceFiles}
+              selectedFiles={evidenceFiles}
+            />
+          </div>
+
+          <reportForm.Field name="narrative">
+            {(field) => {
+              const isInvalid =
+                field.state.meta.isTouched && !field.state.meta.isValid;
+              return (
+                <Field data-invalid={isInvalid}>
+                  <FieldLabel htmlFor={field.name}>
+                    Nội dung tố cáo *
+                  </FieldLabel>
+                  <Textarea
+                    aria-invalid={isInvalid}
+                    id={field.name}
+                    maxLength={10_000}
+                    minLength={50}
+                    name={field.name}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                    placeholder="Nêu rõ và đầy đủ vấn đề: thỏa thuận ban đầu, đã chuyển khoản ra sao, diễn biến sự việc..."
+                    rows={5}
+                    value={field.state.value}
+                  />
+                  <FieldDescription>
+                    {field.state.value.length}/10.000 ký tự (tối thiểu 50 ký tự)
+                    · Thông tin riêng tư (SĐT, email) sẽ được hệ thống tự động
+                    che khi công khai.
+                  </FieldDescription>
+                  {isInvalid ? (
+                    <FieldError errors={field.state.meta.errors} />
+                  ) : null}
+                </Field>
+              );
+            }}
+          </reportForm.Field>
+
+          <reportForm.Field name="attestationAccepted">
+            {(field) => {
+              const isInvalid =
+                field.state.meta.isTouched && !field.state.meta.isValid;
+              return (
+                <Field data-invalid={isInvalid} orientation="horizontal">
+                  <input
+                    checked={field.state.value}
+                    className="mt-0.5 size-4 rounded border-gray-300 text-primary focus:ring-primary"
+                    id={field.name}
+                    name={field.name}
+                    onBlur={field.handleBlur}
+                    onChange={(event) =>
+                      field.handleChange(event.target.checked)
+                    }
+                    type="checkbox"
+                  />
+                  <FieldLabel htmlFor={field.name}>
+                    Tôi cam kết thông tin và bằng chứng cung cấp trên là trung
+                    thực và chịu trách nhiệm về nội dung tố cáo này.
+                  </FieldLabel>
+                  {isInvalid ? (
+                    <FieldError errors={field.state.meta.errors} />
+                  ) : null}
+                </Field>
+              );
+            }}
+          </reportForm.Field>
+        </FieldGroup>
+
+        <div className="flex flex-col gap-3 border-t pt-5 sm:flex-row sm:items-center sm:justify-end">
+          <reportForm.Subscribe
+            selector={(state) => ({
+              canSubmit: state.canSubmit,
+              isSubmitting: state.isSubmitting,
+            })}
           >
-            Số tài khoản *
-            <Input
-              autoComplete="off"
-              id="tx-account"
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, accountNumber: e.target.value }))
-              }
-              placeholder="Số tài khoản nhận tiền"
-              value={form.accountNumber}
-            />
-          </label>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="grid gap-1.5 font-medium text-sm" htmlFor="tx-bank">
-            Ngân hàng *
-            <Input
-              autoComplete="off"
-              id="tx-bank"
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, bankName: e.target.value }))
-              }
-              placeholder="VIB, MB, Vietcombank..."
-              value={form.bankName}
-            />
-          </label>
-
-          <label
-            className="grid gap-1.5 font-medium text-sm"
-            htmlFor="tx-amount"
-          >
-            Số tiền chiếm đoạt (VNĐ) *
-            <Input
-              autoComplete="off"
-              id="tx-amount"
-              inputMode="numeric"
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, amount: e.target.value }))
-              }
-              placeholder="Nhập chính xác số tiền bạn bị lừa"
-              value={form.amount}
-            />
-          </label>
-        </div>
-
-        <OptionalDetailsSection
-          dateLabel="Ngày xảy ra chuyển tiền"
-          onChange={(updates) =>
-            setForm((prev) => ({
-              ...prev,
-              optionalDetails: { ...prev.optionalDetails, ...updates },
-            }))
-          }
-          values={form.optionalDetails}
-        />
-
-        <div className="grid gap-2">
-          <span className="font-medium text-sm">Bằng chứng giao dịch *</span>
-          <EvidenceUploader
-            disabled={isSubmitting}
-            onFilesChange={(files) =>
-              setForm((prev) => ({ ...prev, evidenceFiles: files }))
-            }
-            selectedFiles={form.evidenceFiles}
-          />
-        </div>
-
-        <label
-          className="grid gap-1.5 font-medium text-sm"
-          htmlFor="tx-narrative"
-        >
-          Nội dung tố cáo *
-          <Textarea
-            id="tx-narrative"
-            maxLength={10_000}
-            minLength={50}
-            onChange={(e) =>
-              setForm((prev) => ({ ...prev, narrative: e.target.value }))
-            }
-            placeholder="Nêu rõ và đầy đủ vấn đề: thỏa thuận ban đầu, đã chuyển khoản ra sao, diễn biến sự việc..."
-            rows={5}
-            value={form.narrative}
-          />
-          <span className="text-muted-foreground text-xs">
-            {form.narrative.length}/10.000 ký tự (tối thiểu 50 ký tự) · Thông
-            tin riêng tư (SĐT, email) sẽ được hệ thống tự động che khi công
-            khai.
-          </span>
-        </label>
-
-        <div className="rounded-2xl border bg-muted/20 p-4">
-          <label className="flex cursor-pointer items-start gap-3 text-sm leading-relaxed">
-            <input
-              checked={form.attestationAccepted}
-              className="mt-0.5 size-4 rounded border-gray-300 text-primary focus:ring-primary"
-              onChange={(e) =>
-                setForm((prev) => ({
-                  ...prev,
-                  attestationAccepted: e.target.checked,
-                }))
-              }
-              type="checkbox"
-            />
-            <span>
-              Tôi cam kết thông tin và bằng chứng cung cấp trên là trung thực và
-              chịu trách nhiệm về nội dung tố cáo này.
-            </span>
-          </label>
-        </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end border-t pt-5">
-          <Button
-            className="h-11 w-full sm:w-auto px-8 font-semibold text-sm"
-            disabled={isSubmitting}
-            size="lg"
-            type="submit"
-          >
-            {isSubmitting ? "Đang gửi đơn duyệt..." : "Gửi duyệt tố cáo"}
-          </Button>
+            {({ canSubmit, isSubmitting: formSubmitting }) => (
+              <Button
+                className="h-11 w-full px-8 font-semibold text-sm sm:w-auto"
+                disabled={!canSubmit || formSubmitting || isSubmitting}
+                form="transaction-risk-report-form"
+                size="lg"
+                type="submit"
+              >
+                {formSubmitting || isSubmitting
+                  ? "Đang gửi đơn duyệt..."
+                  : "Gửi duyệt tố cáo"}
+              </Button>
+            )}
+          </reportForm.Subscribe>
         </div>
       </section>
     </form>

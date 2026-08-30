@@ -7,14 +7,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@avin/ui/components/dialog";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@avin/ui/components/field";
 import { Input } from "@avin/ui/components/input";
-import { Label } from "@avin/ui/components/label";
 import { Textarea } from "@avin/ui/components/textarea";
-import { useState } from "react";
-import type { FormEvent } from "react";
+import { useForm } from "@tanstack/react-form";
 import { toast } from "sonner";
 
 import { useCreateParentCategory } from "../api/categories-api";
+import { createParentCategoryFormSchema } from "../schemas/category-form-schema";
 
 interface Props {
   readonly onOpenChange: (open: boolean) => void;
@@ -22,39 +27,38 @@ interface Props {
 }
 
 export const CreateParentCategoryDialog = ({ onOpenChange, open }: Props) => {
-  const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [description, setDescription] = useState("");
-
   const createMutation = useCreateParentCategory();
+
+  const form = useForm({
+    defaultValues: {
+      description: "",
+      name: "",
+      slug: "",
+    },
+    onSubmit: async ({ value }) => {
+      try {
+        await createMutation.mutateAsync({
+          description: value.description.trim() || undefined,
+          name: value.name.trim(),
+          slug: value.slug.trim() || undefined,
+        });
+        toast.success("Thêm danh mục cha thành công");
+        form.reset();
+        onOpenChange(false);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Có lỗi xảy ra");
+      }
+    },
+    validators: {
+      onSubmit: createParentCategoryFormSchema,
+    },
+  });
 
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
-      setName("");
-      setSlug("");
-      setDescription("");
+      form.reset();
     }
     onOpenChange(newOpen);
-  };
-
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    createMutation.mutate(
-      {
-        description: description.trim() || undefined,
-        name: name.trim(),
-        slug: slug.trim() || undefined,
-      },
-      {
-        onError: (error) => {
-          toast.error(error.message || "Có lỗi xảy ra");
-        },
-        onSuccess: () => {
-          toast.success("Thêm danh mục cha thành công");
-          handleOpenChange(false);
-        },
-      }
-    );
   };
 
   return (
@@ -64,34 +68,89 @@ export const CreateParentCategoryDialog = ({ onOpenChange, open }: Props) => {
           <DialogTitle>Thêm danh mục cha mới</DialogTitle>
           <DialogDescription>Tạo một danh mục cha mới.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="name">Tên</Label>
-              <Input
-                id="name"
-                onChange={(e) => setName(e.target.value)}
-                required
-                value={name}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="slug">URL Slug</Label>
-              <Input
-                id="slug"
-                onChange={(e) => setSlug(e.target.value)}
-                value={slug}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="description">Mô tả</Label>
-              <Textarea
-                id="description"
-                onChange={(e) => setDescription(e.target.value)}
-                value={description}
-              />
-            </div>
-          </div>
+        <form
+          id="create-parent-category-form"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            await form.handleSubmit();
+          }}
+        >
+          <FieldGroup className="py-4">
+            <form.Field name="name">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
+                return (
+                  <Field data-invalid={isInvalid}>
+                    <FieldLabel htmlFor={field.name}>Tên</FieldLabel>
+                    <Input
+                      aria-invalid={isInvalid}
+                      id={field.name}
+                      name={field.name}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      required
+                      value={field.state.value}
+                    />
+                    {isInvalid && (
+                      <FieldError errors={field.state.meta.errors} />
+                    )}
+                  </Field>
+                );
+              }}
+            </form.Field>
+            <form.Field name="slug">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
+                return (
+                  <Field data-invalid={isInvalid}>
+                    <FieldLabel htmlFor={field.name}>URL Slug</FieldLabel>
+                    <Input
+                      aria-invalid={isInvalid}
+                      id={field.name}
+                      name={field.name}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      value={field.state.value}
+                    />
+                    {isInvalid && (
+                      <FieldError errors={field.state.meta.errors} />
+                    )}
+                  </Field>
+                );
+              }}
+            </form.Field>
+            <form.Field name="description">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
+                return (
+                  <Field data-invalid={isInvalid}>
+                    <FieldLabel htmlFor={field.name}>Mô tả</FieldLabel>
+                    <Textarea
+                      aria-invalid={isInvalid}
+                      id={field.name}
+                      name={field.name}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      value={field.state.value}
+                    />
+                    {isInvalid && (
+                      <FieldError errors={field.state.meta.errors} />
+                    )}
+                  </Field>
+                );
+              }}
+            </form.Field>
+          </FieldGroup>
           <DialogFooter>
             <Button
               onClick={() => handleOpenChange(false)}
@@ -100,9 +159,25 @@ export const CreateParentCategoryDialog = ({ onOpenChange, open }: Props) => {
             >
               Hủy
             </Button>
-            <Button disabled={createMutation.isPending} type="submit">
-              Tạo
-            </Button>
+            <form.Subscribe
+              selector={(state) => ({
+                canSubmit: state.canSubmit,
+                isSubmitting: state.isSubmitting,
+              })}
+            >
+              {({ canSubmit, isSubmitting }) => (
+                <Button
+                  disabled={
+                    !canSubmit || isSubmitting || createMutation.isPending
+                  }
+                  type="submit"
+                >
+                  {isSubmitting || createMutation.isPending
+                    ? "Đang xử lý..."
+                    : "Tạo"}
+                </Button>
+              )}
+            </form.Subscribe>
           </DialogFooter>
         </form>
       </DialogContent>

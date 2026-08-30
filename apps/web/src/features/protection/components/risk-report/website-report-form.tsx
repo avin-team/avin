@@ -1,6 +1,13 @@
 import type { RiskReportWebsiteViolationType } from "@avin/api/protection/risk-report";
 import { Alert, AlertDescription, AlertTitle } from "@avin/ui/components/alert";
 import { Button } from "@avin/ui/components/button";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@avin/ui/components/field";
 import { Input } from "@avin/ui/components/input";
 import {
   Select,
@@ -11,9 +18,12 @@ import {
   SelectValue,
 } from "@avin/ui/components/select";
 import { Textarea } from "@avin/ui/components/textarea";
-import { useState } from "react";
+import { useForm } from "@tanstack/react-form";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { websiteReportFormSchema } from "../../schemas/risk-report-form-schema";
+import type { WebsiteReportFormValues } from "../../schemas/risk-report-form-schema";
 import { EvidenceUploader } from "./evidence-uploader";
 import type { SelectedFileItem } from "./evidence-uploader";
 import { OptionalDetailsSection } from "./optional-details-section";
@@ -42,27 +52,16 @@ export interface WebsiteReportData {
   websiteUrl: string;
 }
 
-interface FormState {
-  attestationAccepted: boolean;
-  evidenceFiles: SelectedFileItem[];
-  impersonatedUrl: string;
-  narrative: string;
-  optionalDetails: OptionalDetailsState;
-  violationType: RiskReportWebsiteViolationType;
-  websiteUrl: string;
-}
-
 interface WebsiteReportFormProps {
   initialData?: Partial<WebsiteReportData>;
   isSubmitting?: boolean;
   onSubmit: (data: WebsiteReportData) => Promise<void>;
 }
 
-const getInitialFormState = (
+const getInitialFormValues = (
   initialData?: Partial<WebsiteReportData>
-): FormState => ({
+): WebsiteReportFormValues => ({
   attestationAccepted: false,
-  evidenceFiles: initialData?.evidenceFiles ?? [],
   impersonatedUrl: initialData?.impersonatedUrl ?? "",
   narrative: initialData?.narrative ?? "",
   optionalDetails: initialData?.optionalDetails ?? {
@@ -77,105 +76,117 @@ const getInitialFormState = (
   websiteUrl: initialData?.websiteUrl ?? "",
 });
 
+const getDevelopmentValues = (): WebsiteReportFormValues => ({
+  attestationAccepted: true,
+  impersonatedUrl: "https://facebook.com/avin.official",
+  narrative:
+    "Trang web này tạo giao diện nhái hệt cổng đăng nhập của Avin để đánh cắp tài khoản và mật khẩu của người dùng khi truy cập và nhập thông tin.",
+  optionalDetails: {
+    facebookUrl: "https://facebook.com/trang.web.lua.dao",
+    incidentDate: todayInput(),
+    ongoing: true,
+    phoneNumber: "0912345678",
+    telegramUrl: "https://t.me/fake_support_bot",
+    tiktokUrl: "https://tiktok.com/@fake_shop_review",
+  },
+  violationType: "IMPERSONATION",
+  websiteUrl: "https://fake-shop-avin-scam.xyz/login",
+});
+
+const getDevelopmentEvidenceFiles = (): SelectedFileItem[] => [
+  {
+    file: new File(
+      ["evidence-content-preview"],
+      "screenshot_website_fake.png",
+      {
+        type: "image/png",
+      }
+    ),
+    id: globalThis.crypto.randomUUID(),
+  },
+];
+
 export const WebsiteReportForm = ({
   initialData,
   isSubmitting = false,
   onSubmit,
 }: WebsiteReportFormProps) => {
-  const [form, setForm] = useState<FormState>(() =>
-    getInitialFormState(initialData)
-  );
   const [errorMessage, setErrorMessage] = useState<string>();
+  const [evidenceFiles, setEvidenceFiles] = useState<SelectedFileItem[]>(
+    () => initialData?.evidenceFiles ?? []
+  );
+  const initialImpersonatedUrl = initialData?.impersonatedUrl ?? "";
+  const initialNarrative = initialData?.narrative ?? "";
+  const initialOptionalDetails = initialData?.optionalDetails;
+  const initialViolationType = initialData?.violationType ?? "IMPERSONATION";
+  const initialWebsiteUrl = initialData?.websiteUrl ?? "";
+  const defaultValues = useMemo(
+    () =>
+      getInitialFormValues({
+        impersonatedUrl: initialImpersonatedUrl,
+        narrative: initialNarrative,
+        optionalDetails: initialOptionalDetails,
+        violationType: initialViolationType,
+        websiteUrl: initialWebsiteUrl,
+      }),
+    [
+      initialImpersonatedUrl,
+      initialNarrative,
+      initialOptionalDetails,
+      initialViolationType,
+      initialWebsiteUrl,
+    ]
+  );
+  const reportForm = useForm({
+    defaultValues,
+    onSubmit: async ({ value }) => {
+      if (evidenceFiles.length === 0) {
+        setErrorMessage("Vui lòng tải lên ít nhất một bằng chứng.");
+        return;
+      }
+      setErrorMessage(undefined);
+      try {
+        await onSubmit({
+          evidenceFiles,
+          impersonatedUrl:
+            value.violationType === "IMPERSONATION"
+              ? value.impersonatedUrl.trim()
+              : undefined,
+          narrative: value.narrative.trim(),
+          optionalDetails: value.optionalDetails,
+          violationType: value.violationType,
+          websiteUrl: value.websiteUrl.trim(),
+        });
+      } catch (error) {
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Đã xảy ra lỗi khi gửi tố cáo."
+        );
+      }
+    },
+    validators: { onSubmit: websiteReportFormSchema },
+  });
 
   const fillDevelopmentData = () => {
     if (!import.meta.env.DEV) {
       return;
     }
-    const sampleFile = new File(
-      ["evidence-content-preview"],
-      "screenshot_website_fake.png",
-      { type: "image/png" }
-    );
-    setForm({
-      attestationAccepted: true,
-      evidenceFiles: [
-        {
-          file: sampleFile,
-          id: globalThis.crypto.randomUUID(),
-        },
-      ],
-      impersonatedUrl: "https://facebook.com/avin.official",
-      narrative:
-        "Trang web này tạo giao diện nhái hệt cổng đăng nhập của Avin để đánh cắp tài khoản và mật khẩu của người dùng khi truy cập và nhập thông tin.",
-      optionalDetails: {
-        facebookUrl: "https://facebook.com/trang.web.lua.dao",
-        incidentDate: todayInput(),
-        ongoing: true,
-        phoneNumber: "0912345678",
-        telegramUrl: "https://t.me/fake_support_bot",
-        tiktokUrl: "https://tiktok.com/@fake_shop_review",
-      },
-      violationType: "IMPERSONATION",
-      websiteUrl: "https://fake-shop-avin-scam.xyz/login",
-    });
+    reportForm.reset(getDevelopmentValues(), { keepDefaultValues: true });
+    setEvidenceFiles(getDevelopmentEvidenceFiles());
     toast.success("Đã điền dữ liệu mẫu cho môi trường dev.");
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage(undefined);
-
-    if (!form.websiteUrl.trim()) {
-      setErrorMessage("Vui lòng nhập link website, app hoặc profile lừa đảo.");
-      return;
-    }
-    if (
-      form.violationType === "IMPERSONATION" &&
-      !form.impersonatedUrl.trim()
-    ) {
-      setErrorMessage(
-        "Vui lòng nhập link profile/website chính chủ bị mạo danh để đối chiếu."
-      );
-      return;
-    }
-    if (form.evidenceFiles.length === 0) {
-      setErrorMessage(
-        "Vui lòng tải lên ít nhất một bằng chứng (ảnh chụp màn hình, video...)."
-      );
-      return;
-    }
-    if (form.narrative.trim().length < 50) {
-      setErrorMessage(
-        "Nội dung mô tả cần tối thiểu 50 ký tự để nêu rõ hành vi lừa đảo."
-      );
-      return;
-    }
-    if (!form.attestationAccepted) {
-      setErrorMessage("Vui lòng xác nhận cam kết thông tin trước khi gửi.");
-      return;
-    }
-
-    try {
-      await onSubmit({
-        evidenceFiles: form.evidenceFiles,
-        impersonatedUrl:
-          form.violationType === "IMPERSONATION"
-            ? form.impersonatedUrl.trim()
-            : undefined,
-        narrative: form.narrative.trim(),
-        optionalDetails: form.optionalDetails,
-        violationType: form.violationType,
-        websiteUrl: form.websiteUrl.trim(),
-      });
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "Đã xảy ra lỗi khi gửi tố cáo."
-      );
-    }
-  };
-
   return (
-    <form className="space-y-6" onSubmit={handleSubmit}>
+    <form
+      className="space-y-6"
+      id="website-risk-report-form"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        await reportForm.handleSubmit();
+      }}
+    >
       <section
         aria-labelledby="web-heading"
         className="space-y-6 rounded-3xl border bg-card p-6 sm:p-8"
@@ -224,150 +235,223 @@ export const WebsiteReportForm = ({
           </Alert>
         ) : null}
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="grid gap-1.5 font-medium text-sm" htmlFor="web-url">
-            Link Website / App / Profile giả mạo *
-            <Input
-              autoComplete="off"
-              id="web-url"
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, websiteUrl: e.target.value }))
-              }
-              placeholder="https://website-lua-dao.com/..."
-              value={form.websiteUrl}
-            />
-          </label>
+        <FieldGroup className="gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <reportForm.Field name="websiteUrl">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
+                return (
+                  <Field data-invalid={isInvalid}>
+                    <FieldLabel htmlFor={field.name}>
+                      Link Website / App / Profile giả mạo *
+                    </FieldLabel>
+                    <Input
+                      aria-invalid={isInvalid}
+                      autoComplete="off"
+                      id={field.name}
+                      name={field.name}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      placeholder="https://website-lua-dao.com/..."
+                      value={field.state.value}
+                    />
+                    {isInvalid ? (
+                      <FieldError errors={field.state.meta.errors} />
+                    ) : null}
+                  </Field>
+                );
+              }}
+            </reportForm.Field>
+            <reportForm.Field name="violationType">
+              {(field) => (
+                <Field>
+                  <FieldLabel htmlFor="web-violation">
+                    Thể loại lừa đảo *
+                  </FieldLabel>
+                  <Select
+                    items={violationTypeOptions}
+                    onValueChange={(value) => {
+                      const violation = violationTypeOptions.find(
+                        (item) => item.value === value
+                      )?.value;
+                      if (violation) {
+                        field.handleChange(violation);
+                      }
+                    }}
+                    value={field.state.value}
+                  >
+                    <SelectTrigger id="web-violation">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {violationTypeOptions.map((item) => (
+                          <SelectItem key={item.value} value={item.value}>
+                            {item.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              )}
+            </reportForm.Field>
+          </div>
 
-          <label
-            className="grid gap-1.5 font-medium text-sm"
-            htmlFor="web-violation"
+          <reportForm.Subscribe
+            selector={(state) => state.values.violationType}
           >
-            Thể loại lừa đảo *
-            <Select
-              items={violationTypeOptions}
-              onValueChange={(val) =>
-                setForm((prev) => ({
-                  ...prev,
-                  violationType: val as RiskReportWebsiteViolationType,
-                }))
-              }
-              value={form.violationType}
-            >
-              <SelectTrigger id="web-violation">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {violationTypeOptions.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </label>
-        </div>
+            {(violationType) =>
+              violationType === "IMPERSONATION" ? (
+                <reportForm.Field name="impersonatedUrl">
+                  {(field) => {
+                    const isInvalid =
+                      field.state.meta.isTouched && !field.state.meta.isValid;
+                    return (
+                      <Field
+                        className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4"
+                        data-invalid={isInvalid}
+                      >
+                        <FieldLabel htmlFor={field.name}>
+                          Link chính chủ / thương hiệu thật bị mạo danh *
+                        </FieldLabel>
+                        <Input
+                          aria-invalid={isInvalid}
+                          autoComplete="off"
+                          id={field.name}
+                          name={field.name}
+                          onBlur={field.handleBlur}
+                          onChange={(event) =>
+                            field.handleChange(event.target.value)
+                          }
+                          placeholder="https://facebook.com/trang-chinh-chu-that..."
+                          value={field.state.value}
+                        />
+                        <FieldDescription>
+                          Dùng để Moderator đối chiếu dấu hiệu giả mạo giữa
+                          trang thật và trang giả.
+                        </FieldDescription>
+                        {isInvalid ? (
+                          <FieldError errors={field.state.meta.errors} />
+                        ) : null}
+                      </Field>
+                    );
+                  }}
+                </reportForm.Field>
+              ) : null
+            }
+          </reportForm.Subscribe>
 
-        {form.violationType === "IMPERSONATION" ? (
-          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
-            <label
-              className="grid gap-1.5 font-medium text-sm"
-              htmlFor="web-impersonated"
-            >
-              Link chính chủ / thương hiệu thật bị mạo danh *
-              <Input
-                autoComplete="off"
-                id="web-impersonated"
-                onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    impersonatedUrl: e.target.value,
+          <reportForm.Subscribe
+            selector={(state) => state.values.optionalDetails}
+          >
+            {(optionalDetails) => (
+              <OptionalDetailsSection
+                dateLabel="Ngày phát hiện"
+                onChange={(updates) =>
+                  reportForm.setFieldValue("optionalDetails", (previous) => ({
+                    ...previous,
+                    ...updates,
                   }))
                 }
-                placeholder="https://facebook.com/trang-chinh-chu-that..."
-                value={form.impersonatedUrl}
+                values={optionalDetails}
               />
-            </label>
-            <p className="mt-1.5 text-muted-foreground text-xs">
-              Dùng để Moderator đối chiếu dấu hiệu giả mạo giữa trang thật và
-              trang giả.
-            </p>
-          </div>
-        ) : null}
+            )}
+          </reportForm.Subscribe>
 
-        <OptionalDetailsSection
-          dateLabel="Ngày phát hiện"
-          onChange={(updates) =>
-            setForm((prev) => ({
-              ...prev,
-              optionalDetails: { ...prev.optionalDetails, ...updates },
-            }))
-          }
-          values={form.optionalDetails}
-        />
-
-        <div className="grid gap-2">
-          <span className="font-medium text-sm">Bằng chứng lừa đảo *</span>
-          <EvidenceUploader
-            disabled={isSubmitting}
-            onFilesChange={(files) =>
-              setForm((prev) => ({ ...prev, evidenceFiles: files }))
-            }
-            selectedFiles={form.evidenceFiles}
-          />
-        </div>
-
-        <label
-          className="grid gap-1.5 font-medium text-sm"
-          htmlFor="web-narrative"
-        >
-          Nội dung mô tả *
-          <Textarea
-            id="web-narrative"
-            maxLength={10_000}
-            minLength={50}
-            onChange={(e) =>
-              setForm((prev) => ({ ...prev, narrative: e.target.value }))
-            }
-            placeholder="Cung cấp chi tiết bằng chứng: phương thức dụ dỗ, link tải app giả, dấu hiệu bất thường..."
-            rows={5}
-            value={form.narrative}
-          />
-          <span className="text-muted-foreground text-xs">
-            {form.narrative.length}/10.000 ký tự (tối thiểu 50 ký tự)
-          </span>
-        </label>
-
-        <div className="rounded-2xl border bg-muted/20 p-4">
-          <label className="flex cursor-pointer items-start gap-3 text-sm leading-relaxed">
-            <input
-              checked={form.attestationAccepted}
-              className="mt-0.5 size-4 rounded border-gray-300 text-primary focus:ring-primary"
-              onChange={(e) =>
-                setForm((prev) => ({
-                  ...prev,
-                  attestationAccepted: e.target.checked,
-                }))
-              }
-              type="checkbox"
+          <div className="grid gap-2">
+            <FieldLabel>Bằng chứng lừa đảo *</FieldLabel>
+            <EvidenceUploader
+              disabled={isSubmitting}
+              onFilesChange={setEvidenceFiles}
+              selectedFiles={evidenceFiles}
             />
-            <span>
-              Tôi cam kết thông tin và bằng chứng cung cấp trên là trung thực và
-              chịu trách nhiệm về nội dung tố cáo này.
-            </span>
-          </label>
-        </div>
+          </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end border-t pt-5">
-          <Button
-            className="h-11 w-full sm:w-auto px-8 font-semibold text-sm"
-            disabled={isSubmitting}
-            size="lg"
-            type="submit"
+          <reportForm.Field name="narrative">
+            {(field) => {
+              const isInvalid =
+                field.state.meta.isTouched && !field.state.meta.isValid;
+              return (
+                <Field data-invalid={isInvalid}>
+                  <FieldLabel htmlFor={field.name}>Nội dung mô tả *</FieldLabel>
+                  <Textarea
+                    aria-invalid={isInvalid}
+                    id={field.name}
+                    maxLength={10_000}
+                    minLength={50}
+                    name={field.name}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                    placeholder="Cung cấp chi tiết bằng chứng: phương thức dụ dỗ, link tải app giả, dấu hiệu bất thường..."
+                    rows={5}
+                    value={field.state.value}
+                  />
+                  <FieldDescription>
+                    {field.state.value.length}/10.000 ký tự (tối thiểu 50 ký tự)
+                  </FieldDescription>
+                  {isInvalid ? (
+                    <FieldError errors={field.state.meta.errors} />
+                  ) : null}
+                </Field>
+              );
+            }}
+          </reportForm.Field>
+
+          <reportForm.Field name="attestationAccepted">
+            {(field) => {
+              const isInvalid =
+                field.state.meta.isTouched && !field.state.meta.isValid;
+              return (
+                <Field data-invalid={isInvalid} orientation="horizontal">
+                  <input
+                    checked={field.state.value}
+                    className="mt-0.5 size-4 rounded border-gray-300 text-primary focus:ring-primary"
+                    id={field.name}
+                    name={field.name}
+                    onBlur={field.handleBlur}
+                    onChange={(event) =>
+                      field.handleChange(event.target.checked)
+                    }
+                    type="checkbox"
+                  />
+                  <FieldLabel htmlFor={field.name}>
+                    Tôi cam kết thông tin và bằng chứng cung cấp trên là trung
+                    thực và chịu trách nhiệm về nội dung tố cáo này.
+                  </FieldLabel>
+                  {isInvalid ? (
+                    <FieldError errors={field.state.meta.errors} />
+                  ) : null}
+                </Field>
+              );
+            }}
+          </reportForm.Field>
+        </FieldGroup>
+
+        <div className="flex flex-col gap-3 border-t pt-5 sm:flex-row sm:items-center sm:justify-end">
+          <reportForm.Subscribe
+            selector={(state) => ({
+              canSubmit: state.canSubmit,
+              isSubmitting: state.isSubmitting,
+            })}
           >
-            {isSubmitting ? "Đang gửi đơn duyệt..." : "Gửi duyệt tố cáo"}
-          </Button>
+            {({ canSubmit, isSubmitting: formSubmitting }) => (
+              <Button
+                className="h-11 w-full px-8 font-semibold text-sm sm:w-auto"
+                disabled={!canSubmit || formSubmitting || isSubmitting}
+                form="website-risk-report-form"
+                size="lg"
+                type="submit"
+              >
+                {formSubmitting || isSubmitting
+                  ? "Đang gửi đơn duyệt..."
+                  : "Gửi duyệt tố cáo"}
+              </Button>
+            )}
+          </reportForm.Subscribe>
         </div>
       </section>
     </form>

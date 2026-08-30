@@ -10,6 +10,12 @@ import {
   CardTitle,
 } from "@avin/ui/components/card";
 import { Checkbox } from "@avin/ui/components/checkbox";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@avin/ui/components/field";
 import { Input } from "@avin/ui/components/input";
 import { Label } from "@avin/ui/components/label";
 import {
@@ -32,18 +38,25 @@ import {
   SpinnerIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
+import { useForm, useStore } from "@tanstack/react-form";
+import type {
+  FormValidateOrFn,
+  ReactFormExtendedApi,
+} from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { AnimatePresence, useReducedMotion } from "motion/react";
 import type { Variants } from "motion/react";
 import * as m from "motion/react-m";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 
 import { invalidateAuthSession } from "@/features/auth/api/session-query";
 import { orpc } from "@/utils/orpc";
 
+import { createSellerOnboardingFormSchema } from "../schemas/seller-onboarding-form-schema";
+import type { SellerOnboardingFormValues } from "../schemas/seller-onboarding-form-schema";
 import { SellerLogoUploader } from "./seller-logo-uploader";
 import type { SellerLogoValue } from "./seller-logo-uploader";
 import {
@@ -53,6 +66,20 @@ import {
 
 const STEP_TRANSITION_OFFSET_PX = 12;
 const MotionCheckCircleIcon = m.create(CheckCircleIcon);
+type SellerOnboardingFormApi = ReactFormExtendedApi<
+  SellerOnboardingFormValues,
+  undefined,
+  undefined,
+  undefined,
+  undefined,
+  undefined,
+  FormValidateOrFn<SellerOnboardingFormValues>,
+  undefined,
+  undefined,
+  undefined,
+  undefined,
+  unknown
+>;
 
 export type SellerApplicationStatus =
   | "PENDING_REVIEW"
@@ -293,23 +320,6 @@ const getStepContentVariants = (shouldReduceMotion: boolean): Variants => ({
   }),
 });
 
-const getInitialProfileFields = (
-  profile: SellerProfileData | null | undefined
-) => ({
-  avatarUrl: profile?.avatarUrl ?? "",
-  bio: profile?.bio ?? "",
-  phone: profile?.phone ?? "",
-  storefrontName: profile?.storefrontName ?? "",
-});
-
-const getInitialBankFields = (
-  profile: SellerProfileData | null | undefined
-) => ({
-  accountName: profile?.bankAccount?.accountName ?? "",
-  accountNumber: profile?.bankAccount?.accountNumber ?? "",
-  bankName: profile?.bankAccount?.bankName ?? "",
-});
-
 const isOnboardingStepCompleted = (
   step: number,
   activeStep: number,
@@ -341,59 +351,6 @@ const isApprovedApplication = (
 const getInitialOnboardingStep = (
   application: SellerApplicationData | null | undefined
 ): number => (application?.status ? 3 : 1);
-
-const validateStep1Input = (params: {
-  avatarUrl: string;
-  hasProfileAvatar: boolean;
-  hasProfilePhone: boolean;
-  phoneInput: string;
-  storefrontName: string;
-}): string | null => {
-  if (!params.avatarUrl.trim() && !params.hasProfileAvatar) {
-    return "Vui lòng tải lên ảnh đại diện / logo gian hàng";
-  }
-  if (!params.storefrontName.trim()) {
-    return "Vui lòng nhập tên gian hàng";
-  }
-  if (!params.phoneInput.trim() && !params.hasProfilePhone) {
-    return "Vui lòng nhập số điện thoại liên hệ";
-  }
-  return null;
-};
-
-const validateStep2Input = (params: {
-  accountName: string;
-  accountNumber: string;
-  agreementAccepted: boolean;
-  avatarUrl: string;
-  bankName: string;
-  hasProfile: boolean;
-  hasProfileAvatar: boolean;
-  hasProfilePhone: boolean;
-  phoneInput: string;
-  storefrontName: string;
-}): string | null => {
-  if (!params.avatarUrl.trim() && !params.hasProfileAvatar) {
-    return "Vui lòng tải lên ảnh đại diện / logo gian hàng ở Bước 1 trước";
-  }
-  if (!params.hasProfile && !params.storefrontName.trim()) {
-    return "Vui lòng hoàn tất thông tin gian hàng ở Bước 1 trước";
-  }
-  if (!params.phoneInput.trim() && !params.hasProfilePhone) {
-    return "Vui lòng nhập số điện thoại liên hệ ở Bước 1";
-  }
-  if (
-    !params.bankName.trim() ||
-    !params.accountNumber.trim() ||
-    !params.accountName.trim()
-  ) {
-    return "Vui lòng điền đầy đủ thông tin tài khoản ngân hàng";
-  }
-  if (!params.agreementAccepted) {
-    return "Bạn phải đồng ý với Điều khoản Người bán Avin";
-  }
-  return null;
-};
 
 const getStep1ButtonText = (
   isApproved: boolean,
@@ -512,276 +469,386 @@ const getStepDisabledError = (targetStep: number): string | null => {
 
 interface Step1StorefrontFormProps {
   avatarName: string;
-  avatarUrl: string;
-  bio: string;
+  form: SellerOnboardingFormApi;
   isApproved: boolean;
   isPending: boolean;
   isUploadingLogo: boolean;
   onAvatarChange: (value: SellerLogoValue) => void;
-  onBioChange: (bio: string) => void;
-  onPhoneChange: (phone: string) => void;
-  onStorefrontNameChange: (name: string) => void;
-  onSubmit: (e: React.FormEvent) => void;
+  onSubmit: (event: React.FormEvent) => void;
   onUploadingChange: (uploading: boolean) => void;
-  phoneInput: string;
   status: SellerApplicationStatus | string | undefined;
-  storefrontName: string;
 }
 
 const Step1StorefrontForm = ({
   avatarName,
-  avatarUrl,
-  bio,
+  form,
   isApproved,
   isPending,
   isUploadingLogo,
   onAvatarChange,
-  onBioChange,
-  onPhoneChange,
-  onStorefrontNameChange,
   onSubmit,
   onUploadingChange,
-  phoneInput,
   status,
-  storefrontName,
 }: Step1StorefrontFormProps) => (
   <form id="step1-form" onSubmit={onSubmit} className="space-y-6">
-    <div className="grid grid-cols-1 sm:grid-cols-[130px_1fr] gap-6 items-start">
-      <div className="flex flex-col items-center text-center space-y-2">
-        <div className="w-full max-w-32">
-          <SellerLogoUploader
-            disabled={isApproved || isPending}
-            fileName={avatarName}
-            logoUrl={avatarUrl}
-            onLogoChange={onAvatarChange}
-            onUploadingChange={onUploadingChange}
-          />
+    <FieldGroup className="space-y-6">
+      <div className="grid grid-cols-1 items-start gap-6 sm:grid-cols-[130px_1fr]">
+        <div className="flex flex-col items-center space-y-2 text-center">
+          <div className="w-full max-w-32">
+            <form.Field name="avatarUrl">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
+                return (
+                  <Field data-invalid={isInvalid}>
+                    <SellerLogoUploader
+                      disabled={isApproved || isPending}
+                      fileName={avatarName}
+                      logoUrl={field.state.value}
+                      onLogoChange={(value) => {
+                        field.handleChange(value.url);
+                        onAvatarChange(value);
+                      }}
+                      onUploadingChange={onUploadingChange}
+                    />
+                    {isInvalid ? (
+                      <FieldError errors={field.state.meta.errors} />
+                    ) : null}
+                  </Field>
+                );
+              }}
+            </form.Field>
+          </div>
+          <p className="font-medium text-foreground text-xs">
+            Logo gian hàng <span className="text-red-500">*</span>
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            JPEG, PNG, WebP (Max 5MB)
+          </p>
         </div>
-        <p className="text-xs font-medium text-foreground">
-          Logo gian hàng <span className="text-red-500">*</span>
-        </p>
-        <p className="text-[11px] text-muted-foreground">
-          JPEG, PNG, WebP (Max 5MB)
-        </p>
-      </div>
 
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <Label
-            htmlFor="storefrontName"
-            className="text-foreground font-medium"
+        <div className="space-y-4">
+          <form.Field name="storefrontName">
+            {(field) => {
+              const isInvalid =
+                field.state.meta.isTouched && !field.state.meta.isValid;
+              return (
+                <Field data-invalid={isInvalid}>
+                  <FieldLabel
+                    className="font-medium text-foreground"
+                    htmlFor={field.name}
+                  >
+                    Tên gian hàng <span className="text-red-500">*</span>
+                  </FieldLabel>
+                  <Input
+                    aria-invalid={isInvalid}
+                    className="border-input bg-background text-foreground placeholder:text-muted-foreground"
+                    disabled={isApproved}
+                    id={field.name}
+                    name={field.name}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                    placeholder="VD: GameKey Studio, DevTools VN..."
+                    value={field.state.value}
+                  />
+                  {isInvalid ? (
+                    <FieldError errors={field.state.meta.errors} />
+                  ) : null}
+                </Field>
+              );
+            }}
+          </form.Field>
+
+          <form.Field name="phone">
+            {(field) => {
+              const isInvalid =
+                field.state.meta.isTouched && !field.state.meta.isValid;
+              return (
+                <Field data-invalid={isInvalid}>
+                  <FieldLabel
+                    className="font-medium text-foreground"
+                    htmlFor={field.name}
+                  >
+                    Số điện thoại liên hệ{" "}
+                    <span className="text-red-500">*</span>
+                  </FieldLabel>
+                  <Input
+                    aria-invalid={isInvalid}
+                    className="border-input bg-background text-foreground placeholder:text-muted-foreground"
+                    disabled={isApproved}
+                    id={field.name}
+                    name={field.name}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                    placeholder="VD: 0901234567"
+                    type="tel"
+                    value={field.state.value}
+                  />
+                  {isInvalid ? (
+                    <FieldError errors={field.state.meta.errors} />
+                  ) : null}
+                </Field>
+              );
+            }}
+          </form.Field>
+
+          <form.Field name="bio">
+            {(field) => {
+              const isInvalid =
+                field.state.meta.isTouched && !field.state.meta.isValid;
+              return (
+                <Field data-invalid={isInvalid}>
+                  <FieldLabel
+                    className="font-medium text-foreground"
+                    htmlFor={field.name}
+                  >
+                    Mô tả gian hàng (Bio)
+                  </FieldLabel>
+                  <Textarea
+                    aria-invalid={isInvalid}
+                    className="border-input bg-background text-foreground placeholder:text-muted-foreground"
+                    disabled={isApproved}
+                    id={field.name}
+                    name={field.name}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                    placeholder="Giới thiệu ngắn về dịch vụ và sản phẩm của bạn..."
+                    rows={3}
+                    value={field.state.value}
+                  />
+                  {isInvalid ? (
+                    <FieldError errors={field.state.meta.errors} />
+                  ) : null}
+                </Field>
+              );
+            }}
+          </form.Field>
+        </div>
+      </div>
+    </FieldGroup>
+
+    <div className="flex items-center justify-end gap-3 border-border border-t pt-6">
+      <form.Subscribe selector={(state) => state.canSubmit}>
+        {(canSubmit) => (
+          <Button
+            disabled={isPending || isUploadingLogo || !canSubmit}
+            type="submit"
           >
-            Tên gian hàng <span className="text-red-500">*</span>
-          </Label>
-          <Input
-            id="storefrontName"
-            placeholder="VD: GameKey Studio, DevTools VN..."
-            value={storefrontName}
-            onChange={(e) => onStorefrontNameChange(e.target.value)}
-            disabled={isApproved}
-            required
-            className="bg-background border-input text-foreground placeholder:text-muted-foreground"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="phone" className="text-foreground font-medium">
-            Số điện thoại liên hệ <span className="text-red-500">*</span>
-          </Label>
-          <Input
-            id="phone"
-            type="tel"
-            placeholder="VD: 0901234567"
-            value={phoneInput}
-            onChange={(e) => onPhoneChange(e.target.value)}
-            disabled={isApproved}
-            required
-            className="bg-background border-input text-foreground placeholder:text-muted-foreground"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="bio" className="text-foreground font-medium">
-            Mô tả gian hàng (Bio)
-          </Label>
-          <Textarea
-            id="bio"
-            placeholder="Giới thiệu ngắn về dịch vụ và sản phẩm của bạn..."
-            rows={3}
-            value={bio}
-            onChange={(e) => onBioChange(e.target.value)}
-            disabled={isApproved}
-            className="bg-background border-input text-foreground placeholder:text-muted-foreground"
-          />
-        </div>
-      </div>
-    </div>
-
-    <div className="flex items-center justify-end gap-3 pt-6 border-t border-border">
-      <Button type="submit" disabled={isPending || isUploadingLogo}>
-        <RenderWhen when={isPending}>
-          <SpinnerIcon className="w-4 h-4 mr-2 animate-spin" />
-        </RenderWhen>
-        {getStep1ButtonText(isApproved, status)}
-        <ArrowRightIcon className="w-4 h-4 ml-2" />
-      </Button>
+            <RenderWhen when={isPending}>
+              <SpinnerIcon className="mr-2 h-4 w-4 animate-spin" />
+            </RenderWhen>
+            {getStep1ButtonText(isApproved, status)}
+            <ArrowRightIcon className="ml-2 h-4 w-4" />
+          </Button>
+        )}
+      </form.Subscribe>
     </div>
   </form>
 );
 
 interface Step2BankingFormProps {
-  accountName: string;
-  accountNumber: string;
-  agreementAccepted: boolean;
-  bankName: string;
+  form: SellerOnboardingFormApi;
   isApproved: boolean;
   isPending: boolean;
-  onAccountNameChange: (name: string) => void;
-  onAccountNumberChange: (num: string) => void;
-  onAgreementAcceptedChange: (accepted: boolean) => void;
   onBack: () => void;
-  onBankNameChange: (name: string) => void;
-  onSubmit: (e: React.FormEvent) => void;
+  onSubmit: (event: React.FormEvent) => void;
   status: SellerApplicationStatus | string | undefined;
 }
 
 const Step2BankingForm = ({
-  accountName,
-  accountNumber,
-  agreementAccepted,
-  bankName,
+  form,
   isApproved,
   isPending,
-  onAccountNameChange,
-  onAccountNumberChange,
-  onAgreementAcceptedChange,
   onBack,
-  onBankNameChange,
   onSubmit,
   status,
 }: Step2BankingFormProps) => (
   <form id="step2-form" onSubmit={onSubmit} className="space-y-6">
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div className="space-y-2">
-        <Label htmlFor="bankName" className="text-foreground font-medium">
-          Tên ngân hàng <span className="text-red-500">*</span>
-        </Label>
-        <Input
-          id="bankName"
-          placeholder="VD: MBBank, Vietcombank..."
-          value={bankName}
-          onChange={(e) => onBankNameChange(e.target.value)}
-          disabled={isApproved}
-          required
-          className="bg-background border-input text-foreground placeholder:text-muted-foreground"
-        />
+    <FieldGroup className="space-y-6">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <form.Field name="bankName">
+          {(field) => {
+            const isInvalid =
+              field.state.meta.isTouched && !field.state.meta.isValid;
+            return (
+              <Field data-invalid={isInvalid}>
+                <FieldLabel
+                  className="font-medium text-foreground"
+                  htmlFor={field.name}
+                >
+                  Tên ngân hàng <span className="text-red-500">*</span>
+                </FieldLabel>
+                <Input
+                  aria-invalid={isInvalid}
+                  className="border-input bg-background text-foreground placeholder:text-muted-foreground"
+                  disabled={isApproved}
+                  id={field.name}
+                  name={field.name}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  placeholder="VD: MBBank, Vietcombank..."
+                  value={field.state.value}
+                />
+                {isInvalid ? (
+                  <FieldError errors={field.state.meta.errors} />
+                ) : null}
+              </Field>
+            );
+          }}
+        </form.Field>
+
+        <form.Field name="accountNumber">
+          {(field) => {
+            const isInvalid =
+              field.state.meta.isTouched && !field.state.meta.isValid;
+            return (
+              <Field data-invalid={isInvalid}>
+                <FieldLabel
+                  className="font-medium text-foreground"
+                  htmlFor={field.name}
+                >
+                  Số tài khoản <span className="text-red-500">*</span>
+                </FieldLabel>
+                <Input
+                  aria-invalid={isInvalid}
+                  className="border-input bg-background text-foreground placeholder:text-muted-foreground"
+                  disabled={isApproved}
+                  id={field.name}
+                  name={field.name}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  placeholder="VD: 0381000123456"
+                  value={field.state.value}
+                />
+                {isInvalid ? (
+                  <FieldError errors={field.state.meta.errors} />
+                ) : null}
+              </Field>
+            );
+          }}
+        </form.Field>
+
+        <form.Field name="accountName">
+          {(field) => {
+            const isInvalid =
+              field.state.meta.isTouched && !field.state.meta.isValid;
+            return (
+              <Field data-invalid={isInvalid}>
+                <FieldLabel
+                  className="font-medium text-foreground"
+                  htmlFor={field.name}
+                >
+                  Tên chủ tài khoản <span className="text-red-500">*</span>
+                </FieldLabel>
+                <Input
+                  aria-invalid={isInvalid}
+                  className="uppercase border-input bg-background text-foreground placeholder:text-muted-foreground"
+                  disabled={isApproved}
+                  id={field.name}
+                  name={field.name}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  placeholder="VD: NGUYEN VAN A"
+                  value={field.state.value}
+                />
+                {isInvalid ? (
+                  <FieldError errors={field.state.meta.errors} />
+                ) : null}
+              </Field>
+            );
+          }}
+        </form.Field>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="accountNumber" className="text-foreground font-medium">
-          Số tài khoản <span className="text-red-500">*</span>
-        </Label>
-        <Input
-          id="accountNumber"
-          placeholder="VD: 0381000123456"
-          value={accountNumber}
-          onChange={(e) => onAccountNumberChange(e.target.value)}
-          disabled={isApproved}
-          required
-          className="bg-background border-input text-foreground placeholder:text-muted-foreground"
-        />
-      </div>
+      <div className="space-y-3 pt-2">
+        <div className="flex items-center justify-between">
+          <Label className="flex items-center gap-2 font-semibold text-foreground text-sm">
+            <FileTextIcon className="h-4 w-4 text-primary" /> Thỏa thuận Người
+            bán Avin (v1.0)
+          </Label>
+          <Badge
+            variant="outline"
+            className="border-border text-muted-foreground"
+          >
+            v1.0
+          </Badge>
+        </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="accountName" className="text-foreground font-medium">
-          Tên chủ tài khoản <span className="text-red-500">*</span>
-        </Label>
-        <Input
-          id="accountName"
-          placeholder="VD: NGUYEN VAN A"
-          className="uppercase bg-background border-input text-foreground placeholder:text-muted-foreground"
-          value={accountName}
-          onChange={(e) => onAccountNameChange(e.target.value)}
-          disabled={isApproved}
-          required
-        />
-      </div>
-    </div>
+        <div className="h-36 space-y-2 overflow-y-auto rounded-xl border border-border bg-muted/40 p-4 text-muted-foreground text-xs leading-relaxed">
+          <p className="font-semibold text-foreground">
+            ĐIỀU KHOẢN VÀ DỊCH VỤ DÀNH CHO NGƯỜI BÁN TRÊN NỀN TẢNG AVIN (v1.0)
+          </p>
+          <p>
+            1. <strong>Doanh thu & Chiết khấu:</strong> Avin trích trừ chiết
+            khấu hoa hồng nền tảng theo quy định của từng Danh mục sản phẩm khi
+            đơn hàng hoàn tất.
+          </p>
+          <p>
+            2. <strong>Rút tiền:</strong> Người bán có thể yêu cầu rút tiền từ
+            Ví Seller về tài khoản ngân hàng đã xác minh khi số dư khả dụng đạt
+            tối thiểu 5.000 VNĐ.
+          </p>
+          <p>
+            3. <strong>Bảo hành & Khiếu nại:</strong> Tiền hàng sẽ được giữ ký
+            quỹ trong suốt thời gian giao hàng và thời gian bảo hành quy định
+            của sản phẩm.
+          </p>
+          <p>
+            4. <strong>Chính sách tuân thủ:</strong> Người bán cam kết cung cấp
+            dịch vụ/sản phẩm chính chủ, không vi phạm pháp luật và chính sách
+            quy định của Avin.
+          </p>
+        </div>
 
-    {/* Seller Agreement */}
-    <div className="space-y-3 pt-2">
-      <div className="flex items-center justify-between">
-        <Label className="flex items-center gap-2 text-sm font-semibold text-foreground">
-          <FileTextIcon className="w-4 h-4 text-primary" /> Thỏa thuận Người bán
-          Avin (v1.0)
-        </Label>
-        <Badge
-          variant="outline"
-          className="text-muted-foreground border-border"
-        >
-          v1.0
-        </Badge>
+        <form.Field name="agreementAccepted">
+          {(field) => {
+            const isInvalid =
+              field.state.meta.isTouched && !field.state.meta.isValid;
+            return (
+              <Field data-invalid={isInvalid} orientation="horizontal">
+                <Checkbox
+                  aria-invalid={isInvalid}
+                  checked={field.state.value}
+                  disabled={isApproved}
+                  id={field.name}
+                  name={field.name}
+                  onBlur={field.handleBlur}
+                  onCheckedChange={(checked) =>
+                    field.handleChange(Boolean(checked))
+                  }
+                />
+                <FieldLabel
+                  className="cursor-pointer text-muted-foreground text-xs leading-snug"
+                  htmlFor={field.name}
+                >
+                  Tôi đã đọc, hiểu rõ và chấp nhận toàn bộ Điều khoản Thỏa thuận
+                  Người bán Avin (v1.0).
+                </FieldLabel>
+                {isInvalid ? (
+                  <FieldError errors={field.state.meta.errors} />
+                ) : null}
+              </Field>
+            );
+          }}
+        </form.Field>
       </div>
+    </FieldGroup>
 
-      <div className="h-36 overflow-y-auto p-4 rounded-xl border border-border bg-muted/40 text-xs text-muted-foreground leading-relaxed space-y-2">
-        <p className="font-semibold text-foreground">
-          ĐIỀU KHOẢN VÀ DỊCH VỤ DÀNH CHO NGƯỜI BÁN TRÊN NỀN TẢNG AVIN (v1.0)
-        </p>
-        <p>
-          1. <strong>Doanh thu & Chiết khấu:</strong> Avin trích trừ chiết khấu
-          hoa hồng nền tảng theo quy định của từng Danh mục sản phẩm khi đơn
-          hàng hoàn tất.
-        </p>
-        <p>
-          2. <strong>Rút tiền:</strong> Người bán có thể yêu cầu rút tiền từ Ví
-          Seller về tài khoản ngân hàng đã xác minh khi số dư khả dụng đạt tối
-          thiểu 5.000 VNĐ.
-        </p>
-        <p>
-          3. <strong>Bảo hành & Khiếu nại:</strong> Tiền hàng sẽ được giữ ký quỹ
-          trong suốt thời gian giao hàng và thời gian bảo hành quy định của sản
-          phẩm.
-        </p>
-        <p>
-          4. <strong>Chính sách tuân thủ:</strong> Người bán cam kết cung cấp
-          dịch vụ/sản phẩm chính chủ, không vi phạm pháp luật và chính sách quy
-          định của Avin.
-        </p>
-      </div>
-
-      <div className="flex items-start space-x-2 pt-1">
-        <Checkbox
-          id="agreement"
-          checked={agreementAccepted}
-          onCheckedChange={(checked) =>
-            onAgreementAcceptedChange(Boolean(checked))
-          }
-          disabled={isApproved}
-        />
-        <Label
-          htmlFor="agreement"
-          className="text-xs text-muted-foreground leading-snug cursor-pointer"
-        >
-          Tôi đã đọc, hiểu rõ và chấp nhận toàn bộ Điều khoản Thỏa thuận Người
-          bán Avin (v1.0).
-        </Label>
-      </div>
-    </div>
-
-    <div className="flex items-center justify-between pt-6 border-t border-border">
+    <div className="flex items-center justify-between border-border border-t pt-6">
       <Button type="button" variant="outline" onClick={onBack}>
-        <CaretLeftIcon className="w-4 h-4 mr-2" /> Quay lại
+        <CaretLeftIcon className="mr-2 h-4 w-4" /> Quay lại
       </Button>
 
-      <Button
-        type="submit"
-        disabled={isPending || (!agreementAccepted && !isApproved)}
-      >
-        <RenderWhen when={isPending}>
-          <SpinnerIcon className="w-4 h-4 mr-2 animate-spin" />
-        </RenderWhen>
-        {getSubmitButtonText(isApproved, status)}
-      </Button>
+      <form.Subscribe selector={(state) => state.canSubmit}>
+        {(canSubmit) => (
+          <Button disabled={isPending || !canSubmit} type="submit">
+            <RenderWhen when={isPending}>
+              <SpinnerIcon className="mr-2 h-4 w-4 animate-spin" />
+            </RenderWhen>
+            {getSubmitButtonText(isApproved, status)}
+          </Button>
+        )}
+      </form.Subscribe>
     </div>
   </form>
 );
@@ -792,6 +859,7 @@ interface SellerOnboardingFormContentProps {
   refetchProfile: () => void;
 }
 
+// oxlint-disable-next-line complexity
 const SellerOnboardingFormContent = ({
   application,
   profile,
@@ -838,27 +906,9 @@ const SellerOnboardingFormContent = ({
 
   const stepContentVariants = getStepContentVariants(shouldReduceMotion);
 
-  // Draft profile form state
-  const initialProfileFields = getInitialProfileFields(profile);
-  const initialBankFields = getInitialBankFields(profile);
-  const [storefrontName, setStorefrontName] = useState(
-    initialProfileFields.storefrontName
-  );
-  const [avatarUrl, setAvatarUrl] = useState(initialProfileFields.avatarUrl);
+  // Upload controls are kept outside the form; the uploaded URL itself is a form field.
   const [avatarName, setAvatarName] = useState("");
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
-  const [bio, setBio] = useState(initialProfileFields.bio);
-  const [phoneInput, setPhoneInput] = useState(initialProfileFields.phone);
-
-  // Bank details & agreement state
-  const [bankName, setBankName] = useState(initialBankFields.bankName);
-  const [accountNumber, setAccountNumber] = useState(
-    initialBankFields.accountNumber
-  );
-  const [accountName, setAccountName] = useState(initialBankFields.accountName);
-  const [agreementAccepted, setAgreementAccepted] = useState(
-    Boolean(application?.createdAt)
-  );
 
   // Mutations
   const updateDraftMutation = useMutation(
@@ -886,108 +936,132 @@ const SellerOnboardingFormContent = ({
     })
   );
 
-  const handleSaveStep1 = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isApproved) {
-      changeActiveStep(2);
-      return;
-    }
+  const initialAvatarUrl = profile?.avatarUrl ?? "";
+  const initialBio = profile?.bio ?? "";
+  const initialPhone = profile?.phone ?? "";
+  const initialStorefrontName = profile?.storefrontName ?? "";
+  const initialAccountName = profile?.bankAccount?.accountName ?? "";
+  const initialAccountNumber = profile?.bankAccount?.accountNumber ?? "";
+  const initialBankName = profile?.bankAccount?.bankName ?? "";
+  const initialAgreementAccepted = Boolean(application?.createdAt);
+  const defaultValues = useMemo(
+    () => ({
+      accountName: initialAccountName,
+      accountNumber: initialAccountNumber,
+      agreementAccepted: initialAgreementAccepted,
+      avatarUrl: initialAvatarUrl,
+      bankName: initialBankName,
+      bio: initialBio,
+      phone: initialPhone,
+      storefrontName: initialStorefrontName,
+    }),
+    [
+      initialAccountName,
+      initialAccountNumber,
+      initialAgreementAccepted,
+      initialAvatarUrl,
+      initialBankName,
+      initialBio,
+      initialPhone,
+      initialStorefrontName,
+    ]
+  );
 
-    const validationError = validateStep1Input({
-      avatarUrl,
-      hasProfileAvatar: Boolean(profile?.avatarUrl),
-      hasProfilePhone: Boolean(profile?.phone),
-      phoneInput,
-      storefrontName,
-    });
-    if (validationError) {
-      toast.error(validationError);
-      return;
-    }
-
-    updateDraftMutation.mutate(
-      {
-        avatarUrl: avatarUrl.trim() || undefined,
-        bio: bio.trim() || undefined,
-        phone: phoneInput.trim() || undefined,
-        storefrontName: storefrontName.trim(),
-      },
-      {
-        onSuccess: () => {
+  const onboardingForm = useForm<
+    SellerOnboardingFormValues,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    FormValidateOrFn<SellerOnboardingFormValues>,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    unknown
+  >({
+    defaultValues,
+    onSubmit: async ({ value }) => {
+      if (activeStep === 1) {
+        if (isApproved) {
           changeActiveStep(2);
-        },
-      }
-    );
-  };
-
-  const handleSubmitStep2 = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isApproved) {
-      changeActiveStep(3);
-      return;
-    }
-
-    const validationError = validateStep2Input({
-      accountName,
-      accountNumber,
-      agreementAccepted,
-      avatarUrl,
-      bankName,
-      hasProfile: Boolean(profile),
-      hasProfileAvatar: Boolean(profile?.avatarUrl),
-      hasProfilePhone: Boolean(profile?.phone),
-      phoneInput,
-      storefrontName,
-    });
-    if (validationError) {
-      toast.error(validationError);
-      return;
-    }
-
-    const bankAccountData = {
-      accountName: accountName.trim().toUpperCase(),
-      accountNumber: accountNumber.trim(),
-      bankName: bankName.trim(),
-    };
-
-    if (application?.status === "PENDING_REVIEW") {
-      updateDraftMutation.mutate(
-        {
-          bankAccount: bankAccountData,
-          phone: phoneInput.trim() || profile?.phone || undefined,
-          storefrontName:
-            storefrontName.trim() || profile?.storefrontName || "Avin Store",
-        },
-        {
-          onSuccess: () => {
-            toast.success("Đã cập nhật thông tin hồ sơ thành công!");
-            changeActiveStep(3);
-          },
+          return;
         }
-      );
-      return;
-    }
 
-    submitAppMutation.mutate({
-      bankAccount: bankAccountData,
-      sellerAgreementAccepted: true,
-      sellerAgreementVersion: "v1.0",
-    });
+        await updateDraftMutation.mutateAsync({
+          avatarUrl: value.avatarUrl.trim() || undefined,
+          bio: value.bio.trim() || undefined,
+          phone: value.phone.trim() || undefined,
+          storefrontName: value.storefrontName.trim(),
+        });
+        changeActiveStep(2);
+        return;
+      }
+
+      if (isApproved) {
+        changeActiveStep(3);
+        return;
+      }
+
+      const bankAccountData = {
+        accountName: value.accountName.trim().toUpperCase(),
+        accountNumber: value.accountNumber.trim(),
+        bankName: value.bankName.trim(),
+      };
+
+      if (application?.status === "PENDING_REVIEW") {
+        await updateDraftMutation.mutateAsync({
+          bankAccount: bankAccountData,
+          phone: value.phone.trim() || profile?.phone || undefined,
+          storefrontName:
+            value.storefrontName.trim() ||
+            profile?.storefrontName ||
+            "Avin Store",
+        });
+        toast.success("Đã cập nhật thông tin hồ sơ thành công!");
+        changeActiveStep(3);
+        return;
+      }
+
+      await submitAppMutation.mutateAsync({
+        bankAccount: bankAccountData,
+        sellerAgreementAccepted: true,
+        sellerAgreementVersion: "v1.0",
+      });
+    },
+    onSubmitInvalid: () => {
+      toast.error(
+        activeStep === 1
+          ? "Vui lòng hoàn thiện thông tin gian hàng trước khi tiếp tục."
+          : "Vui lòng điền đủ tài khoản ngân hàng và đồng ý với điều khoản."
+      );
+    },
+    validators: {
+      onSubmit: createSellerOnboardingFormSchema(activeStep === 2 ? 2 : 1),
+    },
+  });
+  const formValues = useStore(onboardingForm.store, (state) => state.values);
+
+  const handleSubmitStep = async (event: React.FormEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    await onboardingForm.handleSubmit();
   };
 
   const isStep1Completed = Boolean(
-    (avatarUrl.trim() || profile?.avatarUrl) &&
-    (storefrontName.trim() || profile?.storefrontName) &&
-    (phoneInput.trim() || profile?.phone)
+    (formValues.avatarUrl.trim() || profile?.avatarUrl) &&
+    (formValues.storefrontName.trim() || profile?.storefrontName) &&
+    (formValues.phone.trim() || profile?.phone)
   );
 
   const isStep2Completed = Boolean(
     application?.id ||
     (isStep1Completed &&
-      bankName.trim() &&
-      accountNumber.trim() &&
-      accountName.trim() &&
-      agreementAccepted)
+      formValues.bankName.trim() &&
+      formValues.accountNumber.trim() &&
+      formValues.accountName.trim() &&
+      formValues.agreementAccepted)
   );
 
   const isStepDisabled = (stepNum: number) =>
@@ -1256,23 +1330,16 @@ const SellerOnboardingFormContent = ({
 
                   <Step1StorefrontForm
                     avatarName={avatarName}
-                    avatarUrl={avatarUrl}
-                    bio={bio}
+                    form={onboardingForm}
                     isApproved={isApproved}
                     isPending={updateDraftMutation.isPending}
                     isUploadingLogo={isUploadingLogo}
                     onAvatarChange={(value: SellerLogoValue) => {
-                      setAvatarUrl(value.url);
                       setAvatarName(value.name);
                     }}
-                    onBioChange={setBio}
-                    onPhoneChange={setPhoneInput}
-                    onStorefrontNameChange={setStorefrontName}
-                    onSubmit={handleSaveStep1}
+                    onSubmit={handleSubmitStep}
                     onUploadingChange={setIsUploadingLogo}
-                    phoneInput={phoneInput}
                     status={application?.status}
-                    storefrontName={storefrontName}
                   />
                 </m.div>
               </RenderWhen>
@@ -1308,18 +1375,11 @@ const SellerOnboardingFormContent = ({
                   </div>
 
                   <Step2BankingForm
-                    accountName={accountName}
-                    accountNumber={accountNumber}
-                    agreementAccepted={agreementAccepted}
-                    bankName={bankName}
+                    form={onboardingForm}
                     isApproved={isApproved}
                     isPending={submitAppMutation.isPending}
-                    onAccountNameChange={setAccountName}
-                    onAccountNumberChange={setAccountNumber}
-                    onAgreementAcceptedChange={setAgreementAccepted}
                     onBack={() => changeActiveStep(1)}
-                    onBankNameChange={setBankName}
-                    onSubmit={handleSubmitStep2}
+                    onSubmit={handleSubmitStep}
                     status={application?.status}
                   />
                 </m.div>

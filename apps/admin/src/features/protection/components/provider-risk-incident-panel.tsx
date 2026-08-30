@@ -7,6 +7,12 @@ import {
   CardTitle,
 } from "@avin/ui/components/card";
 import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@avin/ui/components/field";
+import {
   Select,
   SelectContent,
   SelectGroup,
@@ -14,8 +20,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@avin/ui/components/select";
+import { useForm } from "@tanstack/react-form";
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -30,6 +37,10 @@ import {
   useAdminSupportReviews,
   useStartAdminSupportReview,
 } from "../api/support-reviews-api";
+import {
+  providerRiskIncidentDecisionFormSchema,
+  providerRiskIncidentLinkFormSchema,
+} from "../schemas/provider-risk-incident-form-schema";
 
 const STATUS_LABELS: Record<ProviderRiskIncident["status"], string> = {
   AWAITING_PROVIDER_RESPONSE: "Chờ phản hồi Provider",
@@ -45,7 +56,6 @@ const ProviderIncidentCard = ({
 }: {
   incident: ProviderRiskIncident;
 }) => {
-  const [reason, setReason] = useState("");
   const confirmFraud = useConfirmAdminProviderRiskIncidentFraud();
   const review = useReviewAdminProviderRiskIncident();
   const supportReviews = useAdminSupportReviews({ incidentId: incident.id });
@@ -57,45 +67,46 @@ const ProviderIncidentCard = ({
     incident.status === "PROVIDER_RESPONDED" ||
     incident.status === "RESPONSE_EXPIRED" ||
     incident.status === "UNDER_REVIEW";
-
-  const handleReview = async (status: "DISMISSED" | "UNDER_REVIEW") => {
-    if (!reason.trim()) {
-      toast.error("Hãy nhập lý do review.");
-      return;
-    }
-    try {
-      await review.mutateAsync({
-        incidentId: incident.id,
-        reason: reason.trim(),
-        status,
-      });
-      toast.success("Đã cập nhật trạng thái incident.");
-      setReason("");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Không thể review.");
-    }
-  };
-
-  const handleConfirmFraud = async () => {
-    if (!reason.trim()) {
-      toast.error("Hãy nhập lý do xác nhận gian lận.");
-      return;
-    }
-    try {
-      await confirmFraud.mutateAsync({
-        incidentId: incident.id,
-        reason: reason.trim(),
-      });
-      toast.success("Đã gỡ profile Provider khỏi directory active.");
-      setReason("");
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Không thể áp dụng enforcement."
-      );
-    }
-  };
+  const decisionRef = useRef<"UNDER_REVIEW" | "DISMISSED" | "CONFIRMED_FRAUD">(
+    "UNDER_REVIEW"
+  );
+  const decisionForm = useForm({
+    defaultValues: { reason: "" },
+    onSubmit: async ({ value }) => {
+      const submitter = decisionRef.current;
+      if (submitter === "CONFIRMED_FRAUD") {
+        try {
+          await confirmFraud.mutateAsync({
+            incidentId: incident.id,
+            reason: value.reason.trim(),
+          });
+          toast.success("Đã gỡ profile Provider khỏi directory active.");
+        } catch (error) {
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : "Không thể áp dụng enforcement."
+          );
+        }
+      } else {
+        const status = submitter === "DISMISSED" ? "DISMISSED" : "UNDER_REVIEW";
+        try {
+          await review.mutateAsync({
+            incidentId: incident.id,
+            reason: value.reason.trim(),
+            status,
+          });
+          toast.success("Đã cập nhật trạng thái incident.");
+        } catch (error) {
+          toast.error(
+            error instanceof Error ? error.message : "Không thể review."
+          );
+        }
+      }
+      decisionForm.reset();
+    },
+    validators: { onSubmit: providerRiskIncidentDecisionFormSchema },
+  });
 
   const handleStartSupportReview = async () => {
     try {
@@ -169,49 +180,103 @@ const ProviderIncidentCard = ({
         </div>
       ) : null}
       {canReview || canConfirm ? (
-        <div className="grid gap-3">
-          <label
-            className="grid gap-2 text-sm"
-            htmlFor={`incident-reason-${incident.id}`}
+        <form
+          className="grid gap-3"
+          id={`incident-decision-form-${incident.id}`}
+          onSubmit={async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const submitter = (event.nativeEvent as SubmitEvent)
+              .submitter as HTMLButtonElement | null;
+            if (submitter?.value === "DISMISSED") {
+              decisionRef.current = "DISMISSED";
+            } else if (submitter?.value === "CONFIRMED_FRAUD") {
+              decisionRef.current = "CONFIRMED_FRAUD";
+            } else {
+              decisionRef.current = "UNDER_REVIEW";
+            }
+            await decisionForm.handleSubmit();
+          }}
+        >
+          <FieldGroup>
+            <decisionForm.Field name="reason">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
+                return (
+                  <Field data-invalid={isInvalid}>
+                    <FieldLabel htmlFor={field.name}>
+                      Lý do quyết định
+                    </FieldLabel>
+                    <textarea
+                      aria-invalid={isInvalid}
+                      className="min-h-24 rounded-lg border bg-background p-3"
+                      id={field.name}
+                      name={field.name}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      value={field.state.value}
+                    />
+                    {isInvalid ? (
+                      <FieldError errors={field.state.meta.errors} />
+                    ) : null}
+                  </Field>
+                );
+              }}
+            </decisionForm.Field>
+          </FieldGroup>
+          <decisionForm.Subscribe
+            selector={(state) => ({
+              canSubmit: state.canSubmit,
+              isSubmitting: state.isSubmitting,
+            })}
           >
-            Lý do quyết định
-            <textarea
-              className="min-h-24 rounded-lg border bg-background p-3"
-              id={`incident-reason-${incident.id}`}
-              onChange={(event) => setReason(event.target.value)}
-              value={reason}
-            />
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {canReview ? (
-              <>
-                <Button
-                  disabled={review.isPending}
-                  onClick={() => void handleReview("UNDER_REVIEW")}
-                  variant="outline"
-                >
-                  Đưa vào xem xét
-                </Button>
-                <Button
-                  disabled={review.isPending}
-                  onClick={() => void handleReview("DISMISSED")}
-                  variant="outline"
-                >
-                  Đóng incident
-                </Button>
-              </>
-            ) : null}
-            {canConfirm ? (
-              <Button
-                disabled={confirmFraud.isPending}
-                onClick={() => void handleConfirmFraud()}
-                variant="destructive"
-              >
-                Xác nhận gian lận có chủ ý
-              </Button>
-            ) : null}
-          </div>
-        </div>
+            {({ canSubmit, isSubmitting }) => (
+              <div className="flex flex-wrap gap-2">
+                {canReview ? (
+                  <>
+                    <Button
+                      disabled={!canSubmit || isSubmitting || review.isPending}
+                      form={`incident-decision-form-${incident.id}`}
+                      name="decision"
+                      type="submit"
+                      value="UNDER_REVIEW"
+                      variant="outline"
+                    >
+                      Đưa vào xem xét
+                    </Button>
+                    <Button
+                      disabled={!canSubmit || isSubmitting || review.isPending}
+                      form={`incident-decision-form-${incident.id}`}
+                      name="decision"
+                      type="submit"
+                      value="DISMISSED"
+                      variant="outline"
+                    >
+                      Đóng incident
+                    </Button>
+                  </>
+                ) : null}
+                {canConfirm ? (
+                  <Button
+                    disabled={
+                      !canSubmit || isSubmitting || confirmFraud.isPending
+                    }
+                    form={`incident-decision-form-${incident.id}`}
+                    name="decision"
+                    type="submit"
+                    value="CONFIRMED_FRAUD"
+                    variant="destructive"
+                  >
+                    Xác nhận gian lận có chủ ý
+                  </Button>
+                ) : null}
+              </div>
+            )}
+          </decisionForm.Subscribe>
+        </form>
       ) : null}
     </div>
   );
@@ -223,13 +288,9 @@ export const ProviderRiskIncidentPanel = ({
   reportId: string;
 }) => {
   const [search, setSearch] = useState("");
-  const [selectedProfileId, setSelectedProfileId] = useState("");
   const incidents = useAdminProviderRiskIncidents(reportId);
   const candidates = useAdminProviderRiskIncidentCandidates(search);
   const link = useLinkAdminProviderRiskIncident();
-  const selectedCandidate = candidates.data?.find(
-    (candidate) => candidate.id === selectedProfileId
-  );
   const profileCandidateItems = [
     { label: "Chọn Provider profile", value: null },
     ...(candidates.data ?? []).map((candidate) => ({
@@ -237,26 +298,33 @@ export const ProviderRiskIncidentPanel = ({
       value: candidate.id,
     })),
   ];
-
-  const handleLink = async () => {
-    if (!selectedCandidate) {
-      toast.error("Chọn Provider profile trước.");
-      return;
-    }
-    try {
-      await link.mutateAsync({
-        profileId: selectedCandidate.id,
-        profileVersionId: selectedCandidate.versionId,
-        reportId,
-      });
-      toast.success("Đã tạo notice Provider và mở cửa sổ phản hồi 48 giờ.");
-      setSelectedProfileId("");
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Không thể liên kết Provider."
+  const linkForm = useForm({
+    defaultValues: { profileId: "" },
+    onSubmit: async ({ value }) => {
+      const selectedCandidate = candidates.data?.find(
+        (candidate) => candidate.id === value.profileId
       );
-    }
-  };
+      if (!selectedCandidate) {
+        return;
+      }
+      try {
+        await link.mutateAsync({
+          profileId: selectedCandidate.id,
+          profileVersionId: selectedCandidate.versionId,
+          reportId,
+        });
+        toast.success("Đã tạo notice Provider và mở cửa sổ phản hồi 48 giờ.");
+        linkForm.reset();
+      } catch (error) {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Không thể liên kết Provider."
+        );
+      }
+    },
+    validators: { onSubmit: providerRiskIncidentLinkFormSchema },
+  });
 
   return (
     <Card>
@@ -269,7 +337,15 @@ export const ProviderRiskIncidentPanel = ({
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <div className="grid gap-3 rounded-xl border bg-muted/20 p-4">
+        <form
+          className="grid gap-3 rounded-xl border bg-muted/20 p-4"
+          id={`provider-profile-link-form-${reportId}`}
+          onSubmit={async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            await linkForm.handleSubmit();
+          }}
+        >
           <label
             className="grid gap-2 text-sm"
             htmlFor="provider-profile-search"
@@ -283,42 +359,68 @@ export const ProviderRiskIncidentPanel = ({
               value={search}
             />
           </label>
-          <label
-            className="grid gap-2 text-sm"
-            htmlFor="provider-profile-candidate"
+          <FieldGroup>
+            <linkForm.Field name="profileId">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
+                return (
+                  <Field data-invalid={isInvalid}>
+                    <FieldLabel htmlFor={field.name}>
+                      Profile/version authoritative
+                    </FieldLabel>
+                    <Select
+                      items={profileCandidateItems}
+                      onValueChange={(value) => field.handleChange(value ?? "")}
+                      value={field.state.value || null}
+                    >
+                      <SelectTrigger
+                        className="w-full rounded-lg border bg-background p-2"
+                        id={field.name}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {profileCandidateItems.map((item) => (
+                            <SelectItem
+                              key={item.value ?? "empty"}
+                              value={item.value}
+                            >
+                              {item.label}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                    {isInvalid ? (
+                      <FieldError errors={field.state.meta.errors} />
+                    ) : null}
+                  </Field>
+                );
+              }}
+            </linkForm.Field>
+          </FieldGroup>
+          <linkForm.Subscribe
+            selector={(state) => ({
+              canSubmit: state.canSubmit,
+              isSubmitting: state.isSubmitting,
+            })}
           >
-            Profile/version authoritative
-            <Select
-              items={profileCandidateItems}
-              onValueChange={(value) => setSelectedProfileId(value ?? "")}
-              value={selectedProfileId || null}
-            >
-              <SelectTrigger
-                className="w-full rounded-lg border bg-background p-2"
-                id="provider-profile-candidate"
+            {({ canSubmit, isSubmitting }) => (
+              <Button
+                className="w-fit"
+                disabled={!canSubmit || isSubmitting || link.isPending}
+                form={`provider-profile-link-form-${reportId}`}
+                type="submit"
               >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {profileCandidateItems.map((item) => (
-                    <SelectItem key={item.value ?? "empty"} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </label>
-          <Button
-            className="w-fit"
-            disabled={link.isPending || !selectedCandidate}
-            onClick={() => void handleLink()}
-            type="button"
-          >
-            {link.isPending ? "Đang tạo notice..." : "Liên kết & gửi notice"}
-          </Button>
-        </div>
+                {isSubmitting || link.isPending
+                  ? "Đang tạo notice..."
+                  : "Liên kết & gửi notice"}
+              </Button>
+            )}
+          </linkForm.Subscribe>
+        </form>
         {incidents.isPending ? (
           <p className="text-muted-foreground text-sm">Đang tải incident...</p>
         ) : null}

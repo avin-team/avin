@@ -6,9 +6,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@avin/ui/components/field";
 import { Input } from "@avin/ui/components/input";
 import { Textarea } from "@avin/ui/components/textarea";
-import { useState } from "react";
+import { useForm } from "@tanstack/react-form";
 import { toast } from "sonner";
 
 import { Header } from "@/components/layout/header";
@@ -20,6 +26,10 @@ import {
   useRecordAdminProviderBondWithdrawal,
 } from "../api/provider-bond-api";
 import type { ProviderBondWithdrawal } from "../api/provider-bond-api";
+import {
+  providerBondWithdrawalApprovalFormSchema,
+  providerBondWithdrawalRecordFormSchema,
+} from "../schemas/provider-bond-withdrawal-form-schema";
 
 const STATUS_LABELS = {
   COMPLETED: "Đã hoàn tất",
@@ -75,38 +85,43 @@ const RecordPanel = ({
   withdrawal: ProviderBondWithdrawal;
 }) => {
   const record = useRecordAdminProviderBondWithdrawal();
-  const [externalActionReference, setExternalActionReference] = useState("");
-  const [privateEvidenceReference, setPrivateEvidenceReference] = useState("");
-  const [reason, setReason] = useState("");
-
-  const submit = async () => {
-    if (
-      !externalActionReference.trim() ||
-      !privateEvidenceReference.trim() ||
-      !reason.trim()
-    ) {
-      toast.error("Cần nhập external reference, evidence private và lý do.");
-      return;
-    }
-    try {
-      await record.mutateAsync({
-        externalActionReference: externalActionReference.trim(),
-        privateEvidenceReference: privateEvidenceReference.trim(),
-        reason: reason.trim(),
-        withdrawalId: withdrawal.id,
-      });
-      toast.success("Đã ghi nhận hành động hoàn Bond off-platform.");
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Không thể ghi nhận withdrawal."
-      );
-    }
-  };
+  const recordForm = useForm({
+    defaultValues: {
+      externalActionReference: "",
+      privateEvidenceReference: "",
+      reason: "",
+    },
+    onSubmit: async ({ value }) => {
+      try {
+        await record.mutateAsync({
+          externalActionReference: value.externalActionReference.trim(),
+          privateEvidenceReference: value.privateEvidenceReference.trim(),
+          reason: value.reason.trim(),
+          withdrawalId: withdrawal.id,
+        });
+        toast.success("Đã ghi nhận hành động hoàn Bond off-platform.");
+        recordForm.reset();
+      } catch (error) {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Không thể ghi nhận withdrawal."
+        );
+      }
+    },
+    validators: { onSubmit: providerBondWithdrawalRecordFormSchema },
+  });
 
   return (
-    <div className="grid gap-3 rounded-xl border bg-muted/20 p-4">
+    <form
+      className="grid gap-3 rounded-xl border bg-muted/20 p-4"
+      id={`withdrawal-record-form-${withdrawal.id}`}
+      onSubmit={async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        await recordForm.handleSubmit();
+      }}
+    >
       <div>
         <p className="font-medium">Ghi nhận hoàn trả off-platform</p>
         <p className="text-muted-foreground text-xs">
@@ -114,48 +129,100 @@ const RecordPanel = ({
           tiền hoặc tự chuyển tiền.
         </p>
       </div>
-      <label
-        className="grid gap-2 text-sm"
-        htmlFor={`withdrawal-reference-${withdrawal.id}`}
+      <FieldGroup className="gap-3">
+        <recordForm.Field name="externalActionReference">
+          {(field) => {
+            const isInvalid =
+              field.state.meta.isTouched && !field.state.meta.isValid;
+            return (
+              <Field data-invalid={isInvalid}>
+                <FieldLabel htmlFor={field.name}>
+                  External action reference
+                </FieldLabel>
+                <Input
+                  aria-invalid={isInvalid}
+                  id={field.name}
+                  name={field.name}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  value={field.state.value}
+                />
+                {isInvalid ? (
+                  <FieldError errors={field.state.meta.errors} />
+                ) : null}
+              </Field>
+            );
+          }}
+        </recordForm.Field>
+        <recordForm.Field name="privateEvidenceReference">
+          {(field) => {
+            const isInvalid =
+              field.state.meta.isTouched && !field.state.meta.isValid;
+            return (
+              <Field data-invalid={isInvalid}>
+                <FieldLabel htmlFor={field.name}>
+                  Private evidence reference
+                </FieldLabel>
+                <Input
+                  aria-invalid={isInvalid}
+                  id={field.name}
+                  name={field.name}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  value={field.state.value}
+                />
+                {isInvalid ? (
+                  <FieldError errors={field.state.meta.errors} />
+                ) : null}
+              </Field>
+            );
+          }}
+        </recordForm.Field>
+        <recordForm.Field name="reason">
+          {(field) => {
+            const isInvalid =
+              field.state.meta.isTouched && !field.state.meta.isValid;
+            return (
+              <Field data-invalid={isInvalid}>
+                <FieldLabel htmlFor={field.name}>
+                  Lý do / reconciliation note
+                </FieldLabel>
+                <Textarea
+                  aria-invalid={isInvalid}
+                  id={field.name}
+                  name={field.name}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  value={field.state.value}
+                />
+                {isInvalid ? (
+                  <FieldError errors={field.state.meta.errors} />
+                ) : null}
+              </Field>
+            );
+          }}
+        </recordForm.Field>
+      </FieldGroup>
+      <recordForm.Subscribe
+        selector={(state) => ({
+          canSubmit: state.canSubmit,
+          isSubmitting: state.isSubmitting,
+        })}
       >
-        <span className="font-medium">External action reference</span>
-        <Input
-          id={`withdrawal-reference-${withdrawal.id}`}
-          onChange={(event) => setExternalActionReference(event.target.value)}
-          value={externalActionReference}
-        />
-      </label>
-      <label
-        className="grid gap-2 text-sm"
-        htmlFor={`withdrawal-evidence-${withdrawal.id}`}
-      >
-        <span className="font-medium">Private evidence reference</span>
-        <Input
-          id={`withdrawal-evidence-${withdrawal.id}`}
-          onChange={(event) => setPrivateEvidenceReference(event.target.value)}
-          value={privateEvidenceReference}
-        />
-      </label>
-      <label
-        className="grid gap-2 text-sm"
-        htmlFor={`withdrawal-record-reason-${withdrawal.id}`}
-      >
-        <span className="font-medium">Lý do / reconciliation note</span>
-        <Textarea
-          id={`withdrawal-record-reason-${withdrawal.id}`}
-          onChange={(event) => setReason(event.target.value)}
-          value={reason}
-        />
-      </label>
-      <Button
-        className="w-fit"
-        disabled={record.isPending}
-        onClick={() => void submit()}
-        type="button"
-      >
-        Ghi nhận & hoàn tất (SUPER_ADMIN)
-      </Button>
-    </div>
+        {({ canSubmit, isSubmitting }) => (
+          <Button
+            className="w-fit"
+            disabled={!canSubmit || isSubmitting || record.isPending}
+            form={`withdrawal-record-form-${withdrawal.id}`}
+            type="submit"
+          >
+            {isSubmitting || record.isPending
+              ? "Đang ghi nhận..."
+              : "Ghi nhận & hoàn tất (SUPER_ADMIN)"}
+          </Button>
+        )}
+      </recordForm.Subscribe>
+    </form>
   );
 };
 
@@ -165,34 +232,48 @@ const ApprovalPanel = ({
   withdrawal: ProviderBondWithdrawal;
 }) => {
   const approve = useApproveAdminProviderBondWithdrawal();
-  const [reason, setReason] = useState("");
-
-  const decide = async (decision: "APPROVED" | "REJECTED") => {
-    if (decision === "REJECTED" && !reason.trim()) {
-      toast.error("Cần nhập lý do khi từ chối.");
-      return;
-    }
-    try {
-      await approve.mutateAsync({
-        decision,
-        reason: reason.trim() || undefined,
-        withdrawalId: withdrawal.id,
-      });
-      toast.success(
-        decision === "APPROVED"
-          ? "Đã duyệt withdrawal; profile đã chuyển sang Withdrawn."
-          : "Đã từ chối withdrawal; profile được mở lại."
-      );
-      setReason("");
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Không thể xử lý withdrawal."
-      );
-    }
-  };
+  const approvalForm = useForm({
+    defaultValues: {
+      decision: "APPROVED" as "APPROVED" | "REJECTED",
+      reason: "",
+    },
+    onSubmit: async ({ value }) => {
+      try {
+        await approve.mutateAsync({
+          decision: value.decision,
+          reason: value.reason.trim() || undefined,
+          withdrawalId: withdrawal.id,
+        });
+        toast.success(
+          value.decision === "APPROVED"
+            ? "Đã duyệt withdrawal; profile đã chuyển sang Withdrawn."
+            : "Đã từ chối withdrawal; profile được mở lại."
+        );
+        approvalForm.reset();
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Không thể xử lý withdrawal."
+        );
+      }
+    },
+    validators: { onSubmit: providerBondWithdrawalApprovalFormSchema },
+  });
 
   return (
-    <div className="grid gap-3 rounded-xl border bg-muted/20 p-4">
+    <form
+      className="grid gap-3 rounded-xl border bg-muted/20 p-4"
+      id={`withdrawal-approval-form-${withdrawal.id}`}
+      onSubmit={async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const submitter = (event.nativeEvent as SubmitEvent)
+          .submitter as HTMLButtonElement | null;
+        const decision =
+          submitter?.value === "REJECTED" ? "REJECTED" : "APPROVED";
+        approvalForm.setFieldValue("decision", decision);
+        await approvalForm.handleSubmit();
+      }}
+    >
       <div>
         <p className="font-medium">Admin xử lý hoàn trả</p>
         <p className="text-muted-foreground text-xs">
@@ -200,35 +281,52 @@ const ApprovalPanel = ({
           trước khi hoàn tất.
         </p>
       </div>
-      <label
-        className="grid gap-2 text-sm"
-        htmlFor={`withdrawal-approval-reason-${withdrawal.id}`}
-      >
-        <span className="font-medium">Approval / rejection reason</span>
-        <Textarea
-          id={`withdrawal-approval-reason-${withdrawal.id}`}
-          onChange={(event) => setReason(event.target.value)}
-          value={reason}
-        />
-      </label>
+      <approvalForm.Field name="reason">
+        {(field) => {
+          const isInvalid =
+            field.state.meta.isTouched && !field.state.meta.isValid;
+          return (
+            <Field data-invalid={isInvalid}>
+              <FieldLabel htmlFor={field.name}>
+                Approval / rejection reason
+              </FieldLabel>
+              <Textarea
+                aria-invalid={isInvalid}
+                id={field.name}
+                name={field.name}
+                onBlur={field.handleBlur}
+                onChange={(event) => field.handleChange(event.target.value)}
+                value={field.state.value}
+              />
+              {isInvalid ? (
+                <FieldError errors={field.state.meta.errors} />
+              ) : null}
+            </Field>
+          );
+        }}
+      </approvalForm.Field>
       <div className="flex flex-wrap gap-2">
         <Button
+          form={`withdrawal-approval-form-${withdrawal.id}`}
+          name="decision"
+          value="APPROVED"
           disabled={approve.isPending}
-          onClick={() => void decide("APPROVED")}
-          type="button"
+          type="submit"
         >
           Duyệt hoàn tất
         </Button>
         <Button
+          form={`withdrawal-approval-form-${withdrawal.id}`}
+          name="decision"
+          value="REJECTED"
           disabled={approve.isPending}
-          onClick={() => void decide("REJECTED")}
-          type="button"
+          type="submit"
           variant="outline"
         >
           Từ chối
         </Button>
       </div>
-    </div>
+    </form>
   );
 };
 

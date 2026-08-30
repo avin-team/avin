@@ -18,7 +18,6 @@
     "@avin/env": "workspace:*",
     "@avin/ui": "workspace:*",
     "@better-upload/client": "3.0.19",
-    "@hookform/resolvers": "^5.4.0",
     "@orpc/client": "catalog:",
     "@orpc/server": "catalog:",
     "@orpc/tanstack-query": "^1.14.8",

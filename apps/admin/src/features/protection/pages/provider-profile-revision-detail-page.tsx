@@ -8,9 +8,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
-import { Label } from "@avin/ui/components/label";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@avin/ui/components/field";
 import { Textarea } from "@avin/ui/components/textarea";
 import { ArrowLeftIcon, ShieldCheckIcon } from "@phosphor-icons/react";
+import { useForm } from "@tanstack/react-form";
 import { Link, useParams } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -22,6 +28,7 @@ import {
   useAdminDecideProviderProfileRevision,
   useAdminProviderProfileRevision,
 } from "../api/provider-profile-revisions-api";
+import { providerDecisionFormSchema } from "../schemas/provider-decision-form-schema";
 
 type RevisionDetail = Awaited<
   ReturnType<
@@ -206,30 +213,39 @@ const RevisionDecisionPanel = ({
   const [decision, setDecision] = useState<ProviderApplicationDecision | null>(
     null
   );
-  const [reason, setReason] = useState("");
   const decideMutation = useAdminDecideProviderProfileRevision();
   const canDecide = status === "PENDING_REVIEW";
   const requiresReason = decision !== null && decision !== "APPROVED";
+  const decisionForm = useForm({
+    defaultValues: {
+      decision: "APPROVED" as ProviderApplicationDecision,
+      reason: "",
+    },
+    onSubmit: async ({ value }) => {
+      try {
+        await decideMutation.mutateAsync({
+          decision: value.decision,
+          id: revisionId,
+          reason: value.reason.trim() || undefined,
+        });
+        toast.success("Đã cập nhật quyết định revision Provider.");
+        decisionForm.reset();
+        setDecision(null);
+      } catch (error) {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Không thể cập nhật revision."
+        );
+      }
+    },
+    validators: { onSubmit: providerDecisionFormSchema },
+  });
 
-  const confirmDecision = async () => {
-    if (!decision || (requiresReason && reason.trim().length === 0)) {
-      return;
-    }
-
-    try {
-      await decideMutation.mutateAsync({
-        decision,
-        id: revisionId,
-        reason: requiresReason ? reason : undefined,
-      });
-      toast.success("Đã cập nhật quyết định revision Provider.");
-      setDecision(null);
-      setReason("");
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Không thể cập nhật revision."
-      );
-    }
+  const chooseDecision = (nextDecision: ProviderApplicationDecision) => {
+    setDecision(nextDecision);
+    decisionForm.setFieldValue("decision", nextDecision);
+    decisionForm.setFieldValue("reason", "");
   };
 
   return (
@@ -245,18 +261,20 @@ const RevisionDecisionPanel = ({
       <CardContent className="grid gap-3">
         {canDecide ? (
           <>
-            <Button onClick={() => setDecision("APPROVED")}>
+            <Button onClick={() => chooseDecision("APPROVED")} type="button">
               <ShieldCheckIcon />
               Phê duyệt & phát hành version mới
             </Button>
             <Button
-              onClick={() => setDecision("CHANGES_REQUESTED")}
+              onClick={() => chooseDecision("CHANGES_REQUESTED")}
+              type="button"
               variant="outline"
             >
               Yêu cầu chỉnh sửa
             </Button>
             <Button
-              onClick={() => setDecision("REJECTED")}
+              onClick={() => chooseDecision("REJECTED")}
+              type="button"
               variant="destructive"
             >
               Từ chối yêu cầu
@@ -265,45 +283,84 @@ const RevisionDecisionPanel = ({
         ) : null}
 
         {decision ? (
-          <div className="grid gap-3 rounded-xl border bg-muted/20 p-4">
+          <form
+            className="grid gap-3 rounded-xl border bg-muted/20 p-4"
+            id="provider-revision-decision-form"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              await decisionForm.handleSubmit();
+            }}
+          >
             <p className="font-medium text-sm">
               Xác nhận: {STATUS_LABELS[decision]}
             </p>
             {requiresReason ? (
-              <div className="grid gap-2">
-                <Label htmlFor="provider-revision-review-reason">
-                  Lý do (bắt buộc)
-                </Label>
-                <Textarea
-                  id="provider-revision-review-reason"
-                  onChange={(event) => setReason(event.target.value)}
-                  placeholder="Nêu rõ bằng chứng hoặc thông tin cần bổ sung..."
-                  rows={4}
-                  value={reason}
-                />
-              </div>
+              <FieldGroup>
+                <decisionForm.Field name="reason">
+                  {(field) => {
+                    const isInvalid =
+                      field.state.meta.isTouched && !field.state.meta.isValid;
+                    return (
+                      <Field data-invalid={isInvalid}>
+                        <FieldLabel htmlFor={field.name}>
+                          Lý do (bắt buộc)
+                        </FieldLabel>
+                        <Textarea
+                          aria-invalid={isInvalid}
+                          id={field.name}
+                          name={field.name}
+                          onBlur={field.handleBlur}
+                          onChange={(event) =>
+                            field.handleChange(event.target.value)
+                          }
+                          placeholder="Nêu rõ bằng chứng hoặc thông tin cần bổ sung..."
+                          rows={4}
+                          value={field.state.value}
+                        />
+                        {isInvalid ? (
+                          <FieldError errors={field.state.meta.errors} />
+                        ) : null}
+                      </Field>
+                    );
+                  }}
+                </decisionForm.Field>
+              </FieldGroup>
             ) : null}
             <div className="flex gap-2">
               <Button
                 disabled={decideMutation.isPending}
-                onClick={() => setDecision(null)}
+                onClick={() => {
+                  decisionForm.reset();
+                  setDecision(null);
+                }}
                 type="button"
                 variant="outline"
               >
                 Hủy
               </Button>
-              <Button
-                disabled={
-                  decideMutation.isPending ||
-                  (requiresReason && reason.trim().length === 0)
-                }
-                onClick={confirmDecision}
-                type="button"
+              <decisionForm.Subscribe
+                selector={(state) => ({
+                  canSubmit: state.canSubmit,
+                  isSubmitting: state.isSubmitting,
+                })}
               >
-                {decideMutation.isPending ? "Đang lưu..." : "Xác nhận"}
-              </Button>
+                {({ canSubmit, isSubmitting }) => (
+                  <Button
+                    disabled={
+                      !canSubmit || isSubmitting || decideMutation.isPending
+                    }
+                    form="provider-revision-decision-form"
+                    type="submit"
+                  >
+                    {isSubmitting || decideMutation.isPending
+                      ? "Đang lưu..."
+                      : "Xác nhận"}
+                  </Button>
+                )}
+              </decisionForm.Subscribe>
             </div>
-          </div>
+          </form>
         ) : null}
       </CardContent>
     </Card>

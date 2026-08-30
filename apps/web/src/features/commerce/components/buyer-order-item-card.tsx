@@ -55,7 +55,10 @@ import {
   getWarrantyPolicyLabel,
   isNoWarrantyPolicy,
 } from "@/features/commerce/order-status";
-import { buyerDisputeSchema } from "@/features/commerce/schemas/order-action-schemas";
+import {
+  buyerDisputeCancellationSchema,
+  buyerDisputeSchema,
+} from "@/features/commerce/schemas/order-action-schemas";
 import { walletSummaryQueryOptions } from "@/features/wallet/api/wallet-api";
 import { formatVND } from "@/utils/format";
 import { getErrorMessage } from "@/utils/get-error-message";
@@ -76,7 +79,6 @@ export const BuyerOrderItemCard = ({
   const queryClient = useQueryClient();
   const [cancelOpen, setCancelOpen] = useState(false);
   const [disputeCancelOpen, setDisputeCancelOpen] = useState(false);
-  const [disputeCancelReason, setDisputeCancelReason] = useState("");
   const [disputeEvidence, setDisputeEvidence] = useState<
     DisputeEvidenceInput[]
   >([]);
@@ -149,7 +151,6 @@ export const BuyerOrderItemCard = ({
       },
       onSuccess: async () => {
         setDisputeCancelOpen(false);
-        setDisputeCancelReason("");
         await invalidateItem();
         toast.success(
           "Đã huỷ khiếu nại. Hệ thống vẫn tạm giữ tiền để bảo đảm giao dịch."
@@ -179,6 +180,27 @@ export const BuyerOrderItemCard = ({
       }
     },
     validators: { onSubmit: buyerDisputeSchema },
+  });
+  const cancelDisputeForm = useForm({
+    defaultValues: { reason: "" },
+    onSubmit: async ({ value }) => {
+      const disputeId = timelineQuery.data?.dispute?.id;
+      if (!disputeId) {
+        toast.error("Không tìm thấy khiếu nại nào đang mở.");
+        return;
+      }
+      try {
+        await cancelDisputeMutation.mutateAsync({
+          commandKey: crypto.randomUUID(),
+          disputeId,
+          reason: value.reason.trim(),
+        });
+        cancelDisputeForm.reset();
+      } catch {
+        // The mutation error handler already shows the failure to the Buyer.
+      }
+    },
+    validators: { onSubmit: buyerDisputeCancellationSchema },
   });
 
   const resolveOrderState = () => {
@@ -269,28 +291,6 @@ export const BuyerOrderItemCard = ({
       await cancelMutation.mutateAsync({
         commandKey: crypto.randomUUID(),
         itemId: item.id,
-      });
-    } catch {
-      // The mutation error handler already shows the failure to the Buyer.
-    }
-  };
-
-  const handleCancelDispute = async (): Promise<void> => {
-    const reason = disputeCancelReason.trim();
-    if (!reason) {
-      toast.error("Hãy nhập lý do huỷ khiếu nại.");
-      return;
-    }
-    try {
-      const disputeId = timelineQuery.data?.dispute?.id;
-      if (!disputeId) {
-        toast.error("Không tìm thấy khiếu nại nào đang mở.");
-        return;
-      }
-      await cancelDisputeMutation.mutateAsync({
-        commandKey: crypto.randomUUID(),
-        disputeId,
-        reason,
       });
     } catch {
       // The mutation error handler already shows the failure to the Buyer.
@@ -518,25 +518,71 @@ export const BuyerOrderItemCard = ({
               thái trước khi mở khiếu nại. Bạn không thể mở lại khiếu nại này.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <Textarea
-            aria-label="Lý do hủy khiếu nại"
-            disabled={cancelDisputeMutation.isPending}
-            onChange={(event) => setDisputeCancelReason(event.target.value)}
-            placeholder="Nhập lý do hủy khiếu nại…"
-            value={disputeCancelReason}
-          />
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={cancelDisputeMutation.isPending}>
-              Quay lại
-            </AlertDialogCancel>
-            <AlertDialogAction
-              disabled={cancelDisputeMutation.isPending}
-              onClick={() => void handleCancelDispute()}
-              variant="destructive"
-            >
-              {cancelDisputeMutation.isPending ? "Đang hủy…" : "Xác nhận hủy"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
+          <form
+            id={`cancel-dispute-form-${item.id}`}
+            onSubmit={async (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              await cancelDisputeForm.handleSubmit();
+            }}
+          >
+            <cancelDisputeForm.Field name="reason">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
+                return (
+                  <Field data-invalid={isInvalid}>
+                    <FieldLabel htmlFor={field.name}>
+                      Lý do hủy khiếu nại
+                    </FieldLabel>
+                    <Textarea
+                      aria-invalid={isInvalid}
+                      disabled={cancelDisputeMutation.isPending}
+                      id={field.name}
+                      name={field.name}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      placeholder="Nhập lý do hủy khiếu nại…"
+                      value={field.state.value}
+                    />
+                    {isInvalid ? (
+                      <FieldError errors={field.state.meta.errors} />
+                    ) : null}
+                  </Field>
+                );
+              }}
+            </cancelDisputeForm.Field>
+            <AlertDialogFooter className="mt-4">
+              <AlertDialogCancel disabled={cancelDisputeMutation.isPending}>
+                Quay lại
+              </AlertDialogCancel>
+              <cancelDisputeForm.Subscribe
+                selector={(state) => ({
+                  canSubmit: state.canSubmit,
+                  isSubmitting: state.isSubmitting,
+                })}
+              >
+                {({ canSubmit, isSubmitting }) => (
+                  <AlertDialogAction
+                    disabled={
+                      !canSubmit ||
+                      isSubmitting ||
+                      cancelDisputeMutation.isPending
+                    }
+                    form={`cancel-dispute-form-${item.id}`}
+                    type="submit"
+                    variant="destructive"
+                  >
+                    {isSubmitting || cancelDisputeMutation.isPending
+                      ? "Đang hủy…"
+                      : "Xác nhận hủy"}
+                  </AlertDialogAction>
+                )}
+              </cancelDisputeForm.Subscribe>
+            </AlertDialogFooter>
+          </form>
         </AlertDialogContent>
       </AlertDialog>
     </Card>

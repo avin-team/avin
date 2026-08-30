@@ -7,8 +7,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@avin/ui/components/field";
 import { Input } from "@avin/ui/components/input";
-import { useState } from "react";
+import { useForm } from "@tanstack/react-form";
 import { toast } from "sonner";
 
 import { Header } from "@/components/layout/header";
@@ -20,6 +26,10 @@ import {
   useProtectionPilotInvitations,
   useUpdateProtectionPilotConfiguration,
 } from "../api/pilot-api";
+import {
+  pilotConfigurationFormSchema,
+  pilotInvitationFormSchema,
+} from "../schemas/pilot-form-schema";
 
 const formatDate = (value: string | null): string =>
   value ? new Date(value).toLocaleString("vi-VN") : "Chưa sử dụng";
@@ -35,17 +45,16 @@ const PilotConfigurationForm = ({
   isPending: boolean;
   onSave: (approvalCap: number, enabled: boolean) => Promise<void>;
 }) => {
-  const [enabled, setEnabled] = useState(initialEnabled);
-  const [approvalCap, setApprovalCap] = useState(String(initialApprovalCap));
-
-  const save = async (): Promise<void> => {
-    const parsedCap = Number(approvalCap);
-    if (!Number.isInteger(parsedCap) || parsedCap < 10 || parsedCap > 20) {
-      toast.error("Approval cap phải nằm trong khoảng 10–20 Provider.");
-      return;
-    }
-    await onSave(parsedCap, enabled);
-  };
+  const configurationForm = useForm({
+    defaultValues: {
+      approvalCap: String(initialApprovalCap),
+      enabled: initialEnabled,
+    },
+    onSubmit: async ({ value }) => {
+      await onSave(Number(value.approvalCap), value.enabled);
+    },
+    validators: { onSubmit: pilotConfigurationFormSchema },
+  });
 
   return (
     <Card>
@@ -56,36 +65,85 @@ const PilotConfigurationForm = ({
           mới; thay đổi được audit bởi procedure quản trị.
         </CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
-        <label className="grid gap-2 text-sm" htmlFor="pilot-approval-cap">
-          <span className="font-medium">Approval cap (10–20)</span>
-          <Input
-            id="pilot-approval-cap"
-            inputMode="numeric"
-            max={20}
-            min={10}
-            onChange={(event) => setApprovalCap(event.target.value)}
-            type="number"
-            value={approvalCap}
-          />
-        </label>
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              checked={enabled}
-              onChange={(event) => setEnabled(event.target.checked)}
-              type="checkbox"
-            />
-            Giới hạn invitation đang bật
-          </label>
-          <Button
-            disabled={isPending}
-            onClick={() => void save()}
-            type="button"
-          >
-            {isPending ? "Đang lưu…" : "Lưu cấu hình"}
-          </Button>
-        </div>
+      <CardContent>
+        <form
+          id="pilot-configuration-form"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            await configurationForm.handleSubmit();
+          }}
+        >
+          <FieldGroup className="gap-4 sm:grid sm:grid-cols-[1fr_auto] sm:items-end">
+            <configurationForm.Field name="approvalCap">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
+                return (
+                  <Field data-invalid={isInvalid}>
+                    <FieldLabel htmlFor={field.name}>
+                      Approval cap (10–20)
+                    </FieldLabel>
+                    <Input
+                      aria-invalid={isInvalid}
+                      id={field.name}
+                      inputMode="numeric"
+                      max={20}
+                      min={10}
+                      name={field.name}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      type="number"
+                      value={field.state.value}
+                    />
+                    {isInvalid ? (
+                      <FieldError errors={field.state.meta.errors} />
+                    ) : null}
+                  </Field>
+                );
+              }}
+            </configurationForm.Field>
+            <div className="flex flex-wrap items-center gap-3">
+              <configurationForm.Field name="enabled">
+                {(field) => (
+                  <Field orientation="horizontal">
+                    <FieldLabel htmlFor={field.name}>
+                      <input
+                        checked={field.state.value}
+                        id={field.name}
+                        name={field.name}
+                        onBlur={field.handleBlur}
+                        onChange={(event) =>
+                          field.handleChange(event.target.checked)
+                        }
+                        type="checkbox"
+                      />
+                      Giới hạn invitation đang bật
+                    </FieldLabel>
+                  </Field>
+                )}
+              </configurationForm.Field>
+              <configurationForm.Subscribe
+                selector={(state) => ({
+                  canSubmit: state.canSubmit,
+                  isSubmitting: state.isSubmitting,
+                })}
+              >
+                {({ canSubmit, isSubmitting }) => (
+                  <Button
+                    disabled={!canSubmit || isSubmitting || isPending}
+                    form="pilot-configuration-form"
+                    type="submit"
+                  >
+                    {isSubmitting || isPending ? "Đang lưu…" : "Lưu cấu hình"}
+                  </Button>
+                )}
+              </configurationForm.Subscribe>
+            </div>
+          </FieldGroup>
+        </form>
       </CardContent>
     </Card>
   );
@@ -96,7 +154,6 @@ export const ProtectionPilotPage = () => {
   const invitationsQuery = useProtectionPilotInvitations();
   const updateConfiguration = useUpdateProtectionPilotConfiguration();
   const inviteProvider = useInviteProtectionPilotProvider();
-  const [email, setEmail] = useState("");
 
   const saveConfiguration = async (
     approvalCap: number,
@@ -115,23 +172,23 @@ export const ProtectionPilotPage = () => {
     }
   };
 
-  const invite = async (): Promise<void> => {
-    if (!email.trim()) {
-      toast.error("Cần nhập email Provider.");
-      return;
-    }
-    try {
-      await inviteProvider.mutateAsync({ email: email.trim() });
-      toast.success("Đã thêm Provider vào danh sách invitation.");
-      setEmail("");
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Không thể tạo invitation cho Provider."
-      );
-    }
-  };
+  const invitationForm = useForm({
+    defaultValues: { email: "" },
+    onSubmit: async ({ value }) => {
+      try {
+        await inviteProvider.mutateAsync({ email: value.email.trim() });
+        toast.success("Đã thêm Provider vào danh sách invitation.");
+        invitationForm.reset();
+      } catch (error) {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Không thể tạo invitation cho Provider."
+        );
+      }
+    },
+    validators: { onSubmit: pilotInvitationFormSchema },
+  });
 
   return (
     <>
@@ -164,21 +221,65 @@ export const ProtectionPilotPage = () => {
               Chỉ tài khoản có role Provider hiện hữu mới được thêm vào pilot.
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col gap-3 sm:flex-row">
-            <Input
-              aria-label="Email Provider cần mời"
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="provider@example.com"
-              type="email"
-              value={email}
-            />
-            <Button
-              disabled={inviteProvider.isPending}
-              onClick={() => void invite()}
-              type="button"
+          <CardContent>
+            <form
+              className="flex flex-col gap-3 sm:flex-row"
+              id="pilot-invitation-form"
+              onSubmit={async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                await invitationForm.handleSubmit();
+              }}
             >
-              {inviteProvider.isPending ? "Đang thêm…" : "Thêm invitation"}
-            </Button>
+              <invitationForm.Field name="email">
+                {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
+                  return (
+                    <Field className="flex-1" data-invalid={isInvalid}>
+                      <FieldLabel className="sr-only" htmlFor={field.name}>
+                        Email Provider cần mời
+                      </FieldLabel>
+                      <Input
+                        aria-invalid={isInvalid}
+                        id={field.name}
+                        name={field.name}
+                        onBlur={field.handleBlur}
+                        onChange={(event) =>
+                          field.handleChange(event.target.value)
+                        }
+                        placeholder="provider@example.com"
+                        type="email"
+                        value={field.state.value}
+                      />
+                      {isInvalid ? (
+                        <FieldError errors={field.state.meta.errors} />
+                      ) : null}
+                    </Field>
+                  );
+                }}
+              </invitationForm.Field>
+              <invitationForm.Subscribe
+                selector={(state) => ({
+                  canSubmit: state.canSubmit,
+                  isSubmitting: state.isSubmitting,
+                })}
+              >
+                {({ canSubmit, isSubmitting }) => (
+                  <Button
+                    disabled={
+                      !canSubmit || isSubmitting || inviteProvider.isPending
+                    }
+                    form="pilot-invitation-form"
+                    type="submit"
+                  >
+                    {isSubmitting || inviteProvider.isPending
+                      ? "Đang thêm…"
+                      : "Thêm invitation"}
+                  </Button>
+                )}
+              </invitationForm.Subscribe>
+            </form>
           </CardContent>
         </Card>
 

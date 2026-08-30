@@ -7,12 +7,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@avin/ui/components/dialog";
-import { Label } from "@avin/ui/components/label";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@avin/ui/components/field";
 import { Textarea } from "@avin/ui/components/textarea";
-import { useState } from "react";
+import { useForm } from "@tanstack/react-form";
 import { toast } from "sonner";
 
 import { useResolveDispute } from "../api/disputes-api";
+import { disputeResolutionFormSchema } from "../schemas/dispute-resolution-form-schema";
 import type { Dispute, DisputeResolutionOutcome } from "../types";
 
 interface Props {
@@ -28,43 +34,54 @@ export const DisputeResolutionDialog = ({
   open,
   onOpenChange,
 }: Props) => {
-  const [note, setNote] = useState("");
-  const [chatMsg, setChatMsg] = useState("");
   const resolveMutation = useResolveDispute();
+  const isRefund = outcome === "RESOLVED_REFUNDED";
+  const resolutionForm = useForm({
+    defaultValues: { adminMessage: "", note: "" },
+    onSubmit: async ({ value }) => {
+      if (!dispute || !outcome) {
+        return;
+      }
+      try {
+        await resolveMutation.mutateAsync({
+          adminMessage: value.adminMessage.trim(),
+          commandKey: crypto.randomUUID(),
+          disputeId: dispute.id,
+          note: value.note.trim(),
+          outcome,
+        });
+        toast.success(
+          isRefund
+            ? "Đã đưa ra quyết định Hoàn tiền 100% cho Buyer"
+            : "Đã đưa ra quyết định Giải ngân 100% cho Seller",
+          {
+            description: `Mã đơn: ${dispute.itemSnapshot.orderId}`,
+          }
+        );
+        resolutionForm.reset();
+        onOpenChange(false);
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Thao tác thất bại"
+        );
+      }
+    },
+    validators: { onSubmit: disputeResolutionFormSchema },
+  });
 
   if (!dispute || !outcome) {
     return null;
   }
 
-  const isRefund = outcome === "RESOLVED_REFUNDED";
-
-  const handleConfirm = async (): Promise<void> => {
-    try {
-      await resolveMutation.mutateAsync({
-        adminMessage: chatMsg,
-        commandKey: crypto.randomUUID(),
-        disputeId: dispute.id,
-        note,
-        outcome,
-      });
-      toast.success(
-        isRefund
-          ? "Đã đưa ra quyết định Hoàn tiền 100% cho Buyer"
-          : "Đã đưa ra quyết định Giải ngân 100% cho Seller",
-        {
-          description: `Mã đơn: ${dispute.itemSnapshot.orderId}`,
-        }
-      );
-      onOpenChange(false);
-      setNote("");
-      setChatMsg("");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Thao tác thất bại");
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      resolutionForm.reset();
     }
+    onOpenChange(nextOpen);
   };
 
   return (
-    <Dialog onOpenChange={onOpenChange} open={open}>
+    <Dialog onOpenChange={handleOpenChange} open={open}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>
@@ -79,52 +96,97 @@ export const DisputeResolutionDialog = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 py-4">
-          <div className="grid gap-2">
-            <Label htmlFor="note">
-              Ghi chú quyết định của Admin (Bắt buộc cho Hồ sơ Audit)
-            </Label>
-            <Textarea
-              id="note"
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Ghi rõ lý do căn cứ theo chứng cứ hai bên cung cấp..."
-              rows={3}
-              value={note}
-            />
-          </div>
+        <form
+          id="dispute-resolution-form"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            await resolutionForm.handleSubmit();
+          }}
+        >
+          <FieldGroup className="gap-4 py-4">
+            <resolutionForm.Field name="note">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
+                return (
+                  <Field data-invalid={isInvalid}>
+                    <FieldLabel htmlFor={field.name}>
+                      Ghi chú quyết định của Admin (Bắt buộc cho Hồ sơ Audit)
+                    </FieldLabel>
+                    <Textarea
+                      aria-invalid={isInvalid}
+                      id={field.name}
+                      maxLength={5000}
+                      name={field.name}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      placeholder="Ghi rõ lý do căn cứ theo chứng cứ hai bên cung cấp..."
+                      rows={3}
+                      value={field.state.value}
+                    />
+                    {isInvalid ? (
+                      <FieldError errors={field.state.meta.errors} />
+                    ) : null}
+                  </Field>
+                );
+              }}
+            </resolutionForm.Field>
+            <resolutionForm.Field name="adminMessage">
+              {(field) => (
+                <Field>
+                  <FieldLabel htmlFor={field.name}>
+                    Tin nhắn phân giải công khai gửi vào chat Đơn Hàng (Tùy
+                    chọn)
+                  </FieldLabel>
+                  <Textarea
+                    id={field.name}
+                    maxLength={2000}
+                    name={field.name}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                    placeholder="VD: Admin đã kiểm tra chứng cứ và quyết định hoàn tiền..."
+                    rows={2}
+                    value={field.state.value}
+                  />
+                </Field>
+              )}
+            </resolutionForm.Field>
+          </FieldGroup>
 
-          <div className="grid gap-2">
-            <Label htmlFor="chat-msg">
-              Tin nhắn phân giải công khai gửi vào chat Đơn Hàng (Tùy chọn)
-            </Label>
-            <Textarea
-              id="chat-msg"
-              onChange={(e) => setChatMsg(e.target.value)}
-              placeholder="VD: Admin đã kiểm tra chứng cứ và quyết định hoàn tiền..."
-              rows={2}
-              value={chatMsg}
-            />
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button
-            onClick={() => onOpenChange(false)}
-            type="button"
-            variant="outline"
-          >
-            Hủy
-          </Button>
-          <Button
-            disabled={resolveMutation.isPending || !note.trim()}
-            onClick={() => void handleConfirm()}
-            variant={isRefund ? "destructive" : "default"}
-          >
-            {resolveMutation.isPending
-              ? "Đang xử lý…"
-              : `Xác nhận ${isRefund ? "Hoàn Tiền" : "Giải Ngân"}`}
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button
+              onClick={() => handleOpenChange(false)}
+              type="button"
+              variant="outline"
+            >
+              Hủy
+            </Button>
+            <resolutionForm.Subscribe
+              selector={(state) => ({
+                canSubmit: state.canSubmit,
+                isSubmitting: state.isSubmitting,
+              })}
+            >
+              {({ canSubmit, isSubmitting }) => (
+                <Button
+                  disabled={
+                    !canSubmit || isSubmitting || resolveMutation.isPending
+                  }
+                  form="dispute-resolution-form"
+                  type="submit"
+                  variant={isRefund ? "destructive" : "default"}
+                >
+                  {isSubmitting || resolveMutation.isPending
+                    ? "Đang xử lý…"
+                    : `Xác nhận ${isRefund ? "Hoàn Tiền" : "Giải Ngân"}`}
+                </Button>
+              )}
+            </resolutionForm.Subscribe>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

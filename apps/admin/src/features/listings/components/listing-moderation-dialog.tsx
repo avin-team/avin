@@ -7,10 +7,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@avin/ui/components/dialog";
-import { Label } from "@avin/ui/components/label";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@avin/ui/components/field";
 import { Textarea } from "@avin/ui/components/textarea";
-import { useState } from "react";
+import { useForm } from "@tanstack/react-form";
 
+import { listingModerationFormSchema } from "../schemas/listing-moderation-form-schema";
 import { getModerationActionLabel } from "../workflow";
 import type { ModerationAction } from "../workflow";
 
@@ -58,7 +64,14 @@ export const ListingModerationDialog = ({
   open,
   pending,
 }: ListingModerationDialogProps) => {
-  const [reason, setReason] = useState("");
+  const moderationForm = useForm({
+    defaultValues: { reason: "" },
+    onSubmit: ({ value }) => {
+      onConfirm(value.reason.trim());
+      moderationForm.reset();
+    },
+    validators: { onSubmit: listingModerationFormSchema },
+  });
 
   if (!action || !listing) {
     return null;
@@ -71,7 +84,7 @@ export const ListingModerationDialog = ({
     <Dialog
       onOpenChange={(nextOpen) => {
         if (!nextOpen) {
-          setReason("");
+          moderationForm.reset();
         }
         onOpenChange(nextOpen);
       }}
@@ -85,38 +98,76 @@ export const ListingModerationDialog = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-2 py-2">
-          <Label htmlFor="listing-moderation-reason">
-            Lý do xử lý (Bắt buộc)
-          </Label>
-          <Textarea
-            aria-required="true"
-            id="listing-moderation-reason"
-            onChange={(event) => setReason(event.target.value)}
-            placeholder="Ghi rõ căn cứ chính sách hoặc lý do khôi phục Listing..."
-            rows={4}
-            value={reason}
-          />
-        </div>
+        <form
+          id="listing-moderation-form"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            await moderationForm.handleSubmit();
+          }}
+        >
+          <FieldGroup className="gap-2 py-2">
+            <moderationForm.Field name="reason">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
+                return (
+                  <Field data-invalid={isInvalid}>
+                    <FieldLabel htmlFor={field.name}>
+                      Lý do xử lý (Bắt buộc)
+                    </FieldLabel>
+                    <Textarea
+                      aria-invalid={isInvalid}
+                      id={field.name}
+                      maxLength={2000}
+                      name={field.name}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      placeholder="Ghi rõ căn cứ chính sách hoặc lý do khôi phục Listing..."
+                      rows={4}
+                      value={field.state.value}
+                    />
+                    {isInvalid ? (
+                      <FieldError errors={field.state.meta.errors} />
+                    ) : null}
+                  </Field>
+                );
+              }}
+            </moderationForm.Field>
+          </FieldGroup>
 
-        <DialogFooter>
-          <Button
-            disabled={pending}
-            onClick={() => onOpenChange(false)}
-            type="button"
-            variant="outline"
-          >
-            Hủy
-          </Button>
-          <Button
-            disabled={pending || reason.trim().length === 0}
-            onClick={() => onConfirm(reason.trim())}
-            type="button"
-            variant={action === "ARCHIVE" ? "destructive" : "default"}
-          >
-            {pending ? "Đang xử lý..." : getModerationActionLabel(action)}
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button
+              disabled={pending}
+              onClick={() => onOpenChange(false)}
+              type="button"
+              variant="outline"
+            >
+              Hủy
+            </Button>
+            <moderationForm.Subscribe
+              selector={(state) => ({
+                canSubmit: state.canSubmit,
+                isSubmitting: state.isSubmitting,
+              })}
+            >
+              {({ canSubmit, isSubmitting }) => (
+                <Button
+                  disabled={!canSubmit || isSubmitting || pending}
+                  form="listing-moderation-form"
+                  type="submit"
+                  variant={action === "ARCHIVE" ? "destructive" : "default"}
+                >
+                  {isSubmitting || pending
+                    ? "Đang xử lý..."
+                    : getModerationActionLabel(action)}
+                </Button>
+              )}
+            </moderationForm.Subscribe>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

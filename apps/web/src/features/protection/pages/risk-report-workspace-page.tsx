@@ -8,6 +8,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@avin/ui/components/field";
 import { Skeleton } from "@avin/ui/components/skeleton";
 import { Textarea } from "@avin/ui/components/textarea";
 import {
@@ -22,12 +28,16 @@ import {
   UserSwitchIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
+import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { Shell } from "@/components/shell";
 import { orpc } from "@/utils/orpc";
+
+import { riskReportWithdrawalFormSchema } from "../schemas/risk-report-workspace-schema";
 
 const REPORT_TYPE_LABELS: Record<string, string> = {
   BANK_WALLET_PHONE: "Chuyển tiền · STK / Ví / SĐT",
@@ -196,7 +206,6 @@ const getReportIdentifierTitle = (report: {
 
 export const RiskReportWorkspacePage = () => {
   const [withdrawalReportId, setWithdrawalReportId] = useState<string>();
-  const [withdrawalReason, setWithdrawalReason] = useState("");
 
   const reports = useQuery(
     orpc.protection.riskReport.getMine.queryOptions({ input: {} })
@@ -211,13 +220,49 @@ export const RiskReportWorkspacePage = () => {
   );
   const requestWithdrawal = useMutation(
     orpc.protection.riskReport.requestWithdrawal.mutationOptions({
+      onError: (error) => {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Không thể gửi yêu cầu rút lại báo cáo."
+        );
+      },
       onSuccess: async () => {
         setWithdrawalReportId(undefined);
-        setWithdrawalReason("");
         await reports.refetch();
       },
     })
   );
+  const withdrawalForm = useForm({
+    defaultValues: { reason: "" },
+    onSubmit: async ({ value }) => {
+      if (!withdrawalReportId) {
+        return;
+      }
+
+      try {
+        await requestWithdrawal.mutateAsync({
+          reason: value.reason.trim(),
+          reportId: withdrawalReportId,
+        });
+        withdrawalForm.reset();
+        toast.success("Đã gửi yêu cầu rút lại báo cáo.");
+      } catch {
+        // The mutation's onError callback provides the user-facing message.
+      }
+    },
+    validators: { onSubmit: riskReportWithdrawalFormSchema },
+  });
+
+  const handleWithdrawalStart = (reportId: string) => {
+    withdrawalForm.reset();
+    setWithdrawalReportId(reportId);
+  };
+
+  const handleWithdrawalCancel = () => {
+    withdrawalForm.reset();
+    setWithdrawalReportId(undefined);
+  };
 
   return (
     <Shell as="div" className="gap-8" variant="default">
@@ -459,7 +504,7 @@ export const RiskReportWorkspacePage = () => {
                       {report.status !== "DRAFT" &&
                       report.withdrawalStatus === "NONE" ? (
                         <Button
-                          onClick={() => setWithdrawalReportId(report.id)}
+                          onClick={() => handleWithdrawalStart(report.id)}
                           size="sm"
                           type="button"
                           variant="outline"
@@ -474,58 +519,88 @@ export const RiskReportWorkspacePage = () => {
                     </div>
 
                     {withdrawalReportId === report.id ? (
-                      <div className="grid gap-3 rounded-xl border border-border/80 bg-muted/20 p-4">
-                        <label
-                          className="grid gap-1.5 font-medium text-sm"
-                          htmlFor={`withdrawal-reason-${report.id}`}
-                        >
-                          <span>Lý do rút lại báo cáo</span>
-                          <span className="font-normal text-muted-foreground text-xs">
-                            Vui lòng nêu rõ lý do để kiểm duyệt viên xem xét (ví
-                            dụ: đã giải quyết hòa giải, nhầm lẫn thông tin - tối
-                            thiểu 10 ký tự).
-                          </span>
-                          <Textarea
-                            className="mt-1"
-                            id={`withdrawal-reason-${report.id}`}
-                            minLength={10}
-                            onChange={(event) =>
-                              setWithdrawalReason(event.target.value)
-                            }
-                            placeholder="Nhập lý do rút lại báo cáo..."
-                            rows={3}
-                            value={withdrawalReason}
-                          />
-                        </label>
+                      <form
+                        className="grid gap-3 rounded-xl border border-border/80 bg-muted/20 p-4"
+                        id="risk-report-withdrawal-form"
+                        onSubmit={async (event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          await withdrawalForm.handleSubmit();
+                        }}
+                      >
+                        <FieldGroup>
+                          <withdrawalForm.Field name="reason">
+                            {(field) => {
+                              const isInvalid =
+                                field.state.meta.isTouched &&
+                                !field.state.meta.isValid;
+                              return (
+                                <Field data-invalid={isInvalid}>
+                                  <FieldLabel htmlFor={field.name}>
+                                    Lý do rút lại báo cáo
+                                  </FieldLabel>
+                                  <p className="font-normal text-muted-foreground text-xs">
+                                    Vui lòng nêu rõ lý do để kiểm duyệt viên xem
+                                    xét (ví dụ: đã giải quyết hòa giải, nhầm lẫn
+                                    thông tin - tối thiểu 10 ký tự).
+                                  </p>
+                                  <Textarea
+                                    aria-invalid={isInvalid}
+                                    className="mt-1"
+                                    id={field.name}
+                                    minLength={10}
+                                    name={field.name}
+                                    onBlur={field.handleBlur}
+                                    onChange={(event) =>
+                                      field.handleChange(event.target.value)
+                                    }
+                                    placeholder="Nhập lý do rút lại báo cáo..."
+                                    rows={3}
+                                    value={field.state.value}
+                                  />
+                                  {isInvalid ? (
+                                    <FieldError
+                                      errors={field.state.meta.errors}
+                                    />
+                                  ) : null}
+                                </Field>
+                              );
+                            }}
+                          </withdrawalForm.Field>
+                        </FieldGroup>
                         <div className="flex justify-end gap-2">
                           <Button
-                            onClick={() => setWithdrawalReportId(undefined)}
+                            onClick={handleWithdrawalCancel}
                             size="sm"
                             type="button"
                             variant="ghost"
                           >
                             Huỷ
                           </Button>
-                          <Button
-                            disabled={
-                              requestWithdrawal.isPending ||
-                              withdrawalReason.trim().length < 10
-                            }
-                            onClick={() =>
-                              void requestWithdrawal.mutateAsync({
-                                reason: withdrawalReason,
-                                reportId: report.id,
-                              })
-                            }
-                            size="sm"
-                            type="button"
+                          <withdrawalForm.Subscribe
+                            selector={(state) => ({
+                              canSubmit: state.canSubmit,
+                              isSubmitting: state.isSubmitting,
+                            })}
                           >
-                            {requestWithdrawal.isPending
-                              ? "Đang gửi..."
-                              : "Gửi yêu cầu"}
-                          </Button>
+                            {({ canSubmit, isSubmitting }) => (
+                              <Button
+                                disabled={
+                                  !canSubmit ||
+                                  isSubmitting ||
+                                  requestWithdrawal.isPending
+                                }
+                                size="sm"
+                                type="submit"
+                              >
+                                {isSubmitting || requestWithdrawal.isPending
+                                  ? "Đang gửi..."
+                                  : "Gửi yêu cầu"}
+                              </Button>
+                            )}
+                          </withdrawalForm.Subscribe>
                         </div>
-                      </div>
+                      </form>
                     ) : null}
                   </CardContent>
                 </Card>

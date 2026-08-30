@@ -7,6 +7,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@avin/ui/components/field";
 import { Input } from "@avin/ui/components/input";
 import {
   Select,
@@ -16,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@avin/ui/components/select";
-import { useState } from "react";
+import { useForm } from "@tanstack/react-form";
 import { toast } from "sonner";
 
 import { Header } from "@/components/layout/header";
@@ -33,6 +39,10 @@ import type {
   ProviderBond,
   ProviderDepositIntent,
 } from "../api/provider-bond-api";
+import {
+  providerBondAdjustmentFormSchema,
+  providerDepositIntentDecisionFormSchema,
+} from "../schemas/provider-bond-form-schema";
 
 const ADJUSTMENT_KIND_ITEMS: { label: string; value: BondAdjustmentKind }[] = [
   { label: "Deposit đã đối soát", value: "DEPOSIT" },
@@ -153,80 +163,235 @@ const AdjustmentHistory = ({ bond }: { bond: ProviderBond }) => {
   );
 };
 
+const ProviderDepositIntentForm = ({
+  intent,
+}: {
+  intent: ProviderDepositIntent;
+}) => {
+  const decide = useDecideAdminProviderDepositIntent();
+  const decisionForm = useForm({
+    defaultValues: {
+      decision: "MATCH" as "MATCH" | "REFUND",
+      matchedAmount: "",
+      reason: "",
+      refundBankReference: "",
+      sourceEventIds: "",
+    },
+    onSubmit: async ({ value }) => {
+      const sourceEventIds = value.sourceEventIds
+        .split(",")
+        .map((sourceEventId) => sourceEventId.trim())
+        .filter(Boolean);
+      try {
+        await decide.mutateAsync({
+          decision: value.decision,
+          id: intent.id,
+          matchedAmount:
+            value.decision === "MATCH"
+              ? Number(value.matchedAmount) || intent.amount
+              : undefined,
+          reason: value.reason.trim(),
+          refundBankReference:
+            value.decision === "REFUND"
+              ? value.refundBankReference.trim()
+              : undefined,
+          sourceEventIds: value.decision === "MATCH" ? sourceEventIds : [],
+        });
+        toast.success(
+          value.decision === "MATCH"
+            ? "Đã ghi nhận khoản Bond."
+            : "Đã ghi nhận hoàn tiền Bond."
+        );
+        decisionForm.reset();
+      } catch (error) {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Không thể xử lý khoản chuyển khoản."
+        );
+      }
+    },
+    validators: { onSubmit: providerDepositIntentDecisionFormSchema },
+  });
+
+  return (
+    <form
+      className="grid gap-3 rounded-xl border bg-muted/20 p-4"
+      id={`provider-deposit-intent-form-${intent.id}`}
+      onSubmit={async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const submitter = (event.nativeEvent as SubmitEvent)
+          .submitter as HTMLButtonElement | null;
+        const decision = submitter?.value === "REFUND" ? "REFUND" : "MATCH";
+        decisionForm.setFieldValue("decision", decision);
+        await decisionForm.handleSubmit();
+      }}
+    >
+      <div className="flex flex-wrap justify-between gap-2 text-sm">
+        <span className="font-medium">
+          {intent.kind} · {intent.status}
+        </span>
+        <span>{vndFormatter.format(intent.amount)}</span>
+      </div>
+      <p className="font-mono text-xs text-muted-foreground">
+        {intent.paymentCode}
+      </p>
+      <FieldGroup className="gap-3">
+        <decisionForm.Field name="reason">
+          {(field) => {
+            const isInvalid =
+              field.state.meta.isTouched && !field.state.meta.isValid;
+            return (
+              <Field data-invalid={isInvalid}>
+                <FieldLabel htmlFor={field.name}>Lý do đối soát</FieldLabel>
+                <Input
+                  aria-invalid={isInvalid}
+                  id={field.name}
+                  name={field.name}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  placeholder="Lý do và chứng từ chuyển khoản ngoài hệ thống"
+                  value={field.state.value}
+                />
+                {isInvalid ? (
+                  <FieldError errors={field.state.meta.errors} />
+                ) : null}
+              </Field>
+            );
+          }}
+        </decisionForm.Field>
+        {intent.status === "REFUND_PENDING" ? null : (
+          <>
+            <decisionForm.Field name="matchedAmount">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
+                return (
+                  <Field data-invalid={isInvalid}>
+                    <FieldLabel htmlFor={field.name}>
+                      Số tiền Bond đã nhận
+                    </FieldLabel>
+                    <Input
+                      aria-invalid={isInvalid}
+                      id={field.name}
+                      inputMode="numeric"
+                      min={1_000_000}
+                      name={field.name}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      placeholder={`Mặc định ${intent.amount.toLocaleString("vi-VN")} VND`}
+                      type="number"
+                      value={field.state.value}
+                    />
+                    {isInvalid ? (
+                      <FieldError errors={field.state.meta.errors} />
+                    ) : null}
+                  </Field>
+                );
+              }}
+            </decisionForm.Field>
+            <decisionForm.Field name="sourceEventIds">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
+                return (
+                  <Field data-invalid={isInvalid}>
+                    <FieldLabel htmlFor={field.name}>
+                      SePay source event IDs
+                    </FieldLabel>
+                    <Input
+                      aria-invalid={isInvalid}
+                      id={field.name}
+                      name={field.name}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      placeholder="Source event UUIDs, phân cách bằng dấu phẩy"
+                      value={field.state.value}
+                    />
+                    {isInvalid ? (
+                      <FieldError errors={field.state.meta.errors} />
+                    ) : null}
+                  </Field>
+                );
+              }}
+            </decisionForm.Field>
+          </>
+        )}
+        <decisionForm.Field name="refundBankReference">
+          {(field) => {
+            const isInvalid =
+              field.state.meta.isTouched && !field.state.meta.isValid;
+            return (
+              <Field data-invalid={isInvalid}>
+                <FieldLabel htmlFor={field.name}>
+                  External bank reference hoàn tiền
+                </FieldLabel>
+                <Input
+                  aria-invalid={isInvalid}
+                  id={field.name}
+                  name={field.name}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  placeholder="Bắt buộc nếu chọn hoàn tiền"
+                  value={field.state.value}
+                />
+                {isInvalid ? (
+                  <FieldError errors={field.state.meta.errors} />
+                ) : null}
+              </Field>
+            );
+          }}
+        </decisionForm.Field>
+      </FieldGroup>
+      <decisionForm.Subscribe
+        selector={(state) => ({
+          canSubmit: state.canSubmit,
+          isSubmitting: state.isSubmitting,
+        })}
+      >
+        {({ canSubmit, isSubmitting }) => (
+          <div className="flex flex-wrap gap-2">
+            {intent.status === "REFUND_PENDING" ? null : (
+              <Button
+                disabled={!canSubmit || isSubmitting || decide.isPending}
+                form={`provider-deposit-intent-form-${intent.id}`}
+                name="decision"
+                size="sm"
+                type="submit"
+                value="MATCH"
+              >
+                Ghi nhận Bond
+              </Button>
+            )}
+            <Button
+              disabled={!canSubmit || isSubmitting || decide.isPending}
+              form={`provider-deposit-intent-form-${intent.id}`}
+              name="decision"
+              size="sm"
+              type="submit"
+              value="REFUND"
+              variant="outline"
+            >
+              Đã hoàn tiền
+            </Button>
+          </div>
+        )}
+      </decisionForm.Subscribe>
+    </form>
+  );
+};
+
 const ProviderDepositIntentQueue = () => {
   const { data: intents = [], isPending } = useAdminProviderDepositIntents();
-  const decide = useDecideAdminProviderDepositIntent();
-  const [reasons, setReasons] = useState<Record<string, string>>({});
-  const [matchedAmounts, setMatchedAmounts] = useState<Record<string, string>>(
-    {}
-  );
-  const [refundReferences, setRefundReferences] = useState<
-    Record<string, string>
-  >({});
-  const [sourceEventIds, setSourceEventIds] = useState<Record<string, string>>(
-    {}
-  );
 
   const actionableIntents = intents.filter((intent) =>
     ["MANUAL_REVIEW", "REFUND_PENDING"].includes(intent.status)
   );
-  const updateReason = (id: string, value: string) =>
-    setReasons((current) => ({ ...current, [id]: value }));
-  const updateMatchedAmount = (id: string, value: string) =>
-    setMatchedAmounts((current) => ({ ...current, [id]: value }));
-  const updateRefundReference = (id: string, value: string) =>
-    setRefundReferences((current) => ({ ...current, [id]: value }));
-  const updateSourceEventIds = (id: string, value: string) =>
-    setSourceEventIds((current) => ({ ...current, [id]: value }));
-  const handleDecision = async (
-    intent: ProviderDepositIntent,
-    decision: "MATCH" | "REFUND"
-  ) => {
-    const reason = reasons[intent.id]?.trim();
-    if (!reason || reason.length < 10) {
-      toast.error("Cần ghi lý do đối soát tối thiểu 10 ký tự.");
-      return;
-    }
-    const refundBankReference = refundReferences[intent.id]?.trim();
-    if (decision === "REFUND" && !refundBankReference) {
-      toast.error(
-        "Cần nhập external bank reference khi xác nhận đã hoàn tiền."
-      );
-      return;
-    }
-    try {
-      await decide.mutateAsync({
-        decision,
-        id: intent.id,
-        matchedAmount:
-          decision === "MATCH"
-            ? Number(matchedAmounts[intent.id]) || intent.amount
-            : undefined,
-        reason,
-        refundBankReference:
-          decision === "REFUND" ? refundBankReference : undefined,
-        sourceEventIds:
-          decision === "MATCH"
-            ? (sourceEventIds[intent.id] ?? "")
-                .split(",")
-                .map((value) => value.trim())
-                .filter(Boolean)
-            : [],
-      });
-      toast.success(
-        decision === "MATCH"
-          ? "Đã ghi nhận khoản Bond."
-          : "Đã ghi nhận hoàn tiền Bond."
-      );
-      setReasons((current) => ({ ...current, [intent.id]: "" }));
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Không thể xử lý khoản chuyển khoản."
-      );
-    }
-  };
 
   return (
     <Card>
@@ -247,78 +412,7 @@ const ProviderDepositIntentQueue = () => {
           </p>
         ) : null}
         {actionableIntents.map((intent) => (
-          <div
-            className="grid gap-3 rounded-xl border bg-muted/20 p-4"
-            key={intent.id}
-          >
-            <div className="flex flex-wrap justify-between gap-2 text-sm">
-              <span className="font-medium">
-                {intent.kind} · {intent.status}
-              </span>
-              <span>{vndFormatter.format(intent.amount)}</span>
-            </div>
-            <p className="font-mono text-xs text-muted-foreground">
-              {intent.paymentCode}
-            </p>
-            <Input
-              aria-label={`Lý do đối soát ${intent.paymentCode}`}
-              onChange={(event) => updateReason(intent.id, event.target.value)}
-              placeholder="Lý do và chứng từ chuyển khoản ngoài hệ thống"
-              value={reasons[intent.id] ?? ""}
-            />
-            {intent.status !== "REFUND_PENDING" && (
-              <Input
-                aria-label={`Số tiền Bond đã nhận ${intent.paymentCode}`}
-                inputMode="numeric"
-                min={1_000_000}
-                onChange={(event) =>
-                  updateMatchedAmount(intent.id, event.target.value)
-                }
-                placeholder={`Mặc định ${intent.amount.toLocaleString("vi-VN")} VND`}
-                type="number"
-                value={matchedAmounts[intent.id] ?? ""}
-              />
-            )}
-            {intent.status !== "REFUND_PENDING" && (
-              <Input
-                aria-label={`SePay source event IDs ${intent.paymentCode}`}
-                onChange={(event) =>
-                  updateSourceEventIds(intent.id, event.target.value)
-                }
-                placeholder="Source event UUIDs, phân cách bằng dấu phẩy (nếu chuyển nhiều lần)"
-                value={sourceEventIds[intent.id] ?? ""}
-              />
-            )}
-            <Input
-              aria-label={`External bank reference hoàn tiền ${intent.paymentCode}`}
-              onChange={(event) =>
-                updateRefundReference(intent.id, event.target.value)
-              }
-              placeholder="External bank reference nếu chọn hoàn tiền"
-              value={refundReferences[intent.id] ?? ""}
-            />
-            <div className="flex flex-wrap gap-2">
-              {intent.status !== "REFUND_PENDING" && (
-                <Button
-                  disabled={decide.isPending}
-                  onClick={() => void handleDecision(intent, "MATCH")}
-                  size="sm"
-                  type="button"
-                >
-                  Ghi nhận Bond
-                </Button>
-              )}
-              <Button
-                disabled={decide.isPending}
-                onClick={() => void handleDecision(intent, "REFUND")}
-                size="sm"
-                type="button"
-                variant="outline"
-              >
-                Đã hoàn tiền
-              </Button>
-            </div>
-          </div>
+          <ProviderDepositIntentForm intent={intent} key={intent.id} />
         ))}
       </CardContent>
     </Card>
@@ -376,14 +470,6 @@ const ProviderBondCard = ({ bond }: { bond: ProviderBond }) => (
 export const ProviderBondPage = () => {
   const { data: bonds = [], isPending } = useAdminProviderBonds();
   const record = useRecordAdminProviderBondAdjustment();
-  const [profileId, setProfileId] = useState("");
-  const [kind, setKind] = useState<BondAdjustmentKind>("DEPOSIT");
-  const [amount, setAmount] = useState("");
-  const [externalBankReference, setExternalBankReference] = useState("");
-  const [evidenceReference, setEvidenceReference] = useState("");
-  const [reason, setReason] = useState("");
-
-  const selectedProfileId = profileId || bonds[0]?.profile.id || "";
   const providerItems = [
     { label: "Chọn Provider", value: null },
     ...bonds.map((bond) => ({
@@ -391,30 +477,36 @@ export const ProviderBondPage = () => {
       value: bond.profile.id,
     })),
   ];
-
-  const recordAdjustment = async () => {
-    const deltaAmount = getAdjustmentDelta(kind, amount);
-    try {
-      await record.mutateAsync({
-        deltaAmount,
-        evidenceReference: optionalValue(evidenceReference),
-        externalBankReference: optionalValue(externalBankReference),
-        idempotencyKey: `bond-${crypto.randomUUID()}`,
-        kind,
-        profileId: selectedProfileId,
-        reason,
-      });
-      toast.success("Đã ghi Bond Adjustment.");
-      setAmount("");
-      setExternalBankReference("");
-      setEvidenceReference("");
-      setReason("");
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Không thể ghi adjustment."
-      );
-    }
-  };
+  const adjustmentForm = useForm({
+    defaultValues: {
+      amount: "",
+      evidenceReference: "",
+      externalBankReference: "",
+      kind: "DEPOSIT" as BondAdjustmentKind,
+      profileId: bonds[0]?.profile.id ?? "",
+      reason: "",
+    },
+    onSubmit: async ({ value }) => {
+      try {
+        await record.mutateAsync({
+          deltaAmount: getAdjustmentDelta(value.kind, value.amount),
+          evidenceReference: optionalValue(value.evidenceReference),
+          externalBankReference: optionalValue(value.externalBankReference),
+          idempotencyKey: `bond-${crypto.randomUUID()}`,
+          kind: value.kind,
+          profileId: value.profileId,
+          reason: value.reason.trim(),
+        });
+        toast.success("Đã ghi Bond Adjustment.");
+        adjustmentForm.reset();
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Không thể ghi adjustment."
+        );
+      }
+    },
+    validators: { onSubmit: providerBondAdjustmentFormSchema },
+  });
 
   return (
     <>
@@ -442,124 +534,227 @@ export const ProviderBondPage = () => {
               support allocation, correction sẽ chờ Admin xử lý.
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2">
-            <label
-              className="grid gap-2 text-sm"
-              htmlFor="provider-bond-profile"
+          <CardContent>
+            <form
+              className="grid gap-4 md:grid-cols-2"
+              id="provider-bond-adjustment-form"
+              onSubmit={async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                await adjustmentForm.handleSubmit();
+              }}
             >
-              <span className="font-medium">Provider</span>
-              <Select
-                items={providerItems}
-                onValueChange={(value) => setProfileId(value ?? "")}
-                value={selectedProfileId || null}
-              >
-                <SelectTrigger
-                  className="h-9 w-full rounded-md border border-input bg-background px-3"
-                  id="provider-bond-profile"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {providerItems.map((item) => (
-                      <SelectItem
-                        key={item.value ?? "empty"}
-                        value={item.value}
+              <adjustmentForm.Field name="profileId">
+                {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
+                  return (
+                    <Field data-invalid={isInvalid}>
+                      <FieldLabel htmlFor={field.name}>Provider</FieldLabel>
+                      <Select
+                        items={providerItems}
+                        onValueChange={(value) =>
+                          field.handleChange(value ?? "")
+                        }
+                        value={field.state.value || null}
                       >
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </label>
-            <label className="grid gap-2 text-sm" htmlFor="provider-bond-kind">
-              <span className="font-medium">Loại adjustment</span>
-              <Select
-                items={ADJUSTMENT_KIND_ITEMS}
-                onValueChange={(value) => setKind(value as BondAdjustmentKind)}
-                value={kind}
+                        <SelectTrigger
+                          className="h-9 w-full rounded-md border border-input bg-background px-3"
+                          id={field.name}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            {providerItems.map((item) => (
+                              <SelectItem
+                                key={item.value ?? "empty"}
+                                value={item.value}
+                              >
+                                {item.label}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                      {isInvalid ? (
+                        <FieldError errors={field.state.meta.errors} />
+                      ) : null}
+                    </Field>
+                  );
+                }}
+              </adjustmentForm.Field>
+              <adjustmentForm.Field name="kind">
+                {(field) => (
+                  <Field>
+                    <FieldLabel htmlFor={field.name}>
+                      Loại adjustment
+                    </FieldLabel>
+                    <Select
+                      items={ADJUSTMENT_KIND_ITEMS}
+                      onValueChange={(value) =>
+                        field.handleChange(value as BondAdjustmentKind)
+                      }
+                      value={field.state.value}
+                    >
+                      <SelectTrigger
+                        className="h-9 w-full rounded-md border border-input bg-background px-3"
+                        id={field.name}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {ADJUSTMENT_KIND_ITEMS.map((item) => (
+                            <SelectItem key={item.value} value={item.value}>
+                              {item.label}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                )}
+              </adjustmentForm.Field>
+              <adjustmentForm.Field name="amount">
+                {(field) => (
+                  <adjustmentForm.Field name="kind">
+                    {(kindField) => {
+                      const isInvalid =
+                        field.state.meta.isTouched && !field.state.meta.isValid;
+                      return (
+                        <Field data-invalid={isInvalid}>
+                          <FieldLabel htmlFor={field.name}>
+                            {kindField.state.value === "CORRECTION"
+                              ? "Delta VND (+/-)"
+                              : "Số tiền VND"}
+                          </FieldLabel>
+                          <Input
+                            aria-invalid={isInvalid}
+                            id={field.name}
+                            inputMode="numeric"
+                            name={field.name}
+                            onBlur={field.handleBlur}
+                            onChange={(event) =>
+                              field.handleChange(event.target.value)
+                            }
+                            placeholder={
+                              kindField.state.value === "CORRECTION"
+                                ? "-1000000"
+                                : "1000000"
+                            }
+                            type="number"
+                            value={field.state.value}
+                          />
+                          {isInvalid ? (
+                            <FieldError errors={field.state.meta.errors} />
+                          ) : null}
+                        </Field>
+                      );
+                    }}
+                  </adjustmentForm.Field>
+                )}
+              </adjustmentForm.Field>
+              <adjustmentForm.Field name="externalBankReference">
+                {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
+                  return (
+                    <Field data-invalid={isInvalid}>
+                      <FieldLabel htmlFor={field.name}>
+                        External bank reference
+                      </FieldLabel>
+                      <Input
+                        aria-invalid={isInvalid}
+                        id={field.name}
+                        name={field.name}
+                        onBlur={field.handleBlur}
+                        onChange={(event) =>
+                          field.handleChange(event.target.value)
+                        }
+                        placeholder="Bắt buộc với Deposit"
+                        value={field.state.value}
+                      />
+                      {isInvalid ? (
+                        <FieldError errors={field.state.meta.errors} />
+                      ) : null}
+                    </Field>
+                  );
+                }}
+              </adjustmentForm.Field>
+              <adjustmentForm.Field name="evidenceReference">
+                {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
+                  return (
+                    <Field data-invalid={isInvalid}>
+                      <FieldLabel htmlFor={field.name}>
+                        Evidence reference
+                      </FieldLabel>
+                      <Input
+                        aria-invalid={isInvalid}
+                        id={field.name}
+                        name={field.name}
+                        onBlur={field.handleBlur}
+                        onChange={(event) =>
+                          field.handleChange(event.target.value)
+                        }
+                        placeholder="Private evidence reference"
+                        value={field.state.value}
+                      />
+                      {isInvalid ? (
+                        <FieldError errors={field.state.meta.errors} />
+                      ) : null}
+                    </Field>
+                  );
+                }}
+              </adjustmentForm.Field>
+              <adjustmentForm.Field name="reason">
+                {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
+                  return (
+                    <Field className="md:col-span-2" data-invalid={isInvalid}>
+                      <FieldLabel htmlFor={field.name}>Lý do</FieldLabel>
+                      <Input
+                        aria-invalid={isInvalid}
+                        id={field.name}
+                        name={field.name}
+                        onBlur={field.handleBlur}
+                        onChange={(event) =>
+                          field.handleChange(event.target.value)
+                        }
+                        placeholder="Mô tả kết quả đối soát hoặc nghĩa vụ liên quan"
+                        value={field.state.value}
+                      />
+                      {isInvalid ? (
+                        <FieldError errors={field.state.meta.errors} />
+                      ) : null}
+                    </Field>
+                  );
+                }}
+              </adjustmentForm.Field>
+              <adjustmentForm.Subscribe
+                selector={(state) => ({
+                  canSubmit: state.canSubmit,
+                  isSubmitting: state.isSubmitting,
+                })}
               >
-                <SelectTrigger
-                  className="h-9 w-full rounded-md border border-input bg-background px-3"
-                  id="provider-bond-kind"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {ADJUSTMENT_KIND_ITEMS.map((item) => (
-                      <SelectItem key={item.value} value={item.value}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </label>
-            <label
-              className="grid gap-2 text-sm"
-              htmlFor="provider-bond-amount"
-            >
-              <span className="font-medium">
-                {kind === "CORRECTION" ? "Delta VND (+/-)" : "Số tiền VND"}
-              </span>
-              <Input
-                id="provider-bond-amount"
-                inputMode="numeric"
-                onChange={(event) => setAmount(event.target.value)}
-                placeholder={kind === "CORRECTION" ? "-1000000" : "1000000"}
-                type="number"
-                value={amount}
-              />
-            </label>
-            <label
-              className="grid gap-2 text-sm"
-              htmlFor="provider-bond-bank-reference"
-            >
-              <span className="font-medium">External bank reference</span>
-              <Input
-                id="provider-bond-bank-reference"
-                onChange={(event) =>
-                  setExternalBankReference(event.target.value)
-                }
-                placeholder="Bắt buộc với Deposit"
-                value={externalBankReference}
-              />
-            </label>
-            <label
-              className="grid gap-2 text-sm"
-              htmlFor="provider-bond-evidence-reference"
-            >
-              <span className="font-medium">Evidence reference</span>
-              <Input
-                id="provider-bond-evidence-reference"
-                onChange={(event) => setEvidenceReference(event.target.value)}
-                placeholder="Private evidence reference"
-                value={evidenceReference}
-              />
-            </label>
-            <label
-              className="grid gap-2 text-sm md:col-span-2"
-              htmlFor="provider-bond-reason"
-            >
-              <span className="font-medium">Lý do</span>
-              <Input
-                id="provider-bond-reason"
-                onChange={(event) => setReason(event.target.value)}
-                placeholder="Mô tả kết quả đối soát hoặc nghĩa vụ liên quan"
-                value={reason}
-              />
-            </label>
-            <div className="md:col-span-2">
-              <Button
-                disabled={record.isPending || !selectedProfileId}
-                onClick={() => void recordAdjustment()}
-                type="button"
-              >
-                Ghi Bond Adjustment
-              </Button>
-            </div>
+                {({ canSubmit, isSubmitting }) => (
+                  <div className="md:col-span-2">
+                    <Button
+                      disabled={!canSubmit || isSubmitting || record.isPending}
+                      form="provider-bond-adjustment-form"
+                      type="submit"
+                    >
+                      {isSubmitting || record.isPending
+                        ? "Đang ghi..."
+                        : "Ghi Bond Adjustment"}
+                    </Button>
+                  </div>
+                )}
+              </adjustmentForm.Subscribe>
+            </form>
           </CardContent>
         </Card>
 

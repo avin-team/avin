@@ -3,8 +3,14 @@ import {
   RISK_REPORT_EVIDENCE_CONTENT_TYPES,
 } from "@avin/api/storage";
 import { Button } from "@avin/ui/components/button";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@avin/ui/components/field";
 import { useUploadFiles } from "@better-upload/client";
-import { useState } from "react";
+import { useForm } from "@tanstack/react-form";
 import type { ChangeEvent } from "react";
 import { toast } from "sonner";
 
@@ -12,6 +18,7 @@ import { serverURL } from "@/utils/server-url";
 
 import { useProviderRiskIncidentActions } from "../api/provider-api";
 import type { ProviderRiskIncident } from "../api/provider-api";
+import { providerRiskIncidentResponseSchema } from "../schemas/provider-risk-incident-response-schema";
 
 const INCIDENT_STATUS_LABELS: Record<ProviderRiskIncident["status"], string> = {
   AWAITING_PROVIDER_RESPONSE: "Đang chờ phản hồi Provider",
@@ -39,7 +46,6 @@ const ProviderRiskIncidentCard = ({
 }: {
   incident: ProviderRiskIncident;
 }) => {
-  const [response, setResponse] = useState(incident.providerResponse ?? "");
   const { registerEvidence, respond } = useProviderRiskIncidentActions();
   const upload = useUploadFiles({
     api: `${serverURL}/api/provider-risk-incident-evidence-upload`,
@@ -49,20 +55,24 @@ const ProviderRiskIncidentCard = ({
     uploadBatchSize: 5,
   });
   const responseOpen = isResponseWindowOpen(incident);
-
-  const handleResponse = async (): Promise<void> => {
-    try {
-      await respond.mutateAsync({
-        incidentId: incident.id,
-        response: response.trim(),
-      });
-      toast.success("Đã gửi phản hồi riêng tư cho Reviewer.");
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Không thể gửi phản hồi."
-      );
-    }
-  };
+  const responseForm = useForm({
+    defaultValues: { response: incident.providerResponse ?? "" },
+    onSubmit: async ({ value }) => {
+      try {
+        await respond.mutateAsync({
+          incidentId: incident.id,
+          response: value.response.trim(),
+        });
+        toast.success("Đã gửi phản hồi riêng tư cho Reviewer.");
+        responseForm.reset();
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Không thể gửi phản hồi."
+        );
+      }
+    },
+    validators: { onSubmit: providerRiskIncidentResponseSchema },
+  });
 
   const handleEvidence = async (
     event: ChangeEvent<HTMLInputElement>
@@ -140,28 +150,64 @@ const ProviderRiskIncidentCard = ({
       </dl>
 
       {responseOpen ? (
-        <div className="mt-5 grid gap-3">
-          <label
-            className="grid gap-2 text-sm"
-            htmlFor={`response-${incident.id}`}
-          >
-            Phản hồi riêng tư cho Reviewer
-            <textarea
-              className="min-h-32 rounded-xl border bg-background p-3"
-              id={`response-${incident.id}`}
-              onChange={(event) => setResponse(event.target.value)}
-              placeholder="Mô tả phản hồi, bối cảnh và cách bạn xử lý sự việc..."
-              value={response}
-            />
-          </label>
+        <form
+          className="mt-5 grid gap-3"
+          id={`provider-risk-response-form-${incident.id}`}
+          onSubmit={async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            await responseForm.handleSubmit();
+          }}
+        >
+          <FieldGroup className="gap-3">
+            <responseForm.Field name="response">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
+                return (
+                  <Field data-invalid={isInvalid}>
+                    <FieldLabel htmlFor={field.name}>
+                      Phản hồi riêng tư cho Reviewer
+                    </FieldLabel>
+                    <textarea
+                      aria-invalid={isInvalid}
+                      className="min-h-32 rounded-xl border bg-background p-3"
+                      id={field.name}
+                      name={field.name}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      placeholder="Mô tả phản hồi, bối cảnh và cách bạn xử lý sự việc..."
+                      value={field.state.value}
+                    />
+                    {isInvalid ? (
+                      <FieldError errors={field.state.meta.errors} />
+                    ) : null}
+                  </Field>
+                );
+              }}
+            </responseForm.Field>
+          </FieldGroup>
           <div className="flex flex-wrap items-center gap-3">
-            <Button
-              disabled={respond.isPending || response.trim().length < 20}
-              onClick={handleResponse}
-              type="button"
+            <responseForm.Subscribe
+              selector={(state) => ({
+                canSubmit: state.canSubmit,
+                isSubmitting: state.isSubmitting,
+              })}
             >
-              {respond.isPending ? "Đang gửi..." : "Gửi phản hồi riêng tư"}
-            </Button>
+              {({ canSubmit, isSubmitting }) => (
+                <Button
+                  disabled={!canSubmit || isSubmitting || respond.isPending}
+                  form={`provider-risk-response-form-${incident.id}`}
+                  type="submit"
+                >
+                  {isSubmitting || respond.isPending
+                    ? "Đang gửi..."
+                    : "Gửi phản hồi riêng tư"}
+                </Button>
+              )}
+            </responseForm.Subscribe>
             <label className="cursor-pointer rounded-xl border px-4 py-2 font-medium text-sm">
               Thêm bằng chứng
               <input
@@ -178,7 +224,7 @@ const ProviderRiskIncidentCard = ({
               </span>
             ) : null}
           </div>
-        </div>
+        </form>
       ) : null}
 
       {incident.evidence.length > 0 ? (

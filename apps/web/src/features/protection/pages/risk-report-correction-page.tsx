@@ -7,6 +7,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@avin/ui/components/field";
 import { Input } from "@avin/ui/components/input";
 import {
   Select,
@@ -17,13 +23,15 @@ import {
   SelectValue,
 } from "@avin/ui/components/select";
 import { Textarea } from "@avin/ui/components/textarea";
+import { useForm } from "@tanstack/react-form";
 import { useMutation } from "@tanstack/react-query";
 import { Link, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
-import type { FormEvent } from "react";
 
 import { Shell } from "@/components/shell";
 import { orpc } from "@/utils/orpc";
+
+import { riskReportCorrectionFormSchema } from "../schemas/risk-report-correction-form-schema";
 
 const requesterRelationshipOptions = [
   { label: "Tôi là người bị nêu trong cảnh báo", value: "SUBJECT" },
@@ -40,33 +48,34 @@ export const RiskReportCorrectionPage = () => {
   const { reportId: initialReportId } = useSearch({
     from: "/(public)/avin-check/correction",
   });
-  const [reportId, setReportId] = useState(initialReportId ?? "");
-  const [requesterRelationship, setRequesterRelationship] =
-    useState<RequesterRelationship>("SUBJECT");
-  const [reason, setReason] = useState("");
-  const [authorityEvidenceReference, setAuthorityEvidenceReference] =
-    useState("");
   const [errorMessage, setErrorMessage] = useState<string>();
   const correction = useMutation(
     orpc.protection.riskReport.requestCorrection.mutationOptions()
   );
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setErrorMessage(undefined);
-    try {
-      await correction.mutateAsync({
-        authorityEvidenceReference: authorityEvidenceReference.trim(),
-        reason: reason.trim(),
-        reportId: reportId.trim(),
-        requesterRelationship,
-      });
-    } catch {
-      setErrorMessage(
-        "Không thể gửi yêu cầu. Kiểm tra mã báo cáo và bằng chứng quyền sở hữu rồi thử lại."
-      );
-    }
-  };
+  const correctionForm = useForm({
+    defaultValues: {
+      authorityEvidenceReference: "",
+      reason: "",
+      reportId: initialReportId ?? "",
+      requesterRelationship: "SUBJECT" as RequesterRelationship,
+    },
+    onSubmit: async ({ value }) => {
+      setErrorMessage(undefined);
+      try {
+        await correction.mutateAsync({
+          authorityEvidenceReference: value.authorityEvidenceReference.trim(),
+          reason: value.reason.trim(),
+          reportId: value.reportId.trim(),
+          requesterRelationship: value.requesterRelationship,
+        });
+      } catch {
+        setErrorMessage(
+          "Không thể gửi yêu cầu. Kiểm tra mã báo cáo và bằng chứng quyền sở hữu rồi thử lại."
+        );
+      }
+    },
+    validators: { onSubmit: riskReportCorrectionFormSchema },
+  });
 
   return (
     <Shell as="div" className="gap-8" variant="default">
@@ -105,85 +114,172 @@ export const RiskReportCorrectionPage = () => {
           </CardContent>
         </Card>
       ) : (
-        <form className="grid gap-6" onSubmit={handleSubmit}>
+        <form
+          className="grid gap-6"
+          id="risk-report-correction-form"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            await correctionForm.handleSubmit();
+          }}
+        >
           <Card>
             <CardHeader>
               <CardTitle>Thông tin yêu cầu</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4">
-              <label
-                className="grid gap-1.5 font-medium"
-                htmlFor="correction-report-id"
+              <FieldGroup>
+                <correctionForm.Field name="reportId">
+                  {(field) => {
+                    const isInvalid =
+                      field.state.meta.isTouched && !field.state.meta.isValid;
+                    return (
+                      <Field data-invalid={isInvalid}>
+                        <FieldLabel htmlFor={field.name}>
+                          Mã Risk Report
+                        </FieldLabel>
+                        <Input
+                          aria-invalid={isInvalid}
+                          id={field.name}
+                          name={field.name}
+                          onBlur={field.handleBlur}
+                          onChange={(event) =>
+                            field.handleChange(event.target.value)
+                          }
+                          value={field.state.value}
+                        />
+                        {isInvalid ? (
+                          <FieldError errors={field.state.meta.errors} />
+                        ) : null}
+                      </Field>
+                    );
+                  }}
+                </correctionForm.Field>
+
+                <correctionForm.Field name="requesterRelationship">
+                  {(field) => (
+                    <Field>
+                      <FieldLabel htmlFor="correction-relationship">
+                        Tư cách yêu cầu
+                      </FieldLabel>
+                      <Select
+                        items={requesterRelationshipOptions}
+                        onValueChange={(value) => {
+                          const relationship =
+                            requesterRelationshipOptions.find(
+                              (item) => item.value === value
+                            )?.value;
+                          if (relationship) {
+                            field.handleChange(relationship);
+                          }
+                        }}
+                        value={field.state.value}
+                      >
+                        <SelectTrigger
+                          aria-invalid={
+                            field.state.meta.isTouched &&
+                            !field.state.meta.isValid
+                          }
+                          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                          id="correction-relationship"
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            {requesterRelationshipOptions.map((item) => (
+                              <SelectItem key={item.value} value={item.value}>
+                                {item.label}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                      {field.state.meta.isTouched &&
+                      !field.state.meta.isValid ? (
+                        <FieldError errors={field.state.meta.errors} />
+                      ) : null}
+                    </Field>
+                  )}
+                </correctionForm.Field>
+
+                <correctionForm.Field name="reason">
+                  {(field) => {
+                    const isInvalid =
+                      field.state.meta.isTouched && !field.state.meta.isValid;
+                    return (
+                      <Field data-invalid={isInvalid}>
+                        <FieldLabel htmlFor={field.name}>
+                          Nội dung cần đính chính
+                        </FieldLabel>
+                        <Textarea
+                          aria-invalid={isInvalid}
+                          id={field.name}
+                          minLength={20}
+                          name={field.name}
+                          onBlur={field.handleBlur}
+                          onChange={(event) =>
+                            field.handleChange(event.target.value)
+                          }
+                          rows={6}
+                          value={field.state.value}
+                        />
+                        {isInvalid ? (
+                          <FieldError errors={field.state.meta.errors} />
+                        ) : null}
+                      </Field>
+                    );
+                  }}
+                </correctionForm.Field>
+
+                <correctionForm.Field name="authorityEvidenceReference">
+                  {(field) => {
+                    const isInvalid =
+                      field.state.meta.isTouched && !field.state.meta.isValid;
+                    return (
+                      <Field data-invalid={isInvalid}>
+                        <FieldLabel htmlFor={field.name}>
+                          Tham chiếu bằng chứng quyền sở hữu / đại diện
+                        </FieldLabel>
+                        <Input
+                          aria-invalid={isInvalid}
+                          id={field.name}
+                          name={field.name}
+                          onBlur={field.handleBlur}
+                          onChange={(event) =>
+                            field.handleChange(event.target.value)
+                          }
+                          placeholder="Mã tài liệu hoặc liên kết bằng chứng đã được Avin cấp"
+                          value={field.state.value}
+                        />
+                        {isInvalid ? (
+                          <FieldError errors={field.state.meta.errors} />
+                        ) : null}
+                      </Field>
+                    );
+                  }}
+                </correctionForm.Field>
+              </FieldGroup>
+              <correctionForm.Subscribe
+                selector={(state) => ({
+                  canSubmit: state.canSubmit,
+                  isSubmitting: state.isSubmitting,
+                })}
               >
-                Mã Risk Report
-                <Input
-                  id="correction-report-id"
-                  onChange={(event) => setReportId(event.target.value)}
-                  required
-                  value={reportId}
-                />
-              </label>
-              <label
-                className="grid gap-1.5 font-medium"
-                htmlFor="correction-relationship"
-              >
-                Tư cách yêu cầu
-                <Select
-                  items={requesterRelationshipOptions}
-                  onValueChange={(value) =>
-                    setRequesterRelationship(value as RequesterRelationship)
-                  }
-                  value={requesterRelationship}
-                >
-                  <SelectTrigger
-                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                    id="correction-relationship"
+                {({ canSubmit, isSubmitting }) => (
+                  <Button
+                    disabled={
+                      !canSubmit || isSubmitting || correction.isPending
+                    }
+                    form="risk-report-correction-form"
+                    type="submit"
                   >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {requesterRelationshipOptions.map((item) => (
-                        <SelectItem key={item.value} value={item.value}>
-                          {item.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </label>
-              <label
-                className="grid gap-1.5 font-medium"
-                htmlFor="correction-reason"
-              >
-                Nội dung cần đính chính
-                <Textarea
-                  id="correction-reason"
-                  minLength={20}
-                  onChange={(event) => setReason(event.target.value)}
-                  required
-                  rows={6}
-                  value={reason}
-                />
-              </label>
-              <label
-                className="grid gap-1.5 font-medium"
-                htmlFor="correction-evidence"
-              >
-                Tham chiếu bằng chứng quyền sở hữu / đại diện
-                <Input
-                  id="correction-evidence"
-                  onChange={(event) =>
-                    setAuthorityEvidenceReference(event.target.value)
-                  }
-                  placeholder="Mã tài liệu hoặc liên kết bằng chứng đã được Avin cấp"
-                  required
-                  value={authorityEvidenceReference}
-                />
-              </label>
-              <Button disabled={correction.isPending} type="submit">
-                {correction.isPending ? "Đang gửi…" : "Gửi yêu cầu đính chính"}
-              </Button>
+                    {isSubmitting || correction.isPending
+                      ? "Đang gửi…"
+                      : "Gửi yêu cầu đính chính"}
+                  </Button>
+                )}
+              </correctionForm.Subscribe>
             </CardContent>
           </Card>
         </form>
