@@ -29,6 +29,7 @@ Use dedicated accounts in a non-production database:
 - A verified storefront account with a stable password. The public product can remain Google-only; its email/password endpoint is used only to establish an automated session without driving Google's UI.
 - An approved SELLER account with a complete storefront profile. Its email/password endpoint is used only to establish an automated session for listing workflows; the account is local/CI-only and never a developer account.
 - A fresh SELLER account without an application for the seller onboarding workflow. The provisioner rotates this account after an application is submitted so the next run starts from the first onboarding step.
+- A dedicated approved SELLER account for the enforcement and appeal workflow. The provisioner rotates this account after an enforcement record exists so each run starts with a clear seller status.
 - A dedicated `ADMIN` account with 2FA enabled. Store its password and raw Base32 TOTP secret in the CI secret manager. The setup project generates a current code and exercises the real admin email/password and 2FA screens.
 
 Do not use a developer's Google or admin account. Do not commit credentials or generated storage state. The Google test checks Avin's OAuth request and mocks the third-party page boundary; it does not automate `accounts.google.com`.
@@ -39,7 +40,7 @@ For the local database, provision the stable E2E accounts once:
 bun run test:e2e:provision
 ```
 
-The idempotent provisioner writes secrets to `e2e/.env.local`, which is ignored. It reuses existing accounts, makes the dedicated seller workspace publish-ready (approved application, `v1.0` agreement, and profile), and creates a separate fresh onboarding seller. After an onboarding or provider application reaches a terminal state, the next provision run rotates that fixture account. Alternatively, copy `e2e/.env.example` to `e2e/.env.local` and provide any account set. A partial credential set fails fast instead of silently skipping tests.
+The idempotent provisioner writes secrets to `e2e/.env.local`, which is ignored. It reuses existing accounts, makes the dedicated seller workspaces publish-ready (approved application, `v1.0` agreement, and profile), and creates separate fresh onboarding and enforcement fixtures. After an onboarding or provider application reaches a terminal state, or after the enforcement fixture has an enforcement record, the next provision run rotates that fixture account. Alternatively, copy `e2e/.env.example` to `e2e/.env.local` and provide any account set. A partial credential set fails fast instead of silently skipping tests.
 
 ## Local
 

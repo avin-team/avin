@@ -16,9 +16,11 @@ const LOCAL_DATABASE_HOSTS = new Set(["127.0.0.1", "::1", "localhost"]);
 const STOREFRONT_EMAIL = "e2e-buyer@avin.test";
 const SELLER_EMAIL = "e2e-seller@avin.test";
 const ONBOARDING_SELLER_EMAIL = "e2e-onboarding-seller@avin.test";
+const ENFORCEMENT_SELLER_EMAIL = "e2e-enforcement-seller@avin.test";
 const PROVIDER_EMAIL = "e2e-provider@avin.test";
 const ADMIN_EMAIL = "e2e-admin@avin.test";
 const SELLER_STORE_SLUG = "avin-e2e-store";
+const ENFORCEMENT_SELLER_STORE_SLUG = "avin-e2e-enforcement-store";
 const SELLER_AGREEMENT_VERSION = "v1.0";
 
 loadEnvironmentFile({ path: SERVER_ENVIRONMENT_URL, quiet: true });
@@ -126,6 +128,8 @@ const storefrontPassword =
 const sellerPassword = localEnvironment.E2E_SELLER_PASSWORD || createPassword();
 let onboardingSellerPassword =
   localEnvironment.E2E_ONBOARDING_SELLER_PASSWORD || createPassword();
+let enforcementSellerPassword =
+  localEnvironment.E2E_ENFORCEMENT_SELLER_PASSWORD || createPassword();
 let providerPassword =
   localEnvironment.E2E_PROVIDER_PASSWORD || createPassword();
 const adminPassword = localEnvironment.E2E_ADMIN_PASSWORD || createPassword();
@@ -133,6 +137,9 @@ const storefrontEmail = localEnvironment.E2E_USER_EMAIL || STOREFRONT_EMAIL;
 const sellerEmail = localEnvironment.E2E_SELLER_EMAIL || SELLER_EMAIL;
 let onboardingSellerEmail =
   localEnvironment.E2E_ONBOARDING_SELLER_EMAIL || ONBOARDING_SELLER_EMAIL;
+let enforcementSellerEmail =
+  localEnvironment.E2E_ENFORCEMENT_SELLER_EMAIL || ENFORCEMENT_SELLER_EMAIL;
+let enforcementSellerStoreSlug = ENFORCEMENT_SELLER_STORE_SLUG;
 let providerEmail = localEnvironment.E2E_PROVIDER_EMAIL || PROVIDER_EMAIL;
 const adminEmail = localEnvironment.E2E_ADMIN_EMAIL || ADMIN_EMAIL;
 
@@ -143,6 +150,8 @@ localEnvironment.E2E_SELLER_EMAIL = sellerEmail;
 localEnvironment.E2E_SELLER_PASSWORD = sellerPassword;
 localEnvironment.E2E_ONBOARDING_SELLER_EMAIL = onboardingSellerEmail;
 localEnvironment.E2E_ONBOARDING_SELLER_PASSWORD = onboardingSellerPassword;
+localEnvironment.E2E_ENFORCEMENT_SELLER_EMAIL = enforcementSellerEmail;
+localEnvironment.E2E_ENFORCEMENT_SELLER_PASSWORD = enforcementSellerPassword;
 localEnvironment.E2E_PROVIDER_EMAIL = providerEmail;
 localEnvironment.E2E_PROVIDER_PASSWORD = providerPassword;
 localEnvironment.E2E_ADMIN_EMAIL = adminEmail;
@@ -166,6 +175,8 @@ const { protectionProviderApplication } =
   await import("@avin/db/schema/protection");
 const { sellerApplication, sellerProfile } =
   await import("@avin/db/schema/seller");
+const { sellerEnforcement } =
+  await import("@avin/db/schema/seller-enforcement");
 const { eq } = drizzle;
 const authContext = await auth.$context;
 
@@ -208,6 +219,32 @@ if (existingOnboardingSellerApplication) {
   localEnvironment.E2E_ONBOARDING_SELLER_EMAIL = onboardingSellerEmail;
   localEnvironment.E2E_ONBOARDING_SELLER_PASSWORD = onboardingSellerPassword;
   await persistLocalEnvironment(localEnvironment);
+}
+
+const existingEnforcementSellerUser = await findUserByEmail(
+  enforcementSellerEmail
+);
+const existingEnforcement = existingEnforcementSellerUser
+  ? await db.query.sellerEnforcement.findFirst({
+      where: eq(sellerEnforcement.sellerId, existingEnforcementSellerUser.id),
+    })
+  : undefined;
+
+if (existingEnforcement) {
+  enforcementSellerEmail = `e2e-enforcement-seller-${Date.now()}@avin.test`;
+  enforcementSellerPassword = createPassword();
+  enforcementSellerStoreSlug = `${ENFORCEMENT_SELLER_STORE_SLUG}-${Date.now()}`;
+  localEnvironment.E2E_ENFORCEMENT_SELLER_EMAIL = enforcementSellerEmail;
+  localEnvironment.E2E_ENFORCEMENT_SELLER_PASSWORD = enforcementSellerPassword;
+  await persistLocalEnvironment(localEnvironment);
+}
+
+const existingEnforcementStoreProfile = await db.query.sellerProfile.findFirst({
+  where: eq(sellerProfile.storeSlug, enforcementSellerStoreSlug),
+});
+
+if (existingEnforcementStoreProfile) {
+  enforcementSellerStoreSlug = `${ENFORCEMENT_SELLER_STORE_SLUG}-${Date.now()}`;
 }
 
 const ensureUser = async ({
@@ -266,7 +303,21 @@ const ensureUser = async ({
   return { created: true, user: createdUser };
 };
 
-const ensureSellerWorkspace = async (sellerUserId: string): Promise<void> => {
+interface SellerWorkspaceOptions {
+  applicantName: string;
+  email: string;
+  storeSlug: string;
+  storefrontName: string;
+}
+
+const ensureSellerWorkspace = async (
+  sellerUserId: string,
+  options: Partial<SellerWorkspaceOptions> = {}
+): Promise<void> => {
+  const workspaceApplicantName = options.applicantName ?? "Avin E2E Seller";
+  const workspaceEmail = options.email ?? sellerEmail;
+  const workspaceStoreSlug = options.storeSlug ?? SELLER_STORE_SLUG;
+  const workspaceStorefrontName = options.storefrontName ?? "Avin E2E Store";
   const existingProfile = await db.query.sellerProfile.findFirst({
     where: eq(sellerProfile.userId, sellerUserId),
   });
@@ -281,8 +332,9 @@ const ensureSellerWorkspace = async (sellerUserId: string): Promise<void> => {
         bio: "Tài khoản seller dùng cho kiểm thử E2E.",
         phone: "0900000000",
         phoneVerified: true,
-        storeSlug: existingProfile.storeSlug || SELLER_STORE_SLUG,
-        storefrontName: existingProfile.storefrontName || "Avin E2E Store",
+        storeSlug: existingProfile.storeSlug || workspaceStoreSlug,
+        storefrontName:
+          existingProfile.storefrontName || workspaceStorefrontName,
       })
       .where(eq(sellerProfile.id, existingProfile.id));
   } else {
@@ -293,8 +345,8 @@ const ensureSellerWorkspace = async (sellerUserId: string): Promise<void> => {
         bio: "Tài khoản seller dùng cho kiểm thử E2E.",
         phone: "0900000000",
         phoneVerified: true,
-        storeSlug: SELLER_STORE_SLUG,
-        storefrontName: "Avin E2E Store",
+        storeSlug: workspaceStoreSlug,
+        storefrontName: workspaceStorefrontName,
         userId: sellerUserId,
       })
       .returning({ id: sellerProfile.id });
@@ -313,20 +365,20 @@ const ensureSellerWorkspace = async (sellerUserId: string): Promise<void> => {
   });
 
   const applicationValues = {
-    applicantName: "Avin E2E Seller",
+    applicantName: workspaceApplicantName,
     bankAccount: {
       accountName: "AVIN E2E",
       accountNumber: "0000000000",
       bankName: "Vietcombank",
     },
-    email: sellerEmail,
+    email: workspaceEmail,
     phone: "0900000000",
     reviewReason: null,
     sellerAgreementAcceptedAt: new Date(),
     sellerAgreementVersion: SELLER_AGREEMENT_VERSION,
     sellerProfileId,
     status: "APPROVED" as const,
-    storefrontName: "Avin E2E Store",
+    storefrontName: workspaceStorefrontName,
   };
 
   await (existingApplication
@@ -359,6 +411,19 @@ const sellerAccount = await ensureUser({
   role: "SELLER",
 });
 await ensureSellerWorkspace(sellerAccount.user.id);
+
+const enforcementSellerAccount = await ensureUser({
+  email: enforcementSellerEmail,
+  name: "Avin E2E Enforcement Seller",
+  password: enforcementSellerPassword,
+  role: "SELLER",
+});
+await ensureSellerWorkspace(enforcementSellerAccount.user.id, {
+  applicantName: "Avin E2E Enforcement Seller",
+  email: enforcementSellerEmail,
+  storeSlug: enforcementSellerStoreSlug,
+  storefrontName: "Avin E2E Enforcement Store",
+});
 
 const onboardingSellerAccount = await ensureUser({
   email: onboardingSellerEmail,
@@ -452,6 +517,7 @@ process.stdout.write(
     `Storefront account: ${storefrontEmail} (${storefrontAccount.created ? "created" : "reused"})`,
     `Seller account: ${sellerEmail} (${sellerAccount.created ? "created" : "reused"}, approved workspace)`,
     `Onboarding Seller account: ${onboardingSellerEmail} (${onboardingSellerAccount.created ? "created" : "reused"}, fresh application fixture)`,
+    `Enforcement Seller account: ${enforcementSellerEmail} (${enforcementSellerAccount.created ? "created" : "reused"}, approved workspace)`,
     `Provider account: ${providerEmail} (${providerAccount.created ? "created" : "reused"})`,
     `Admin account: ${adminEmail} (${adminAccount.created ? "created" : "reused"}, 2FA verified)`,
     "Credentials saved to e2e/.env.local.",

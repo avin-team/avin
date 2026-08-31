@@ -8,6 +8,7 @@ import {
   resolveE2EEnvironment,
   resolveProviderTestAccount,
   resolveSellerTestAccount,
+  resolveSellerEnforcementTestAccount,
   resolveSellerOnboardingTestAccount,
   resolveStorefrontTestAccount,
 } from "./src/support/environment";
@@ -33,6 +34,9 @@ const sellerAccount = environment.isProduction
 const sellerOnboardingAccount = environment.isProduction
   ? null
   : resolveSellerOnboardingTestAccount();
+const sellerEnforcementAccount = environment.isProduction
+  ? null
+  : resolveSellerEnforcementTestAccount();
 const isCI = Boolean(process.env.CI);
 const EMPTY_STORAGE_STATE = { cookies: [], origins: [] };
 
@@ -56,7 +60,8 @@ const projects: NonNullable<PlaywrightTestConfig["projects"]> = [
   {
     name: "web-anonymous",
     testDir: "./src/tests/web",
-    testIgnore: /.*\.(?<suite>authenticated|onboarding|seller)\.spec\.ts/u,
+    testIgnore:
+      /.*\.(?<suite>authenticated|enforcement|onboarding|seller)\.spec\.ts/u,
     use: {
       ...devices["Desktop Chrome"],
       baseURL: environment.webBaseURL,
@@ -135,6 +140,35 @@ if (sellerOnboardingAccount && !environment.isProduction) {
         ...devices["Desktop Chrome"],
         baseURL: environment.webBaseURL,
         storageState: AUTH_STATE_PATHS.sellerOnboarding,
+      },
+    }
+  );
+}
+
+if (
+  sellerEnforcementAccount &&
+  environment.adminBaseURL &&
+  !environment.isProduction
+) {
+  projects.push(
+    {
+      name: "seller-enforcement-auth-setup",
+      testDir: "./src/setup",
+      testMatch: /seller-enforcement\.setup\.ts/u,
+      use: {
+        baseURL: environment.apiBaseURL,
+        extraHTTPHeaders: { origin: environment.webBaseURL },
+      },
+    },
+    {
+      dependencies: ["seller-enforcement-auth-setup"],
+      name: "web-seller-enforcement-authenticated",
+      testDir: "./src/tests/web",
+      testMatch: /.*\.enforcement\.spec\.ts/u,
+      use: {
+        ...devices["Desktop Chrome"],
+        baseURL: environment.webBaseURL,
+        storageState: AUTH_STATE_PATHS.sellerEnforcement,
       },
     }
   );

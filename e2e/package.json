@@ -11,6 +11,7 @@
     "e2e:provider": "playwright test --project=provider-authenticated",
     "e2e:risk-report": "playwright test --project=risk-report-authenticated",
     "e2e:seller": "playwright test --grep @seller",
+    "e2e:seller-enforcement": "playwright test --project=web-seller-enforcement-authenticated",
     "e2e:smoke": "playwright test --grep @smoke",
     "e2e:ui": "playwright test --ui",
     "install:browsers": "playwright install chromium",
