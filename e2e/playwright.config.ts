@@ -8,6 +8,7 @@ import {
   resolveE2EEnvironment,
   resolveProviderTestAccount,
   resolveSellerTestAccount,
+  resolveSellerOnboardingTestAccount,
   resolveStorefrontTestAccount,
 } from "./src/support/environment";
 
@@ -29,6 +30,9 @@ const providerAccount = environment.isProduction
 const sellerAccount = environment.isProduction
   ? null
   : resolveSellerTestAccount();
+const sellerOnboardingAccount = environment.isProduction
+  ? null
+  : resolveSellerOnboardingTestAccount();
 const isCI = Boolean(process.env.CI);
 const EMPTY_STORAGE_STATE = { cookies: [], origins: [] };
 
@@ -52,7 +56,7 @@ const projects: NonNullable<PlaywrightTestConfig["projects"]> = [
   {
     name: "web-anonymous",
     testDir: "./src/tests/web",
-    testIgnore: /.*\.(?<suite>authenticated|seller)\.spec\.ts/u,
+    testIgnore: /.*\.(?<suite>authenticated|onboarding|seller)\.spec\.ts/u,
     use: {
       ...devices["Desktop Chrome"],
       baseURL: environment.webBaseURL,
@@ -106,6 +110,31 @@ if (sellerAccount && !environment.isProduction) {
         ...devices["Desktop Chrome"],
         baseURL: environment.webBaseURL,
         storageState: AUTH_STATE_PATHS.seller,
+      },
+    }
+  );
+}
+
+if (sellerOnboardingAccount && !environment.isProduction) {
+  projects.push(
+    {
+      name: "seller-onboarding-auth-setup",
+      testDir: "./src/setup",
+      testMatch: /seller-onboarding\.setup\.ts/u,
+      use: {
+        baseURL: environment.apiBaseURL,
+        extraHTTPHeaders: { origin: environment.webBaseURL },
+      },
+    },
+    {
+      dependencies: ["seller-onboarding-auth-setup"],
+      name: "web-seller-onboarding-authenticated",
+      testDir: "./src/tests/web",
+      testMatch: /.*\.onboarding\.spec\.ts/u,
+      use: {
+        ...devices["Desktop Chrome"],
+        baseURL: environment.webBaseURL,
+        storageState: AUTH_STATE_PATHS.sellerOnboarding,
       },
     }
   );

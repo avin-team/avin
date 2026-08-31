@@ -122,6 +122,15 @@ export const resolveSellerTestAccount = (): PasswordTestAccount | null =>
     passwordName: "E2E_SELLER_PASSWORD",
   });
 
+export const resolveSellerOnboardingTestAccount =
+  (): PasswordTestAccount | null =>
+    resolvePasswordAccount({
+      email: process.env.E2E_ONBOARDING_SELLER_EMAIL,
+      emailName: "E2E_ONBOARDING_SELLER_EMAIL",
+      password: process.env.E2E_ONBOARDING_SELLER_PASSWORD,
+      passwordName: "E2E_ONBOARDING_SELLER_PASSWORD",
+    });
+
 export const resolveProviderTestAccount = (): PasswordTestAccount | null =>
   resolvePasswordAccount({
     email: process.env.E2E_PROVIDER_EMAIL,

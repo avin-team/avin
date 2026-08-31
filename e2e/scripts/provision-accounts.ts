@@ -15,6 +15,7 @@ const SERVER_ENVIRONMENT_URL = new URL(
 const LOCAL_DATABASE_HOSTS = new Set(["127.0.0.1", "::1", "localhost"]);
 const STOREFRONT_EMAIL = "e2e-buyer@avin.test";
 const SELLER_EMAIL = "e2e-seller@avin.test";
+const ONBOARDING_SELLER_EMAIL = "e2e-onboarding-seller@avin.test";
 const PROVIDER_EMAIL = "e2e-provider@avin.test";
 const ADMIN_EMAIL = "e2e-admin@avin.test";
 const SELLER_STORE_SLUG = "avin-e2e-store";
@@ -123,11 +124,15 @@ const localEnvironment = await readLocalEnvironment();
 const storefrontPassword =
   localEnvironment.E2E_USER_PASSWORD || createPassword();
 const sellerPassword = localEnvironment.E2E_SELLER_PASSWORD || createPassword();
+let onboardingSellerPassword =
+  localEnvironment.E2E_ONBOARDING_SELLER_PASSWORD || createPassword();
 let providerPassword =
   localEnvironment.E2E_PROVIDER_PASSWORD || createPassword();
 const adminPassword = localEnvironment.E2E_ADMIN_PASSWORD || createPassword();
 const storefrontEmail = localEnvironment.E2E_USER_EMAIL || STOREFRONT_EMAIL;
 const sellerEmail = localEnvironment.E2E_SELLER_EMAIL || SELLER_EMAIL;
+let onboardingSellerEmail =
+  localEnvironment.E2E_ONBOARDING_SELLER_EMAIL || ONBOARDING_SELLER_EMAIL;
 let providerEmail = localEnvironment.E2E_PROVIDER_EMAIL || PROVIDER_EMAIL;
 const adminEmail = localEnvironment.E2E_ADMIN_EMAIL || ADMIN_EMAIL;
 
@@ -136,6 +141,8 @@ localEnvironment.E2E_USER_EMAIL = storefrontEmail;
 localEnvironment.E2E_USER_PASSWORD = storefrontPassword;
 localEnvironment.E2E_SELLER_EMAIL = sellerEmail;
 localEnvironment.E2E_SELLER_PASSWORD = sellerPassword;
+localEnvironment.E2E_ONBOARDING_SELLER_EMAIL = onboardingSellerEmail;
+localEnvironment.E2E_ONBOARDING_SELLER_PASSWORD = onboardingSellerPassword;
 localEnvironment.E2E_PROVIDER_EMAIL = providerEmail;
 localEnvironment.E2E_PROVIDER_PASSWORD = providerPassword;
 localEnvironment.E2E_ADMIN_EMAIL = adminEmail;
@@ -183,6 +190,23 @@ if (
   providerPassword = createPassword();
   localEnvironment.E2E_PROVIDER_EMAIL = providerEmail;
   localEnvironment.E2E_PROVIDER_PASSWORD = providerPassword;
+  await persistLocalEnvironment(localEnvironment);
+}
+
+const existingOnboardingSellerUser = await findUserByEmail(
+  onboardingSellerEmail
+);
+const existingOnboardingSellerApplication = existingOnboardingSellerUser
+  ? await db.query.sellerApplication.findFirst({
+      where: eq(sellerApplication.userId, existingOnboardingSellerUser.id),
+    })
+  : undefined;
+
+if (existingOnboardingSellerApplication) {
+  onboardingSellerEmail = `e2e-onboarding-seller-${Date.now()}@avin.test`;
+  onboardingSellerPassword = createPassword();
+  localEnvironment.E2E_ONBOARDING_SELLER_EMAIL = onboardingSellerEmail;
+  localEnvironment.E2E_ONBOARDING_SELLER_PASSWORD = onboardingSellerPassword;
   await persistLocalEnvironment(localEnvironment);
 }
 
@@ -336,6 +360,13 @@ const sellerAccount = await ensureUser({
 });
 await ensureSellerWorkspace(sellerAccount.user.id);
 
+const onboardingSellerAccount = await ensureUser({
+  email: onboardingSellerEmail,
+  name: "Avin E2E Onboarding Seller",
+  password: onboardingSellerPassword,
+  role: "SELLER",
+});
+
 const providerAccount = await ensureUser({
   email: providerEmail,
   name: "Avin E2E Provider",
@@ -420,6 +451,7 @@ process.stdout.write(
   `${[
     `Storefront account: ${storefrontEmail} (${storefrontAccount.created ? "created" : "reused"})`,
     `Seller account: ${sellerEmail} (${sellerAccount.created ? "created" : "reused"}, approved workspace)`,
+    `Onboarding Seller account: ${onboardingSellerEmail} (${onboardingSellerAccount.created ? "created" : "reused"}, fresh application fixture)`,
     `Provider account: ${providerEmail} (${providerAccount.created ? "created" : "reused"})`,
     `Admin account: ${adminEmail} (${adminAccount.created ? "created" : "reused"}, 2FA verified)`,
     "Credentials saved to e2e/.env.local.",
