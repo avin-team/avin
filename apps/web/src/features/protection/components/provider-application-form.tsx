@@ -26,7 +26,7 @@ import {
 } from "@avin/ui/components/select";
 import { Textarea } from "@avin/ui/components/textarea";
 import { Bank, Copy, Plus, QrCode, Trash } from "@phosphor-icons/react";
-import { useForm, useStore } from "@tanstack/react-form";
+import { useForm } from "@tanstack/react-form";
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -647,7 +647,6 @@ const ProviderApplicationFormContent = ({
     },
     validators: { onSubmit: providerApplicationFormSchema },
   });
-  const form = useStore(applicationForm.store, (state) => state.values);
   const fillDevelopmentForm = () => {
     if (!import.meta.env.DEV) {
       return;
@@ -662,13 +661,9 @@ const ProviderApplicationFormContent = ({
     toast.success("Đã điền dữ liệu mẫu cho môi trường dev.");
   };
 
-  const tier = useMemo(
-    () => getProviderTier(form.bondAmount),
-    [form.bondAmount]
-  );
   const handleSaveDraft = async () => {
     try {
-      const draft = toDraft(form, currentPolicyVersion);
+      const draft = toDraft(applicationForm.state.values, currentPolicyVersion);
       await (
         mode === "revision"
           ? revisionActions.saveDraft
@@ -1385,7 +1380,7 @@ const ProviderApplicationFormContent = ({
                     <p className="text-muted-foreground text-xs">
                       Hạng hiện tại theo số tiền trong quỹ đảm bảo:{" "}
                       <strong className="text-foreground">
-                        {providerTierLabel(tier)}
+                        {providerTierLabel(getProviderTier(field.state.value))}
                       </strong>
                       . Hạn mức giao dịch đề xuất tối đa bằng 80% số tiền trong
                       quỹ đảm bảo.

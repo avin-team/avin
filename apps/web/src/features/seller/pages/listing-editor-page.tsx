@@ -50,7 +50,7 @@ import {
   FloppyDiskIcon,
   WrenchIcon,
 } from "@phosphor-icons/react";
-import { useForm, useStore } from "@tanstack/react-form";
+import { useForm, useSelector } from "@tanstack/react-form";
 import type { AnyFieldApi } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
@@ -1280,7 +1280,7 @@ const ListingEditorFormPage = ({
     }
     await enqueueSave({ id: draftId, ...buildUpdateInput(value) });
   });
-  const form = useStore(editorForm.store, (state) => state.values);
+  const form = useSelector(editorForm.store, (state) => state.values);
   const editorStepOrder = getListingEditorStepOrder(form.type);
   const editorSteps = getEditorSteps(form.type);
   const servicePackageQueryState = getServicePackageQueryState(

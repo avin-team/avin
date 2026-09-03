@@ -38,7 +38,7 @@ import {
   SpinnerIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
-import { useForm, useStore } from "@tanstack/react-form";
+import { useForm, useSelector } from "@tanstack/react-form";
 import type {
   FormValidateOrFn,
   ReactFormExtendedApi,
@@ -1041,7 +1041,6 @@ const SellerOnboardingFormContent = ({
       onSubmit: createSellerOnboardingFormSchema(activeStep === 2 ? 2 : 1),
     },
   });
-  const formValues = useStore(onboardingForm.store, (state) => state.values);
 
   const handleSubmitStep = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -1049,19 +1048,23 @@ const SellerOnboardingFormContent = ({
     await onboardingForm.handleSubmit();
   };
 
-  const isStep1Completed = Boolean(
-    (formValues.avatarUrl.trim() || profile?.avatarUrl) &&
-    (formValues.storefrontName.trim() || profile?.storefrontName) &&
-    (formValues.phone.trim() || profile?.phone)
+  const isStep1Completed = useSelector(onboardingForm.store, (state) =>
+    Boolean(
+      (state.values.avatarUrl.trim() || profile?.avatarUrl) &&
+      (state.values.storefrontName.trim() || profile?.storefrontName) &&
+      (state.values.phone.trim() || profile?.phone)
+    )
   );
 
-  const isStep2Completed = Boolean(
-    application?.id ||
-    (isStep1Completed &&
-      formValues.bankName.trim() &&
-      formValues.accountNumber.trim() &&
-      formValues.accountName.trim() &&
-      formValues.agreementAccepted)
+  const isStep2Completed = useSelector(onboardingForm.store, (state) =>
+    Boolean(
+      application?.id ||
+      (isStep1Completed &&
+        state.values.bankName.trim() &&
+        state.values.accountNumber.trim() &&
+        state.values.accountName.trim() &&
+        state.values.agreementAccepted)
+    )
   );
 
   const isStepDisabled = (stepNum: number) =>

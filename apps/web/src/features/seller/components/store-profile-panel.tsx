@@ -19,7 +19,7 @@ import {
 import { Input } from "@avin/ui/components/input";
 import { Textarea } from "@avin/ui/components/textarea";
 import { EyeIcon, SpinnerIcon, StorefrontIcon } from "@phosphor-icons/react";
-import { useForm, useStore } from "@tanstack/react-form";
+import { useForm } from "@tanstack/react-form";
 import type {
   FormValidateOrFn,
   ReactFormExtendedApi,
@@ -517,7 +517,6 @@ const StoreProfileEditor = ({
     },
     validators: { onSubmit: storeProfileFormSchema },
   });
-  const draft = useStore(profileForm.store, (state) => state.values);
 
   const handleCancel = () => {
     profileForm.reset(savedDraft);
@@ -599,14 +598,20 @@ const StoreProfileEditor = ({
           </CardContent>
         </Card>
         <aside className="flex flex-col gap-5 xl:sticky xl:top-24 xl:self-start">
-          <StorefrontPreviewCard
-            avatarUrl={draft.avatarUrl ?? ""}
-            bannerUrl={draft.bannerUrl ?? ""}
-            description={draft.bio ?? ""}
-            name={draft.storefrontName}
-            slug={draft.storeSlug}
-          />
-          <CompletionCard draft={draft} />
+          <profileForm.Subscribe selector={(state) => state.values}>
+            {(draft) => (
+              <>
+                <StorefrontPreviewCard
+                  avatarUrl={draft.avatarUrl ?? ""}
+                  bannerUrl={draft.bannerUrl ?? ""}
+                  description={draft.bio ?? ""}
+                  name={draft.storefrontName}
+                  slug={draft.storeSlug}
+                />
+                <CompletionCard draft={draft} />
+              </>
+            )}
+          </profileForm.Subscribe>
         </aside>
       </div>
     </div>
