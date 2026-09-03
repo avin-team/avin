@@ -180,7 +180,7 @@ export const RiskReportCorrectionPage = () => {
                             field.state.meta.isTouched &&
                             !field.state.meta.isValid
                           }
-                          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                          className="w-full"
                           id="correction-relationship"
                         >
                           <SelectValue />

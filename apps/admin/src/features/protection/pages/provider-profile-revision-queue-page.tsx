@@ -105,7 +105,7 @@ export const ProviderProfileRevisionQueuePage = () => {
               >
                 <SelectTrigger
                   aria-label="Lọc trạng thái cập nhật profile"
-                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm sm:w-52"
+                  className="w-full sm:w-52"
                 >
                   <SelectValue />
                 </SelectTrigger>

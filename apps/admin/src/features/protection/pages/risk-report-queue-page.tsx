@@ -104,7 +104,7 @@ export const RiskReportQueuePage = () => {
               >
                 <SelectTrigger
                   aria-label="Lọc trạng thái risk report"
-                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm sm:w-52"
+                  className="w-full sm:w-52"
                 >
                   <SelectValue />
                 </SelectTrigger>

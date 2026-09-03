@@ -271,10 +271,7 @@ export const ProtectionOperationsQueuePanel = () => {
                       }
                       value={field.state.value}
                     >
-                      <SelectTrigger
-                        className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                        id={field.name}
-                      >
+                      <SelectTrigger className="w-full" id={field.name}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>

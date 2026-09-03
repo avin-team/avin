@@ -375,10 +375,7 @@ export const ProviderRiskIncidentPanel = ({
                       onValueChange={(value) => field.handleChange(value ?? "")}
                       value={field.state.value || null}
                     >
-                      <SelectTrigger
-                        className="w-full rounded-lg border bg-background p-2"
-                        id={field.name}
-                      >
+                      <SelectTrigger className="w-full" id={field.name}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>

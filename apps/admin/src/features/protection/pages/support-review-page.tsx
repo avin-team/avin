@@ -233,10 +233,7 @@ const EligibilityForm = ({ review }: { review: SupportReview }) => {
                   }
                   value={field.state.value}
                 >
-                  <SelectTrigger
-                    className="h-9 w-full rounded-md border border-input bg-background px-3"
-                    id={field.name}
-                  >
+                  <SelectTrigger className="w-full" id={field.name}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -265,10 +262,7 @@ const EligibilityForm = ({ review }: { review: SupportReview }) => {
                   }
                   value={field.state.value}
                 >
-                  <SelectTrigger
-                    className="h-9 w-full rounded-md border border-input bg-background px-3"
-                    id={field.name}
-                  >
+                  <SelectTrigger className="w-full" id={field.name}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -320,10 +314,7 @@ const EligibilityForm = ({ review }: { review: SupportReview }) => {
                   onValueChange={(value) => field.handleChange(value ?? "")}
                   value={field.state.value}
                 >
-                  <SelectTrigger
-                    className="h-9 w-full rounded-md border border-input bg-background px-3"
-                    id={field.name}
-                  >
+                  <SelectTrigger className="w-full" id={field.name}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -537,10 +528,7 @@ const OutcomeForm = ({ review }: { review: SupportReview }) => {
                 }
                 value={field.state.value}
               >
-                <SelectTrigger
-                  className="h-9 w-full rounded-md border border-input bg-background px-3"
-                  id={field.name}
-                >
+                <SelectTrigger className="w-full" id={field.name}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -832,10 +820,7 @@ const ReconsiderationForm = ({ review }: { review: SupportReview }) => {
                 }
                 value={field.state.value}
               >
-                <SelectTrigger
-                  className="h-9 w-full rounded-md border border-input bg-background px-3"
-                  id={field.name}
-                >
+                <SelectTrigger className="w-full" id={field.name}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
