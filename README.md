@@ -25,20 +25,63 @@ First, install the dependencies:
 bun install
 ```
 
-## Database Setup
+## Database Setup (Local Supabase)
 
-This project uses PostgreSQL with Drizzle ORM.
+This project uses the Supabase CLI Docker stack for local development and Drizzle ORM as the migration authority.
 
-1. Make sure you have a PostgreSQL database set up.
-2. Update your `apps/server/.env` file with your PostgreSQL connection details.
+### 1. Prerequisites
 
-3. Apply the schema to your database:
+- Docker Desktop running
+- Supabase CLI installed (`supabase --version`)
+
+### 2. Start the local stack
+
+Run from the repository root:
+
+```bash
+supabase start
+```
+
+Verify services are running with `supabase status`:
+
+| Service         | Address                                                   |
+| --------------- | --------------------------------------------------------- |
+| PostgreSQL      | `postgresql://postgres:postgres@127.0.0.1:54322/postgres` |
+| Supabase API    | `http://127.0.0.1:54321`                                  |
+| Supabase Studio | `http://127.0.0.1:54323`                                  |
+
+### 3. Configure environment variables
+
+Configure `apps/server/.env` with local connection details:
+
+```dotenv
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres
+DATABASE_DIRECT_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres
+SUPABASE_URL=http://127.0.0.1:54321
+```
+
+Retrieve the local `SUPABASE_PUBLISHABLE_KEY` and `SUPABASE_SECRET_KEY`:
+
+```bash
+supabase status -o env
+```
+
+### 4. Apply database migrations
+
+Apply Drizzle schema migrations to the local database:
 
 ```bash
 bun run db:migrate
 ```
 
-For the Supabase Docker stack and a secure remote database clone/restore procedure, see [`docs/operations/local-supabase.md`](docs/operations/local-supabase.md).
+_Completion check_: Drizzle reports all migrations applied cleanly.
+
+### 5. Useful commands
+
+- **Supabase Studio UI**: [http://127.0.0.1:54323](http://127.0.0.1:54323)
+- **Drizzle Studio UI**: `bun run db:studio`
+- **Stop local stack (preserves volume data)**: `supabase stop`
+- **Remote database backup & restore**: For cloning hosted schema/data into local Supabase, see [`docs/operations/local-supabase.md`](docs/operations/local-supabase.md).
 
 Then, run the development server:
 

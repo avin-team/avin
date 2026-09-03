@@ -51,6 +51,74 @@ describe("fetchChongScamReports", () => {
     expect(sleep).toHaveBeenCalledTimes(1);
   });
 
+  it("fetches only up to maxPages when specified", async () => {
+    const requestedUrls: string[] = [];
+    const sleep = vi.fn(() => Promise.resolve());
+    const fetchImpl = (input: string | URL | Request): Promise<Response> => {
+      const url = new URL(input.toString());
+      requestedUrls.push(url.toString());
+      const page = Number(url.searchParams.get("page"));
+      return Promise.resolve(Response.json(createPage(page, 5)));
+    };
+
+    const reports = await fetchChongScamReports({
+      fetchImpl,
+      maxPages: 2,
+      sleep,
+    });
+
+    expect(reports).toHaveLength(2);
+    expect(requestedUrls).toEqual([
+      `${CHONGSCAM_API_URL}?pageSize=100&sort=newest&page=1`,
+      `${CHONGSCAM_API_URL}?pageSize=100&sort=newest&page=2`,
+    ]);
+  });
+
+  it("limits the number of returned reports when limit is specified", async () => {
+    const sleep = vi.fn(() => Promise.resolve());
+    const fetchImpl = (input: string | URL | Request): Promise<Response> => {
+      const url = new URL(input.toString());
+      const page = Number(url.searchParams.get("page"));
+      return Promise.resolve(Response.json(createPage(page, 3)));
+    };
+
+    const reports = await fetchChongScamReports({
+      fetchImpl,
+      limit: 1,
+      sleep,
+    });
+
+    expect(reports).toHaveLength(1);
+  });
+
+  it("fetches a single report by sourceReportId", async () => {
+    const sleep = vi.fn(() => Promise.resolve());
+    let requestedUrl = "";
+    const fetchImpl = (input: string | URL | Request): Promise<Response> => {
+      requestedUrl = input.toString();
+      return Promise.resolve(
+        Response.json({
+          evidenceFiles: [],
+          evidenceNames: [],
+          id: reportId,
+          status: "verified",
+          title: "Single Report",
+          type: "bank_account",
+        })
+      );
+    };
+
+    const reports = await fetchChongScamReports({
+      fetchImpl,
+      sleep,
+      sourceReportId: reportId,
+    });
+
+    expect(reports).toHaveLength(1);
+    expect(reports[0].title).toBe("Single Report");
+    expect(requestedUrl).toBe(`${CHONGSCAM_API_URL}/${reportId}`);
+  });
+
   it("fails closed when the source responds with an error", async () => {
     await expect(
       fetchChongScamReports({

@@ -7,18 +7,60 @@ import type { ExternalRiskImportMode } from "../packages/api/src/protection/exte
 
 const args = Bun.argv.slice(2);
 let mode: ExternalRiskImportMode = "APPLY";
+let limit: number | undefined;
+let maxPages: number | undefined;
+let sourceReportId: string | undefined;
 
-for (const arg of args) {
-  if (arg === "--preview" || arg === "--mode=PREVIEW") {
+for (let i = 0; i < args.length; i += 1) {
+  const arg = args[i];
+  if (arg === "--help" || arg === "-h") {
+    console.info(`Usage: bun run db:sync-chongscam [options]
+
+Options:
+  --preview           Chỉ kiểm tra, không lưu vào database hay tải ảnh
+  --apply             Đồng bộ dữ liệu và tải bằng chứng (mặc định)
+  --full-reconcile    Đồng bộ và ẩn các báo cáo không còn tồn tại trên nguồn
+  --limit=<N>         Giới hạn số lượng báo cáo cần xử lý (vd: --limit=5)
+  --max-pages=<N>     Giới hạn số trang cần tải từ ChongScam (1 trang = 100 báo cáo)
+  --id=<id>           Đồng bộ một báo cáo cụ thể theo UUID trên ChongScam
+  --help, -h          Hiển thị trợ giúp này
+`);
+    process.exit(0);
+  } else if (arg === "--preview" || arg === "--mode=PREVIEW") {
     mode = "PREVIEW";
   } else if (arg === "--full-reconcile" || arg === "--mode=FULL_RECONCILE") {
     mode = "FULL_RECONCILE";
   } else if (arg === "--apply" || arg === "--mode=APPLY") {
     mode = "APPLY";
+  } else if (arg.startsWith("--limit=")) {
+    limit = Math.trunc(Number(arg.slice("--limit=".length)));
+  } else if (arg === "--limit" && i + 1 < args.length) {
+    i += 1;
+    limit = Math.trunc(Number(args[i]));
+  } else if (arg.startsWith("--max-pages=")) {
+    maxPages = Math.trunc(Number(arg.slice("--max-pages=".length)));
+  } else if (arg.startsWith("--pages=")) {
+    maxPages = Math.trunc(Number(arg.slice("--pages=".length)));
+  } else if (arg === "--max-pages" && i + 1 < args.length) {
+    i += 1;
+    maxPages = Math.trunc(Number(args[i]));
+  } else if (arg.startsWith("--id=")) {
+    sourceReportId = arg.slice("--id=".length);
+  } else if (arg.startsWith("--report-id=")) {
+    sourceReportId = arg.slice("--report-id=".length);
+  } else if ((arg === "--id" || arg === "--report-id") && i + 1 < args.length) {
+    i += 1;
+    sourceReportId = args[i];
   }
 }
 
-console.info(`[ChongScam Sync] Starting sync with mode: ${mode}...`);
+console.info(
+  `[ChongScam Sync] Starting sync (mode: ${mode}${
+    sourceReportId ? `, reportId: ${sourceReportId}` : ""
+  }${limit ? `, limit: ${limit}` : ""}${
+    maxPages ? `, maxPages: ${maxPages}` : ""
+  })...`
+);
 
 const storageRuntime = createListingImageStorage();
 if (storageRuntime) {
@@ -37,7 +79,10 @@ try {
   const result = await runExternalRiskImport({
     actorUserId: null,
     database: db,
+    limit,
+    maxPages,
     mode,
+    sourceReportId,
     storage: storageRuntime?.objectStore,
   });
 

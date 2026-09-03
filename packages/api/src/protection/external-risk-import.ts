@@ -186,7 +186,10 @@ interface ImportCounts {
 
 interface FetchOptions {
   fetchImpl?: FetchFunction;
+  limit?: number;
+  maxPages?: number;
   sleep?: (milliseconds: number) => Promise<void>;
+  sourceReportId?: string;
 }
 
 interface ImportOptions extends FetchOptions {
@@ -276,16 +279,37 @@ export const fetchChongScamReports = async (
   options: FetchOptions = {}
 ): Promise<ChongScamReport[]> => {
   const request = createThrottledFetch(options);
+
+  if (options.sourceReportId) {
+    const response = await request(
+      `${CHONGSCAM_API_URL}/${encodeURIComponent(options.sourceReportId)}`
+    );
+    if (!response.ok) {
+      throw new Error(`ChongScam API returned HTTP ${response.status}`);
+    }
+    const report = chongScamReportSchema.parse(await response.json());
+    return [report];
+  }
+
   const firstPage = await fetchPage(request, 1);
   if (firstPage.totalPages > MAX_SOURCE_PAGES) {
     throw new Error("ChongScam returned an unexpectedly large page count");
   }
 
   const reports = [...firstPage.items];
-  for (let page = 2; page <= firstPage.totalPages; page += 1) {
+  const maxPages = options.maxPages
+    ? Math.min(firstPage.totalPages, options.maxPages)
+    : firstPage.totalPages;
+
+  for (let page = 2; page <= maxPages; page += 1) {
     const currentPage = await fetchPage(request, page);
     reports.push(...currentPage.items);
   }
+
+  if (options.limit && options.limit > 0) {
+    return reports.slice(0, options.limit);
+  }
+
   return reports;
 };
 
@@ -1085,9 +1109,12 @@ export const runExternalRiskImport = async ({
   actorUserId,
   database,
   fetchImpl,
+  limit,
+  maxPages,
   mode,
   now = new Date(),
   sleep,
+  sourceReportId,
   storage,
 }: ImportOptions): Promise<ExternalImportRunView> => {
   await assertNoActiveImport(database);
@@ -1104,7 +1131,10 @@ export const runExternalRiskImport = async ({
   try {
     const sourceReports = await fetchChongScamReports({
       fetchImpl: request,
+      limit,
+      maxPages,
       sleep: noSleep,
+      sourceReportId,
     });
     const existingReports = await findExternalReports(database);
     const existingBySourceId = new Map<string, ExternalRiskReport>();
@@ -1123,6 +1153,8 @@ export const runExternalRiskImport = async ({
       updatedCount: 0,
     };
     let firstItemError: string | null = null;
+    const canReconcileHidden =
+      fullReconcile && !sourceReportId && !limit && !maxPages;
 
     if (mode === "PREVIEW") {
       for (const sourceReport of sourceReports) {
@@ -1135,7 +1167,7 @@ export const runExternalRiskImport = async ({
           counts.updatedCount += 1;
         }
       }
-      if (fullReconcile) {
+      if (canReconcileHidden) {
         counts.hiddenCount = existingReports.filter(
           (report) =>
             report.externalSourceId && !sourceIds.has(report.externalSourceId)
@@ -1163,7 +1195,7 @@ export const runExternalRiskImport = async ({
           firstItemError ??= getImportErrorMessage(error);
         }
       }
-      if (fullReconcile) {
+      if (canReconcileHidden) {
         counts.hiddenCount = await hideMissingReports({
           database,
           importRunId: run.id,
