@@ -24,8 +24,10 @@ const createSearchDatabase = (
   identifiers: readonly Record<string, unknown>[],
   reports: readonly Record<string, unknown>[]
 ) => {
-  const visibleReports = reports.filter((report) =>
-    ["PUBLISHED", "CORRECTED"].includes(String(report.status))
+  const visibleReports = reports.filter(
+    (report) =>
+      ["PUBLISHED", "CORRECTED"].includes(String(report.status)) &&
+      report.externalAdminHidden !== true
   );
   const reportRows = visibleReports.map((report) => ({
     affectedVictimCount: report.affectedVictimCount ?? 1,
@@ -163,6 +165,80 @@ describe("public risk identifier lookup", () => {
       type: "BANK_WALLET_PHONE",
     });
     expect(JSON.stringify(result)).not.toContain("0123456789");
+  });
+
+  it("includes published external reports with source provenance and excludes hidden ones", async () => {
+    const database = createSearchDatabase(
+      [
+        {
+          normalizedValue: "0817161182",
+          reportId: "report-external",
+          type: "BANK_ACCOUNT",
+        },
+        {
+          normalizedValue: "0999999999",
+          reportId: "report-hidden",
+          type: "PHONE",
+        },
+      ],
+      [
+        createReport({
+          externalAdminHidden: false,
+          externalSource: "chongscam",
+          externalSourceUrl: "https://chongscam.vn/report/123",
+          externalTitle: "Lừa đảo MMO",
+          id: "report-external",
+          publicSlug: "chongscam-123",
+        }),
+        createReport({
+          externalAdminHidden: true,
+          externalSource: "chongscam",
+          externalSourceUrl: "https://chongscam.vn/report/999",
+          externalTitle: "Báo cáo bị ẩn",
+          id: "report-hidden",
+          publicSlug: "chongscam-999",
+        }),
+      ]
+    );
+
+    const matchResult = await searchPublicRiskIdentifiers(
+      database,
+      { type: "BANK_ACCOUNT", value: "0817161182" },
+      "203.0.113.11"
+    );
+
+    expect(matchResult.exactMatch).toBe(true);
+    expect(matchResult.warnings[0]?.externalSource).toEqual({
+      name: "chongscam",
+      title: "Lừa đảo MMO",
+      url: "https://chongscam.vn/report/123",
+    });
+
+    const hiddenDatabase = createSearchDatabase(
+      [
+        {
+          normalizedValue: "0999999999",
+          reportId: "report-hidden",
+          type: "PHONE",
+        },
+      ],
+      [
+        createReport({
+          externalAdminHidden: true,
+          externalSource: "chongscam",
+          id: "report-hidden",
+        }),
+      ]
+    );
+
+    const hiddenResult = await searchPublicRiskIdentifiers(
+      hiddenDatabase,
+      { type: "PHONE", value: "0999999999" },
+      "203.0.113.12"
+    );
+
+    expect(hiddenResult.exactMatch).toBe(false);
+    expect(hiddenResult.warnings).toHaveLength(0);
   });
 
   it("expands automatic lookup into exact candidates without fuzzy matching", () => {

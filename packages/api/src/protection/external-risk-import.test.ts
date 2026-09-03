@@ -1,9 +1,11 @@
+import { protectionRiskReport } from "@avin/db/schema/protection";
 import { describe, expect, it, vi } from "vitest";
 
 import {
   CHONGSCAM_API_URL,
   fetchChongScamReports,
   inferExternalRiskIdentifierType,
+  listExternalRiskReports,
 } from "./external-risk-import";
 
 const reportId = "00000000-0000-4000-8000-000000000001";
@@ -82,5 +84,50 @@ describe("inferExternalRiskIdentifierType", () => {
         type: "social",
       })
     ).toBe("SOCIAL_ACCOUNT");
+  });
+});
+
+describe("listExternalRiskReports", () => {
+  it("limits the returned views according to limit parameter", async () => {
+    const mockReports = [1, 2, 3, 4, 5].map((num) => ({
+      externalAdminHidden: false,
+      externalBankName: "MB",
+      externalCategory: null,
+      externalLastSyncedAt: new Date(),
+      externalPayloadHash: `hash-${num}`,
+      externalPlatformUrl: null,
+      externalRawPayload: null,
+      externalSource: "chongscam",
+      externalSourceCreatedAt: new Date(),
+      externalSourceId: `source-${num}`,
+      externalSourceStatus: "verified",
+      externalSourceUrl: `https://chongscam.vn/report/${num}`,
+      externalSuspectName: `Suspect ${num}`,
+      externalTitle: `Report ${num}`,
+      id: `report-id-${num}`,
+      publicSlug: `chongscam-source-${num}`,
+      status: "PUBLISHED",
+      updatedAt: new Date(),
+    }));
+
+    const mockDb = {
+      select: () => ({
+        from: (table: unknown) => ({
+          where: () => {
+            if (table === protectionRiskReport) {
+              return {
+                orderBy: () => Promise.resolve(mockReports),
+              };
+            }
+            return Promise.resolve([]);
+          },
+        }),
+      }),
+    } as never;
+
+    const views = await listExternalRiskReports(mockDb, { limit: 2 });
+    expect(views).toHaveLength(2);
+    expect(views[0]?.externalSourceId).toBe("source-1");
+    expect(views[1]?.externalSourceId).toBe("source-2");
   });
 });

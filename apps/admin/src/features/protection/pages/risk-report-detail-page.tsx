@@ -4,6 +4,7 @@ import {
 } from "@avin/api/storage";
 import { AUTH_SURFACE, AUTH_SURFACE_HEADER } from "@avin/auth/auth-surfaces";
 import { Alert, AlertDescription, AlertTitle } from "@avin/ui/components/alert";
+import { Badge } from "@avin/ui/components/badge";
 import { Button } from "@avin/ui/components/button";
 import {
   Card,
@@ -25,6 +26,8 @@ import { useUploadFile } from "@better-upload/client";
 import {
   ArrowLeftIcon,
   DownloadSimpleIcon,
+  EyeIcon,
+  EyeSlashIcon,
   ShieldCheckIcon,
 } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
@@ -38,6 +41,10 @@ import { Main } from "@/components/layout/main";
 import { client } from "@/lib/orpc";
 import { serverURL } from "@/lib/server-url";
 
+import {
+  useHideExternalRiskReport,
+  useRestoreExternalRiskReport,
+} from "../api/external-risk-import-api";
 import {
   useAdminRiskReport,
   useDecideAdminRiskReport,
@@ -694,6 +701,83 @@ const DecisionPanel = ({ report }: { report: RiskReportDetail }) => {
   );
 };
 
+const ExternalReportActionPanel = ({
+  report,
+}: {
+  report: RiskReportDetail;
+}) => {
+  const hideMutation = useHideExternalRiskReport();
+  const restoreMutation = useRestoreExternalRiskReport();
+  const isBusy = hideMutation.isPending || restoreMutation.isPending;
+
+  return (
+    <Card className="h-fit">
+      <CardHeader>
+        <CardTitle>Nguồn ChongScam</CardTitle>
+        <CardDescription>
+          Bản ghi này được đồng bộ từ nguồn dữ liệu ChongScam (ID:{" "}
+          {report.externalSourceId}).
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4 text-sm">
+        <div className="space-y-1">
+          <p className="text-muted-foreground text-xs">
+            Trạng thái tại nguồn ChongScam
+          </p>
+          <Badge variant="outline">
+            {report.externalSourceStatus ?? "Không rõ"}
+          </Badge>
+        </div>
+        <div className="space-y-1">
+          <p className="text-muted-foreground text-xs">
+            Hiển thị trên Avin Check
+          </p>
+          <Badge
+            variant={report.externalAdminHidden ? "destructive" : "secondary"}
+          >
+            {report.externalAdminHidden
+              ? "Admin đã ẩn khỏi tra cứu"
+              : "Đang công khai"}
+          </Badge>
+        </div>
+        {report.externalSourceUrl ? (
+          <a
+            className="text-primary text-xs underline underline-offset-4"
+            href={report.externalSourceUrl}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            Mở bài viết gốc trên ChongScam ↗
+          </a>
+        ) : null}
+        <div className="border-t pt-3">
+          <Button
+            className="w-full gap-2"
+            disabled={isBusy}
+            onClick={() =>
+              report.externalAdminHidden
+                ? restoreMutation.mutate({ id: report.id })
+                : hideMutation.mutate({ id: report.id })
+            }
+            variant={report.externalAdminHidden ? "default" : "outline"}
+          >
+            {report.externalAdminHidden ? (
+              <>
+                <EyeIcon /> Khôi phục công khai
+              </>
+            ) : (
+              <>
+                <EyeSlashIcon /> Ẩn khỏi tra cứu
+              </>
+            )}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+// oxlint-disable-next-line complexity
 export const RiskReportDetailPage = () => {
   const { reportId } = useParams({
     from: "/_authenticated/avin-check/risk-reports/$reportId",
@@ -706,11 +790,21 @@ export const RiskReportDetailPage = () => {
       <Main className="flex flex-1 flex-col gap-6">
         <Button
           className="w-fit"
-          render={<Link to="/avin-check/risk-reports" />}
+          render={
+            <Link
+              to={
+                report?.externalSource
+                  ? "/avin-check/external-imports"
+                  : "/avin-check/risk-reports"
+              }
+            />
+          }
           variant="ghost"
         >
           <ArrowLeftIcon />
-          Quay lại hàng đợi
+          {report?.externalSource
+            ? "Quay lại danh sách ChongScam"
+            : "Quay lại hàng đợi"}
         </Button>
         {isPending ? <p>Đang tải report…</p> : null}
         {isError || !report ? (
@@ -723,17 +817,35 @@ export const RiskReportDetailPage = () => {
         ) : (
           <>
             <div>
-              <p className="font-medium text-primary text-sm">
-                AVIN CHECK · RISK REPORT
-              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="font-medium text-primary text-sm">
+                  AVIN CHECK · RISK REPORT
+                </p>
+                {report.externalSource ? (
+                  <Badge variant="outline">
+                    Nguồn: {report.externalSource.toUpperCase()} (
+                    {report.externalSourceId})
+                  </Badge>
+                ) : null}
+              </div>
               <h1 className="mt-1 font-semibold text-3xl tracking-tight">
-                {report.id}
+                {report.externalTitle ?? report.id}
               </h1>
               <p className="mt-2 text-muted-foreground text-sm">
                 {TYPE_LABELS[report.type]} · Trạng thái:{" "}
                 <span className="font-semibold text-foreground">
                   {STATUS_LABELS[report.status] ?? report.status}
                 </span>
+                {report.externalSource ? (
+                  <>
+                    {" · "}
+                    <span className="text-muted-foreground">
+                      {report.externalAdminHidden
+                        ? "Admin đã ẩn khỏi public"
+                        : "Công khai trên Avin Check"}
+                    </span>
+                  </>
+                ) : null}
               </p>
             </div>
 
@@ -938,7 +1050,11 @@ export const RiskReportDetailPage = () => {
 
               {/* Right column: Quyết định & Lịch sử */}
               <div className="grid content-start gap-6">
-                <DecisionPanel report={report} />
+                {report.externalSource ? (
+                  <ExternalReportActionPanel report={report} />
+                ) : (
+                  <DecisionPanel report={report} />
+                )}
                 <Card>
                   <CardHeader>
                     <CardTitle>Lịch sử trạng thái</CardTitle>

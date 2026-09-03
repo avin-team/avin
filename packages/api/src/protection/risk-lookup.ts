@@ -5,16 +5,7 @@ import {
   protectionRiskReport,
 } from "@avin/db/schema/protection";
 import { ORPCError } from "@orpc/server";
-import {
-  and,
-  countDistinct,
-  desc,
-  eq,
-  inArray,
-  isNull,
-  or,
-  sql,
-} from "drizzle-orm";
+import { and, countDistinct, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import type { Context } from "../runtime/context";
@@ -420,7 +411,7 @@ const loadCurrentRiskReports = (
 ) => {
   const statusCondition = and(
     inArray(protectionRiskReport.status, publicRiskReportStatuses),
-    isNull(protectionRiskReport.externalSource)
+    eq(protectionRiskReport.externalAdminHidden, false)
   );
   const conditions = reportIds?.length
     ? and(statusCondition, inArray(protectionRiskReport.id, reportIds))
@@ -647,7 +638,7 @@ export const searchPublicRiskIdentifiers = async (
   );
   const publicStatusCondition = and(
     inArray(protectionRiskReport.status, publicRiskReportStatuses),
-    isNull(protectionRiskReport.externalSource)
+    eq(protectionRiskReport.externalAdminHidden, false)
   );
   const sortAtExpression = sql`coalesce(${protectionRiskReport.publishedAt}, ${protectionRiskReport.updatedAt})`;
   const cursorCondition = cursor

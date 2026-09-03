@@ -42,6 +42,9 @@ const invalidateExternalRisk = async (): Promise<void> => {
     queryClient.invalidateQueries({
       queryKey: orpc.protection.publicRiskWarnings.get.key(),
     }),
+    queryClient.invalidateQueries({
+      queryKey: orpc.protection.adminRiskReports.get.key(),
+    }),
   ]);
 };
 

@@ -116,6 +116,7 @@ export const externalRiskApplyInputSchema = z.object({
 export const externalRiskAdminListInputSchema = z
   .object({
     includeHidden: z.boolean().optional(),
+    limit: z.coerce.number().int().min(1).max(500).optional(),
     search: z.string().trim().max(200).optional(),
   })
   .optional();
@@ -189,7 +190,7 @@ interface FetchOptions {
 }
 
 interface ImportOptions extends FetchOptions {
-  actorUserId: string;
+  actorUserId: string | null;
   database: Database;
   mode: ExternalRiskImportMode;
   now?: Date;
@@ -772,7 +773,7 @@ const createRun = async ({
   mode,
   now,
 }: {
-  actorUserId: string;
+  actorUserId: string | null;
   database: Database;
   fullReconcile: boolean;
   mode: ExternalRiskImportMode;
@@ -914,6 +915,7 @@ const upsertExternalReport = async ({
 }): Promise<{
   created: boolean;
   evidenceDownloadedCount: number;
+  evidenceErrors: string[];
   updated: boolean;
 }> => {
   const [existing] = await database
@@ -946,7 +948,12 @@ const upsertExternalReport = async ({
       .update(protectionRiskReport)
       .set({ externalImportRunId: importRunId, externalLastSyncedAt: now })
       .where(eq(protectionRiskReport.id, existing.id));
-    return { created: false, evidenceDownloadedCount: 0, updated: false };
+    return {
+      created: false,
+      evidenceDownloadedCount: 0,
+      evidenceErrors: [],
+      updated: false,
+    };
   }
 
   const values = buildExternalReportValues({
@@ -1032,12 +1039,10 @@ const upsertExternalReport = async ({
     status: report.status,
   });
 
-  if (evidenceErrors.length > 0) {
-    throw new Error(evidenceErrors.join("; "));
-  }
   return {
     created: !existing,
     evidenceDownloadedCount,
+    evidenceErrors,
     updated: Boolean(existing),
   };
 };
@@ -1203,6 +1208,7 @@ export const listExternalRiskReports = async (
   database: Database,
   input?: z.infer<typeof externalRiskAdminListInputSchema>
 ): Promise<ExternalRiskReportView[]> => {
+  const limit = input?.limit ?? 100;
   const reports = await database
     .select()
     .from(protectionRiskReport)
@@ -1277,6 +1283,9 @@ export const listExternalRiskReports = async (
       suspectName: report.externalSuspectName,
       updatedAt: report.updatedAt.toISOString(),
     });
+    if (views.length >= limit) {
+      break;
+    }
   }
   return views;
 };

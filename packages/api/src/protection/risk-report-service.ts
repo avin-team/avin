@@ -1838,7 +1838,7 @@ export const getRiskReportForAdmin = async (
   const [report] = await database
     .select()
     .from(protectionRiskReport)
-    .where(and(eq(protectionRiskReport.id, reportId), publicNativeRiskFilter))
+    .where(eq(protectionRiskReport.id, reportId))
     .limit(1);
   if (!report) {
     throw new ORPCError("NOT_FOUND", { message: "Risk report not found" });
@@ -1864,6 +1864,19 @@ export const getRiskReportForAdmin = async (
     evidence: materials.evidence.map((item) =>
       toPrivateEvidenceView(item, derivativesByEvidenceId.get(item.id))
     ),
+    externalAdminHidden: report.externalAdminHidden,
+    externalBankName: report.externalBankName,
+    externalLastSyncedAt: toIso(report.externalLastSyncedAt),
+    externalPayloadHash: report.externalPayloadHash,
+    externalPlatformUrl: report.externalPlatformUrl,
+    externalRawPayload: report.externalRawPayload,
+    externalSource: report.externalSource,
+    externalSourceCreatedAt: toIso(report.externalSourceCreatedAt),
+    externalSourceId: report.externalSourceId,
+    externalSourceStatus: report.externalSourceStatus,
+    externalSourceUrl: report.externalSourceUrl,
+    externalSuspectName: report.externalSuspectName,
+    externalTitle: report.externalTitle,
     handoverAt: toIso(report.handoverAt),
     history: materials.history.map((item) => ({
       actorUserId: item.actorUserId,
@@ -2208,12 +2221,12 @@ export const registerRiskReportDerivative = async ({
   ) {
     throwBadRequest("The derivative file name does not match its content type");
   }
-  const [nativeReport] = await database
+  const [report] = await database
     .select({ id: protectionRiskReport.id })
     .from(protectionRiskReport)
-    .where(and(eq(protectionRiskReport.id, reportId), publicNativeRiskFilter))
+    .where(eq(protectionRiskReport.id, reportId))
     .limit(1);
-  if (!nativeReport) {
+  if (!report) {
     throw new ORPCError("NOT_FOUND", { message: "Risk report not found" });
   }
   const [evidence] = await database
@@ -2297,12 +2310,12 @@ export const createRiskReportOriginalEvidenceUrl = async ({
       message: "Private evidence storage is not configured",
     });
   }
-  const [nativeReport] = await database
+  const [report] = await database
     .select({ id: protectionRiskReport.id })
     .from(protectionRiskReport)
-    .where(and(eq(protectionRiskReport.id, reportId), publicNativeRiskFilter))
+    .where(eq(protectionRiskReport.id, reportId))
     .limit(1);
-  if (!nativeReport) {
+  if (!report) {
     throw new ORPCError("NOT_FOUND", { message: "Risk report not found" });
   }
   const [evidence] = await database
@@ -2592,7 +2605,7 @@ export const listPublicRiskWarnings = async (
           "CORRECTED",
           "REMOVED",
         ]),
-        publicNativeRiskFilter
+        eq(protectionRiskReport.externalAdminHidden, false)
       )
     )
     .orderBy(desc(protectionRiskReport.publishedAt))
@@ -2633,7 +2646,7 @@ export const getPublicRiskWarning = async (
           "CORRECTED",
           "REMOVED",
         ]),
-        publicNativeRiskFilter
+        eq(protectionRiskReport.externalAdminHidden, false)
       )
     )
     .limit(1);
