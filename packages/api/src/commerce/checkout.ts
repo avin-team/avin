@@ -652,7 +652,8 @@ export const createCheckout = (
 
     if (!account || account.role !== "BUYER") {
       throw new ORPCError("FORBIDDEN", {
-        message: "Chỉ Buyer mới có thể Checkout.",
+        message:
+          "Tài khoản Người bán không thể thực hiện thanh toán đơn hàng. Vui lòng sử dụng tài khoản Người mua.",
       });
     }
 

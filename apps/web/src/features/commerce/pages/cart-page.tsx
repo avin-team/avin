@@ -1,3 +1,4 @@
+import { ACCOUNT_ROLE } from "@avin/auth/permissions";
 import { Button } from "@avin/ui/components/button";
 import {
   Card,
@@ -32,6 +33,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Shell } from "@/components/shell";
+import { useSession } from "@/features/auth/api/session-query";
 import {
   reconcileCartItemPackageMutation,
   removeCartItemOptimistically,
@@ -395,7 +397,12 @@ const CheckoutSummary = ({
 export const CartPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const cartQuery = useQuery(orpc.commerce.cart.get.queryOptions());
+  const { data: session } = useSession();
+  const isSeller = session?.user?.role === ACCOUNT_ROLE.SELLER;
+  const cartQuery = useQuery({
+    ...orpc.commerce.cart.get.queryOptions(),
+    enabled: !isSeller,
+  });
   const [contractChanged, setContractChanged] = useState(false);
   const [checkoutKey, setCheckoutKey] = useState(() => crypto.randomUUID());
   const checkoutDescriptionsRef = useRef(new Map<string, string>());
@@ -649,6 +656,35 @@ export const CartPage = () => {
           <Skeleton className="h-10 w-48" />
           <Skeleton className="h-48 w-full" />
           <Skeleton className="h-48 w-full" />
+        </div>
+      </Shell>
+    );
+  }
+
+  if (isSeller) {
+    return (
+      <Shell variant="default">
+        <div className="py-16">
+          <Card className="mx-auto max-w-xl">
+            <CardContent className="space-y-4 px-6 py-12 text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                <WarningCircleIcon className="h-7 w-7" />
+              </div>
+              <h2 className="font-bold text-xl">Giỏ hàng dành cho Người mua</h2>
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                Bạn đang đăng nhập bằng tài khoản Người bán. Tài khoản Người bán
+                không thể sử dụng giỏ hàng hoặc mua sắm trên hệ thống.
+              </p>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                <Button render={<Link to="/seller/store" />}>
+                  Về Kênh người bán
+                </Button>
+                <Button render={<Link to="/category" />} variant="outline">
+                  Khám phá dịch vụ
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </Shell>
     );

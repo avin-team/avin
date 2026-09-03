@@ -7,6 +7,7 @@ import {
   CheckCircleIcon,
   ClockIcon,
   HouseIcon,
+  PencilSimpleIcon,
   ShieldCheckIcon,
   ShoppingCartIcon,
   StarIcon,
@@ -20,6 +21,7 @@ import type { ReactNode } from "react";
 import { toast } from "sonner";
 
 import { Shell } from "@/components/shell";
+import { useSession } from "@/features/auth/api/session-query";
 import { AuthActionGuard } from "@/features/auth/components/auth-action-guard";
 import { ListingMediaGallery } from "@/features/catalog/components/listing-media-gallery";
 import { ListingReviewsSection } from "@/features/catalog/components/listing-reviews-section";
@@ -367,6 +369,8 @@ export const ListingDetailPage = () => {
     servicePackages,
     subCategory,
   } = getListingPresentation(listing, selectedPackageId);
+  const { data: session } = useSession();
+  const isCurrentSeller = session?.user?.role === "SELLER";
   const cartQueryKey = orpc.commerce.cart.get.queryOptions().queryKey;
   const addToCartMutation = useMutation({
     ...orpc.commerce.cart.add.mutationOptions(),
@@ -395,7 +399,9 @@ export const ListingDetailPage = () => {
       return { previousCart };
     },
     onSettled: async () => {
-      await queryClient.invalidateQueries({ queryKey: cartQueryKey });
+      if (!isCurrentSeller) {
+        await queryClient.invalidateQueries({ queryKey: cartQueryKey });
+      }
     },
     onSuccess: async (cart) => {
       queryClient.setQueryData(cartQueryKey, cart);
@@ -580,9 +586,22 @@ export const ListingDetailPage = () => {
 
                   {/* Action CTA */}
                   <AuthActionGuard>
-                    {({ isSessionPending, runAuthenticatedAction }) => {
+                    {({
+                      isSeller: isGuardSeller,
+                      isSessionPending,
+                      runAuthenticatedAction,
+                      session: guardSession,
+                    }) => {
+                      const isOwn =
+                        isGuardSeller &&
+                        Boolean(
+                          guardSession?.user?.id &&
+                          (guardSession.user.id === listing.sellerId ||
+                            guardSession.user.id === listing.seller?.id)
+                        );
                       const isPurchaseActionDisabled =
                         isSessionPending ||
+                        isGuardSeller ||
                         addToCartMutation.isPending ||
                         (isService && !selectedPackage);
                       const addListingToCart = (): void => {
@@ -594,13 +613,68 @@ export const ListingDetailPage = () => {
                         });
                       };
 
+                      if (isOwn) {
+                        return (
+                          <div className="space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 text-center">
+                            <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                              <StorefrontIcon className="h-5 w-5" />
+                            </div>
+                            <div className="space-y-1">
+                              <p className="font-semibold text-foreground text-sm">
+                                Sản phẩm của bạn
+                              </p>
+                              <p className="text-muted-foreground text-xs leading-relaxed">
+                                Bạn đang xem sản phẩm do chính mình đăng bán.
+                                Bạn không thể tự mua hoặc thêm vào giỏ hàng.
+                              </p>
+                            </div>
+                            <Button
+                              className="w-full font-semibold"
+                              render={
+                                <Link
+                                  params={{ id: listing.id }}
+                                  to="/seller/listings/$id"
+                                />
+                              }
+                              size="sm"
+                              variant="outline"
+                            >
+                              <PencilSimpleIcon className="mr-1.5 h-4 w-4" />
+                              <span>Chỉnh sửa sản phẩm</span>
+                            </Button>
+                          </div>
+                        );
+                      }
+
                       return (
                         <div className="space-y-3">
+                          {isGuardSeller ? (
+                            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-900 dark:text-amber-200">
+                              <div className="flex items-start gap-2.5">
+                                <WarningCircleIcon className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                                <div className="space-y-1">
+                                  <p className="font-semibold text-foreground">
+                                    Tài khoản Người bán không thể mua hàng
+                                  </p>
+                                  <p className="text-muted-foreground dark:text-amber-300/80 leading-relaxed">
+                                    Vui lòng đăng nhập tài khoản Người mua để
+                                    đặt hàng.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          ) : null}
+
                           <Button
                             className="h-11 w-full font-bold shadow-md hover:shadow-lg hover:shadow-primary/20"
                             disabled={isPurchaseActionDisabled}
                             onClick={addListingToCart}
                             size="lg"
+                            title={
+                              isGuardSeller
+                                ? "Tài khoản Người bán không thể mua hàng"
+                                : undefined
+                            }
                             type="button"
                           >
                             <span>Mua ngay</span>
@@ -611,6 +685,11 @@ export const ListingDetailPage = () => {
                             disabled={isPurchaseActionDisabled}
                             onClick={addListingToCart}
                             size="lg"
+                            title={
+                              isGuardSeller
+                                ? "Tài khoản Người bán không thể mua hàng"
+                                : undefined
+                            }
                             type="button"
                             variant="secondary"
                           >

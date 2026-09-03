@@ -137,7 +137,8 @@ describe("createCheckout", () => {
       })
     ).rejects.toMatchObject({
       code: "FORBIDDEN",
-      message: "Chỉ Buyer mới có thể Checkout.",
+      message:
+        "Tài khoản Người bán không thể thực hiện thanh toán đơn hàng. Vui lòng sử dụng tài khoản Người mua.",
     });
   });
 

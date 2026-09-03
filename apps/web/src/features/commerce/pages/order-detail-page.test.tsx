@@ -41,7 +41,12 @@ vi.mock("@tanstack/react-router", () => ({
   useSearch: () => ({}),
 }));
 
+vi.mock("@/features/auth/api/session-query", () => ({
+  useSession: () => ({ data: { user: { role: "BUYER" } } }),
+}));
+
 vi.mock("@tanstack/react-query", () => ({
+  queryOptions: (options: unknown) => options,
   useMutation: mocks.useMutation,
   useQuery: mocks.useQuery,
   useQueryClient: mocks.useQueryClient,

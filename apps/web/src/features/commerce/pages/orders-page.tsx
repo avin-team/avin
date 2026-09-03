@@ -1,3 +1,4 @@
+import { ACCOUNT_ROLE } from "@avin/auth/permissions";
 import { Alert, AlertDescription, AlertTitle } from "@avin/ui/components/alert";
 import { Button } from "@avin/ui/components/button";
 import { Card, CardContent } from "@avin/ui/components/card";
@@ -8,18 +9,50 @@ import {
   WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 
 import { Shell } from "@/components/shell";
+import { useSession } from "@/features/auth/api/session-query";
 import { BuyerOrdersTable } from "@/features/commerce/components/buyer-orders-table";
 import { orpc } from "@/utils/orpc";
 
 export const OrdersPage = () => {
-  const ordersQuery = useQuery(
-    orpc.commerce.orders.listMineAsBuyer.queryOptions({
+  const { data: session } = useSession();
+  const isSeller = session?.user?.role === ACCOUNT_ROLE.SELLER;
+
+  const ordersQuery = useQuery({
+    ...orpc.commerce.orders.listMineAsBuyer.queryOptions({
       retry: false,
       throwOnError: false,
-    })
-  );
+    }),
+    enabled: !isSeller,
+  });
+
+  if (isSeller) {
+    return (
+      <Shell variant="default">
+        <div className="py-16">
+          <Card className="mx-auto max-w-xl">
+            <CardContent className="space-y-4 px-6 py-12 text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                <WarningCircleIcon className="h-7 w-7" />
+              </div>
+              <h2 className="font-bold text-xl">Đơn mua hàng của Người mua</h2>
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                Bạn đang đăng nhập bằng tài khoản Người bán. Để xem và xử lý các
+                đơn đặt hàng từ khách mua, vui lòng truy cập Kênh người bán.
+              </p>
+              <div className="flex justify-center pt-2">
+                <Button render={<Link to="/seller/store" />}>
+                  Quản lý đơn bán hàng
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </Shell>
+    );
+  }
 
   if (ordersQuery.isPending) {
     return (

@@ -179,6 +179,8 @@ describe("Buyer procedure authorization", () => {
       })
     ).rejects.toMatchObject({
       code: "FORBIDDEN",
+      message:
+        "Tài khoản Người bán không thể thực hiện thao tác mua hàng. Vui lòng sử dụng tài khoản Người mua.",
     });
   });
 });

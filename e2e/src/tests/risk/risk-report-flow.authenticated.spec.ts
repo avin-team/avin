@@ -1,8 +1,8 @@
 import { readFile } from "node:fs/promises";
 
-import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
+import { expect, test } from "../../fixtures/risk-report.fixture";
 import { AUTH_STATE_PATHS } from "../../support/auth-state";
 import { resolveE2EEnvironment } from "../../support/environment";
 
@@ -39,6 +39,7 @@ test.describe(
     test("submits a transaction report and publishes its redacted warning", async ({
       browser,
       page,
+      withRiskReportCleanup,
     }, testInfo) => {
       test.setTimeout(90_000);
 
@@ -120,6 +121,7 @@ test.describe(
           const saveResponse = await saveDraftResponse;
           expect(saveResponse.ok()).toBe(true);
           reportId = await getReportIdFromDraftResponse(saveResponse);
+          withRiskReportCleanup(reportId);
 
           const uploadResponse = await evidenceUploadResponse;
           expect(uploadResponse.ok()).toBe(true);

@@ -62,7 +62,10 @@ describe("CartItemCard", () => {
       />
     );
 
-    expect(screen.getByRole("checkbox")).toBeDisabled();
+    expect(screen.getByRole("checkbox")).toHaveAttribute(
+      "aria-disabled",
+      "true"
+    );
     expect(
       screen.getByRole("button", { name: "Xóa Kháng 282 khỏi Giỏ hàng" })
     ).toBeDisabled();

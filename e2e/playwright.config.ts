@@ -14,6 +14,10 @@ import {
 } from "./src/support/environment";
 
 loadEnvironmentFile({
+  path: new URL("../apps/server/.env", import.meta.url),
+  quiet: true,
+});
+loadEnvironmentFile({
   path: new URL(".env.local", import.meta.url),
   quiet: true,
 });

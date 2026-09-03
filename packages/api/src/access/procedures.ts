@@ -81,7 +81,21 @@ const procedureForRoles = (roles: readonly AccountRole[]) =>
   protectedProcedure.use(({ context, next }) => {
     const { role } = context.session.user;
     if (!isAccountRole(role) || !roles.includes(role)) {
-      throw new ORPCError("FORBIDDEN");
+      if (roles.includes(ACCOUNT_ROLE.BUYER) && role === ACCOUNT_ROLE.SELLER) {
+        throw new ORPCError("FORBIDDEN", {
+          message:
+            "Tài khoản Người bán không thể thực hiện thao tác mua hàng. Vui lòng sử dụng tài khoản Người mua.",
+        });
+      }
+      if (roles.includes(ACCOUNT_ROLE.SELLER) && role === ACCOUNT_ROLE.BUYER) {
+        throw new ORPCError("FORBIDDEN", {
+          message:
+            "Tài khoản Người mua không thể thực hiện thao tác của Người bán. Vui lòng đăng nhập tài khoản Người bán.",
+        });
+      }
+      throw new ORPCError("FORBIDDEN", {
+        message: "Bạn không có quyền thực hiện thao tác này.",
+      });
     }
 
     if (adminRequiresTwoFactor(context.session.user)) {
