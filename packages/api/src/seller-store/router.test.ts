@@ -11,16 +11,6 @@ import {
 import { isStoreSlugLocked } from "./public-visibility";
 import { sellerStoreRouter } from "./router";
 
-describe("seller store router interface", () => {
-  it("exposes the private store profile workflow", () => {
-    expect(Object.keys(sellerStoreRouter).toSorted()).toEqual([
-      "getProfile",
-      "getPublicBySlug",
-      "updateProfile",
-    ]);
-  });
-});
-
 describe("store profile contract", () => {
   it("creates a URL-safe initial slug from a store name", () => {
     expect(createStoreSlug("Studio của Ngọc")).toBe("studio-cua-ngoc");

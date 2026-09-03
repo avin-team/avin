@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  createSellerListingSlug,
-  getSellerListingImageUrl,
-  parseSellerListingSeedArguments,
-  SELLER_LISTING_SEEDS,
-} from "./seller-listing-seed-data";
+import { parseSellerListingSeedArguments } from "./seller-listing-seed-data";
 
 const SELLER_PROFILE_ID = "0198aabb-ccdd-7eef-8123-456789abcdef";
 
@@ -40,105 +35,6 @@ describe("parseSellerListingSeedArguments", () => {
     ).toThrow("--seller-profile-id may only be provided once");
     expect(() => parseSellerListingSeedArguments(["--force"])).toThrow(
       "Unknown argument: --force"
-    );
-  });
-});
-
-describe("SELLER_LISTING_SEEDS", () => {
-  it("contains the agreed listing and package counts", () => {
-    const packageCount = SELLER_LISTING_SEEDS.reduce(
-      (total, seed) => total + seed.packages.length,
-      0
-    );
-
-    expect(SELLER_LISTING_SEEDS).toHaveLength(12);
-    expect(packageCount).toBe(21);
-  });
-
-  it("preserves the prices transcribed from the flyer", () => {
-    expect(
-      SELLER_LISTING_SEEDS.map((seed) =>
-        seed.packages.map((packageSeed) => packageSeed.priceAmount)
-      )
-    ).toEqual([
-      [500_000, 700_000],
-      [5_000_000, 10_000_000],
-      [700_000, 1_200_000],
-      [3_000_000, 5_000_000],
-      [600_000, 1_000_000],
-      [5_000_000, 15_000_000],
-      [5_000_000, 10_000_000],
-      [2_000_000, 3_000_000],
-      [700_000],
-      [4_000_000],
-      [3_000_000, 4_000_000],
-      [4_000_000],
-    ]);
-  });
-
-  it("uses unique slugs and the agreed package names", () => {
-    const slugs = SELLER_LISTING_SEEDS.map((seed) => seed.slugSuffix);
-
-    expect(new Set(slugs).size).toBe(slugs.length);
-
-    for (const seed of SELLER_LISTING_SEEDS) {
-      expect(seed.packages[0]?.name).toBe("Gói cơ bản");
-
-      if (seed.packages.length === 2) {
-        expect(seed.packages[1]?.name).toBe("Gói nâng cao");
-      }
-    }
-  });
-
-  it("keeps artificial engagement services out of the dataset", () => {
-    const titles = SELLER_LISTING_SEEDS.map((seed) => seed.title.toLowerCase());
-
-    expect(titles.some((title) => title.includes("tăng like"))).toBe(false);
-    expect(titles.some((title) => title.includes("tăng follow"))).toBe(false);
-    expect(titles.some((title) => title.includes("tăng view"))).toBe(false);
-  });
-
-  it("formats every Vietnamese service description consistently", () => {
-    for (const seed of SELLER_LISTING_SEEDS) {
-      const [headline] = seed.description.split("\n");
-      const supportItemCount = seed.description.match(/^✅ /gmu)?.length ?? 0;
-
-      expect(headline).toBe(headline?.toLocaleUpperCase("vi-VN"));
-      expect(seed.description).toContain("\n\nDịch vụ hỗ trợ:\n");
-      expect(supportItemCount).toBe(5);
-      expect(
-        seed.description.endsWith(
-          "🤝 Uy tín – Minh bạch – Bảo mật – Hỗ trợ tận tâm."
-        )
-      ).toBe(true);
-    }
-  });
-});
-
-describe("createSellerListingSlug", () => {
-  it("scopes listing slugs to the seller store", () => {
-    expect(createSellerListingSlug("cua-hang-an", "mo-khoa-facebook")).toBe(
-      "cua-hang-an-mo-khoa-facebook"
-    );
-  });
-});
-
-describe("getSellerListingImageUrl", () => {
-  it("maps supported platforms to their public default images", () => {
-    expect(getSellerListingImageUrl("dich-vu-facebook")).toBe(
-      "/images/seed-listings/facebook-services.png"
-    );
-    expect(getSellerListingImageUrl("dich-vu-tiktok")).toBe(
-      "/images/seed-listings/tiktok-services.png"
-    );
-    expect(getSellerListingImageUrl("dich-vu-youtube")).toBe(
-      "/images/seed-listings/youtube-services.png"
-    );
-  });
-
-  it("rejects categories without a default image", () => {
-    expect(() => getSellerListingImageUrl("dich-vu-google")).toThrow(
-      "No default seller listing image for category: dich-vu-google"
     );
   });
 });

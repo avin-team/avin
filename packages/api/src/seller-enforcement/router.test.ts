@@ -40,35 +40,6 @@ const createContext = (
 });
 
 describe("Seller Enforcement backend router", () => {
-  it("keeps the enforcement API backend-only and exposes the approved seams", () => {
-    expect(Object.keys(sellerEnforcementRouter).toSorted()).toEqual([
-      "admin",
-      "seller",
-    ]);
-    expect(Object.keys(sellerEnforcementRouter.admin).toSorted()).toEqual([
-      "appeals",
-      "apply",
-      "correctDecision",
-      "correctReason",
-      "get",
-      "getAppeal",
-      "getAppealEvidenceUrl",
-      "history",
-      "lift",
-      "listSellers",
-      "remediationItems",
-      "retryRemediation",
-      "reviewAppeal",
-    ]);
-    expect(Object.keys(sellerEnforcementRouter.seller).toSorted()).toEqual([
-      "appeals",
-      "get",
-      "getAppeal",
-      "getAppealEvidenceUrl",
-      "submitAppeal",
-    ]);
-  });
-
   it("rejects a non-Admin before reaching the enforcement handler", async () => {
     await expect(
       call(

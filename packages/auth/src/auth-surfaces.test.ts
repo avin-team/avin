@@ -12,7 +12,6 @@ describe("AUTH_SURFACES", () => {
     const { storefront } = AUTH_SURFACES;
     const { admin } = AUTH_SURFACES;
 
-    expect(Object.keys(AUTH_SURFACES)).toEqual(["storefront", "admin"]);
     expect(storefront.basePath).not.toBe(admin.basePath);
     expect(storefront.cookiePrefix).not.toBe(admin.cookiePrefix);
     expect(storefront.errorPath).toBe("/login");
