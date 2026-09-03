@@ -9,6 +9,7 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@avin/ui/components/field";
+import { Textarea } from "@avin/ui/components/textarea";
 import { useUploadFiles } from "@better-upload/client";
 import { useForm } from "@tanstack/react-form";
 import type { ChangeEvent } from "react";
@@ -169,9 +170,9 @@ const ProviderRiskIncidentCard = ({
                     <FieldLabel htmlFor={field.name}>
                       Phản hồi riêng tư cho Reviewer
                     </FieldLabel>
-                    <textarea
+                    <Textarea
                       aria-invalid={isInvalid}
-                      className="min-h-32 rounded-xl border bg-background p-3"
+                      className="min-h-32"
                       id={field.name}
                       name={field.name}
                       onBlur={field.handleBlur}
@@ -210,6 +211,7 @@ const ProviderRiskIncidentCard = ({
             </responseForm.Subscribe>
             <label className="cursor-pointer rounded-xl border px-4 py-2 font-medium text-sm">
               Thêm bằng chứng
+              {/* oxlint-disable-next-line react/forbid-elements -- native file input */}
               <input
                 accept={RISK_REPORT_EVIDENCE_CONTENT_TYPES.join(",")}
                 className="sr-only"

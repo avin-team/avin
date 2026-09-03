@@ -7,6 +7,7 @@ import {
   AttachmentTitle,
   AttachmentTrigger,
 } from "@avin/ui/components/attachment";
+import { Button } from "@avin/ui/components/button";
 import { Dialog, DialogContent, DialogTitle } from "@avin/ui/components/dialog";
 import { FileIcon, ImageIcon } from "@phosphor-icons/react";
 import * as React from "react";
@@ -77,14 +78,15 @@ const OrderChatImageAttachment = ({
   return (
     <div className="size-48 shrink-0 overflow-hidden rounded-2xl border border-border/60 bg-muted">
       {url ? (
-        <button
+        <Button
           aria-label={`Xem ảnh ${attachment.fileName}`}
-          className="block size-full cursor-zoom-in"
+          className="block size-full cursor-zoom-in rounded-none p-0 hover:bg-transparent"
           onClick={() => onPreview(attachment)}
           type="button"
+          variant="ghost"
         >
           {imagePreview}
-        </button>
+        </Button>
       ) : (
         <div className="flex size-full items-center justify-center">
           {imagePreview}

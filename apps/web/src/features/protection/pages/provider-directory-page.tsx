@@ -219,18 +219,20 @@ export const ProviderDirectoryPage = () => {
                 value={query}
               />
               {query ? (
-                <button
+                <Button
                   aria-label="Xóa từ khóa tìm kiếm"
-                  className="absolute top-1/2 right-3 -translate-y-1/2 rounded-full p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  className="absolute top-1/2 right-3 -translate-y-1/2 rounded-full p-0 text-muted-foreground hover:text-foreground"
                   onClick={handleClear}
+                  size="icon-xs"
                   type="button"
+                  variant="ghost"
                 >
                   <XCircleIcon
                     aria-hidden="true"
                     className="size-5"
                     weight="fill"
                   />
-                </button>
+                </Button>
               ) : null}
             </div>
             <Button

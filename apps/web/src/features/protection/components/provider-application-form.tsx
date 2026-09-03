@@ -530,14 +530,16 @@ const ProviderDepositPanel = ({
           <p className="text-muted-foreground">
             Nội dung chuyển khoản (bắt buộc đúng)
           </p>
-          <button
-            className="mt-1.5 inline-flex items-center gap-1.5 font-mono font-bold text-primary text-sm hover:underline"
+          <Button
+            className="mt-1.5 h-auto p-0 font-mono font-bold text-primary text-sm hover:underline hover:bg-transparent"
             data-testid="provider-payment-code"
             onClick={copyCode}
+            size="xs"
             type="button"
+            variant="ghost"
           >
             {intent.paymentCode} <Copy aria-hidden="true" className="size-4" />
-          </button>
+          </Button>
         </div>
         <div className="rounded-2xl border bg-background p-4 shadow-2xs">
           <p className="text-muted-foreground">Thời gian hết hạn</p>
@@ -737,24 +739,28 @@ const ProviderApplicationFormContent = ({
         className="grid grid-cols-2 gap-2 rounded-2xl border bg-muted/30 p-1.5"
         role="tablist"
       >
-        <button
+        <Button
           aria-selected={activeTab === "identity_and_channels"}
-          className={`rounded-xl py-2.5 font-semibold text-xs ${activeTab === "identity_and_channels" ? "bg-card text-primary shadow-xs" : "text-muted-foreground"}`}
+          className={`rounded-xl py-2.5 font-semibold text-xs ${activeTab === "identity_and_channels" ? "bg-card text-primary shadow-xs hover:bg-card" : "text-muted-foreground"}`}
           onClick={() => setActiveTab("identity_and_channels")}
           role="tab"
+          size="sm"
           type="button"
+          variant="ghost"
         >
           1. Thông tin & liên hệ
-        </button>
-        <button
+        </Button>
+        <Button
           aria-selected={activeTab === "payout_and_policy"}
-          className={`rounded-xl py-2.5 font-semibold text-xs ${activeTab === "payout_and_policy" ? "bg-card text-primary shadow-xs" : "text-muted-foreground"}`}
+          className={`rounded-xl py-2.5 font-semibold text-xs ${activeTab === "payout_and_policy" ? "bg-card text-primary shadow-xs hover:bg-card" : "text-muted-foreground"}`}
           onClick={() => setActiveTab("payout_and_policy")}
           role="tab"
+          size="sm"
           type="button"
+          variant="ghost"
         >
           2. Quỹ đảm bảo & cam kết
-        </button>
+        </Button>
       </div>
 
       <FieldGroup className="space-y-6">

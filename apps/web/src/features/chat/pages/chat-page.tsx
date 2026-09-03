@@ -99,42 +99,33 @@ export const ChatPage = () => {
           </div>
 
           <div className="flex items-center gap-1 rounded-lg bg-muted/60 p-1 text-xs">
-            <button
-              className={cn(
-                "flex-1 rounded-md px-2.5 py-1 font-medium transition-colors",
-                activeTab === "all"
-                  ? "bg-background text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
+            <Button
+              className="flex-1 font-medium"
               onClick={() => setActiveTab("all")}
+              size="xs"
               type="button"
+              variant={activeTab === "all" ? "default" : "ghost"}
             >
               Tất cả
-            </button>
-            <button
-              className={cn(
-                "flex-1 rounded-md px-2.5 py-1 font-medium transition-colors",
-                activeTab === "active"
-                  ? "bg-background text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
+            </Button>
+            <Button
+              className="flex-1 font-medium"
               onClick={() => setActiveTab("active")}
+              size="xs"
               type="button"
+              variant={activeTab === "active" ? "default" : "ghost"}
             >
               Đang xử lý
-            </button>
-            <button
-              className={cn(
-                "flex-1 rounded-md px-2.5 py-1 font-medium transition-colors",
-                activeTab === "completed"
-                  ? "bg-background text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
+            </Button>
+            <Button
+              className="flex-1 font-medium"
               onClick={() => setActiveTab("completed")}
+              size="xs"
               type="button"
+              variant={activeTab === "completed" ? "default" : "ghost"}
             >
               Hoàn thành
-            </button>
+            </Button>
           </div>
 
           <div className="flex-1 space-y-1 overflow-y-auto">
@@ -162,9 +153,9 @@ export const ChatPage = () => {
               const showUnread = conversation.unreadCount > 0 && !isSelected;
 
               return (
-                <button
+                <Button
                   className={cn(
-                    "flex w-full items-start gap-3 rounded-xl p-3 text-left transition-colors hover:bg-accent/80",
+                    "flex h-auto w-full items-start justify-start gap-3 rounded-xl p-3 text-left font-normal whitespace-normal transition-colors hover:bg-accent/80",
                     isSelected && "bg-accent"
                   )}
                   key={conversation.orderId}
@@ -175,6 +166,7 @@ export const ChatPage = () => {
                     })
                   }
                   type="button"
+                  variant="ghost"
                 >
                   <div className="relative shrink-0">
                     <Avatar size="sm" className="size-10">
@@ -242,7 +234,7 @@ export const ChatPage = () => {
                       )}
                     </div>
                   </div>
-                </button>
+                </Button>
               );
             })}
           </div>

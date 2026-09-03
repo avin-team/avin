@@ -1,5 +1,6 @@
 import { ACCOUNT_ROLE } from "@avin/auth/permissions";
 import type { AccountRole } from "@avin/auth/permissions";
+import { Button } from "@avin/ui/components/button";
 import { cn } from "@avin/ui/lib/utils";
 import {
   ArrowRightIcon,
@@ -22,15 +23,16 @@ export const RoleSelectionStep = ({
     </p>
 
     <div className="grid gap-4">
-      <button
+      <Button
         className={cn(
-          "group relative flex items-start gap-4 rounded-xl border border-border p-4 text-left transition-all duration-200",
-          "hover:border-primary/50 hover:bg-accent/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "group relative flex h-auto w-full items-start justify-start gap-4 rounded-xl border border-border p-4 text-left font-normal whitespace-normal transition-all duration-200",
+          "hover:border-primary/50 hover:bg-accent/50 hover:shadow-md",
           disabled && "pointer-events-none opacity-50"
         )}
         disabled={disabled}
         onClick={() => onSelectRole(ACCOUNT_ROLE.BUYER)}
         type="button"
+        variant="outline"
       >
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors duration-200 group-hover:bg-primary group-hover:text-primary-foreground">
           <ShoppingBagIcon className="h-6 w-6" />
@@ -44,17 +46,18 @@ export const RoleSelectionStep = ({
             Tìm kiếm sản phẩm, dịch vụ và đặt mua trực tuyến an toàn.
           </p>
         </div>
-      </button>
+      </Button>
 
-      <button
+      <Button
         className={cn(
-          "group relative flex items-start gap-4 rounded-xl border border-border p-4 text-left transition-all duration-200",
-          "hover:border-primary/50 hover:bg-accent/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "group relative flex h-auto w-full items-start justify-start gap-4 rounded-xl border border-border p-4 text-left font-normal whitespace-normal transition-all duration-200",
+          "hover:border-primary/50 hover:bg-accent/50 hover:shadow-md",
           disabled && "pointer-events-none opacity-50"
         )}
         disabled={disabled}
         onClick={() => onSelectRole(ACCOUNT_ROLE.SELLER)}
         type="button"
+        variant="outline"
       >
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors duration-200 group-hover:bg-primary group-hover:text-primary-foreground">
           <StorefrontIcon className="h-6 w-6" />
@@ -65,10 +68,10 @@ export const RoleSelectionStep = ({
             <ArrowRightIcon className="h-4 w-4 text-muted-foreground transition-all duration-200 group-hover:translate-x-1 group-hover:text-primary" />
           </div>
           <p className="text-muted-foreground text-sm leading-snug">
-            Đăng bán sản phẩm, cung cấp dịch vụ và mở rộng kinh doanh.
+            Mở gian hàng, đăng bán sản phẩm và phát triển kinh doanh.
           </p>
         </div>
-      </button>
+      </Button>
     </div>
   </div>
 );

@@ -1,4 +1,5 @@
 import type { AppRouterClient } from "@avin/api/router";
+import { Button } from "@avin/ui/components/button";
 import {
   WarningCircleIcon,
   BookOpenIcon,
@@ -595,24 +596,27 @@ export const ListingDetailPage = () => {
 
                       return (
                         <div className="space-y-3">
-                          <button
-                            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 px-6 font-bold text-sm text-primary-foreground shadow-md transition-all hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/20 active:scale-[0.98]"
+                          <Button
+                            className="h-11 w-full font-bold shadow-md hover:shadow-lg hover:shadow-primary/20"
                             disabled={isPurchaseActionDisabled}
                             onClick={addListingToCart}
+                            size="lg"
                             type="button"
                           >
                             <span>Mua ngay</span>
-                          </button>
+                          </Button>
 
-                          <button
-                            className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-primary/20 bg-primary/5 py-3.5 px-6 font-bold text-sm text-primary transition-all hover:bg-primary/10 active:scale-[0.98]"
+                          <Button
+                            className="h-11 w-full border-2 border-primary/20 bg-primary/5 font-bold text-primary hover:bg-primary/10"
                             disabled={isPurchaseActionDisabled}
                             onClick={addListingToCart}
+                            size="lg"
                             type="button"
+                            variant="secondary"
                           >
                             <ShoppingCartIcon className="h-4 w-4" />
                             <span>{addToCartLabel}</span>
-                          </button>
+                          </Button>
                         </div>
                       );
                     }}

@@ -1,6 +1,6 @@
 import { Alert, AlertDescription, AlertTitle } from "@avin/ui/components/alert";
 import { Badge } from "@avin/ui/components/badge";
-import { buttonVariants } from "@avin/ui/components/button";
+import { Button, buttonVariants } from "@avin/ui/components/button";
 import { Input } from "@avin/ui/components/input";
 import { cn } from "@avin/ui/lib/utils";
 import {
@@ -328,14 +328,16 @@ export const AvinCheckGuidePage = () => {
                 value={searchQuery}
               />
               {searchQuery ? (
-                <button
+                <Button
                   aria-label="Xóa từ khóa tìm kiếm"
-                  className="absolute top-1/2 right-3 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition hover:bg-accent hover:text-foreground"
+                  className="absolute top-1/2 right-3 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-full p-0 text-muted-foreground hover:bg-accent hover:text-foreground"
                   onClick={() => setSearchQuery("")}
+                  size="icon-xs"
                   type="button"
+                  variant="ghost"
                 >
                   <XCircleIcon aria-hidden="true" className="size-4" />
-                </button>
+                </Button>
               ) : null}
             </div>
           </div>
@@ -357,13 +359,14 @@ export const AvinCheckGuidePage = () => {
                     </p>
                   ) : (
                     searchResults.map((item) => (
-                      <button
-                        className="flex flex-col items-start rounded-xl p-2.5 text-left text-xs transition hover:bg-muted/80"
+                      <Button
+                        className="flex h-auto w-full flex-col items-start justify-start rounded-xl p-2.5 text-left font-normal whitespace-normal text-xs transition hover:bg-muted/80"
                         key={`${item.sectionId}-${item.id}`}
                         onClick={() =>
                           handleSelectSearchResult(item.sectionId, item.id)
                         }
                         type="button"
+                        variant="ghost"
                       >
                         <span className="font-semibold text-primary">
                           {item.title}
@@ -377,7 +380,7 @@ export const AvinCheckGuidePage = () => {
                         >
                           {item.categoryTitle}
                         </Badge>
-                      </button>
+                      </Button>
                     ))
                   )}
                 </div>
@@ -400,12 +403,12 @@ export const AvinCheckGuidePage = () => {
               {GUIDE_POLICY_DATA.map((section) => {
                 const isActive = section.id === activeSectionId;
                 return (
-                  <button
+                  <Button
                     aria-current={isActive ? "page" : undefined}
                     className={cn(
                       "flex w-full items-center justify-between rounded-2xl px-3.5 py-2.5 text-left font-medium text-sm transition-all",
                       isActive
-                        ? "bg-primary font-semibold text-primary-foreground shadow-xs"
+                        ? "bg-primary font-semibold text-primary-foreground shadow-xs hover:bg-primary"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground"
                     )}
                     key={section.id}
@@ -413,7 +416,9 @@ export const AvinCheckGuidePage = () => {
                       setActiveSectionId(section.id);
                       setSelectedTag(null);
                     }}
+                    size="sm"
                     type="button"
+                    variant={isActive ? "default" : "ghost"}
                   >
                     <span className="truncate pr-2">{section.shortTitle}</span>
                     <Badge
@@ -429,7 +434,7 @@ export const AvinCheckGuidePage = () => {
                         ? `${section.clauses.length} điều`
                         : "6 mục"}
                     </Badge>
-                  </button>
+                  </Button>
                 );
               })}
             </nav>
@@ -530,11 +535,13 @@ export const AvinCheckGuidePage = () => {
                       </p>
                     ) : null}
                   </div>
-                  <button
+                  <Button
                     aria-label={`Sao chép liên kết ${item.title}`}
-                    className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-border/80 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                    className="size-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
                     onClick={() => handleCopyLink(item.id, item.title)}
+                    size="icon-xs"
                     type="button"
+                    variant="outline"
                   >
                     {copiedId === item.id ? (
                       <CheckIcon
@@ -544,7 +551,7 @@ export const AvinCheckGuidePage = () => {
                     ) : (
                       <CopyIcon aria-hidden="true" className="size-4" />
                     )}
-                  </button>
+                  </Button>
                 </div>
 
                 {item.id === "rules-compensation-policy" ? (
@@ -649,34 +656,28 @@ export const AvinCheckGuidePage = () => {
                     <span>Lọc theo nhóm chủ đề:</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <button
-                      className={cn(
-                        "rounded-full px-2.5 py-1 text-xs transition",
-                        selectedTag === null
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-muted-foreground hover:text-foreground"
-                      )}
+                    <Button
+                      className="rounded-full px-2.5 py-1 text-xs"
                       onClick={() => setSelectedTag(null)}
+                      size="xs"
                       type="button"
+                      variant={selectedTag === null ? "default" : "secondary"}
                     >
                       Tất cả ({activeSection.clauses.length})
-                    </button>
+                    </Button>
                     {allClauseTags.map((tag) => (
-                      <button
-                        className={cn(
-                          "rounded-full px-2.5 py-1 text-xs transition",
-                          selectedTag === tag
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted text-muted-foreground hover:text-foreground"
-                        )}
+                      <Button
+                        className="rounded-full px-2.5 py-1 text-xs"
                         key={tag}
                         onClick={() =>
                           setSelectedTag(selectedTag === tag ? null : tag)
                         }
+                        size="xs"
                         type="button"
+                        variant={selectedTag === tag ? "default" : "secondary"}
                       >
                         {tag}
-                      </button>
+                      </Button>
                     ))}
                   </div>
                 </div>
@@ -700,13 +701,15 @@ export const AvinCheckGuidePage = () => {
                             Cập nhật: {clause.date}
                           </span>
                         </div>
-                        <button
+                        <Button
                           aria-label={`Sao chép liên kết ${clause.title}`}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 px-2.5 py-1 font-medium text-muted-foreground text-xs transition hover:bg-muted hover:text-foreground"
+                          className="rounded-lg text-muted-foreground hover:text-foreground"
                           onClick={() =>
                             handleCopyLink(clause.id, clause.title)
                           }
+                          size="xs"
                           type="button"
+                          variant="outline"
                         >
                           {copiedId === clause.id ? (
                             <>
@@ -727,7 +730,7 @@ export const AvinCheckGuidePage = () => {
                               <span>Copy link</span>
                             </>
                           )}
-                        </button>
+                        </Button>
                       </div>
 
                       <h3 className="mt-3.5 font-bold text-base text-foreground tracking-tight sm:text-lg">

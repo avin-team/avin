@@ -265,14 +265,15 @@ const ProviderGridItem = ({ onSelect, provider }: ProviderGridItemProps) => {
 
   if (onSelect) {
     return (
-      <button
+      <Button
         aria-label="Xem hồ sơ"
-        className="group flex flex-col items-center rounded-2xl p-1 text-center outline-none transition-transform focus-visible:ring-2 focus-visible:ring-ring"
+        className="group flex h-auto flex-col items-center rounded-2xl p-1 text-center font-normal whitespace-normal hover:bg-transparent"
         onClick={() => onSelect(provider)}
         type="button"
+        variant="ghost"
       >
         {itemBody}
-      </button>
+      </Button>
     );
   }
 
@@ -629,9 +630,9 @@ export const ProviderShowcaseSection = ({
             sortBy !== "joined_desc" ||
             isSearching) &&
             !isLoading && (
-              <button
+              <Button
                 aria-label="Reset bộ lọc"
-                className="inline-flex h-10 items-center rounded-2xl border border-border/70 bg-muted/60 px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="h-10 rounded-2xl border-border/70 bg-muted/60 px-3 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
                 onClick={() => {
                   setSelectedTier("ALL");
                   setSortBy("joined_desc");
@@ -639,10 +640,12 @@ export const ProviderShowcaseSection = ({
                     onClearSearch();
                   }
                 }}
+                size="sm"
                 type="button"
+                variant="outline"
               >
                 Reset
-              </button>
+              </Button>
             )}
         </div>
       </div>

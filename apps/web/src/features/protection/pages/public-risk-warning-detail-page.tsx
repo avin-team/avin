@@ -211,6 +211,7 @@ const WarningEvidenceGallery = ({
     <div className="space-y-2.5">
       <div className="flex flex-wrap items-center gap-3">
         {evidence.map((item, idx) => (
+          // oxlint-disable-next-line react/forbid-elements -- evidence image thumbnail trigger
           <button
             className="group relative h-28 w-24 shrink-0 overflow-hidden rounded-xl border bg-muted transition-all hover:ring-2 hover:ring-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-36 sm:w-28"
             key={item.id}
@@ -405,6 +406,7 @@ const EvidencePreviewModal = ({
             </span>
             <div className="flex size-full items-center justify-center overflow-hidden">
               {evidence.contentType.startsWith("image/") ? (
+                // oxlint-disable-next-line react/forbid-elements -- pan/zoom canvas interactive container
                 <button
                   aria-label="Phóng to hoặc di chuyển ảnh bằng chứng"
                   className={cn(

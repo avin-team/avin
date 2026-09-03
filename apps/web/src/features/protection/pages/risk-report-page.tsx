@@ -423,21 +423,23 @@ export const RiskReportPage = () => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
           return (
-            <button
+            <Button
               aria-selected={isActive}
               className={`flex items-center justify-center gap-2 rounded-xl py-2.5 font-semibold text-xs transition ${
                 isActive
-                  ? "bg-card text-primary shadow-xs"
+                  ? "bg-card text-primary shadow-xs hover:bg-card"
                   : "text-muted-foreground hover:text-foreground"
               }`}
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               role="tab"
+              size="sm"
               type="button"
+              variant="ghost"
             >
               <Icon aria-hidden="true" className="size-4 shrink-0" />
               <span>{tab.label}</span>
-            </button>
+            </Button>
           );
         })}
       </div>

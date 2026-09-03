@@ -1,6 +1,7 @@
 import type { RiskReportWebsiteViolationType } from "@avin/api/protection/risk-report";
 import { Alert, AlertDescription, AlertTitle } from "@avin/ui/components/alert";
 import { Button } from "@avin/ui/components/button";
+import { Checkbox } from "@avin/ui/components/checkbox";
 import {
   Field,
   FieldDescription,
@@ -407,16 +408,13 @@ export const WebsiteReportForm = ({
                 field.state.meta.isTouched && !field.state.meta.isValid;
               return (
                 <Field data-invalid={isInvalid} orientation="horizontal">
-                  <input
+                  <Checkbox
                     checked={field.state.value}
-                    className="mt-0.5 size-4 rounded border-gray-300 text-primary focus:ring-primary"
                     id={field.name}
                     name={field.name}
-                    onBlur={field.handleBlur}
-                    onChange={(event) =>
-                      field.handleChange(event.target.checked)
+                    onCheckedChange={(checked) =>
+                      field.handleChange(Boolean(checked))
                     }
-                    type="checkbox"
                   />
                   <FieldLabel htmlFor={field.name}>
                     Tôi cam kết thông tin và bằng chứng cung cấp trên là trung

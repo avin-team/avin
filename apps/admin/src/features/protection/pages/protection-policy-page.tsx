@@ -6,6 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
+import { Checkbox } from "@avin/ui/components/checkbox";
 import {
   Field,
   FieldError,
@@ -403,23 +404,19 @@ export const ProtectionPolicyPage = () => {
                 <policyForm.Field name="materialChange">
                   {(field) => (
                     <Field orientation="horizontal">
+                      <Checkbox
+                        checked={field.state.value}
+                        id={field.name}
+                        name={field.name}
+                        onCheckedChange={(checked) => {
+                          const isChecked = Boolean(checked);
+                          field.handleChange(isChecked);
+                          if (!isChecked) {
+                            policyForm.setFieldValue("reacceptDeadlineAt", "");
+                          }
+                        }}
+                      />
                       <FieldLabel htmlFor={field.name}>
-                        <input
-                          checked={field.state.value}
-                          id={field.name}
-                          name={field.name}
-                          onBlur={field.handleBlur}
-                          onChange={(event) => {
-                            field.handleChange(event.target.checked);
-                            if (!event.target.checked) {
-                              policyForm.setFieldValue(
-                                "reacceptDeadlineAt",
-                                ""
-                              );
-                            }
-                          }}
-                          type="checkbox"
-                        />
                         Đây là material change
                       </FieldLabel>
                     </Field>

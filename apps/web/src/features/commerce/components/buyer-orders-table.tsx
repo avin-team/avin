@@ -106,17 +106,19 @@ const DatePicker = ({
           <span>{formattedDisplay}</span>
         </div>
         {value ? (
-          <button
+          <Button
             aria-label="Xóa ngày"
-            className="flex size-4 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="size-4 rounded-full p-0"
             onClick={(e) => {
               e.stopPropagation();
               onChange("");
             }}
+            size="icon-xs"
             type="button"
+            variant="ghost"
           >
             <XIcon aria-hidden="true" className="size-3" />
-          </button>
+          </Button>
         ) : null}
       </PopoverTrigger>
       <PopoverContent align="start" className="w-auto p-0">

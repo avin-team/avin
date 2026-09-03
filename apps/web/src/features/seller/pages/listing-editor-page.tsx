@@ -477,11 +477,11 @@ const EditorStepContent = ({
             <editorForm.Field name="type">
               {(field) => (
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <button
+                  <Button
                     className={cn(
-                      "group relative flex cursor-pointer flex-col justify-between rounded-2xl border p-4 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                      "group relative flex h-auto cursor-pointer flex-col justify-between rounded-2xl border p-4 text-left font-normal whitespace-normal transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
                       field.state.value === "SERVICE"
-                        ? "border-primary/80 bg-primary/5 text-foreground shadow-sm ring-1 ring-primary/30"
+                        ? "border-primary/80 bg-primary/5 text-foreground shadow-sm ring-1 ring-primary/30 hover:bg-primary/10"
                         : "border-border/70 bg-card hover:border-foreground/30 hover:bg-accent/40 text-muted-foreground",
                       disabled && "cursor-not-allowed opacity-50"
                     )}
@@ -493,8 +493,9 @@ const EditorStepContent = ({
                       }
                     }}
                     type="button"
+                    variant="outline"
                   >
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex w-full items-start justify-between gap-3">
                       <div className="flex items-center gap-3">
                         <div
                           className={cn(
@@ -530,13 +531,13 @@ const EditorStepContent = ({
                       Dành cho dịch vụ làm theo yêu cầu, cày thuê, thiết kế, tư
                       vấn hoặc cung cấp giải pháp.
                     </p>
-                  </button>
+                  </Button>
 
-                  <button
+                  <Button
                     className={cn(
-                      "group relative flex cursor-pointer flex-col justify-between rounded-2xl border p-4 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                      "group relative flex h-auto cursor-pointer flex-col justify-between rounded-2xl border p-4 text-left font-normal whitespace-normal transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
                       field.state.value === "COURSE"
-                        ? "border-primary/80 bg-primary/5 text-foreground shadow-sm ring-1 ring-primary/30"
+                        ? "border-primary/80 bg-primary/5 text-foreground shadow-sm ring-1 ring-primary/30 hover:bg-primary/10"
                         : "border-border/70 bg-card hover:border-foreground/30 hover:bg-accent/40 text-muted-foreground",
                       disabled && "cursor-not-allowed opacity-50"
                     )}
@@ -548,8 +549,9 @@ const EditorStepContent = ({
                       }
                     }}
                     type="button"
+                    variant="outline"
                   >
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex w-full items-start justify-between gap-3">
                       <div className="flex items-center gap-3">
                         <div
                           className={cn(
@@ -583,9 +585,9 @@ const EditorStepContent = ({
                     </div>
                     <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
                       Dành cho bài giảng video, tài liệu hướng dẫn, khóa đào tạo
-                      trực tuyến dành cho học viên.
+                      hoặc kỹ năng.
                     </p>
-                  </button>
+                  </Button>
                 </div>
               )}
             </editorForm.Field>
@@ -917,10 +919,11 @@ const ReadinessPanel = ({
     <ul className="space-y-3">
       {items.map((item) => (
         <li key={item.id}>
-          <button
-            className="flex w-full items-start gap-2.5 text-left text-sm"
+          <Button
+            className="flex h-auto w-full items-start justify-start gap-2.5 p-0 text-left font-normal whitespace-normal text-sm hover:bg-transparent"
             onClick={() => onSelectStep(item.step)}
             type="button"
+            variant="ghost"
           >
             <span
               className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border ${
@@ -938,7 +941,7 @@ const ReadinessPanel = ({
             >
               {item.label}
             </span>
-          </button>
+          </Button>
         </li>
       ))}
     </ul>
@@ -1699,16 +1702,17 @@ const ListingEditorFormPage = ({
                   "border-primary-foreground/40 bg-primary-foreground/15";
               }
               return (
-                <button
-                  className={`flex items-center gap-3 rounded-2xl border px-3 py-3 text-left transition-colors ${
+                <Button
+                  className={`flex h-auto items-center justify-start gap-3 rounded-2xl border px-3 py-3 text-left font-normal whitespace-normal transition-colors ${
                     isActive
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-card hover:bg-muted"
+                      ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                      : "border-border bg-card hover:bg-muted text-foreground"
                   } ${isLocked ? "cursor-not-allowed opacity-50" : ""}`}
                   disabled={isLocked || isActionPending}
                   key={step.id}
                   onClick={() => handleSelectStep(step.id)}
                   type="button"
+                  variant="outline"
                 >
                   <span
                     className={`flex size-7 shrink-0 items-center justify-center rounded-full border text-xs font-bold ${stepIndicatorClass}`}
@@ -1733,7 +1737,7 @@ const ListingEditorFormPage = ({
                       {step.description}
                     </span>
                   </span>
-                </button>
+                </Button>
               );
             })}
           </nav>

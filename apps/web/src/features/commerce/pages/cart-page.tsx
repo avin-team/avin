@@ -6,6 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
+import { Checkbox } from "@avin/ui/components/checkbox";
 import {
   Select,
   SelectContent,
@@ -213,13 +214,12 @@ export const CartItemCard = ({
     <Card className={item.selected ? "border-primary/40" : "opacity-80"}>
       <CardContent className="p-5">
         <div className="flex items-start gap-4">
-          <input
+          <Checkbox
             aria-label={`Chọn ${item.listing.title ?? "Listing"}`}
             checked={item.selected}
-            className="mt-1 size-4 accent-primary"
+            className="mt-1"
             disabled={actionPending}
-            onChange={(event) => onToggle(event.target.checked)}
-            type="checkbox"
+            onCheckedChange={(checked) => onToggle(Boolean(checked))}
           />
 
           <CartItemThumbnail

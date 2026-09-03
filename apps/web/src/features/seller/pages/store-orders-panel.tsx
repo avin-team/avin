@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
+import { Input } from "@avin/ui/components/input";
 import {
   Sheet,
   SheetContent,
@@ -308,15 +309,17 @@ export const StoreOrdersPanel = () => {
             const count = getTabCount(tab.id);
             const isActive = activeTab === tab.id;
             return (
-              <button
-                className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold transition-all ${
+              <Button
+                className={`gap-2 rounded-xl text-xs font-semibold ${
                   isActive
-                    ? "bg-primary text-primary-foreground shadow-sm"
+                    ? ""
                     : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
+                size="sm"
                 type="button"
+                variant={isActive ? "default" : "ghost"}
               >
                 {tab.label}
                 <span
@@ -328,7 +331,7 @@ export const StoreOrdersPanel = () => {
                 >
                   {count}
                 </span>
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -336,25 +339,27 @@ export const StoreOrdersPanel = () => {
 
       {/* Toolbar: Search & Item count */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-3">
-        <div className="flex flex-1 items-center gap-2.5 rounded-xl bg-muted/30 px-3.5 py-2 text-sm">
+        <div className="flex flex-1 items-center gap-2.5 rounded-xl bg-muted/30 px-3.5 py-1.5 text-sm">
           <MagnifyingGlassIcon
             aria-hidden="true"
             className="size-4 text-muted-foreground"
           />
-          <input
-            className="w-full bg-transparent outline-none placeholder:text-muted-foreground"
+          <Input
+            className="w-full border-0 bg-transparent shadow-none focus-visible:ring-0"
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Tìm theo tên sản phẩm, tên khách hàng..."
             value={searchTerm}
           />
           {searchTerm ? (
-            <button
+            <Button
               className="text-xs text-muted-foreground hover:text-foreground"
               onClick={() => setSearchTerm("")}
+              size="xs"
               type="button"
+              variant="ghost"
             >
               Xóa
-            </button>
+            </Button>
           ) : null}
         </div>
 

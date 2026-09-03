@@ -12,6 +12,7 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@avin/ui/components/field";
+import { Input } from "@avin/ui/components/input";
 import {
   Select,
   SelectContent,
@@ -20,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@avin/ui/components/select";
+import { Textarea } from "@avin/ui/components/textarea";
 import { useForm } from "@tanstack/react-form";
 import { Link } from "@tanstack/react-router";
 import { useRef, useState } from "react";
@@ -208,9 +210,9 @@ const ProviderIncidentCard = ({
                     <FieldLabel htmlFor={field.name}>
                       Lý do quyết định
                     </FieldLabel>
-                    <textarea
+                    <Textarea
                       aria-invalid={isInvalid}
-                      className="min-h-24 rounded-lg border bg-background p-3"
+                      className="min-h-24"
                       id={field.name}
                       name={field.name}
                       onBlur={field.handleBlur}
@@ -351,8 +353,7 @@ export const ProviderRiskIncidentPanel = ({
             htmlFor="provider-profile-search"
           >
             Tìm Provider profile
-            <input
-              className="rounded-lg border bg-background p-2"
+            <Input
               id="provider-profile-search"
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Tên, slug, Provider ID hoặc dịch vụ"

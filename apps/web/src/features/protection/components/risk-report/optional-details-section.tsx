@@ -1,3 +1,5 @@
+import { Button } from "@avin/ui/components/button";
+import { Checkbox } from "@avin/ui/components/checkbox";
 import { Input } from "@avin/ui/components/input";
 import { CaretDownIcon, CaretUpIcon } from "@phosphor-icons/react";
 import { useState } from "react";
@@ -61,11 +63,12 @@ export const OptionalDetailsSection = ({
       </div>
 
       <div className="rounded-2xl border bg-muted/20 transition-all">
-        <button
+        <Button
           aria-expanded={isOpen}
-          className="flex w-full items-center justify-between p-3.5 text-left font-medium text-sm hover:text-primary focus:outline-none"
+          className="flex h-auto w-full items-center justify-between p-3.5 text-left font-medium text-sm hover:text-primary"
           onClick={() => setIsOpen((prev) => !prev)}
           type="button"
+          variant="ghost"
         >
           <div className="flex items-center gap-2">
             <span>Bổ sung thêm thông tin khác</span>
@@ -86,7 +89,7 @@ export const OptionalDetailsSection = ({
               className="size-4 text-muted-foreground"
             />
           )}
-        </button>
+        </Button>
 
         {isOpen ? (
           <div className="grid gap-4 border-t p-4 pt-4 sm:grid-cols-2">
@@ -132,12 +135,16 @@ export const OptionalDetailsSection = ({
             </label>
 
             <div className="flex items-center gap-2 pt-6">
-              <label className="flex cursor-pointer items-center gap-2 text-sm">
-                <input
+              <label
+                className="flex cursor-pointer items-center gap-2 text-sm"
+                htmlFor="optional-ongoing"
+              >
+                <Checkbox
                   checked={values.ongoing}
-                  className="size-4 rounded border-gray-300 text-primary focus:ring-primary"
-                  onChange={(e) => onChange({ ongoing: e.target.checked })}
-                  type="checkbox"
+                  id="optional-ongoing"
+                  onCheckedChange={(checked) =>
+                    onChange({ ongoing: Boolean(checked) })
+                  }
                 />
                 <span>Sự việc vẫn đang tiếp diễn</span>
               </label>

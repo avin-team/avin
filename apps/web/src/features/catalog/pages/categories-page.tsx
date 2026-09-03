@@ -1,3 +1,4 @@
+import { Button } from "@avin/ui/components/button";
 import { StackIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -24,13 +25,13 @@ export const CategoriesPage = () => {
             <p className="font-medium text-destructive">
               Không thể tải dịch vụ. Vui lòng thử lại.
             </p>
-            <button
-              className="mt-4 rounded-lg bg-primary px-4 py-2 font-medium text-primary-foreground text-sm"
+            <Button
+              className="mt-4"
               onClick={() => categoriesQuery.refetch()}
               type="button"
             >
               Thử lại
-            </button>
+            </Button>
           </div>
         ) : null}
 

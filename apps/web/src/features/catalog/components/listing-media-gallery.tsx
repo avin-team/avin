@@ -62,6 +62,7 @@ export const ListingMediaGallery = ({
         <CarouselContent className="-ml-0">
           {images.map((image, index) => (
             <CarouselItem className="pl-0" key={image}>
+              {/* oxlint-disable-next-line react/forbid-elements -- media gallery image trigger */}
               <button
                 aria-label={`Mở ảnh ${index + 1} ở chế độ toàn màn hình`}
                 className="block w-full cursor-zoom-in focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-primary/50"
@@ -101,6 +102,7 @@ export const ListingMediaGallery = ({
         >
           {images.map((image, index) => (
             <li className="shrink-0" key={image}>
+              {/* oxlint-disable-next-line react/forbid-elements -- media gallery thumbnail trigger */}
               <button
                 aria-current={activeIndex === index ? "true" : undefined}
                 aria-label={`Xem ảnh ${index + 1}`}

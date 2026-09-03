@@ -1198,14 +1198,15 @@ const SellerOnboardingFormContent = ({
                 Để sau
               </Button>
               <RenderWhen when={activeStep > 1}>
-                <button
-                  type="button"
-                  onClick={() => changeActiveStep(Math.max(1, activeStep - 1))}
-                  className="text-muted-foreground hover:text-foreground p-1 rounded-md transition-colors"
+                <Button
                   aria-label="Quay lại"
+                  onClick={() => changeActiveStep(Math.max(1, activeStep - 1))}
+                  size="icon-sm"
+                  type="button"
+                  variant="ghost"
                 >
-                  <CaretLeftIcon className="w-5 h-5" />
-                </button>
+                  <CaretLeftIcon className="size-5" />
+                </Button>
               </RenderWhen>
             </div>
           </div>

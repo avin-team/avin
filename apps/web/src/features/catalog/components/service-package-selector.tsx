@@ -1,3 +1,5 @@
+import { Button } from "@avin/ui/components/button";
+import { cn } from "@avin/ui/lib/utils";
 import { PackageIcon } from "@phosphor-icons/react";
 
 import { formatVND } from "@/utils/format";
@@ -30,36 +32,34 @@ export const ServicePackageSelector = ({
         {packages.map((packageItem) => {
           const isSelected = packageItem.id === selectedPackageId;
           return (
-            <button
+            <Button
               key={packageItem.id}
               onClick={() => onChange(packageItem.id)}
               type="button"
-              className={`flex w-full items-center gap-3 rounded-xl border p-4 text-left transition-all ${
+              variant="outline"
+              className={cn(
+                "flex h-auto w-full items-center justify-start gap-3 rounded-xl p-4 text-left font-normal whitespace-normal transition-all",
                 isSelected
-                  ? "border-primary bg-primary/5"
+                  ? "border-primary bg-primary/5 hover:bg-primary/10"
                   : "border-border hover:border-border/80 hover:bg-muted/50"
-              }`}
+              )}
             >
               <div
                 className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
                   isSelected
-                    ? "bg-primary/10 text-primary"
+                    ? "bg-primary text-primary-foreground"
                     : "bg-muted text-muted-foreground"
                 }`}
               >
                 <PackageIcon className="h-5 w-5" />
               </div>
-              <div className="flex flex-1 flex-col justify-center">
-                <div className="flex items-center justify-between">
-                  <span
-                    className={`font-semibold text-sm ${
-                      isSelected ? "text-foreground" : "text-foreground"
-                    }`}
-                  >
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium text-foreground">
                     {packageItem.name}
                   </span>
                   <span
-                    className={`font-bold text-sm ${
+                    className={`text-sm font-semibold ${
                       isSelected ? "text-primary" : "text-foreground"
                     }`}
                   >
@@ -72,7 +72,7 @@ export const ServicePackageSelector = ({
                     : "Xử lý tiêu chuẩn"}
                 </div>
               </div>
-            </button>
+            </Button>
           );
         })}
       </div>

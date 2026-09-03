@@ -458,14 +458,16 @@ export const RiskLookupPage = () => {
                 value={value}
               />
               {value ? (
-                <button
+                <Button
                   aria-label="Xóa nội dung tra cứu"
-                  className="absolute top-1/2 right-2 inline-flex size-8 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="absolute top-1/2 right-2 size-8 -translate-y-1/2 rounded-full p-0 text-muted-foreground hover:text-foreground"
                   onClick={handleClear}
+                  size="icon-xs"
                   type="button"
+                  variant="ghost"
                 >
                   <XIcon aria-hidden="true" className="size-4" />
-                </button>
+                </Button>
               ) : null}
             </div>
             <Button
@@ -485,24 +487,30 @@ export const RiskLookupPage = () => {
         {result?.exactMatch ? (
           <fieldset className="flex flex-wrap gap-2">
             <legend className="sr-only">Lọc kết quả theo định danh</legend>
-            <button
+            <Button
               aria-pressed={selectedGroupId === null}
-              className="rounded-full border border-border px-3 py-1.5 font-medium text-sm transition aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+              className="rounded-full font-medium"
               onClick={() => setSelectedGroupId(null)}
+              size="sm"
               type="button"
+              variant={selectedGroupId === null ? "default" : "outline"}
             >
               Tất cả ({result.totalReports})
-            </button>
+            </Button>
             {result.groups.map((group) => (
-              <button
+              <Button
                 aria-pressed={selectedGroupId === group.groupId}
-                className="rounded-full border border-border px-3 py-1.5 font-medium text-sm transition aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                className="rounded-full font-medium"
                 key={group.groupId}
                 onClick={() => setSelectedGroupId(group.groupId)}
+                size="sm"
                 type="button"
+                variant={
+                  selectedGroupId === group.groupId ? "default" : "outline"
+                }
               >
                 {getLookupFilterLabel(group)} ({group.reportCount})
-              </button>
+              </Button>
             ))}
           </fieldset>
         ) : null}

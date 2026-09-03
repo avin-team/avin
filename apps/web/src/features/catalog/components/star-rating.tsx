@@ -80,6 +80,7 @@ export const StarRatingInput = ({
       {[1, 2, 3, 4, 5].map((star) => {
         const isFilled = star <= activeRating;
         return (
+          // oxlint-disable-next-line react/forbid-elements -- star rating interactive trigger
           <button
             aria-label={`Rate ${star} star${star > 1 ? "s" : ""}`}
             className={cn(

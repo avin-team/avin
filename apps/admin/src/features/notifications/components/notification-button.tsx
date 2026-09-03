@@ -1,4 +1,5 @@
 import { Badge } from "@avin/ui/components/badge";
+import { Button } from "@avin/ui/components/button";
 import {
   Popover,
   PopoverContent,
@@ -83,15 +84,16 @@ export const NotificationButton = () => {
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {unreadCount > 0 ? (
-              <button
+              <Button
                 aria-label="Đánh dấu tất cả thông báo đã đọc"
-                className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-50 cursor-pointer"
                 disabled={markAllRead.isPending}
                 onClick={() => markAllRead.mutate({})}
+                size="icon-xs"
                 type="button"
+                variant="ghost"
               >
                 <CheckCircleIcon className="size-4" />
-              </button>
+              </Button>
             ) : null}
             <Link
               className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"

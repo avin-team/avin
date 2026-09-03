@@ -1058,6 +1058,7 @@ export const OrderChatPanel = ({
         onSubmit={handleSend}
         className="flex items-center gap-2 px-3 py-2.5 border-t border-border/60 bg-background/50 shrink-0"
       >
+        {/* oxlint-disable-next-line react/forbid-elements -- native file input */}
         <input
           accept={ORDER_CHAT_ATTACHMENT_CONTENT_TYPES.join(",")}
           aria-label="Chọn tệp đính kèm"

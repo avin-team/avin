@@ -40,6 +40,14 @@ export default defineConfig({
     ".commandcode",
   ],
   jsPlugins: ["@workspace/eslint-plugin"],
+  overrides: [
+    {
+      files: ["**/*.test.tsx", "**/*.test.ts"],
+      rules: {
+        "react/forbid-elements": "off",
+      },
+    },
+  ],
   rules: {
     "@workspace/select-requires-items": "error",
     "github/filenames-match-regex": "off",
@@ -57,6 +65,38 @@ export default defineConfig({
     // rule cannot see that the heavy imports live in lazily-loaded modules.
     "react-doctor/prefer-dynamic-import": "off",
     "react-doctor/react-compiler-no-manual-memoization": "off",
+    "react/forbid-elements": [
+      "error",
+      {
+        forbid: [
+          {
+            element: "button",
+            message:
+              "Sử dụng <Button> từ '@avin/ui/components/button' thay vì thẻ HTML native <button>.",
+          },
+          {
+            element: "dialog",
+            message:
+              "Sử dụng <Dialog> từ '@avin/ui/components/dialog' thay vì thẻ HTML native <dialog>.",
+          },
+          {
+            element: "input",
+            message:
+              "Sử dụng <Input> từ '@avin/ui/components/input' thay vì thẻ HTML native <input>.",
+          },
+          {
+            element: "select",
+            message:
+              "Sử dụng <Select> từ '@avin/ui/components/select' thay vì thẻ HTML native <select>.",
+          },
+          {
+            element: "textarea",
+            message:
+              "Sử dụng <Textarea> từ '@avin/ui/components/textarea' thay vì thẻ HTML native <textarea>.",
+          },
+        ],
+      },
+    ],
     "react/jsx-no-constructed-context-values": "off",
     // apps/admin/src/lib/cookies.ts is the single deliberate
     // document.cookie wrapper (replaces the js-cookie dependency).

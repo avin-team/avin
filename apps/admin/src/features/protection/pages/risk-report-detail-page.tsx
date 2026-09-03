@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
+import { Checkbox } from "@avin/ui/components/checkbox";
 import {
   Field,
   FieldError,
@@ -233,17 +234,15 @@ const RiskDerivativeUploader = ({
                 field.state.meta.isTouched && !field.state.meta.isValid;
               return (
                 <Field data-invalid={isInvalid} orientation="horizontal">
+                  <Checkbox
+                    checked={field.state.value}
+                    id={field.name}
+                    name={field.name}
+                    onCheckedChange={(checked) =>
+                      field.handleChange(Boolean(checked))
+                    }
+                  />
                   <FieldLabel htmlFor={field.name}>
-                    <input
-                      checked={field.state.value}
-                      id={field.name}
-                      name={field.name}
-                      onBlur={field.handleBlur}
-                      onChange={(event) =>
-                        field.handleChange(event.target.checked)
-                      }
-                      type="checkbox"
-                    />
                     Đã xoá metadata nhạy cảm khỏi bản derivative.
                   </FieldLabel>
                   {isInvalid ? (
@@ -259,17 +258,15 @@ const RiskDerivativeUploader = ({
                 field.state.meta.isTouched && !field.state.meta.isValid;
               return (
                 <Field data-invalid={isInvalid} orientation="horizontal">
+                  <Checkbox
+                    checked={field.state.value}
+                    id={field.name}
+                    name={field.name}
+                    onCheckedChange={(checked) =>
+                      field.handleChange(Boolean(checked))
+                    }
+                  />
                   <FieldLabel htmlFor={field.name}>
-                    <input
-                      checked={field.state.value}
-                      id={field.name}
-                      name={field.name}
-                      onBlur={field.handleBlur}
-                      onChange={(event) =>
-                        field.handleChange(event.target.checked)
-                      }
-                      type="checkbox"
-                    />
                     Đã che PII không liên quan và nội dung ngoài phạm vi
                     warning.
                   </FieldLabel>
@@ -286,17 +283,15 @@ const RiskDerivativeUploader = ({
                 field.state.meta.isTouched && !field.state.meta.isValid;
               return (
                 <Field data-invalid={isInvalid} orientation="horizontal">
+                  <Checkbox
+                    checked={field.state.value}
+                    id={field.name}
+                    name={field.name}
+                    onCheckedChange={(checked) =>
+                      field.handleChange(Boolean(checked))
+                    }
+                  />
                   <FieldLabel htmlFor={field.name}>
-                    <input
-                      checked={field.state.value}
-                      id={field.name}
-                      name={field.name}
-                      onBlur={field.handleBlur}
-                      onChange={(event) =>
-                        field.handleChange(event.target.checked)
-                      }
-                      type="checkbox"
-                    />
                     Đã đóng watermark Avin Check lên derivative.
                   </FieldLabel>
                   {isInvalid ? (
@@ -367,17 +362,18 @@ const EvidencePreview = ({
 }) => {
   if (previewSource) {
     return (
-      <button
-        className="flex max-h-96 w-full items-center justify-center overflow-hidden rounded-xl border bg-muted/10 p-2 transition-opacity hover:opacity-95"
+      <Button
+        className="flex h-auto max-h-96 w-full items-center justify-center overflow-hidden rounded-xl border bg-muted/10 p-2 transition-opacity hover:opacity-95"
         onClick={onOpenOriginal}
         type="button"
+        variant="ghost"
       >
         <img
           alt={fileName}
           className="max-h-80 w-auto rounded-lg object-contain"
           src={previewSource}
         />
-      </button>
+      </Button>
     );
   }
 

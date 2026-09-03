@@ -1,4 +1,5 @@
 import { ACCOUNT_ROLE } from "@avin/auth/permissions";
+import { Button } from "@avin/ui/components/button";
 import { cn } from "@avin/ui/lib/utils";
 import {
   DesktopIcon,
@@ -126,45 +127,36 @@ export const MobileNav = ({ isOpen, items, onToggle }: MobileNavProps) => {
                 <div className="flex items-center justify-between px-4 py-1 text-sm">
                   <span className="font-medium text-foreground">Giao diện</span>
                   <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
-                    <button
+                    <Button
                       aria-label="Giao diện sáng"
-                      className={cn(
-                        "rounded-md p-1.5 transition-colors",
-                        theme === "light"
-                          ? "bg-background text-foreground shadow-xs"
-                          : "text-muted-foreground hover:text-foreground"
-                      )}
+                      className="size-7 p-0"
                       onClick={() => setTheme("light")}
+                      size="icon-xs"
                       type="button"
+                      variant={theme === "light" ? "default" : "ghost"}
                     >
                       <SunIcon className="size-4" />
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       aria-label="Giao diện tối"
-                      className={cn(
-                        "rounded-md p-1.5 transition-colors",
-                        theme === "dark"
-                          ? "bg-background text-foreground shadow-xs"
-                          : "text-muted-foreground hover:text-foreground"
-                      )}
+                      className="size-7 p-0"
                       onClick={() => setTheme("dark")}
+                      size="icon-xs"
                       type="button"
+                      variant={theme === "dark" ? "default" : "ghost"}
                     >
                       <MoonIcon className="size-4" />
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       aria-label="Giao diện hệ thống"
-                      className={cn(
-                        "rounded-md p-1.5 transition-colors",
-                        theme === "system"
-                          ? "bg-background text-foreground shadow-xs"
-                          : "text-muted-foreground hover:text-foreground"
-                      )}
+                      className="size-7 p-0"
                       onClick={() => setTheme("system")}
+                      size="icon-xs"
                       type="button"
+                      variant={theme === "system" ? "default" : "ghost"}
                     >
                       <DesktopIcon className="size-4" />
-                    </button>
+                    </Button>
                   </div>
                 </div>
                 {session ? (
@@ -202,8 +194,8 @@ export const MobileNav = ({ isOpen, items, onToggle }: MobileNavProps) => {
                         Quản lý gian hàng
                       </Link>
                     )}
-                    <button
-                      className="block w-full rounded-lg px-4 py-2 text-left font-medium text-destructive text-sm transition-colors duration-200 hover:bg-destructive/10"
+                    <Button
+                      className="w-full justify-start rounded-lg px-4 py-2 text-left font-medium text-destructive text-sm transition-colors duration-200 hover:bg-destructive/10 hover:text-destructive"
                       onClick={async () => {
                         onToggle();
                         try {
@@ -214,11 +206,11 @@ export const MobileNav = ({ isOpen, items, onToggle }: MobileNavProps) => {
                           toast.error("Không thể đăng xuất.");
                         }
                       }}
-
                       type="button"
+                      variant="ghost"
                     >
                       Đăng xuất
-                    </button>
+                    </Button>
                   </div>
                 ) : (
                   <Link

@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
+import { Checkbox } from "@avin/ui/components/checkbox";
 import {
   Field,
   FieldError,
@@ -109,17 +110,15 @@ const PilotConfigurationForm = ({
               <configurationForm.Field name="enabled">
                 {(field) => (
                   <Field orientation="horizontal">
+                    <Checkbox
+                      checked={field.state.value}
+                      id={field.name}
+                      name={field.name}
+                      onCheckedChange={(checked) =>
+                        field.handleChange(Boolean(checked))
+                      }
+                    />
                     <FieldLabel htmlFor={field.name}>
-                      <input
-                        checked={field.state.value}
-                        id={field.name}
-                        name={field.name}
-                        onBlur={field.handleBlur}
-                        onChange={(event) =>
-                          field.handleChange(event.target.checked)
-                        }
-                        type="checkbox"
-                      />
                       Giới hạn invitation đang bật
                     </FieldLabel>
                   </Field>

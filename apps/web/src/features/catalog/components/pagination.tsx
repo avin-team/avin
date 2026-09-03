@@ -1,3 +1,4 @@
+import { Button } from "@avin/ui/components/button";
 import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
 
 export interface PaginationProps {
@@ -40,25 +41,28 @@ export const Pagination = ({
       </p>
 
       <div className="flex items-center gap-1.5">
-        <button
+        <Button
           aria-label="Trang trước"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-background text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-40 disabled:pointer-events-none"
           disabled={currentPage <= 1}
           onClick={() => onPageChange(currentPage - 1)}
+          size="icon"
           type="button"
+          variant="outline"
         >
           <CaretLeftIcon className="h-4 w-4" />
-        </button>
+        </Button>
 
         {startPage > 1 ? (
           <>
-            <button
-              className="inline-flex h-9 min-w-9 items-center justify-center rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+            <Button
+              className="min-w-9 px-3"
               onClick={() => onPageChange(1)}
+              size="sm"
               type="button"
+              variant="outline"
             >
               1
-            </button>
+            </Button>
             {startPage > 2 ? (
               <span className="px-1 text-xs text-muted-foreground">...</span>
             ) : null}
@@ -66,18 +70,16 @@ export const Pagination = ({
         ) : null}
 
         {pages.map((p) => (
-          <button
+          <Button
+            className="min-w-9 px-3"
             key={p}
-            className={`inline-flex h-9 min-w-9 items-center justify-center rounded-lg border px-3 text-sm font-semibold transition-all ${
-              p === currentPage
-                ? "border-primary bg-primary text-primary-foreground shadow-xs"
-                : "border-border bg-background text-foreground hover:bg-muted"
-            }`}
             onClick={() => onPageChange(p)}
+            size="sm"
             type="button"
+            variant={p === currentPage ? "default" : "outline"}
           >
             {p}
-          </button>
+          </Button>
         ))}
 
         {endPage < totalPages ? (
@@ -85,25 +87,28 @@ export const Pagination = ({
             {endPage < totalPages - 1 ? (
               <span className="px-1 text-xs text-muted-foreground">...</span>
             ) : null}
-            <button
-              className="inline-flex h-9 min-w-9 items-center justify-center rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+            <Button
+              className="min-w-9 px-3"
               onClick={() => onPageChange(totalPages)}
+              size="sm"
               type="button"
+              variant="outline"
             >
               {totalPages}
-            </button>
+            </Button>
           </>
         ) : null}
 
-        <button
+        <Button
           aria-label="Trang sau"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-background text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-40 disabled:pointer-events-none"
           disabled={currentPage >= totalPages}
           onClick={() => onPageChange(currentPage + 1)}
+          size="icon"
           type="button"
+          variant="outline"
         >
           <CaretRightIcon className="h-4 w-4" />
-        </button>
+        </Button>
       </div>
     </div>
   );

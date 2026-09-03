@@ -169,13 +169,14 @@ const StoreOverviewKpiGrid = ({
   ratingScore: string;
 }) => (
   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-    <button
+    <Button
       aria-label="Xem chi tiết số dư tài chính và rút tiền"
-      className="flex flex-col justify-between rounded-2xl border border-border bg-card p-5 text-left transition-all hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+      className="flex h-auto flex-col justify-between rounded-2xl border border-border bg-card p-5 text-left font-normal whitespace-normal transition-all hover:border-primary hover:bg-card focus:outline-none focus:ring-2 focus:ring-primary"
       onClick={() => onNavigateSection("finance")}
       type="button"
+      variant="ghost"
     >
-      <div className="flex items-center justify-between">
+      <div className="flex w-full items-center justify-between">
         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           Số dư khả dụng
         </span>
@@ -183,7 +184,7 @@ const StoreOverviewKpiGrid = ({
           <WalletIcon className="size-5" />
         </div>
       </div>
-      <div className="mt-4">
+      <div className="mt-4 w-full">
         <p className="text-2xl font-extrabold text-foreground">
           {isWalletPending ? "..." : formatVND(availableBalance)}
         </p>
@@ -191,15 +192,16 @@ const StoreOverviewKpiGrid = ({
           Chờ giải ngân: {formatVND(pendingBalance)}
         </p>
       </div>
-    </button>
+    </Button>
 
-    <button
+    <Button
       aria-label="Xem các đơn hàng chờ xử lý"
-      className="flex flex-col justify-between rounded-2xl border border-border bg-card p-5 text-left transition-all hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+      className="flex h-auto flex-col justify-between rounded-2xl border border-border bg-card p-5 text-left font-normal whitespace-normal transition-all hover:border-primary hover:bg-card focus:outline-none focus:ring-2 focus:ring-primary"
       onClick={() => onNavigateSection("orders")}
       type="button"
+      variant="ghost"
     >
-      <div className="flex items-center justify-between">
+      <div className="flex w-full items-center justify-between">
         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           Đơn hàng chờ xử lý
         </span>
@@ -207,7 +209,7 @@ const StoreOverviewKpiGrid = ({
           <ClockIcon className="size-5" />
         </div>
       </div>
-      <div className="mt-4">
+      <div className="mt-4 w-full">
         <p className="text-2xl font-extrabold text-foreground">
           {pendingCount}
         </p>
@@ -217,7 +219,7 @@ const StoreOverviewKpiGrid = ({
             : "Không có đơn tồn đọng"}
         </p>
       </div>
-    </button>
+    </Button>
 
     <div className="flex flex-col justify-between rounded-2xl border border-border bg-card p-5 text-left">
       <div className="flex items-center justify-between">
@@ -241,13 +243,14 @@ const StoreOverviewKpiGrid = ({
       </div>
     </div>
 
-    <button
+    <Button
       aria-label="Xem danh sách sản phẩm"
-      className="flex flex-col justify-between rounded-2xl border border-border bg-card p-5 text-left transition-all hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+      className="flex h-auto flex-col justify-between rounded-2xl border border-border bg-card p-5 text-left font-normal whitespace-normal transition-all hover:border-primary hover:bg-card focus:outline-none focus:ring-2 focus:ring-primary"
       onClick={() => onNavigateSection("products")}
       type="button"
+      variant="ghost"
     >
-      <div className="flex items-center justify-between">
+      <div className="flex w-full items-center justify-between">
         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           Sản phẩm đang bán
         </span>
@@ -255,7 +258,7 @@ const StoreOverviewKpiGrid = ({
           <PackageIcon className="size-5" />
         </div>
       </div>
-      <div className="mt-4">
+      <div className="mt-4 w-full">
         <p className="text-2xl font-extrabold text-foreground">
           {activeProductCount} / {productCount}
         </p>
@@ -263,7 +266,7 @@ const StoreOverviewKpiGrid = ({
           Hoàn thiện hồ sơ: {profileCompletionPercentage}%
         </p>
       </div>
-    </button>
+    </Button>
   </div>
 );
 
@@ -403,10 +406,11 @@ const StoreOverview = ({
           <div className="rounded-2xl border border-border bg-card p-6 shadow-xs">
             <h4 className="mb-4 text-base font-semibold">Thao tác trực tiếp</h4>
             <div className="flex flex-col gap-3">
-              <button
-                className="flex cursor-pointer items-center justify-between rounded-xl border border-border p-4 text-left transition-all hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+              <Button
+                className="flex h-auto cursor-pointer items-center justify-between rounded-xl border border-border p-4 text-left font-normal whitespace-normal transition-all hover:border-primary"
                 onClick={() => onNavigateSection("profile")}
                 type="button"
+                variant="outline"
               >
                 <div>
                   <p className="text-sm font-semibold">Hồ sơ gian hàng</p>
@@ -415,12 +419,13 @@ const StoreOverview = ({
                   </p>
                 </div>
                 <UserCircleIcon className="size-5 text-primary shrink-0" />
-              </button>
+              </Button>
 
-              <button
-                className="flex cursor-pointer items-center justify-between rounded-xl border border-border p-4 text-left transition-all hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+              <Button
+                className="flex h-auto cursor-pointer items-center justify-between rounded-xl border border-border p-4 text-left font-normal whitespace-normal transition-all hover:border-primary"
                 onClick={() => onNavigateSection("products")}
                 type="button"
+                variant="outline"
               >
                 <div>
                   <p className="text-sm font-semibold">Quản lý sản phẩm</p>
@@ -431,12 +436,13 @@ const StoreOverview = ({
                   </p>
                 </div>
                 <PackageIcon className="size-5 text-primary shrink-0" />
-              </button>
+              </Button>
 
-              <button
-                className="flex cursor-pointer items-center justify-between rounded-xl border border-border p-4 text-left transition-all hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+              <Button
+                className="flex h-auto cursor-pointer items-center justify-between rounded-xl border border-border p-4 text-left font-normal whitespace-normal transition-all hover:border-primary"
                 onClick={() => onNavigateSection("finance")}
                 type="button"
+                variant="outline"
               >
                 <div>
                   <p className="text-sm font-semibold">Rút tiền & Ví</p>
@@ -445,7 +451,7 @@ const StoreOverview = ({
                   </p>
                 </div>
                 <WalletIcon className="size-5 text-primary shrink-0" />
-              </button>
+              </Button>
             </div>
           </div>
         </div>

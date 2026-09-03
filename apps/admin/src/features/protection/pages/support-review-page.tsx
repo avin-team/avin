@@ -6,6 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@avin/ui/components/card";
+import { Checkbox } from "@avin/ui/components/checkbox";
 import {
   Field,
   FieldError,
@@ -411,19 +412,15 @@ const EligibilityForm = ({ review }: { review: SupportReview }) => {
             <eligibilityForm.Field key={key} name={key}>
               {(field) => (
                 <Field orientation="horizontal">
-                  <FieldLabel htmlFor={field.name}>
-                    <input
-                      checked={field.state.value}
-                      id={field.name}
-                      name={field.name}
-                      onBlur={field.handleBlur}
-                      onChange={(event) =>
-                        field.handleChange(event.target.checked)
-                      }
-                      type="checkbox"
-                    />
-                    {label}
-                  </FieldLabel>
+                  <Checkbox
+                    checked={field.state.value}
+                    id={field.name}
+                    name={field.name}
+                    onCheckedChange={(checked) =>
+                      field.handleChange(Boolean(checked))
+                    }
+                  />
+                  <FieldLabel htmlFor={field.name}>{label}</FieldLabel>
                 </Field>
               )}
             </eligibilityForm.Field>

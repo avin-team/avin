@@ -188,6 +188,7 @@ export const CategoryCarousel = ({ categories }: CategoryCarouselProps) => {
         <div className="absolute right-6 bottom-6 left-6 z-10 flex items-center justify-between">
           <div className="flex gap-2">
             {categories.map((category, index) => (
+              // oxlint-disable-next-line react/forbid-elements -- carousel dot indicator
               <button
                 aria-label={`Xem ${category.name}`}
                 aria-pressed={activeIndex === index}

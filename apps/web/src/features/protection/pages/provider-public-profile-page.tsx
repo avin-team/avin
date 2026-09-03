@@ -242,10 +242,11 @@ const ProviderHeroCard = ({
             );
           })()}
 
-          <button
-            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-border/80 bg-background/50 px-5 font-semibold text-foreground text-sm transition-colors hover:bg-muted"
+          <Button
+            className="h-11 w-full rounded-2xl border-border/80 bg-background/50 px-5 font-semibold text-foreground text-sm hover:bg-muted"
             onClick={onShare}
             type="button"
+            variant="outline"
           >
             {shareCopied ? (
               <>
@@ -258,7 +259,7 @@ const ProviderHeroCard = ({
                 <span>Chia sẻ hồ sơ</span>
               </>
             )}
-          </button>
+          </Button>
         </div>
       </div>
 
