@@ -197,6 +197,11 @@ interface ImportOptions extends FetchOptions {
   database: Database;
   mode: ExternalRiskImportMode;
   now?: Date;
+  onProgress?: (
+    current: number,
+    total: number,
+    report: ChongScamReport
+  ) => void;
   storage?: Context["storage"];
 }
 
@@ -1105,6 +1110,111 @@ const hideMissingReports = async ({
   return hiddenCount;
 };
 
+const executePreviewImport = ({
+  canReconcileHidden,
+  counts,
+  existingBySourceId,
+  existingReports,
+  onProgress,
+  sourceIds,
+  sourceReports,
+}: {
+  canReconcileHidden: boolean;
+  counts: ImportCounts;
+  existingBySourceId: Map<string, ExternalRiskReport>;
+  existingReports: ExternalRiskReport[];
+  onProgress?: (
+    current: number,
+    total: number,
+    report: ChongScamReport
+  ) => void;
+  sourceIds: Set<string>;
+  sourceReports: ChongScamReport[];
+}): void => {
+  let index = 0;
+  for (const sourceReport of sourceReports) {
+    index += 1;
+    onProgress?.(index, sourceReports.length, sourceReport);
+    const existing = existingBySourceId.get(sourceReport.id);
+    if (!existing) {
+      counts.createdCount += 1;
+    } else if (
+      existing.externalPayloadHash !== createPayloadHash(sourceReport)
+    ) {
+      counts.updatedCount += 1;
+    }
+  }
+  if (canReconcileHidden) {
+    counts.hiddenCount = existingReports.filter(
+      (report) =>
+        report.externalSourceId && !sourceIds.has(report.externalSourceId)
+    ).length;
+  }
+};
+
+const executeApplyImport = async ({
+  canReconcileHidden,
+  counts,
+  database,
+  importRunId,
+  now,
+  onProgress,
+  request,
+  sourceIds,
+  sourceReports,
+  storage,
+}: {
+  canReconcileHidden: boolean;
+  counts: ImportCounts;
+  database: Database;
+  importRunId: string;
+  now: Date;
+  onProgress?: (
+    current: number,
+    total: number,
+    report: ChongScamReport
+  ) => void;
+  request: FetchFunction;
+  sourceIds: Set<string>;
+  sourceReports: ChongScamReport[];
+  storage?: Context["storage"];
+}): Promise<string | null> => {
+  let firstItemError: string | null = null;
+  let index = 0;
+  for (const sourceReport of sourceReports) {
+    index += 1;
+    onProgress?.(index, sourceReports.length, sourceReport);
+    try {
+      const result = await upsertExternalReport({
+        database,
+        importRunId,
+        now,
+        request,
+        sourceReport,
+        storage,
+      });
+      if (result.created) {
+        counts.createdCount += 1;
+      } else if (result.updated) {
+        counts.updatedCount += 1;
+      }
+      counts.evidenceDownloadedCount += result.evidenceDownloadedCount;
+    } catch (error) {
+      counts.failedCount += 1;
+      firstItemError ??= getImportErrorMessage(error);
+    }
+  }
+  if (canReconcileHidden) {
+    counts.hiddenCount = await hideMissingReports({
+      database,
+      importRunId,
+      now,
+      sourceIds,
+    });
+  }
+  return firstItemError;
+};
+
 export const runExternalRiskImport = async ({
   actorUserId,
   database,
@@ -1113,6 +1223,7 @@ export const runExternalRiskImport = async ({
   maxPages,
   mode,
   now = new Date(),
+  onProgress,
   sleep,
   sourceReportId,
   storage,
@@ -1152,58 +1263,33 @@ export const runExternalRiskImport = async ({
       hiddenCount: 0,
       updatedCount: 0,
     };
-    let firstItemError: string | null = null;
     const canReconcileHidden =
       fullReconcile && !sourceReportId && !limit && !maxPages;
 
-    if (mode === "PREVIEW") {
-      for (const sourceReport of sourceReports) {
-        const existing = existingBySourceId.get(sourceReport.id);
-        if (!existing) {
-          counts.createdCount += 1;
-        } else if (
-          existing.externalPayloadHash !== createPayloadHash(sourceReport)
-        ) {
-          counts.updatedCount += 1;
-        }
-      }
-      if (canReconcileHidden) {
-        counts.hiddenCount = existingReports.filter(
-          (report) =>
-            report.externalSourceId && !sourceIds.has(report.externalSourceId)
-        ).length;
-      }
-    } else {
-      for (const sourceReport of sourceReports) {
-        try {
-          const result = await upsertExternalReport({
+    const firstItemError =
+      mode === "PREVIEW"
+        ? (executePreviewImport({
+            canReconcileHidden,
+            counts,
+            existingBySourceId,
+            existingReports,
+            onProgress,
+            sourceIds,
+            sourceReports,
+          }),
+          null)
+        : await executeApplyImport({
+            canReconcileHidden,
+            counts,
             database,
             importRunId: run.id,
             now,
+            onProgress,
             request,
-            sourceReport,
+            sourceIds,
+            sourceReports,
             storage,
           });
-          if (result.created) {
-            counts.createdCount += 1;
-          } else if (result.updated) {
-            counts.updatedCount += 1;
-          }
-          counts.evidenceDownloadedCount += result.evidenceDownloadedCount;
-        } catch (error) {
-          counts.failedCount += 1;
-          firstItemError ??= getImportErrorMessage(error);
-        }
-      }
-      if (canReconcileHidden) {
-        counts.hiddenCount = await hideMissingReports({
-          database,
-          importRunId: run.id,
-          now,
-          sourceIds,
-        });
-      }
-    }
 
     const completedRun = await updateRun(database, run.id, {
       ...counts,

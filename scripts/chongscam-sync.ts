@@ -82,6 +82,17 @@ try {
     limit,
     maxPages,
     mode,
+    onProgress: (current, total, report) => {
+      if (current === 1 || current % 10 === 0 || current === total) {
+        const titleSnippet =
+          report.title.length > 40
+            ? `${report.title.slice(0, 40)}...`
+            : report.title;
+        console.info(
+          `[ChongScam Sync] Tiến độ: ${current}/${total} - ${titleSnippet} (ảnh: ${report.evidenceFiles?.length ?? 0})`
+        );
+      }
+    },
     sourceReportId,
     storage: storageRuntime?.objectStore,
   });
