@@ -3,7 +3,6 @@ import { createHash, randomUUID } from "node:crypto";
 import {
   protectionExternalImportRun,
   protectionRiskEvidence,
-  protectionRiskEvidenceDerivative,
   protectionRiskIdentifier,
   protectionRiskReport,
   protectionRiskReportHistory,
@@ -17,7 +16,6 @@ import {
   createRiskReportEvidenceKey,
   isRiskReportEvidenceFileNameAllowed,
   PROTECTION_RISK_ORIGINALS_BUCKET,
-  PROTECTION_RISK_PUBLIC_BUCKET,
   RISK_REPORT_EVIDENCE_CONTENT_TYPES,
   RISK_REPORT_EVIDENCE_MAX_BYTES,
 } from "../runtime/storage";
@@ -844,58 +842,6 @@ const updateRun = async (
   return run;
 };
 
-const removeExternalMaterials = async ({
-  database,
-  reportId,
-  storage,
-}: {
-  database: Database;
-  reportId: string;
-  storage?: Context["storage"];
-}): Promise<void> => {
-  const evidence = await database
-    .select({
-      derivativeStorageKey: protectionRiskEvidenceDerivative.storageKey,
-      originalStorageKey: protectionRiskEvidence.originalStorageKey,
-    })
-    .from(protectionRiskEvidence)
-    .leftJoin(
-      protectionRiskEvidenceDerivative,
-      eq(protectionRiskEvidenceDerivative.evidenceId, protectionRiskEvidence.id)
-    )
-    .where(eq(protectionRiskEvidence.reportId, reportId));
-  if (storage) {
-    for (const item of evidence) {
-      try {
-        await storage.deleteObject(
-          item.originalStorageKey,
-          PROTECTION_RISK_ORIGINALS_BUCKET
-        );
-      } catch {
-        // A missing object must not prevent the database projection from being
-        // refreshed on the next manual sync.
-      }
-      if (item.derivativeStorageKey) {
-        try {
-          await storage.deleteObject(
-            item.derivativeStorageKey,
-            PROTECTION_RISK_PUBLIC_BUCKET
-          );
-        } catch {
-          // A missing object must not prevent the database projection from being
-          // refreshed on the next manual sync.
-        }
-      }
-    }
-  }
-  await database
-    .delete(protectionRiskIdentifier)
-    .where(eq(protectionRiskIdentifier.reportId, reportId));
-  await database
-    .delete(protectionRiskEvidence)
-    .where(eq(protectionRiskEvidence.reportId, reportId));
-};
-
 const hasMissingExternalEvidence = async ({
   database,
   reportId,
@@ -1008,16 +954,31 @@ const upsertExternalReport = async ({
     throw new Error("Could not save imported risk report");
   }
 
-  await removeExternalMaterials({ database, reportId: report.id, storage });
+  await database
+    .delete(protectionRiskIdentifier)
+    .where(eq(protectionRiskIdentifier.reportId, report.id));
   const identifierRows = buildIdentifierRows(report.id, sourceReport);
   if (identifierRows.length > 0) {
     await database.insert(protectionRiskIdentifier).values(identifierRows);
   }
 
+  const existingEvidence = await database
+    .select({ externalEvidenceId: protectionRiskEvidence.externalEvidenceId })
+    .from(protectionRiskEvidence)
+    .where(eq(protectionRiskEvidence.reportId, report.id));
+  const existingEvidenceIds = new Set(
+    existingEvidence.flatMap((item) =>
+      item.externalEvidenceId ? [item.externalEvidenceId] : []
+    )
+  );
+
   let evidenceDownloadedCount = 0;
   const evidenceErrors: string[] = [];
   if (sourceReport.evidenceFiles.length > 0 && storage?.putObject) {
     for (const sourceEvidence of sourceReport.evidenceFiles) {
+      if (existingEvidenceIds.has(sourceEvidence.id)) {
+        continue;
+      }
       try {
         const downloaded = await downloadEvidence({
           file: sourceEvidence,
