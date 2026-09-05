@@ -115,7 +115,7 @@ describe("fetchChongScamReports", () => {
     });
 
     expect(reports).toHaveLength(1);
-    expect(reports[0].title).toBe("Single Report");
+    expect(reports[0]?.title).toBe("Single Report");
     expect(requestedUrl).toBe(`${CHONGSCAM_API_URL}/${reportId}`);
   });
 
