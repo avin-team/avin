@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { Shell } from "@/components/shell";
 import { orpc } from "@/utils/orpc";
 
+import { AvinCheckPageHeader } from "../components/avin-check-page-header";
 import { riskReportWithdrawalFormSchema } from "../schemas/risk-report-workspace-schema";
 
 const REPORT_TYPE_LABELS: Record<string, string> = {
@@ -266,27 +267,8 @@ export const RiskReportWorkspacePage = () => {
 
   return (
     <Shell as="div" className="gap-8" variant="default">
-      <section
-        aria-labelledby="risk-report-workspace-heading"
-        className="grid gap-6 border-b pb-8"
-      >
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="grid gap-2">
-            <Badge className="w-fit gap-1.5" variant="outline">
-              <ShieldWarningIcon aria-hidden="true" />
-              Avin Cảnh báo · Báo cáo của tôi
-            </Badge>
-            <h1
-              className="font-black text-4xl tracking-tight sm:text-5xl"
-              id="risk-report-workspace-heading"
-            >
-              Theo dõi các báo cáo rủi ro.
-            </h1>
-            <p className="mt-1 max-w-2xl text-muted-foreground text-sm leading-6">
-              Quản lý tiến trình xử lý, bổ sung tài liệu minh chứng hoặc chỉnh
-              sửa các báo cáo lừa đảo bạn đã gửi đến hệ thống Avin.
-            </p>
-          </div>
+      <AvinCheckPageHeader
+        actions={
           <Link
             className={buttonVariants({ size: "sm", variant: "outline" })}
             to="/avin-check/report"
@@ -294,8 +276,17 @@ export const RiskReportWorkspacePage = () => {
             <FlagIcon data-icon="inline-start" />
             Gửi tố cáo mới
           </Link>
-        </div>
-      </section>
+        }
+        badge={
+          <>
+            <ShieldWarningIcon aria-hidden="true" />
+            Avin Cảnh báo · Báo cáo của tôi
+          </>
+        }
+        description="Quản lý tiến trình xử lý, bổ sung tài liệu minh chứng hoặc chỉnh sửa các báo cáo lừa đảo bạn đã gửi đến hệ thống Avin."
+        headingId="risk-report-workspace-heading"
+        title="Theo dõi các báo cáo rủi ro."
+      />
 
       {reports.isPending ? (
         <div className="grid gap-4">

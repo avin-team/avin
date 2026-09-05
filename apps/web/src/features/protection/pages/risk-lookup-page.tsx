@@ -1,5 +1,4 @@
 import { Alert, AlertDescription, AlertTitle } from "@avin/ui/components/alert";
-import { Badge } from "@avin/ui/components/badge";
 import { Button } from "@avin/ui/components/button";
 import {
   Card,
@@ -34,6 +33,7 @@ import type {
   PublicRiskIdentifierLookup,
   PublicRiskStatistics as PublicRiskStatisticsData,
 } from "../api/risk-lookup-api";
+import { AvinCheckPageHeader } from "../components/avin-check-page-header";
 import { PublicRiskWarningCatalogue } from "../components/public-risk-warning-catalogue";
 import { rememberRiskLookupHandoff } from "../risk-lookup-handoff";
 
@@ -399,24 +399,9 @@ export const RiskLookupPage = () => {
 
   return (
     <Shell as="div" className="gap-8" variant="default">
-      <section
-        aria-labelledby="risk-lookup-heading"
-        className="grid gap-6 border-b pb-8"
-      >
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="grid gap-2">
-            <Badge className="w-fit gap-1.5" variant="outline">
-              <ShieldWarningIcon aria-hidden="true" />
-              Avin Cảnh báo
-            </Badge>
-            <h1
-              className="font-black text-4xl tracking-tight sm:text-5xl"
-              id="risk-lookup-heading"
-            >
-              Kiểm tra dấu hiệu lừa đảo.
-            </h1>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
+      <AvinCheckPageHeader
+        actions={
+          <>
             {hasMyReports ? (
               <Link
                 className="inline-flex h-9 items-center justify-center gap-1.5 rounded-4xl border border-input px-3.5 font-medium text-sm transition hover:bg-accent hover:text-accent-foreground"
@@ -433,8 +418,17 @@ export const RiskLookupPage = () => {
               <FlagIcon data-icon="inline-start" />
               Gửi tố cáo
             </Link>
-          </div>
-        </div>
+          </>
+        }
+        badge={
+          <>
+            <ShieldWarningIcon aria-hidden="true" />
+            Avin Cảnh báo
+          </>
+        }
+        headingId="risk-lookup-heading"
+        title="Kiểm tra dấu hiệu lừa đảo."
+      >
         <form className="grid gap-3" onSubmit={handleSubmit}>
           <label className="font-medium text-sm" htmlFor="risk-lookup-value">
             Nhập số điện thoại, số tài khoản, website hoặc link Facebook,
@@ -514,7 +508,7 @@ export const RiskLookupPage = () => {
             ))}
           </fieldset>
         ) : null}
-      </section>
+      </AvinCheckPageHeader>
 
       {clientError || searchMutation.isError ? (
         <Alert className="border-amber-500/30 bg-amber-500/5" role="alert">

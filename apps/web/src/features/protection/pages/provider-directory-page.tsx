@@ -1,5 +1,4 @@
 import { Alert, AlertDescription, AlertTitle } from "@avin/ui/components/alert";
-import { Badge } from "@avin/ui/components/badge";
 import { Button } from "@avin/ui/components/button";
 import { Input } from "@avin/ui/components/input";
 import {
@@ -16,6 +15,7 @@ import type { FormEvent } from "react";
 import { Shell } from "@/components/shell";
 import { orpc } from "@/utils/orpc";
 
+import { AvinCheckPageHeader } from "../components/avin-check-page-header";
 import type { ShowcaseProvider } from "../components/provider-showcase-section";
 import { ProviderShowcaseSection } from "../components/provider-showcase-section";
 
@@ -173,23 +173,8 @@ export const ProviderDirectoryPage = () => {
 
   return (
     <Shell as="div" className="gap-8" variant="default">
-      <section
-        aria-labelledby="provider-directory-heading"
-        className="grid gap-6 border-b pb-8"
-      >
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="grid gap-2">
-            <Badge className="w-fit gap-1.5" variant="outline">
-              <ShieldCheckIcon aria-hidden="true" />
-              Avin Đối tác
-            </Badge>
-            <h1
-              className="font-black text-4xl tracking-tight sm:text-5xl"
-              id="provider-directory-heading"
-            >
-              Tìm đối tác đã xác minh
-            </h1>
-          </div>
+      <AvinCheckPageHeader
+        actions={
           <Link
             className="inline-flex h-9 items-center justify-center gap-1.5 rounded-4xl border border-input px-3 font-medium text-sm transition hover:bg-accent hover:text-accent-foreground"
             to="/avin-check/apply"
@@ -197,8 +182,16 @@ export const ProviderDirectoryPage = () => {
             Đăng ký đối tác
             <ArrowRightIcon aria-hidden="true" data-icon="inline-end" />
           </Link>
-        </div>
-
+        }
+        badge={
+          <>
+            <ShieldCheckIcon aria-hidden="true" />
+            Avin Đối tác
+          </>
+        }
+        headingId="provider-directory-heading"
+        title="Tìm đối tác đã xác minh"
+      >
         <form className="grid gap-3" onSubmit={handleSearch}>
           <label
             className="font-medium text-sm"
@@ -249,7 +242,7 @@ export const ProviderDirectoryPage = () => {
           Tra cứu đối tác đã xác minh theo tên, dịch vụ, địa điểm, số tài khoản,
           số điện thoại hoặc kênh mạng xã hội.
         </p>
-      </section>
+      </AvinCheckPageHeader>
 
       {directoryQuery.isError ? (
         <Alert role="alert">

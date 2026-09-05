@@ -36,6 +36,7 @@ import {
 } from "@/components/icons/social-icons";
 import { Shell } from "@/components/shell";
 import { siteConfig } from "@/config/site";
+import { AvinCheckPageHeader } from "@/features/protection/components/avin-check-page-header";
 import { GUIDE_POLICY_DATA } from "@/features/protection/data/guide-policy-data";
 import type {
   PolicyClauseItem,
@@ -277,23 +278,8 @@ export const AvinCheckGuidePage = () => {
 
   return (
     <Shell as="div" className="gap-8" variant="default">
-      <section
-        aria-labelledby="guide-policy-heading"
-        className="grid gap-6 border-b pb-8"
-      >
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="grid gap-2">
-            <Badge className="w-fit gap-1.5" variant="outline">
-              <BookOpenIcon aria-hidden="true" />
-              Avin Hướng dẫn
-            </Badge>
-            <h1
-              className="font-black text-4xl tracking-tight sm:text-5xl"
-              id="guide-policy-heading"
-            >
-              Hướng dẫn và chính sách
-            </h1>
-          </div>
+      <AvinCheckPageHeader
+        actions={
           <Link
             className="inline-flex h-9 items-center justify-center gap-1.5 rounded-4xl border border-input px-3 font-medium text-sm transition hover:bg-accent hover:text-accent-foreground"
             to="/avin-check/partner-policy"
@@ -301,8 +287,16 @@ export const AvinCheckGuidePage = () => {
             Quy chế đối tác
             <ArrowRightIcon aria-hidden="true" data-icon="inline-end" />
           </Link>
-        </div>
-
+        }
+        badge={
+          <>
+            <BookOpenIcon aria-hidden="true" />
+            Avin Hướng dẫn
+          </>
+        }
+        headingId="guide-policy-heading"
+        title="Hướng dẫn và chính sách"
+      >
         <form
           className="grid gap-3"
           onSubmit={(e) => {
@@ -342,7 +336,7 @@ export const AvinCheckGuidePage = () => {
             </div>
           </div>
         </form>
-      </section>
+      </AvinCheckPageHeader>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
         <aside className="lg:col-span-3">

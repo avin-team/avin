@@ -1,5 +1,5 @@
 import { Alert, AlertDescription, AlertTitle } from "@avin/ui/components/alert";
-import { Button } from "@avin/ui/components/button";
+import { Button, buttonVariants } from "@avin/ui/components/button";
 import {
   Card,
   CardContent,
@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@avin/ui/components/select";
 import { Textarea } from "@avin/ui/components/textarea";
+import { ArrowLeftIcon, ShieldWarningIcon } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
 import { useMutation } from "@tanstack/react-query";
 import { Link, useSearch } from "@tanstack/react-router";
@@ -31,6 +32,7 @@ import { useState } from "react";
 import { Shell } from "@/components/shell";
 import { orpc } from "@/utils/orpc";
 
+import { AvinCheckPageHeader } from "../components/avin-check-page-header";
 import { riskReportCorrectionFormSchema } from "../schemas/risk-report-correction-form-schema";
 
 const requesterRelationshipOptions = [
@@ -79,17 +81,26 @@ export const RiskReportCorrectionPage = () => {
 
   return (
     <Shell as="div" className="gap-8" variant="default">
-      <section className="rounded-[2rem] border border-primary/20 bg-linear-to-br from-primary/10 via-card to-card px-6 py-10 shadow-sm sm:px-10">
-        <p className="font-semibold text-primary text-sm">Avin Check</p>
-        <h1 className="mt-3 font-black text-4xl tracking-tight sm:text-5xl">
-          Yêu cầu đính chính cảnh báo
-        </h1>
-        <p className="mt-4 max-w-3xl text-muted-foreground leading-7">
-          Chỉ tài khoản Buyer hoặc Seller đã đăng nhập mới có thể gửi yêu cầu.
-          Đăng nhập không tự chứng minh quyền sở hữu; Avin sẽ kiểm tra bằng
-          chứng cứ bạn cung cấp.
-        </p>
-      </section>
+      <AvinCheckPageHeader
+        actions={
+          <Link
+            className={buttonVariants({ variant: "outline" })}
+            to="/avin-check"
+          >
+            <ArrowLeftIcon aria-hidden="true" data-icon="inline-start" />
+            Quay lại
+          </Link>
+        }
+        badge={
+          <>
+            <ShieldWarningIcon aria-hidden="true" />
+            Avin Cảnh báo · Đính chính
+          </>
+        }
+        description="Chỉ tài khoản Buyer hoặc Seller đã đăng nhập mới có thể gửi yêu cầu. Đăng nhập không tự chứng minh quyền sở hữu; Avin sẽ kiểm tra bằng chứng cứ bạn cung cấp."
+        headingId="risk-report-correction-heading"
+        title="Yêu cầu đính chính cảnh báo"
+      />
 
       {errorMessage ? (
         <Alert className="border-destructive/30 bg-destructive/5" role="alert">
