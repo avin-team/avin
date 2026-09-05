@@ -1,5 +1,5 @@
 import { Alert, AlertDescription, AlertTitle } from "@avin/ui/components/alert";
-import { Button, buttonVariants } from "@avin/ui/components/button";
+import { Button } from "@avin/ui/components/button";
 import {
   Card,
   CardContent,
@@ -84,11 +84,11 @@ export const RiskReportCorrectionPage = () => {
       <AvinCheckPageHeader
         actions={
           <Link
-            className={buttonVariants({ variant: "outline" })}
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-4xl border border-input px-3.5 font-medium text-sm transition hover:bg-accent hover:text-accent-foreground"
             to="/avin-check"
           >
             <ArrowLeftIcon aria-hidden="true" data-icon="inline-start" />
-            Quay lại
+            Quay lại Avin Check
           </Link>
         }
         badge={

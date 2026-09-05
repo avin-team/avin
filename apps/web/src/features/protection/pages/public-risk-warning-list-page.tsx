@@ -1,4 +1,3 @@
-import { buttonVariants } from "@avin/ui/components/button";
 import { ArrowLeftIcon, ShieldWarningIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 
@@ -12,7 +11,7 @@ export const PublicRiskWarningListPage = () => (
     <AvinCheckPageHeader
       actions={
         <Link
-          className={buttonVariants({ variant: "outline" })}
+          className="inline-flex h-9 items-center justify-center gap-1.5 rounded-4xl border border-input px-3.5 font-medium text-sm transition hover:bg-accent hover:text-accent-foreground"
           to="/avin-check"
         >
           <ArrowLeftIcon aria-hidden="true" data-icon="inline-start" />

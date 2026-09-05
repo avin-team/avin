@@ -30,20 +30,17 @@ export const AvinCheckPageHeader = ({
   return (
     <section
       aria-labelledby={id}
-      className={cn(
-        "rounded-[2rem] border border-primary/20 bg-linear-to-br from-primary/10 via-card to-card p-6 shadow-xs sm:p-8",
-        className
-      )}
+      className={cn("grid gap-6 border-b pb-8", className)}
     >
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-        <div className="space-y-3">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="grid gap-2">
           {badge ? (
             <Badge className="w-fit gap-1.5" variant="outline">
               {badge}
             </Badge>
           ) : null}
           <HeadingTag
-            className="font-black text-3xl tracking-tight sm:text-4xl"
+            className="font-black text-4xl tracking-tight sm:text-5xl"
             id={id}
           >
             {title}
@@ -55,9 +52,7 @@ export const AvinCheckPageHeader = ({
           ) : null}
         </div>
         {actions ? (
-          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-            {actions}
-          </div>
+          <div className="flex flex-wrap items-center gap-2">{actions}</div>
         ) : null}
       </div>
       {children}
