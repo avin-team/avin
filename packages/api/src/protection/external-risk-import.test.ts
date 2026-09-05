@@ -156,7 +156,7 @@ describe("inferExternalRiskIdentifierType", () => {
 });
 
 describe("listExternalRiskReports", () => {
-  it("limits the returned views according to limit parameter", async () => {
+  it("limits and paginates the returned views according to page and pageSize", async () => {
     const mockReports = [1, 2, 3, 4, 5].map((num) => ({
       externalAdminHidden: false,
       externalBankName: "MB",
@@ -193,9 +193,31 @@ describe("listExternalRiskReports", () => {
       }),
     } as never;
 
-    const views = await listExternalRiskReports(mockDb, { limit: 2 });
-    expect(views).toHaveLength(2);
-    expect(views[0]?.externalSourceId).toBe("source-1");
-    expect(views[1]?.externalSourceId).toBe("source-2");
+    const page1 = await listExternalRiskReports(mockDb, {
+      page: 1,
+      pageSize: 2,
+    });
+    expect(page1.items).toHaveLength(2);
+    expect(page1.total).toBe(5);
+    expect(page1.totalPages).toBe(3);
+    expect(page1.page).toBe(1);
+    expect(page1.pageSize).toBe(2);
+    expect(page1.items[0]?.externalSourceId).toBe("source-1");
+    expect(page1.items[1]?.externalSourceId).toBe("source-2");
+
+    const page2 = await listExternalRiskReports(mockDb, {
+      page: 2,
+      pageSize: 2,
+    });
+    expect(page2.items).toHaveLength(2);
+    expect(page2.items[0]?.externalSourceId).toBe("source-3");
+    expect(page2.items[1]?.externalSourceId).toBe("source-4");
+
+    const page3 = await listExternalRiskReports(mockDb, {
+      page: 3,
+      pageSize: 2,
+    });
+    expect(page3.items).toHaveLength(1);
+    expect(page3.items[0]?.externalSourceId).toBe("source-5");
   });
 });

@@ -28,6 +28,7 @@ import { useState } from "react";
 
 import { Header } from "@/components/layout/header";
 import { Main } from "@/components/layout/main";
+import { TablePagination } from "@/components/table-pagination";
 
 import {
   useApplyExternalRiskImport,
@@ -84,9 +85,19 @@ const hasPendingMutation = (statuses: readonly boolean[]): boolean =>
 
 export const ExternalRiskImportPage = () => {
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const { data: runs = [], isPending: isRunsPending } = useExternalImportRuns();
-  const { data: reports = [], isPending: isReportsPending } =
-    useExternalRiskReports({ includeHidden: true, search });
+  const { data: reportsData, isPending: isReportsPending } =
+    useExternalRiskReports({
+      includeHidden: true,
+      page,
+      pageSize,
+      search,
+    });
+  const reports = reportsData?.items ?? [];
+  const total = reportsData?.total ?? 0;
+  const totalPages = reportsData?.totalPages ?? 1;
   const previewMutation = usePreviewExternalRiskImport();
   const applyMutation = useApplyExternalRiskImport();
   const hideMutation = useHideExternalRiskReport();
@@ -224,14 +235,17 @@ export const ExternalRiskImportPage = () => {
         <Card>
           <CardHeader className="gap-4 border-b sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="text-base">
-              Bản ghi external ({isReportsPending ? "..." : reports.length})
+              Bản ghi external ({isReportsPending ? "..." : total})
             </CardTitle>
             <div className="relative min-w-0 sm:w-80">
               <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 aria-label="Tìm bản ghi ChongScam"
                 className="ps-9"
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setPage(1);
+                }}
                 placeholder="ID, tiêu đề, suspect hoặc identifier..."
                 value={search}
               />
@@ -337,6 +351,18 @@ export const ExternalRiskImportPage = () => {
                 </TableBody>
               </Table>
             </div>
+            <TablePagination
+              label="bản ghi"
+              onPageChange={setPage}
+              onPageSizeChange={(newPageSize) => {
+                setPageSize(newPageSize);
+                setPage(1);
+              }}
+              page={page}
+              pageSize={pageSize}
+              total={total}
+              totalPages={totalPages}
+            />
           </CardContent>
         </Card>
       </Main>

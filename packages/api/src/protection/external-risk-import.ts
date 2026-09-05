@@ -115,6 +115,8 @@ export const externalRiskAdminListInputSchema = z
   .object({
     includeHidden: z.boolean().optional(),
     limit: z.coerce.number().int().min(1).max(500).optional(),
+    page: z.coerce.number().int().min(1).optional(),
+    pageSize: z.coerce.number().int().min(1).max(100).optional(),
     search: z.string().trim().max(200).optional(),
   })
   .optional();
@@ -171,6 +173,14 @@ export interface ExternalRiskReportView {
   status: string;
   suspectName: string | null;
   updatedAt: string;
+}
+
+export interface ExternalRiskReportListResult {
+  items: ExternalRiskReportView[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
 }
 
 interface ImportCounts {
@@ -1283,11 +1293,49 @@ export const listExternalImportRuns = async (
   return runs.map(toRunView);
 };
 
+const indexIdentifiersByReportId = (identifiers: ExternalRiskIdentifier[]) => {
+  const identifiersByReportId = new Map<string, ExternalRiskIdentifier[]>();
+  const primaryIdentifiersByReportId = new Map<string, string>();
+  for (const identifier of identifiers) {
+    const reportIdentifiers = identifiersByReportId.get(identifier.reportId);
+    if (reportIdentifiers) {
+      reportIdentifiers.push(identifier);
+    } else {
+      identifiersByReportId.set(identifier.reportId, [identifier]);
+    }
+    if (identifier.isPrimary) {
+      primaryIdentifiersByReportId.set(
+        identifier.reportId,
+        identifier.maskedValue
+      );
+    }
+  }
+  return { identifiersByReportId, primaryIdentifiersByReportId };
+};
+
+const matchesSearchQuery = (
+  report: ExternalRiskReport,
+  identifiers: ExternalRiskIdentifier[],
+  search: string
+): boolean => {
+  const searchValues = [
+    report.externalSourceId,
+    report.externalTitle,
+    report.externalSuspectName,
+    report.externalSourceStatus,
+  ];
+  for (const identifier of identifiers) {
+    searchValues.push(identifier.value);
+  }
+  return searchValues.some((value) => value?.toLowerCase().includes(search));
+};
+
 export const listExternalRiskReports = async (
   database: Database,
   input?: z.infer<typeof externalRiskAdminListInputSchema>
-): Promise<ExternalRiskReportView[]> => {
-  const limit = input?.limit ?? 100;
+): Promise<ExternalRiskReportListResult> => {
+  const page = input?.page ?? 1;
+  const pageSize = input?.pageSize ?? input?.limit ?? 20;
   const reports = await database
     .select()
     .from(protectionRiskReport)
@@ -1311,42 +1359,14 @@ export const listExternalRiskReports = async (
           )
         )
     : [];
-  const identifiersByReportId = new Map<string, ExternalRiskIdentifier[]>();
-  const primaryIdentifiersByReportId = new Map<string, string>();
-  for (const identifier of identifiers) {
-    const reportIdentifiers = identifiersByReportId.get(identifier.reportId);
-    if (reportIdentifiers) {
-      reportIdentifiers.push(identifier);
-    } else {
-      identifiersByReportId.set(identifier.reportId, [identifier]);
-    }
-    if (identifier.isPrimary) {
-      primaryIdentifiersByReportId.set(
-        identifier.reportId,
-        identifier.maskedValue
-      );
-    }
-  }
+  const { identifiersByReportId, primaryIdentifiersByReportId } =
+    indexIdentifiersByReportId(identifiers);
   const search = input?.search?.toLowerCase();
   const views: ExternalRiskReportView[] = [];
   for (const report of reports) {
     const reportIdentifiers = identifiersByReportId.get(report.id) ?? [];
-    if (search) {
-      const searchValues = [
-        report.externalSourceId,
-        report.externalTitle,
-        report.externalSuspectName,
-        report.externalSourceStatus,
-      ];
-      for (const identifier of reportIdentifiers) {
-        searchValues.push(identifier.value);
-      }
-      const matchesSearch = searchValues.some((value) =>
-        value?.toLowerCase().includes(search)
-      );
-      if (!matchesSearch) {
-        continue;
-      }
+    if (search && !matchesSearchQuery(report, reportIdentifiers, search)) {
+      continue;
     }
     views.push({
       adminHidden: report.externalAdminHidden,
@@ -1362,11 +1382,60 @@ export const listExternalRiskReports = async (
       suspectName: report.externalSuspectName,
       updatedAt: report.updatedAt.toISOString(),
     });
-    if (views.length >= limit) {
-      break;
-    }
   }
-  return views;
+  const total = views.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const items = views.slice((page - 1) * pageSize, page * pageSize);
+  return {
+    items,
+    page,
+    pageSize,
+    total,
+    totalPages,
+  };
+};
+
+const getExternalRiskReportView = async (
+  database: Database,
+  id: string
+): Promise<ExternalRiskReportView> => {
+  const [report] = await database
+    .select()
+    .from(protectionRiskReport)
+    .where(
+      and(
+        eq(protectionRiskReport.id, id),
+        eq(protectionRiskReport.externalSource, CHONGSCAM_SOURCE)
+      )
+    )
+    .limit(1);
+  if (!report) {
+    throw new ORPCError("NOT_FOUND", { message: "Imported report not found" });
+  }
+  const [primaryIdentifier] = await database
+    .select()
+    .from(protectionRiskIdentifier)
+    .where(
+      and(
+        eq(protectionRiskIdentifier.reportId, id),
+        eq(protectionRiskIdentifier.isPrimary, true)
+      )
+    )
+    .limit(1);
+  return {
+    adminHidden: report.externalAdminHidden,
+    externalSourceId: report.externalSourceId ?? "",
+    id: report.id,
+    primaryIdentifier: primaryIdentifier?.maskedValue ?? null,
+    publicSlug: report.publicSlug,
+    sourceCreatedAt: toIso(report.externalSourceCreatedAt),
+    sourceStatus: report.externalSourceStatus ?? "unknown",
+    sourceTitle: report.externalTitle,
+    sourceUrl: report.externalSourceUrl,
+    status: report.status,
+    suspectName: report.externalSuspectName,
+    updatedAt: report.updatedAt.toISOString(),
+  };
 };
 
 export const hideExternalRiskReport = async ({
@@ -1404,16 +1473,7 @@ export const hideExternalRiskReport = async ({
       updatedAt: now,
     })
     .where(eq(protectionRiskReport.id, id));
-  const updatedReports = await listExternalRiskReports(database, {
-    includeHidden: true,
-  });
-  const updated = updatedReports.find((item) => item.id === id);
-  if (!updated) {
-    throw new ORPCError("CONFLICT", {
-      message: "Imported report update failed",
-    });
-  }
-  return updated;
+  return getExternalRiskReportView(database, id);
 };
 
 export const restoreExternalRiskReport = async ({
@@ -1456,16 +1516,7 @@ export const restoreExternalRiskReport = async ({
       updatedAt: now,
     })
     .where(eq(protectionRiskReport.id, id));
-  const updatedReports = await listExternalRiskReports(database, {
-    includeHidden: true,
-  });
-  const updated = updatedReports.find((item) => item.id === id);
-  if (!updated) {
-    throw new ORPCError("CONFLICT", {
-      message: "Imported report update failed",
-    });
-  }
-  return updated;
+  return getExternalRiskReportView(database, id);
 };
 
 export const isExternalRiskReport = (report: {

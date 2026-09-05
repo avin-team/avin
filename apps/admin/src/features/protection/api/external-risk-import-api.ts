@@ -7,9 +7,10 @@ import { queryClient } from "@/lib/query-client";
 export type ExternalImportRun = Awaited<
   ReturnType<AppRouterClient["protection"]["adminExternalRisk"]["listRuns"]>
 >[number];
-export type ExternalRiskReport = Awaited<
+export type ExternalRiskReportListResult = Awaited<
   ReturnType<AppRouterClient["protection"]["adminExternalRisk"]["listReports"]>
->[number];
+>;
+export type ExternalRiskReport = ExternalRiskReportListResult["items"][number];
 
 export const useExternalImportRuns = () =>
   useQuery(
@@ -20,6 +21,8 @@ export const useExternalImportRuns = () =>
 
 export const useExternalRiskReports = (params?: {
   includeHidden?: boolean;
+  page?: number;
+  pageSize?: number;
   search?: string;
 }) =>
   useQuery(
