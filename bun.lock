@@ -12,6 +12,7 @@
         "zod": "catalog:",
       },
       "devDependencies": {
+        "@alibaba-group/open-code-review": "^1.12.4",
         "@avin/config": "workspace:*",
         "@types/bun": "catalog:",
         "@workspace/eslint-plugin": "workspace:*",
@@ -338,6 +339,20 @@
   },
   "packages": {
     "@adobe/css-tools": ["@adobe/css-tools@4.5.0", "", {}, "sha512-6OzddxPio9UiWTCemp4N8cYLV2ZN1ncRnV1cVGtve7dhPOtRkleRyx32GQCYSwDYgaHU3USMm84tNsvKzRCa1Q=="],
+
+    "@alibaba-group/ocr-darwin-arm64": ["@alibaba-group/ocr-darwin-arm64@1.12.4", "", { "os": "darwin", "cpu": "arm64" }, "sha512-BfM6FdJNLAvpcgFe4c4Aw0rxWZa+bnaaSOps2T0HWif8T2+YWbRO5irLWYa14GqHTQ3NAVjcThtNDNVfKdH52w=="],
+
+    "@alibaba-group/ocr-darwin-x64": ["@alibaba-group/ocr-darwin-x64@1.12.4", "", { "os": "darwin", "cpu": "x64" }, "sha512-2p4/Sn1J7e/yT5mHCY1FssiMDd2MObZebzGQPRGd31TPGAA8fNEOGyvMsvGr4VpobanqvC77o4sPE3zZwFDCUQ=="],
+
+    "@alibaba-group/ocr-linux-arm64": ["@alibaba-group/ocr-linux-arm64@1.12.4", "", { "os": "linux", "cpu": "arm64" }, "sha512-k7pp0gcL+Occw7WuQPgKiDJajd6GYbPeUPDVmy6HtD++VGKcxurCwMC/qnkKr3/NcL5qfETN6WqhMfJ5YPrVUA=="],
+
+    "@alibaba-group/ocr-linux-x64": ["@alibaba-group/ocr-linux-x64@1.12.4", "", { "os": "linux", "cpu": "x64" }, "sha512-0AW30GTN6WneDj992gU6Yj+kyFp9arMmE6UdED/5Hu0ANIkAfmnPtCUI5CKS1b0+qiVchJjXdnvnO3kiT93cGA=="],
+
+    "@alibaba-group/ocr-win32-arm64": ["@alibaba-group/ocr-win32-arm64@1.12.4", "", { "os": "win32", "cpu": "arm64" }, "sha512-qwrhSfhHptdc7xF/9mrVS4bAPIfgVE974wCDyx1abZr1ejSCTyNAVjQeWYaFQShfVXDN58+gKSMMUnH9VdJRdw=="],
+
+    "@alibaba-group/ocr-win32-x64": ["@alibaba-group/ocr-win32-x64@1.12.4", "", { "os": "win32", "cpu": "x64" }, "sha512-96S0k2vqVivN5F2PC0bxQ5RmL1C89top+KyF5ev1jzQUB453okLTAl10sgpD0lhOHUwbDuF6TIvGrwFYWYcl9Q=="],
+
+    "@alibaba-group/open-code-review": ["@alibaba-group/open-code-review@1.12.4", "", { "optionalDependencies": { "@alibaba-group/ocr-darwin-arm64": "1.12.4", "@alibaba-group/ocr-darwin-x64": "1.12.4", "@alibaba-group/ocr-linux-arm64": "1.12.4", "@alibaba-group/ocr-linux-x64": "1.12.4", "@alibaba-group/ocr-win32-arm64": "1.12.4", "@alibaba-group/ocr-win32-x64": "1.12.4" }, "bin": { "ocr": "bin/ocr.js" } }, "sha512-eGBbfmsCQI15ernq/2kmUPVIooKPycK/4a2RO72K1Adxgu/5k1QQv88AlA0bfragRWr17Urog45yTB/NvNemBA=="],
 
     "@asamuzakjp/css-color": ["@asamuzakjp/css-color@6.0.5", "", { "dependencies": { "@csstools/css-calc": "^3.2.1", "@csstools/css-color-parser": "^4.1.9", "@csstools/css-parser-algorithms": "^4.0.0", "@csstools/css-tokenizer": "^4.0.0", "lru-cache": "^11.5.2" } }, "sha512-mbhpPMmnw/kwW19aRNmSUl1QzLbdGo1SCuE49BT98MNwqF6zaHb3o2owssFc/PEO/4t2UjqtCNwocuDtJornzA=="],
 

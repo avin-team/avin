@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "include": [
+    "apps/**/*.{ts,tsx}",
+    "packages/**/*.{ts,tsx}",
+    "e2e/**/*.{ts,tsx}",
+    "scripts/**/*.ts"
+  ],
+  "exclude": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/.turbo/**",
+    "**/.git/**",
+    "**/routeTree.gen.ts",
+    "**/bun.lock",
+    "packages/db/drizzle/**",
+    "tmp/**",
+    ".scratch/**"
+  ],
+  "rules": [
+    {
+      "path": "apps/{web,admin}/**/*.{ts,tsx}",
+      "rule": "### Frontend Standards (Vite 8 SPA + React 19)\n1. **No Next.js APIs**: Both apps are pure Vite 8 SPAs. Never use or suggest `next/image`, `next/navigation`, `next/router`, `next/head`, `getServerSideProps`, `getStaticProps`, or Server Components.\n2. **Data Fetching**: All server data fetching MUST use the oRPC bridge via `@orpc/tanstack-query` (e.g. `useQuery(orpc.<router>.<procedure>.queryOptions())` or `useMutation(orpc.<router>.<procedure>.mutationOptions())`). Prohibit raw `fetch()` calls for API endpoints.\n3. **Form Handling**: Use `@tanstack/react-form` with Zod schema in `validators.onSubmit`. Always use `form.Subscribe` with a `selector` to subscribe only to specific needed fields, preventing full form re-renders on keystrokes.\n4. **State Management**: Server state in TanStack Query. URL state in TanStack Router search params validated with Zod. Client-only state in React Context with cookie persistence. Prohibit Redux, Jotai, or Recoil.\n5. **Toast Error Handling**: `QueryCache.onError` in `apps/web/src/utils/orpc.ts` already displays Sonner toasts with retry for failed queries. Do NOT add redundant component-level error toasts for query failures.\n6. **File Uploads**: Use `@better-upload/client` (`useUploadFiles`). Do not implement custom fetch-based uploaders.",
+      "merge_system_rule": true
+    },
+    {
+      "path": "apps/server/**/*.{ts,tsx}",
+      "rule": "### Backend Standards (Hono + oRPC + Better Auth + Drizzle)\n1. **oRPC Routing**: All API endpoints must be exposed as typed oRPC procedures with explicit Zod input/output schemas.\n2. **Authentication**: Protected procedures and routes must verify the session using Better Auth (`auth.api.getSession({ headers: req.headers })`) or appropriate middleware. Never bypass authentication checks.\n3. **File Upload Routes**: Upload routes must use `@better-upload/server` with file type restrictions, max size limits, and session verification in `onBeforeUpload`.\n4. **Database Queries**: Query data through `@avin/db` and Drizzle ORM. Ensure queries are parameterized and avoid raw SQL string concatenation.",
+      "merge_system_rule": true
+    },
+    {
+      "path": "packages/api/**/*.{ts,tsx}",
+      "rule": "### API Contract Standards (oRPC + Zod)\n1. Define clean contracts with explicit input and output schemas using Zod.\n2. Keep procedure interfaces deep: minimal surface area, descriptive procedure names, and clear error semantics.",
+      "merge_system_rule": true
+    },
+    {
+      "path": "packages/db/**/*.{ts,tsx}",
+      "rule": "### Database Schema & Query Standards (Drizzle ORM + Postgres)\n1. Maintain consistent column naming, primary keys, and timestamp conventions (`createdAt`, `updatedAt`).\n2. Define explicit foreign keys with appropriate onDelete/onUpdate cascades.\n3. Index columns commonly used in `WHERE`, `JOIN`, and sorting clauses.\n4. Prohibit non-parameterized SQL concatenation.",
+      "merge_system_rule": true
+    },
+    {
+      "path": "packages/auth/**/*.{ts,tsx}",
+      "rule": "### Authentication & Security Standards (Better Auth)\n1. Ensure secure session cookie configuration and CSRF protection.\n2. Properly handle OAuth callbacks, token encryption, and 2FA flows where applicable.\n3. Never expose secrets or sensitive authentication tokens to client responses.",
+      "merge_system_rule": true
+    },
+    {
+      "path": "**/*.{test,spec}.{ts,tsx}",
+      "rule": "### Testing Standards (Vitest + Playwright)\n1. **Test Observable Behavior**: Tests must verify behavior through public interfaces only, not internal implementation details. Code should be refactorable without breaking tests if behavior is unchanged.\n2. **No Mocking Internal Collaborators**: Mock only at system boundaries (third-party external APIs, payment, email, clock/timers). NEVER mock your own modules, classes, or internal helpers.\n3. **No Redundant / Mirror Tests**: Reject tests that simply mirror a trivial function's implementation (one-liners, simple mappings) or test thin delegation of route handlers.\n4. **TDD Vertical Slices**: One logical assertion per test, testing what the user/caller cares about.",
+      "merge_system_rule": true
+    }
+  ]
+}

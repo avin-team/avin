@@ -17,3 +17,7 @@ Uses the default five canonical triage labels: `needs-triage`, `needs-info`, `re
 ### Domain docs
 
 Multi-context monorepo — root `CONTEXT-MAP.md` pointing to per-package `CONTEXT.md` files, with `docs/adr/` at root and per-package levels. See `docs/agents/domain.md`.
+
+### AI Code Review
+
+Automated code reviews use Alibaba's Open Code Review (`ocr`). Architectural and quality rules are defined in `.opencodereview/rule.json` (mapped from `CODING_STANDARDS.md`). See `.agents/skills/open-code-review/SKILL.md`.

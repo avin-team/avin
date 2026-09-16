@@ -82,7 +82,11 @@
     "db:sync-chongscam": "bun --env-file=apps/server/.env run scripts/chongscam-sync.ts",
     "check": "ultracite check",
     "fix": "ultracite fix && bun run scripts/fix-tailwind-canonical.ts",
-    "prepare": "lefthook install"
+    "prepare": "lefthook install",
+    "review": "ocr review",
+    "review:preview": "ocr review --preview",
+    "review:pr": "ocr review --from origin/main --to HEAD",
+    "review:viewer": "ocr viewer"
   },
   "dependencies": {
     "@avin/db": "workspace:*",
@@ -92,6 +96,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@alibaba-group/open-code-review": "^1.12.4",
     "@avin/config": "workspace:*",
     "@types/bun": "catalog:",
     "@workspace/eslint-plugin": "workspace:*",
