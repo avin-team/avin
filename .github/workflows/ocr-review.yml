@@ -35,7 +35,7 @@ jobs:
       )
     runs-on: ubuntu-latest
     concurrency:
-      group: ocr-${{ github.event.pull_request.number || github.event.issue.number }}
+      group: ocr-${{ github.event.pull_request.number }}${{ github.event.issue.number }}
       cancel-in-progress: true
     steps:
       - name: Run Open Code Review
