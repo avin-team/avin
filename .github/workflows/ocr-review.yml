@@ -44,7 +44,7 @@ jobs:
           fetch-depth: 0
 
       - name: Run Open Code Review
-        uses: alibaba/open-code-review@v1.12.4
+        uses: alibaba/open-code-review@<commit-sha> # v1.12.4
         with:
           llm_url: ${{ secrets.OCR_LLM_URL }}
           llm_auth_token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
