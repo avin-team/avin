@@ -1,6 +1,8 @@
 name: OpenCodeReview
 
 on:
+  pull_request:
+    types: [opened, synchronize, reopened]
   pull_request_target:
     types: [opened, synchronize, reopened]
   issue_comment:
@@ -16,7 +18,8 @@ jobs:
     name: AI Code Review
     timeout-minutes: 20
     if: |
-      github.event_name == 'pull_request_target'
+      github.event_name == 'pull_request'
+      || github.event_name == 'pull_request_target'
       || (
         github.event_name == 'issue_comment'
         && github.event.issue.pull_request
