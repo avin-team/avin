@@ -207,6 +207,7 @@ const baseItem = {
   priceAmount: 150_000,
   processingDeadlineAt: "9999-12-31T00:00:00.000Z",
   processingTimeHours: 48,
+  quantity: 1,
   status: "AWAITING_SELLER" as const,
   warrantyExpiresAt: null,
   warrantyPolicy: { durationHours: 72, terms: "Sửa lỗi trong 72 giờ." },

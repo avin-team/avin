@@ -29,7 +29,8 @@ export type ListingForCart = Pick<
 
 const createOptimisticCartItem = (
   listing: ListingForCart,
-  selectedPackageId?: string | null
+  selectedPackageId?: string | null,
+  quantity = 1
 ): CartView["items"][number] => {
   const servicePackages = listing.servicePackages ?? [];
   const selectedPackage = servicePackages.find(
@@ -64,6 +65,7 @@ const createOptimisticCartItem = (
           : listing.warrantyDurationHours,
       warrantyTerms,
     },
+    quantity: listing.type === "COURSE" ? 1 : Math.max(1, quantity),
     selected: true,
     selectedPackageId: selectedPackage?.id ?? selectedPackageId ?? null,
     seller: {
@@ -77,14 +79,48 @@ const createOptimisticCartItem = (
 export const addCartItemOptimistically = (
   cart: CartView | undefined,
   listing: ListingForCart,
-  selectedPackageId?: string | null
+  selectedPackageId?: string | null,
+  quantity = 1
 ): CartView | undefined => {
+  const addQty = listing.type === "COURSE" ? 1 : Math.max(1, quantity);
+
   if (cart?.items.some((item) => item.listing.id === listing.id)) {
-    return cart;
+    if (listing.type === "COURSE") {
+      return cart;
+    }
+    const targetItem = cart.items.find(
+      (item) => item.listing.id === listing.id
+    );
+    if (!targetItem) {
+      return cart;
+    }
+    const newQuantity = targetItem.quantity + addQty;
+    const currentPrice = targetItem.listing.priceAmount ?? 0;
+    const priceDelta =
+      targetItem.selected && targetItem.available ? currentPrice * addQty : 0;
+
+    return {
+      ...cart,
+      items: cart.items.map((item) =>
+        item.listing.id === listing.id
+          ? {
+              ...item,
+              quantity: newQuantity,
+              selectedPackageId: selectedPackageId ?? item.selectedPackageId,
+            }
+          : item
+      ),
+      selectedTotalAmount: cart.selectedTotalAmount + priceDelta,
+    };
   }
 
-  const optimisticItem = createOptimisticCartItem(listing, selectedPackageId);
-  const optimisticPrice = optimisticItem.listing.priceAmount ?? 0;
+  const optimisticItem = createOptimisticCartItem(
+    listing,
+    selectedPackageId,
+    addQty
+  );
+  const optimisticPrice =
+    (optimisticItem.listing.priceAmount ?? 0) * optimisticItem.quantity;
 
   if (!cart) {
     return {
@@ -121,7 +157,8 @@ export const removeCartItemOptimistically = (
     : cart.selectedCount;
   const selectedTotalAmount =
     removedItem.selected && removedItem.available
-      ? cart.selectedTotalAmount - (removedItem.listing.priceAmount ?? 0)
+      ? cart.selectedTotalAmount -
+        (removedItem.listing.priceAmount ?? 0) * removedItem.quantity
       : cart.selectedTotalAmount;
 
   return {
@@ -150,7 +187,9 @@ export const setCartItemSelectedOptimistically = (
     ? cart.selectedCount + 1
     : cart.selectedCount - 1;
   const priceDelta = targetItem.available
-    ? (targetItem.listing.priceAmount ?? 0) * (selected ? 1 : -1)
+    ? (targetItem.listing.priceAmount ?? 0) *
+      targetItem.quantity *
+      (selected ? 1 : -1)
     : 0;
 
   return {
@@ -191,7 +230,7 @@ export const setCartItemPackageOptimistically = (
     ? oldPackage.priceAmount
     : (targetItem.listing.priceAmount ?? 0);
   const newPrice = selectedPackage.priceAmount;
-  const priceDelta = newPrice - oldPrice;
+  const priceDelta = (newPrice - oldPrice) * targetItem.quantity;
 
   return {
     ...cart,
@@ -204,6 +243,47 @@ export const setCartItemPackageOptimistically = (
       targetItem.selected && targetItem.available
         ? Math.max(0, cart.selectedTotalAmount + priceDelta)
         : cart.selectedTotalAmount,
+  };
+};
+
+export const setCartItemQuantityOptimistically = (
+  cart: CartView | undefined,
+  listingId: string,
+  quantity: number
+): CartView | undefined => {
+  if (!cart) {
+    return cart;
+  }
+
+  const targetItem = cart.items.find((item) => item.listing.id === listingId);
+  if (!targetItem) {
+    return cart;
+  }
+
+  const finalQuantity =
+    targetItem.listing.type === "COURSE" ? 1 : Math.max(1, quantity);
+  if (targetItem.quantity === finalQuantity) {
+    return cart;
+  }
+
+  const qtyDelta = finalQuantity - targetItem.quantity;
+  const currentPkg = targetItem.listing.servicePackages?.find(
+    (pkg) => pkg.id === targetItem.selectedPackageId
+  );
+  const currentPrice = currentPkg
+    ? currentPkg.priceAmount
+    : (targetItem.listing.priceAmount ?? 0);
+  const priceDelta =
+    targetItem.selected && targetItem.available ? currentPrice * qtyDelta : 0;
+
+  return {
+    ...cart,
+    items: cart.items.map((item) =>
+      item.listing.id === listingId
+        ? { ...item, quantity: finalQuantity }
+        : item
+    ),
+    selectedTotalAmount: Math.max(0, cart.selectedTotalAmount + priceDelta),
   };
 };
 

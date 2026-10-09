@@ -139,6 +139,7 @@ export const cartItem = pgTable(
     listingId: uuid("listing_id")
       .notNull()
       .references(() => listing.id, { onDelete: "restrict" }),
+    quantity: integer("quantity").default(1).notNull(),
     selected: boolean("selected").default(true).notNull(),
     servicePackageId: uuid("service_package_id").references(
       () => servicePackage.id,
@@ -156,6 +157,7 @@ export const cartItem = pgTable(
     ),
     index("cart_item_cart_selected_idx").on(table.cartId, table.selected),
     index("cart_item_service_package_id_idx").on(table.servicePackageId),
+    check("cart_item_quantity_positive_check", sql`${table.quantity} >= 1`),
   ]
 );
 
@@ -298,7 +300,7 @@ export const orderItem = pgTable(
     index("order_item_service_package_id_idx").on(table.servicePackageId),
     index("order_item_status_idx").on(table.status),
     check("order_item_price_positive_check", sql`${table.priceAmount} > 0`),
-    check("order_item_quantity_one_check", sql`${table.quantity} = 1`),
+    check("order_item_quantity_positive_check", sql`${table.quantity} >= 1`),
     check(
       "order_item_processing_time_positive_check",
       sql`${table.processingTimeHours} > 0`

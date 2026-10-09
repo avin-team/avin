@@ -12,7 +12,7 @@ import type { WarrantyPolicySnapshot } from "@avin/db/schema/commerce";
 import { sellerProfile } from "@avin/db/schema/seller";
 import { sellerEnforcement } from "@avin/db/schema/seller-enforcement";
 import { ORPCError } from "@orpc/server";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 
 import { isListingPubliclyAvailable } from "../listing/listing-discovery";
 import { selectAvailableServicePackage } from "../listing/service-packages";
@@ -49,6 +49,7 @@ export interface CartItemView {
     warrantyDurationHours: number | null;
     warrantyTerms: string | null;
   };
+  quantity: number;
   selectedPackageId?: string | null;
   selected: boolean;
   seller: {
@@ -150,6 +151,7 @@ const selectCartRows = (
       listingType: listing.type,
       parentCategoryStatus: parentCategory.status,
       processingTimeHours: listing.processingTimeHours,
+      quantity: cartItem.quantity,
       selected: cartItem.selected,
       selectedPackageId: cartItem.servicePackageId,
       sellerAvatarUrl: sellerProfile.avatarUrl,
@@ -315,6 +317,7 @@ const toCartItemView = (
       warrantyDurationHours: timedWarranty?.durationHours ?? null,
       warrantyTerms: timedWarranty?.terms ?? null,
     },
+    quantity: row.quantity ?? 1,
     selected: row.selected,
     selectedPackageId: selectedPackage?.id ?? row.selectedPackageId,
     seller: {
@@ -362,7 +365,8 @@ export const getCart = async (
     selectedCount: selectedItems.length,
     selectedTotalAmount: selectedItems.reduce(
       (total, item) =>
-        total + (item.available ? (item.listing.priceAmount ?? 0) : 0),
+        total +
+        (item.available ? (item.listing.priceAmount ?? 0) * item.quantity : 0),
       0
     ),
   };
@@ -372,8 +376,15 @@ export const addToCart = async (
   database: typeof db,
   userId: string,
   listingId: string,
-  packageId?: string
+  packageId?: string,
+  quantity = 1
 ): Promise<CartView> => {
+  if (!Number.isInteger(quantity) || quantity < 1) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Số lượng phải là số nguyên lớn hơn hoặc bằng 1.",
+    });
+  }
+
   await database.transaction(async (transaction) => {
     const found = await transaction
       .select({ id: listing.id, type: listing.type })
@@ -386,6 +397,8 @@ export const addToCart = async (
         message: "Listing không tồn tại.",
       });
     }
+
+    const finalQuantity = found[0].type === "COURSE" ? 1 : quantity;
 
     let selectedPackageId: string | null = null;
     if (found[0].type === "SERVICE") {
@@ -406,10 +419,15 @@ export const addToCart = async (
       .values({
         cartId: cartRow.id,
         listingId,
+        quantity: finalQuantity,
         servicePackageId: selectedPackageId,
       })
       .onConflictDoUpdate({
         set: {
+          quantity:
+            found[0].type === "COURSE"
+              ? 1
+              : sql`${cartItem.quantity} + ${finalQuantity}`,
           selected: true,
           servicePackageId: selectedPackageId,
           updatedAt: new Date(),
@@ -420,6 +438,56 @@ export const addToCart = async (
       .update(cart)
       .set({ updatedAt: new Date() })
       .where(eq(cart.id, cartRow.id));
+  });
+
+  return getCart(database, userId);
+};
+
+export const setCartItemQuantity = async (
+  database: typeof db,
+  userId: string,
+  listingId: string,
+  quantity: number
+): Promise<CartView> => {
+  if (!Number.isInteger(quantity) || quantity < 1) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Số lượng phải là số nguyên lớn hơn hoặc bằng 1.",
+    });
+  }
+
+  await database.transaction(async (transaction) => {
+    const [item] = await transaction
+      .select({
+        cartItemId: cartItem.id,
+        listingType: listing.type,
+      })
+      .from(cartItem)
+      .innerJoin(cart, eq(cartItem.cartId, cart.id))
+      .innerJoin(listing, eq(cartItem.listingId, listing.id))
+      .where(and(eq(cart.userId, userId), eq(cartItem.listingId, listingId)))
+      .for("update")
+      .limit(1);
+
+    if (!item) {
+      throw new ORPCError("NOT_FOUND", {
+        message: "Listing không có trong Cart.",
+      });
+    }
+
+    const finalQuantity = item.listingType === "COURSE" ? 1 : quantity;
+
+    await transaction
+      .update(cartItem)
+      .set({
+        quantity: finalQuantity,
+        updatedAt: new Date(),
+      })
+      .where(eq(cartItem.id, item.cartItemId));
+
+    await transaction
+      .update(cart)
+      .set({ updatedAt: new Date() })
+      .where(eq(cart.userId, userId));
   });
 
   return getCart(database, userId);

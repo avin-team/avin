@@ -148,6 +148,7 @@ describe("ListingDetailPage purchase actions", () => {
     expect(mocks.addToCart).toHaveBeenCalledWith({
       listingId: "listing-1",
       packageId: undefined,
+      quantity: 1,
     });
     expect(mocks.navigate).not.toHaveBeenCalled();
   });

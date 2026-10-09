@@ -428,6 +428,13 @@
       "when": 1787760225589,
       "tag": "0060_aberrant_harpoon",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1791548621659,
+      "tag": "0061_good_iron_patriot",
+      "breakpoints": true
     }
   ]
 }

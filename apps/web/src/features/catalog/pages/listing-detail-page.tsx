@@ -1,5 +1,6 @@
 import type { AppRouterClient } from "@avin/api/router";
 import { Button } from "@avin/ui/components/button";
+import { Input } from "@avin/ui/components/input";
 import {
   WarningCircleIcon,
   BookOpenIcon,
@@ -7,7 +8,9 @@ import {
   CheckCircleIcon,
   ClockIcon,
   HouseIcon,
+  MinusIcon,
   PencilSimpleIcon,
+  PlusIcon,
   ShieldCheckIcon,
   ShoppingCartIcon,
   StarIcon,
@@ -346,6 +349,7 @@ export const ListingDetailPage = () => {
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(
     null
   );
+  const [quantity, setQuantity] = useState(1);
 
   const listingQuery = useQuery(
     orpc.listing.discovery.listingById.queryOptions({
@@ -374,7 +378,7 @@ export const ListingDetailPage = () => {
   const cartQueryKey = orpc.commerce.cart.get.queryOptions().queryKey;
   const addToCartMutation = useMutation({
     ...orpc.commerce.cart.add.mutationOptions(),
-    onError: (error, _variables, context) => {
+    onError: (error, _variables, context?: { previousCart?: CartView }) => {
       if (context?.previousCart) {
         queryClient.setQueryData(cartQueryKey, context.previousCart);
       } else {
@@ -386,13 +390,18 @@ export const ListingDetailPage = () => {
           : "Không thể thêm sản phẩm vào Giỏ hàng."
       );
     },
-    onMutate: async () => {
+    onMutate: async (variables) => {
       await queryClient.cancelQueries({ queryKey: cartQueryKey });
       const previousCart = queryClient.getQueryData<CartView>(cartQueryKey);
 
       if (listing) {
         queryClient.setQueryData<CartView>(cartQueryKey, (currentCart) =>
-          addCartItemOptimistically(currentCart, listing, selectedPackage?.id)
+          addCartItemOptimistically(
+            currentCart,
+            listing,
+            selectedPackage?.id,
+            variables.quantity ?? 1
+          )
         );
       }
 
@@ -584,6 +593,72 @@ export const ListingDetailPage = () => {
                     />
                   </RenderWhen>
 
+                  {/* Quantity Selector */}
+                  <RenderWhen when={isService}>
+                    <div className="space-y-2 border-t border-border/60 pt-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-foreground">
+                          Số lượng
+                        </span>
+                        {quantity > 1 ? (
+                          <span className="text-xs text-muted-foreground">
+                            Tổng:{" "}
+                            <span className="font-bold text-primary">
+                              {formatVND(selectedPrice * quantity)}
+                            </span>
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="flex items-center rounded-xl border border-input bg-background/50 shadow-xs">
+                        <Button
+                          aria-label="Giảm số lượng"
+                          className="h-9 w-9 rounded-r-none rounded-l-xl text-muted-foreground hover:bg-muted hover:text-foreground"
+                          disabled={
+                            quantity <= 1 || addToCartMutation.isPending
+                          }
+                          onClick={() =>
+                            setQuantity((prev) => Math.max(1, prev - 1))
+                          }
+                          size="icon"
+                          type="button"
+                          variant="ghost"
+                        >
+                          <MinusIcon className="size-3.5" />
+                        </Button>
+                        <Input
+                          aria-label="Số lượng muốn mua"
+                          className="h-9 w-full rounded-none border-0 bg-transparent text-center font-bold text-sm shadow-none focus-visible:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                          disabled={addToCartMutation.isPending}
+                          min={1}
+                          onBlur={() => {
+                            if (!quantity || quantity < 1) {
+                              setQuantity(1);
+                            }
+                          }}
+                          onChange={(e) => {
+                            const val = Math.trunc(Number(e.target.value));
+                            setQuantity(
+                              Number.isNaN(val) ? 1 : Math.max(1, val)
+                            );
+                          }}
+                          type="number"
+                          value={quantity}
+                        />
+                        <Button
+                          aria-label="Tăng số lượng"
+                          className="h-9 w-9 rounded-l-none rounded-r-xl text-muted-foreground hover:bg-muted hover:text-foreground"
+                          disabled={addToCartMutation.isPending}
+                          onClick={() => setQuantity((prev) => prev + 1)}
+                          size="icon"
+                          type="button"
+                          variant="ghost"
+                        >
+                          <PlusIcon className="size-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  </RenderWhen>
+
                   {/* Action CTA */}
                   <AuthActionGuard>
                     {({
@@ -609,6 +684,7 @@ export const ListingDetailPage = () => {
                           addToCartMutation.mutate({
                             listingId: listing.id,
                             packageId: selectedPackage?.id,
+                            quantity: isService ? quantity : 1,
                           });
                         });
                       };

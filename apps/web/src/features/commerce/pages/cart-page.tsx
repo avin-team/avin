@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "@avin/ui/components/card";
 import { Checkbox } from "@avin/ui/components/checkbox";
+import { Input } from "@avin/ui/components/input";
 import {
   Select,
   SelectContent,
@@ -24,6 +25,8 @@ import {
   LockKeyIcon,
   TrashIcon,
   CaretDownIcon,
+  MinusIcon,
+  PlusIcon,
 } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -38,6 +41,7 @@ import {
   reconcileCartItemPackageMutation,
   removeCartItemOptimistically,
   setCartItemPackageOptimistically,
+  setCartItemQuantityOptimistically,
   setCartItemSelectedOptimistically,
 } from "@/features/commerce/cart-cache";
 import type { CartView } from "@/features/commerce/cart-cache";
@@ -75,6 +79,7 @@ interface CartItem {
     type: "COURSE" | "SERVICE";
     warrantyDurationHours: number | null;
   };
+  quantity: number;
   selected: boolean;
   selectedPackageId?: string | null;
   seller: {
@@ -170,6 +175,158 @@ const CartItemPackageSelect = ({
   );
 };
 
+const CartItemPriceDisplay = ({
+  currentPrice,
+  quantity,
+}: {
+  currentPrice: number;
+  quantity: number;
+}) => (
+  <div className="text-right">
+    <span className="block text-base font-bold text-primary">
+      {formatVND(currentPrice * quantity)}
+    </span>
+    {quantity > 1 ? (
+      <span className="block text-[11px] text-muted-foreground">
+        {formatVND(currentPrice)} / lượt × {quantity} lượt
+      </span>
+    ) : null}
+  </div>
+);
+
+const CartItemQuantityControls = ({
+  disabled,
+  listingTitle,
+  onQuantityChange,
+  quantity,
+}: {
+  disabled: boolean;
+  listingTitle: string | null;
+  onQuantityChange?: (quantity: number) => void;
+  quantity: number;
+}) => (
+  <div className="flex items-center gap-1.5">
+    <span className="text-xs font-semibold text-muted-foreground">SL:</span>
+    <div className="flex items-center rounded-lg border border-input bg-background shadow-2xs">
+      <Button
+        aria-label={`Giảm số lượng cho ${listingTitle ?? "sản phẩm"}`}
+        className="h-7 w-7 rounded-r-none rounded-l-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+        disabled={disabled || quantity <= 1}
+        onClick={() => onQuantityChange?.(Math.max(1, quantity - 1))}
+        size="icon-xs"
+        type="button"
+        variant="ghost"
+      >
+        <MinusIcon className="size-3" />
+      </Button>
+      <Input
+        aria-label={`Số lượng cho ${listingTitle ?? "sản phẩm"}`}
+        className="h-7 w-12 rounded-none border-0 bg-transparent text-center font-bold text-xs shadow-none focus-visible:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        disabled={disabled}
+        min={1}
+        onBlur={(e) => {
+          const val = Math.trunc(Number(e.target.value));
+          if (Number.isNaN(val) || val < 1) {
+            onQuantityChange?.(1);
+          }
+        }}
+        onChange={(e) => {
+          const val = Math.trunc(Number(e.target.value));
+          if (!Number.isNaN(val) && val >= 1) {
+            onQuantityChange?.(val);
+          }
+        }}
+        type="number"
+        value={quantity}
+      />
+      <Button
+        aria-label={`Tăng số lượng cho ${listingTitle ?? "sản phẩm"}`}
+        className="h-7 w-7 rounded-l-none rounded-r-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+        disabled={disabled}
+        onClick={() => onQuantityChange?.(quantity + 1)}
+        size="icon-xs"
+        type="button"
+        variant="ghost"
+      >
+        <PlusIcon className="size-3" />
+      </Button>
+    </div>
+  </div>
+);
+
+const CartItemDescriptionSection = ({
+  checkoutKey,
+  description,
+  inputDisabled,
+  listingId,
+  onBusyChange,
+  onCreateAttachment,
+  onDescriptionChange,
+  onDiscardAttachment,
+  setAttachmentBusy,
+  setDescription,
+}: {
+  checkoutKey: string;
+  description: string;
+  inputDisabled: boolean;
+  listingId: string;
+  onBusyChange?: (busy: boolean) => void;
+  onCreateAttachment?: (
+    input: OrderImageUploadMetadata
+  ) => Promise<OrderImageAttachment>;
+  onDescriptionChange: (description: string) => void;
+  onDiscardAttachment?: (attachmentId: string) => Promise<void>;
+  setAttachmentBusy: (busy: boolean) => void;
+  setDescription: (desc: string) => void;
+}) => (
+  <details className="group mt-4 rounded-xl border border-border/60 bg-muted/20">
+    <summary className="flex cursor-pointer items-center justify-between list-none px-3 py-2 text-sm font-semibold marker:hidden">
+      <span>
+        Thêm mô tả hoặc hình ảnh{" "}
+        <span className="font-normal text-muted-foreground">
+          (Không bắt buộc)
+        </span>
+      </span>
+      <CaretDownIcon className="size-4 text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
+    </summary>
+    <div className="grid gap-3 border-t border-border/60 p-3">
+      <label
+        className="grid gap-1.5 text-sm font-medium"
+        htmlFor={`checkout-description-${listingId}`}
+      >
+        Mô tả cho người bán
+        <Textarea
+          disabled={inputDisabled}
+          id={`checkout-description-${listingId}`}
+          maxLength={1000}
+          onChange={(event) => {
+            const nextDescription = event.target.value;
+            setDescription(nextDescription);
+            onDescriptionChange(nextDescription);
+          }}
+          placeholder="Mô tả yêu cầu hoặc thông tin bạn muốn gửi người bán..."
+          value={description}
+        />
+      </label>
+      <OrderImageUploader
+        disabled={inputDisabled}
+        metadata={{
+          checkoutKey,
+          listingId,
+        }}
+        onBusyChange={(busy) => {
+          setAttachmentBusy(busy);
+          onBusyChange?.(busy);
+        }}
+        onCreateAttachment={onCreateAttachment ?? unavailableAttachmentAction}
+        onDiscardAttachment={onDiscardAttachment ?? unavailableAttachmentAction}
+        route="checkout-attachment"
+        uploadPath="/api/checkout-attachment-upload"
+      />
+    </div>
+  </details>
+);
+
 /**
  * Option C — Side-by-Side Split Cart Item Card using theme colors & design system tokens
  */
@@ -181,6 +338,7 @@ export const CartItemCard = ({
   onDescriptionChange = noopDescriptionChange,
   onCreateAttachment,
   onDiscardAttachment,
+  onQuantityChange,
   onRemove,
   onSelectPackage,
   onToggle,
@@ -195,6 +353,7 @@ export const CartItemCard = ({
   onBusyChange?: (busy: boolean) => void;
   onDescriptionChange?: (description: string) => void;
   onDiscardAttachment?: (attachmentId: string) => Promise<void>;
+  onQuantityChange?: (quantity: number) => void;
   onRemove: () => void;
   onSelectPackage?: (packageId: string) => void;
   onToggle: (selected: boolean) => void;
@@ -262,9 +421,10 @@ export const CartItemCard = ({
 
             <div className="flex flex-col items-end justify-between gap-3 sm:text-right">
               <div className="flex items-center gap-2">
-                <span className="text-base font-bold text-primary">
-                  {formatVND(currentPrice)}
-                </span>
+                <CartItemPriceDisplay
+                  currentPrice={currentPrice}
+                  quantity={item.quantity}
+                />
                 <Button
                   aria-label={`Xóa ${item.listing.title ?? "sản phẩm"} khỏi Giỏ hàng`}
                   disabled={disabled}
@@ -277,68 +437,41 @@ export const CartItemCard = ({
                 </Button>
               </div>
 
-              {item.listing.type === "SERVICE" && packages.length > 0 ? (
-                <CartItemPackageSelect
-                  disabled={disabled}
-                  listingId={item.listing.id}
-                  onSelectPackage={onSelectPackage}
-                  packages={packages}
-                  selectedPackageId={item.selectedPackageId}
-                />
-              ) : null}
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {item.listing.type === "SERVICE" ? (
+                  <CartItemQuantityControls
+                    disabled={disabled}
+                    listingTitle={item.listing.title}
+                    onQuantityChange={onQuantityChange}
+                    quantity={item.quantity}
+                  />
+                ) : null}
+
+                {item.listing.type === "SERVICE" && packages.length > 0 ? (
+                  <CartItemPackageSelect
+                    disabled={disabled}
+                    listingId={item.listing.id}
+                    onSelectPackage={onSelectPackage}
+                    packages={packages}
+                    selectedPackageId={item.selectedPackageId}
+                  />
+                ) : null}
+              </div>
             </div>
           </div>
         </div>
-        <details className="group mt-4 rounded-xl border border-border/60 bg-muted/20">
-          <summary className="flex cursor-pointer items-center justify-between list-none px-3 py-2 text-sm font-semibold marker:hidden">
-            <span>
-              Thêm mô tả hoặc hình ảnh{" "}
-              <span className="font-normal text-muted-foreground">
-                (Không bắt buộc)
-              </span>
-            </span>
-            <CaretDownIcon className="size-4 text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
-          </summary>
-          <div className="grid gap-3 border-t border-border/60 p-3">
-            <label
-              className="grid gap-1.5 text-sm font-medium"
-              htmlFor={`checkout-description-${item.listing.id}`}
-            >
-              Mô tả cho người bán
-              <Textarea
-                disabled={inputDisabled}
-                id={`checkout-description-${item.listing.id}`}
-                maxLength={1000}
-                onChange={(event) => {
-                  const nextDescription = event.target.value;
-                  setDescription(nextDescription);
-                  onDescriptionChange(nextDescription);
-                }}
-                placeholder="Mô tả yêu cầu hoặc thông tin bạn muốn gửi người bán..."
-                value={description}
-              />
-            </label>
-            <OrderImageUploader
-              disabled={inputDisabled}
-              metadata={{
-                checkoutKey,
-                listingId: item.listing.id,
-              }}
-              onBusyChange={(busy) => {
-                setAttachmentBusy(busy);
-                onBusyChange?.(busy);
-              }}
-              onCreateAttachment={
-                onCreateAttachment ?? unavailableAttachmentAction
-              }
-              onDiscardAttachment={
-                onDiscardAttachment ?? unavailableAttachmentAction
-              }
-              route="checkout-attachment"
-              uploadPath="/api/checkout-attachment-upload"
-            />
-          </div>
-        </details>
+        <CartItemDescriptionSection
+          checkoutKey={checkoutKey}
+          description={description}
+          inputDisabled={inputDisabled}
+          listingId={item.listing.id}
+          onBusyChange={onBusyChange}
+          onCreateAttachment={onCreateAttachment}
+          onDescriptionChange={onDescriptionChange}
+          onDiscardAttachment={onDiscardAttachment}
+          setAttachmentBusy={setAttachmentBusy}
+          setDescription={setDescription}
+        />
       </CardContent>
     </Card>
   );
@@ -565,6 +698,42 @@ export const CartPage = () => {
     },
   });
 
+  const quantityMutation = useMutation({
+    ...orpc.commerce.cart.setQuantity.mutationOptions(),
+    onError: (
+      error,
+      _variables,
+      context: { previousCart?: CartView } | undefined
+    ) => {
+      if (context?.previousCart) {
+        queryClient.setQueryData(
+          orpc.commerce.cart.get.queryOptions().queryKey,
+          context.previousCart
+        );
+      }
+      toast.error(
+        error instanceof Error ? error.message : "Không thể cập nhật số lượng."
+      );
+    },
+    onMutate: async ({ listingId, quantity }) => {
+      const cartQueryKey = orpc.commerce.cart.get.queryOptions().queryKey;
+      await queryClient.cancelQueries({ queryKey: cartQueryKey });
+      const previousCart = queryClient.getQueryData<CartView>(cartQueryKey);
+
+      queryClient.setQueryData<CartView>(cartQueryKey, (currentCart) =>
+        setCartItemQuantityOptimistically(currentCart, listingId, quantity)
+      );
+
+      return { previousCart };
+    },
+    onSuccess: (updatedCart) => {
+      queryClient.setQueryData(
+        orpc.commerce.cart.get.queryOptions().queryKey,
+        updatedCart
+      );
+    },
+  });
+
   const checkoutMutation = useMutation(
     orpc.commerce.checkout.create.mutationOptions()
   );
@@ -596,7 +765,10 @@ export const CartPage = () => {
   const hasMissingContract = selectedItems.some(
     (item) => item.contractFingerprint === null
   );
-  const actionPending = removeMutation.isPending || checkoutMutation.isPending;
+  const actionPending =
+    removeMutation.isPending ||
+    checkoutMutation.isPending ||
+    quantityMutation.isPending;
   const busy = actionPending || selectionPending || checkoutAttachmentsBusy;
 
   const submitCheckout = async (confirm = false): Promise<void> => {
@@ -791,6 +963,12 @@ export const CartPage = () => {
                       setCheckoutAttachmentsBusy(
                         checkoutAttachmentBusyRef.current.size > 0
                       );
+                    }}
+                    onQuantityChange={(quantity) => {
+                      quantityMutation.mutate({
+                        listingId: item.listing.id,
+                        quantity,
+                      });
                     }}
                     onSelectPackage={(packageId) => {
                       packageMutation.mutate({

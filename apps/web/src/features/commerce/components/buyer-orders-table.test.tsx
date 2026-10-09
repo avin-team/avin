@@ -46,6 +46,7 @@ const mockOrders: BuyerOrderView[] = [
         priceAmount: 150_000,
         processingDeadlineAt: "2026-08-05T00:00:00.000Z",
         processingTimeHours: 48,
+        quantity: 1,
         status: "IN_PROGRESS",
         warrantyExpiresAt: null,
         warrantyPolicy: { durationHours: 24, terms: "Warranty 24h" },

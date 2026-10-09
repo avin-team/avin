@@ -6,6 +6,7 @@ import {
   reconcileCartItemPackageMutation,
   removeCartItemOptimistically,
   setCartItemPackageOptimistically,
+  setCartItemQuantityOptimistically,
   setCartItemSelectedOptimistically,
 } from "./cart-cache";
 
@@ -27,6 +28,7 @@ const existingItem: CartView["items"][number] = {
     warrantyDurationHours: 72,
     warrantyTerms: "Warranty",
   },
+  quantity: 1,
   selected: true,
   seller: { id: "seller-1", image: null, name: "Seller" },
 };
@@ -74,13 +76,20 @@ describe("cart cache optimistic updates", () => {
     expect(nextCart?.selectedTotalAmount).toBe(250_000);
   });
 
-  it("does not increment the count when the listing is already in the cart", () => {
-    const nextCart = addCartItemOptimistically(cart, {
-      ...listing,
-      id: existingItem.listing.id,
-    });
+  it("accumulates quantity and updates amount when listing is already in the cart", () => {
+    const nextCart = addCartItemOptimistically(
+      cart,
+      {
+        ...listing,
+        id: existingItem.listing.id,
+      },
+      undefined,
+      2
+    );
 
-    expect(nextCart).toBe(cart);
+    expect(nextCart?.selectedCount).toBe(1);
+    expect(nextCart?.items[0]?.quantity).toBe(3);
+    expect(nextCart?.selectedTotalAmount).toBe(300_000);
   });
 
   it("removes a selected listing and rolls its amount out of the summary", () => {
@@ -239,5 +248,27 @@ describe("cart cache optimistic updates", () => {
     expect(reconciledCart).toBe(latestPackageOneCart);
     expect(reconciledCart?.items[0]?.selectedPackageId).toBe("pkg-1");
     expect(reconciledCart?.selectedTotalAmount).toBe(100_000);
+  });
+
+  it("updates quantity and recalculates total amount optimistically", () => {
+    const nextCart = setCartItemQuantityOptimistically(
+      cart,
+      existingItem.listing.id,
+      5
+    );
+
+    expect(nextCart?.items[0]?.quantity).toBe(5);
+    expect(nextCart?.selectedTotalAmount).toBe(500_000);
+  });
+
+  it("clamps quantity to 1 when given invalid or zero quantity", () => {
+    const nextCart = setCartItemQuantityOptimistically(
+      cart,
+      existingItem.listing.id,
+      0
+    );
+
+    expect(nextCart?.items[0]?.quantity).toBe(1);
+    expect(nextCart?.selectedTotalAmount).toBe(100_000);
   });
 });

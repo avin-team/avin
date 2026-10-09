@@ -230,6 +230,7 @@ const order: BuyerOrderView = {
       priceAmount: 200_000,
       processingDeadlineAt: "2026-08-02T00:00:00.000Z",
       processingTimeHours: 24,
+      quantity: 1,
       status: "DELIVERED",
       warrantyExpiresAt: null,
       warrantyPolicy: { durationHours: 48, terms: "Sửa lỗi trong 48 giờ." },

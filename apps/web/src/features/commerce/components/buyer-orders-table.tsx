@@ -563,7 +563,7 @@ export const BuyerOrdersTable = ({ orders }: BuyerOrdersTableProps) => {
                         aria-label="Số lượng"
                         className="py-4 px-4 align-top text-center font-medium text-muted-foreground"
                       >
-                        x1
+                        x{item.quantity ?? 1}
                       </td>
 
                       {/* Tổng tiền */}
@@ -575,6 +575,15 @@ export const BuyerOrdersTable = ({ orders }: BuyerOrdersTableProps) => {
                           <span className="font-bold text-foreground text-sm">
                             {formatVND(item.priceAmount)}
                           </span>
+                          {item.quantity && item.quantity > 1 ? (
+                            <span className="text-[11px] text-muted-foreground">
+                              {formatVND(
+                                item.servicePackage?.priceAmount ??
+                                  Math.round(item.priceAmount / item.quantity)
+                              )}{" "}
+                              / lượt
+                            </span>
+                          ) : null}
                           <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
                             Đã thanh toán
                           </span>

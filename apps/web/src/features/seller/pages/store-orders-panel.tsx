@@ -394,13 +394,18 @@ export const StoreOrdersPanel = () => {
                     <div className="font-bold text-foreground text-sm line-clamp-2">
                       {item.listing.title}
                     </div>
-                    <div className="mt-1 text-[11px] text-muted-foreground">
+                    <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                       <Badge
                         variant="outline"
                         className="text-[10px] py-0 px-1.5 font-normal"
                       >
                         {getListingTypeLabel(item.listing.type)}
                       </Badge>
+                      {item.quantity && item.quantity > 1 ? (
+                        <span className="font-semibold text-foreground">
+                          × {item.quantity}
+                        </span>
+                      ) : null}
                     </div>
                   </td>
 
@@ -428,6 +433,14 @@ export const StoreOrdersPanel = () => {
                     <div className="font-bold text-sm text-foreground">
                       {formatVND(item.priceAmount)}
                     </div>
+                    {item.quantity && item.quantity > 1 ? (
+                      <div className="text-[10px] text-muted-foreground">
+                        {formatVND(
+                          Math.round(item.priceAmount / item.quantity)
+                        )}{" "}
+                        / lượt
+                      </div>
+                    ) : null}
                     <div className="text-[10px] text-muted-foreground mt-0.5">
                       Tạm giữ: {getEscrowStatusLabel(item.escrowHold.status)}
                     </div>

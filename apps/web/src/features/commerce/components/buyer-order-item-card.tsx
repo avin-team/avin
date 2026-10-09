@@ -307,6 +307,9 @@ export const BuyerOrderItemCard = ({
             </CardTitle>
             <CardDescription className="mt-1">
               Mã chi tiết {item.id.slice(0, 8)} · {formatVND(item.priceAmount)}
+              {item.quantity && item.quantity > 1
+                ? ` · SL: ${item.quantity}`
+                : ""}
             </CardDescription>
           </div>
           <Badge

@@ -474,6 +474,11 @@ export const SellerOrderItemCard = ({
             </CardTitle>
             <CardDescription className="mt-1 font-semibold text-foreground">
               {formatVND(item.priceAmount)}
+              {item.quantity > 1 ? (
+                <span className="ml-2 font-normal text-muted-foreground text-xs">
+                  (SL: {item.quantity})
+                </span>
+              ) : null}
             </CardDescription>
           </div>
           <Badge

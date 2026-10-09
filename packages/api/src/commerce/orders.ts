@@ -27,6 +27,7 @@ export interface OrderItemSummary {
   priceAmount: number;
   processingDeadlineAt: string;
   processingTimeHours: number;
+  quantity: number;
   servicePackage?: ServicePackageSnapshot | null;
   status: OrderItemStatus;
   warrantyExpiresAt: string | null;
@@ -46,6 +47,7 @@ interface OrderItemRow {
   priceAmount: number;
   processingDeadlineAt: Date;
   processingTimeHours: number;
+  quantity: number;
   servicePackage: ServicePackageSnapshot | null;
   status: OrderItemStatus;
   warrantyExpiresAt: Date | null;
@@ -72,6 +74,7 @@ const mapOrderItemSummary = (item: OrderItemRow): OrderItemSummary => ({
   priceAmount: item.priceAmount,
   processingDeadlineAt: item.processingDeadlineAt.toISOString(),
   processingTimeHours: item.processingTimeHours,
+  quantity: item.quantity,
   servicePackage: item.servicePackage,
   status: item.status,
   warrantyExpiresAt: item.warrantyExpiresAt?.toISOString() ?? null,
@@ -155,6 +158,7 @@ export const getSellerOrders = async (
       priceAmount: orderItem.priceAmount,
       processingDeadlineAt: orderItem.processingDeadlineAt,
       processingTimeHours: orderItem.processingTimeHours,
+      quantity: orderItem.quantity,
       servicePackage: orderItem.servicePackageSnapshot,
       status: orderItem.status,
       warrantyExpiresAt: orderItem.warrantyExpiresAt,
@@ -236,6 +240,7 @@ export const getBuyerOrders = async (
       priceAmount: orderItem.priceAmount,
       processingDeadlineAt: orderItem.processingDeadlineAt,
       processingTimeHours: orderItem.processingTimeHours,
+      quantity: orderItem.quantity,
       servicePackage: orderItem.servicePackageSnapshot,
       status: orderItem.status,
       warrantyExpiresAt: orderItem.warrantyExpiresAt,

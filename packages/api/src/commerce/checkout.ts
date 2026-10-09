@@ -80,6 +80,7 @@ interface SelectedListingRow {
   listingType: "COURSE" | "SERVICE";
   parentCategoryStatus: "ACTIVE" | "ARCHIVED" | "HIDDEN";
   processingTimeHours: number | null;
+  quantity: number;
   selectedPackageId: string | null;
   servicePackageDescription: string | null;
   servicePackageId: string | null;
@@ -127,6 +128,7 @@ const getSelectedListingRows = async (
       listingType: listing.type,
       parentCategoryStatus: parentCategory.status,
       processingTimeHours: listing.processingTimeHours,
+      quantity: cartItem.quantity,
       selectedPackageId: cartItem.servicePackageId,
       sellerEnforcementExpiresAt: sellerEnforcement.expiresAt,
       sellerEnforcementState: sellerEnforcement.state,
@@ -480,8 +482,8 @@ export const createOrdersAndEscrowHolds = async (
 
   for (const [sellerId, sellerItems] of itemsBySeller) {
     let totalAmount = 0;
-    for (const { contract } of sellerItems) {
-      totalAmount += contract.priceAmount;
+    for (const { contract, row } of sellerItems) {
+      totalAmount += contract.priceAmount * row.quantity;
     }
     const [createdOrder] = await transaction
       .insert(order)
@@ -505,6 +507,8 @@ export const createOrdersAndEscrowHolds = async (
         processingTimeHours,
         warrantyPolicy,
       } = contract;
+      const { quantity } = row;
+      const lineItemTotal = priceAmount * quantity;
       const [createdItem] = await transaction
         .insert(orderItem)
         .values({
@@ -513,11 +517,12 @@ export const createOrdersAndEscrowHolds = async (
           listingId: row.listingId,
           listingSnapshot,
           orderId: createdOrder.id,
-          priceAmount,
+          priceAmount: lineItemTotal,
           processingDeadlineAt: new Date(
             now.getTime() + processingTimeHours * 60 * 60 * 1000
           ),
           processingTimeHours,
+          quantity,
           servicePackageId: contract.servicePackageId ?? null,
           servicePackageSnapshot: contract.servicePackageSnapshot ?? null,
           warrantyPolicy,
@@ -587,7 +592,7 @@ export const createOrdersAndEscrowHolds = async (
       }
 
       await transaction.insert(escrowHold).values({
-        amount: priceAmount,
+        amount: lineItemTotal,
         orderItemId: createdItem.id,
         purchaseTransactionId,
         status: "HELD",
@@ -708,8 +713,8 @@ export const createCheckout = (
       now
     );
     let totalAmount = 0;
-    for (const { contract } of preparedItems) {
-      totalAmount += contract.priceAmount;
+    for (const { contract, row } of preparedItems) {
+      totalAmount += contract.priceAmount * row.quantity;
     }
 
     const accounts = await ensureWalletAccounts(transaction, userId);

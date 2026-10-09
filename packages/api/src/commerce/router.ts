@@ -14,6 +14,7 @@ import {
   getCart,
   removeFromCart,
   setCartItemPackage,
+  setCartItemQuantity,
   setCartItemSelected,
 } from "./cart";
 import {
@@ -130,13 +131,19 @@ const getFulfillmentActorRole = (
 export const commerceRouter = {
   cart: {
     add: buyerProcedure
-      .input(listingIdInput.extend({ packageId: z.uuid().optional() }))
+      .input(
+        listingIdInput.extend({
+          packageId: z.uuid().optional(),
+          quantity: z.number().int().min(1).optional(),
+        })
+      )
       .handler(({ context, input }) =>
         addToCart(
           context.db,
           context.session.user.id,
           input.listingId,
-          input.packageId
+          input.packageId,
+          input.quantity ?? 1
         )
       ),
 
@@ -158,6 +165,17 @@ export const commerceRouter = {
           context.session.user.id,
           input.listingId,
           input.packageId
+        )
+      ),
+
+    setQuantity: buyerProcedure
+      .input(listingIdInput.extend({ quantity: z.number().int().min(1) }))
+      .handler(({ context, input }) =>
+        setCartItemQuantity(
+          context.db,
+          context.session.user.id,
+          input.listingId,
+          input.quantity
         )
       ),
 
