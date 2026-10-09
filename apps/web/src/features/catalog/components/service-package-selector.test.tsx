@@ -51,7 +51,7 @@ describe("ServicePackageSelector", () => {
     const firstPackageTitle = screen.getByText(
       "SV4 : Member Beta, Tên ngoại [ 1k-2k / 24 giờ]"
     );
-    expect(firstPackageTitle).toHaveClass("truncate");
+    expect(firstPackageTitle).toHaveClass("line-clamp-2");
     expect(firstPackageTitle).toHaveClass("min-w-0");
 
     const priceSpan = screen.getByText("23 ₫");

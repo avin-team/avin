@@ -60,11 +60,11 @@ export const ServicePackageSelector = ({
                 <PackageIcon className="h-5 w-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex items-start justify-between gap-2">
                   <Tooltip>
                     <TooltipTrigger
                       render={
-                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                        <span className="min-w-0 flex-1 line-clamp-2 text-sm font-medium text-foreground">
                           {packageItem.name}
                         </span>
                       }
