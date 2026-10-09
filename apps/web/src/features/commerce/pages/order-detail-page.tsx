@@ -214,6 +214,11 @@ export const OrderDetailPage = () => {
                 <p className="text-xs text-muted-foreground">Tổng tiền</p>
                 <p className="font-semibold text-foreground">
                   {formatVND(targetItem.priceAmount)}
+                  {targetItem.quantity > 1 ? (
+                    <span className="ml-1.5 font-normal text-muted-foreground text-xs">
+                      (SL: {targetItem.quantity})
+                    </span>
+                  ) : null}
                 </p>
               </div>
             </div>

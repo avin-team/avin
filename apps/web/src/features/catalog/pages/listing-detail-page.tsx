@@ -1,6 +1,5 @@
 import type { AppRouterClient } from "@avin/api/router";
 import { Button } from "@avin/ui/components/button";
-import { Input } from "@avin/ui/components/input";
 import {
   WarningCircleIcon,
   BookOpenIcon,
@@ -8,9 +7,7 @@ import {
   CheckCircleIcon,
   ClockIcon,
   HouseIcon,
-  MinusIcon,
   PencilSimpleIcon,
-  PlusIcon,
   ShieldCheckIcon,
   ShoppingCartIcon,
   StarIcon,
@@ -31,6 +28,7 @@ import { ListingReviewsSection } from "@/features/catalog/components/listing-rev
 import { ServicePackageSelector } from "@/features/catalog/components/service-package-selector";
 import { addCartItemOptimistically } from "@/features/commerce/cart-cache";
 import type { CartView } from "@/features/commerce/cart-cache";
+import { QuantityStepper } from "@/features/commerce/components/quantity-stepper";
 import { formatVND } from "@/utils/format";
 import { orpc } from "@/utils/orpc";
 
@@ -609,53 +607,12 @@ export const ListingDetailPage = () => {
                           </span>
                         ) : null}
                       </div>
-                      <div className="flex items-center rounded-xl border border-input bg-background/50 shadow-xs">
-                        <Button
-                          aria-label="Giảm số lượng"
-                          className="h-9 w-9 rounded-r-none rounded-l-xl text-muted-foreground hover:bg-muted hover:text-foreground"
-                          disabled={
-                            quantity <= 1 || addToCartMutation.isPending
-                          }
-                          onClick={() =>
-                            setQuantity((prev) => Math.max(1, prev - 1))
-                          }
-                          size="icon"
-                          type="button"
-                          variant="ghost"
-                        >
-                          <MinusIcon className="size-3.5" />
-                        </Button>
-                        <Input
-                          aria-label="Số lượng muốn mua"
-                          className="h-9 w-full rounded-none border-0 bg-transparent text-center font-bold text-sm shadow-none focus-visible:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                          disabled={addToCartMutation.isPending}
-                          min={1}
-                          onBlur={() => {
-                            if (!quantity || quantity < 1) {
-                              setQuantity(1);
-                            }
-                          }}
-                          onChange={(e) => {
-                            const val = Math.trunc(Number(e.target.value));
-                            setQuantity(
-                              Number.isNaN(val) ? 1 : Math.max(1, val)
-                            );
-                          }}
-                          type="number"
-                          value={quantity}
-                        />
-                        <Button
-                          aria-label="Tăng số lượng"
-                          className="h-9 w-9 rounded-l-none rounded-r-xl text-muted-foreground hover:bg-muted hover:text-foreground"
-                          disabled={addToCartMutation.isPending}
-                          onClick={() => setQuantity((prev) => prev + 1)}
-                          size="icon"
-                          type="button"
-                          variant="ghost"
-                        >
-                          <PlusIcon className="size-3.5" />
-                        </Button>
-                      </div>
+                      <QuantityStepper
+                        ariaLabel="Số lượng muốn mua"
+                        disabled={addToCartMutation.isPending}
+                        onChange={setQuantity}
+                        value={quantity}
+                      />
                     </div>
                   </RenderWhen>
 

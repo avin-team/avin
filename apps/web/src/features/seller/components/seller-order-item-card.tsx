@@ -476,7 +476,9 @@ export const SellerOrderItemCard = ({
               {formatVND(item.priceAmount)}
               {item.quantity > 1 ? (
                 <span className="ml-2 font-normal text-muted-foreground text-xs">
-                  (SL: {item.quantity})
+                  (SL: {item.quantity} ·{" "}
+                  {formatVND(Math.round(item.priceAmount / item.quantity))} /
+                  lượt)
                 </span>
               ) : null}
             </CardDescription>

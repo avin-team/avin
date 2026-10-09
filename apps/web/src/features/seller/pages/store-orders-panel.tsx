@@ -403,7 +403,7 @@ export const StoreOrdersPanel = () => {
                       </Badge>
                       {item.quantity && item.quantity > 1 ? (
                         <span className="font-semibold text-foreground">
-                          × {item.quantity}
+                          (SL: {item.quantity})
                         </span>
                       ) : null}
                     </div>

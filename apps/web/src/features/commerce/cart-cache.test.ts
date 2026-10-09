@@ -92,6 +92,67 @@ describe("cart cache optimistic updates", () => {
     expect(nextCart?.selectedTotalAmount).toBe(300_000);
   });
 
+  it("re-selects an unselected service listing and updates selected summary", () => {
+    const unselectedCart: CartView = {
+      ...cart,
+      items: [{ ...existingItem, selected: false }],
+      selectedCount: 0,
+      selectedTotalAmount: 0,
+    };
+
+    const nextCart = addCartItemOptimistically(
+      unselectedCart,
+      {
+        ...listing,
+        id: existingItem.listing.id,
+      },
+      undefined,
+      2
+    );
+
+    expect(nextCart?.items[0]?.selected).toBe(true);
+    expect(nextCart?.items[0]?.quantity).toBe(3);
+    expect(nextCart?.selectedCount).toBe(1);
+    expect(nextCart?.selectedTotalAmount).toBe(300_000);
+  });
+
+  it("re-selects an unselected course listing with quantity fixed to 1", () => {
+    const courseItem: CartView["items"][number] = {
+      ...existingItem,
+      listing: {
+        ...existingItem.listing,
+        id: "course-1",
+        priceAmount: 200_000,
+        type: "COURSE",
+      },
+      quantity: 1,
+      selected: false,
+    };
+    const courseCart: CartView = {
+      id: "cart-course",
+      items: [courseItem],
+      selectedCount: 0,
+      selectedTotalAmount: 0,
+    };
+
+    const nextCart = addCartItemOptimistically(
+      courseCart,
+      {
+        ...listing,
+        id: "course-1",
+        priceAmount: 200_000,
+        type: "COURSE",
+      },
+      undefined,
+      5
+    );
+
+    expect(nextCart?.items[0]?.selected).toBe(true);
+    expect(nextCart?.items[0]?.quantity).toBe(1);
+    expect(nextCart?.selectedCount).toBe(1);
+    expect(nextCart?.selectedTotalAmount).toBe(200_000);
+  });
+
   it("removes a selected listing and rolls its amount out of the summary", () => {
     const nextCart = removeCartItemOptimistically(
       cart,

@@ -85,19 +85,19 @@ export const addCartItemOptimistically = (
   const addQty = listing.type === "COURSE" ? 1 : Math.max(1, quantity);
 
   if (cart?.items.some((item) => item.listing.id === listing.id)) {
-    if (listing.type === "COURSE") {
-      return cart;
-    }
     const targetItem = cart.items.find(
       (item) => item.listing.id === listing.id
     );
     if (!targetItem) {
       return cart;
     }
-    const newQuantity = targetItem.quantity + addQty;
+    const newQuantity =
+      listing.type === "COURSE" ? 1 : targetItem.quantity + addQty;
     const currentPrice = targetItem.listing.priceAmount ?? 0;
-    const priceDelta =
-      targetItem.selected && targetItem.available ? currentPrice * addQty : 0;
+    const quantityDelta = targetItem.selected
+      ? newQuantity - targetItem.quantity
+      : newQuantity;
+    const priceDelta = targetItem.available ? currentPrice * quantityDelta : 0;
 
     return {
       ...cart,
@@ -106,10 +106,14 @@ export const addCartItemOptimistically = (
           ? {
               ...item,
               quantity: newQuantity,
+              selected: true,
               selectedPackageId: selectedPackageId ?? item.selectedPackageId,
             }
           : item
       ),
+      selectedCount: targetItem.selected
+        ? cart.selectedCount
+        : cart.selectedCount + 1,
       selectedTotalAmount: cart.selectedTotalAmount + priceDelta,
     };
   }
