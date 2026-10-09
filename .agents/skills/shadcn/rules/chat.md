@@ -183,6 +183,26 @@ Status lines ("Sarah joined the conversation"), date dividers ("Today"), and lab
 - **Follow the live edge while streaming.** `MessageScrollerProvider` with `autoScroll` keeps the view pinned to new content and yields the moment the user scrolls up. Streaming token updates that grow the last message are followed automatically.
 - **Anchor a turn.** `scrollAnchor` on a `MessageScrollerItem` marks the row to hold in view (typically the user's message that started the turn).
 - **Jump to latest.** `MessageScrollerButton` appears when the user scrolls away and scrolls back on click. `direction="end"` (default) or `direction="start"`. It is a self-managing control, so don't gate it behind your own scroll-position state.
+- **Open a saved transcript without a flash.** `defaultScrollPosition` applies after mount. When it is `"end"` or `"last-anchor"`, the viewport has `data-pending-scroll` until that position is applied. The styled viewport hides. For `"end"` on first paint when messages are in the server HTML, copy this script into the page, not into the primitive. Skip it for `"last-anchor"` and for client-fetched messages. Keep `suppressHydrationWarning` on the viewport. Pass a `nonce` if you use a Content Security Policy.
+
+```tsx
+const scrollToEndScript = `(function () {
+  var viewport = document.getElementById("messages")
+  if (!viewport) {
+    return
+  }
+  viewport.scrollTop = viewport.scrollHeight
+  viewport.removeAttribute("data-pending-scroll")
+})()`
+
+<MessageScroller>
+  <MessageScrollerViewport id="messages" suppressHydrationWarning>
+    <MessageScrollerContent>{/* transcript */}</MessageScrollerContent>
+  </MessageScrollerViewport>
+  <script dangerouslySetInnerHTML={{ __html: scrollToEndScript }} />
+  <MessageScrollerButton />
+</MessageScroller>
+```
 
 For a "thinking…" indicator while the model generates, apply the `shimmer` utility to text. Don't author a custom keyframe animation. See [styling.md](./styling.md).
 
