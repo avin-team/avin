@@ -1,4 +1,9 @@
 import { Button } from "@avin/ui/components/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@avin/ui/components/tooltip";
 import { cn } from "@avin/ui/lib/utils";
 import { PackageIcon } from "@phosphor-icons/react";
 
@@ -45,23 +50,34 @@ export const ServicePackageSelector = ({
               )}
             >
               <div
-                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+                className={cn(
+                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
                   isSelected
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted text-muted-foreground"
-                }`}
+                )}
               >
                 <PackageIcon className="h-5 w-5" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium text-foreground">
-                    {packageItem.name}
-                  </span>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                          {packageItem.name}
+                        </span>
+                      }
+                    />
+                    <TooltipContent side="top">
+                      {packageItem.name}
+                    </TooltipContent>
+                  </Tooltip>
                   <span
-                    className={`text-sm font-semibold ${
+                    className={cn(
+                      "shrink-0 whitespace-nowrap text-sm font-semibold",
                       isSelected ? "text-primary" : "text-foreground"
-                    }`}
+                    )}
                   >
                     {formatVND(packageItem.priceAmount)}
                   </span>
