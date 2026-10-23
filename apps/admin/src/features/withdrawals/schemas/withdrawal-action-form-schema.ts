@@ -8,7 +8,7 @@ export const createWithdrawalActionFormSchema = (
   z
     .object({ value: z.string().trim().max(5000) })
     .superRefine((form, context) => {
-      if (action !== "APPROVE" && !form.value) {
+      if (action !== "APPROVE" && action !== "VIEW_QR" && !form.value) {
         context.addIssue({
           code: "custom",
           message:

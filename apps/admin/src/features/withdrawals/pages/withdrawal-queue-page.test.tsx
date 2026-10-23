@@ -104,6 +104,7 @@ describe("WithdrawalQueuePage", () => {
 
     expect(content).toContain("MBBank");
     expect(content).toContain("50.000 ₫");
+    expect(content).toContain("Mã QR");
     expect(content).toContain("Duyệt");
     expect(content).toContain("Từ chối");
   });

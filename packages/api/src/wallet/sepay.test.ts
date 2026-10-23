@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   buildVietQrUrl,
   createSePaySignature,
+  createWithdrawalVietQrUrl,
   generatePaymentCode,
+  normalizeBankCode,
   normalizeSePayWebhookPayload,
   verifySePaySignature,
 } from "./sepay";
@@ -27,6 +29,28 @@ describe("wallet deposit references", () => {
       })
     ).toBe(
       "https://vietqr.app/img?acc=0123456789&bank=Vietcombank&amount=50000&des=AVABC123456789"
+    );
+  });
+
+  it("normalizes Vietnamese bank names to standard VietQR bank codes", () => {
+    expect(normalizeBankCode("MB BANK")).toBe("MB");
+    expect(normalizeBankCode("MB Bank")).toBe("MB");
+    expect(normalizeBankCode("VIETINBANK")).toBe("ICB");
+    expect(normalizeBankCode("Vietcombank")).toBe("VCB");
+    expect(normalizeBankCode("Techcombank")).toBe("TCB");
+    expect(normalizeBankCode("Sacombank")).toBe("STB");
+  });
+
+  it("builds the compact2 VietQR image URL for seller withdrawals", () => {
+    expect(
+      createWithdrawalVietQrUrl({
+        accountName: "VO HA THAI LONG",
+        accountNumber: "8383860107",
+        amount: 81_000,
+        bankName: "MB BANK",
+      })
+    ).toBe(
+      "https://img.vietqr.io/image/MB-8383860107-compact2.png?amount=81000&accountName=VO%20HA%20THAI%20LONG&addInfo=AVIN%20RUT%20TIEN"
     );
   });
 });

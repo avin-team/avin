@@ -15,6 +15,7 @@ export interface AdminWithdrawal {
   readonly createdAt: string;
   readonly id: string;
   readonly paymentReference: string | null;
+  readonly qrUrl?: string;
   readonly sellerEmail: string;
   readonly sellerId: string;
   readonly sellerImage: string | null;
@@ -22,4 +23,4 @@ export interface AdminWithdrawal {
   readonly status: WithdrawalStatus;
 }
 
-export type WithdrawalAction = "APPROVE" | "MARK_PAID" | "REJECT";
+export type WithdrawalAction = "APPROVE" | "MARK_PAID" | "REJECT" | "VIEW_QR";

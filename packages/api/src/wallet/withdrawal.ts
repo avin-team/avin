@@ -19,6 +19,7 @@ import {
 import { isSellerEnforced } from "../seller-store/profile";
 import type { WalletExecutor } from "./ledger";
 import { recordBalancedLedgerTransaction } from "./ledger";
+import { createWithdrawalVietQrUrl } from "./sepay";
 import {
   ensureSellerWalletAccounts,
   reverseLedgerTransactionInTransaction,
@@ -67,6 +68,7 @@ export interface AdminWithdrawalRequestView {
   createdAt: string;
   id: string;
   paymentReference: string | null;
+  qrUrl: string;
   sellerEmail: string;
   sellerId: string;
   sellerImage: string | null;
@@ -148,14 +150,17 @@ const mapAdminWithdrawalRequest = (
   }
 ): AdminWithdrawalRequestView => ({
   amount: request.amount,
-  bankAccount: {
-    accountName: request.bankAccount.accountName,
-    accountNumber: `**** ${request.bankAccount.accountNumber.slice(-4)}`,
-    bankName: request.bankAccount.bankName,
-  },
+  bankAccount: request.bankAccount,
   createdAt: request.createdAt.toISOString(),
   id: request.id,
   paymentReference: request.paymentReference,
+  qrUrl: createWithdrawalVietQrUrl({
+    accountName: request.bankAccount.accountName,
+    accountNumber: request.bankAccount.accountNumber,
+    amount: request.amount,
+    bankName: request.bankAccount.bankName,
+    description: "AVIN RUT TIEN",
+  }),
   sellerEmail: seller.sellerEmail,
   sellerId: request.sellerId,
   sellerImage: seller.sellerImage,

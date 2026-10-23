@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@avin/ui/components/table";
-import { BankIcon } from "@phosphor-icons/react";
+import { BankIcon, QrCode } from "@phosphor-icons/react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -200,37 +200,49 @@ export const WithdrawalQueuePage = () => {
                       <WithdrawalStatusBadge status={request.status} />
                     </TableCell>
                     <TableCell className="text-end">
-                      {request.status === "REQUESTED" ? (
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            onClick={() => openAction(request, "APPROVE")}
-                            size="sm"
-                            variant="outline"
-                          >
-                            Duyệt
-                          </Button>
-                          <Button
-                            onClick={() => openAction(request, "REJECT")}
-                            size="sm"
-                            variant="destructive"
-                          >
-                            Từ chối
-                          </Button>
-                        </div>
-                      ) : null}
-                      {request.status === "APPROVED" ? (
+                      <div className="flex items-center justify-end gap-2">
                         <Button
-                          onClick={() => openAction(request, "MARK_PAID")}
+                          aria-label="Xem mã VietQR"
+                          onClick={() => openAction(request, "VIEW_QR")}
                           size="sm"
+                          variant="ghost"
                         >
-                          Xác nhận đã chuyển
+                          <QrCode className="size-4" />
+                          Mã QR
                         </Button>
-                      ) : null}
-                      {request.status === "PAID" && request.paymentReference ? (
-                        <span className="font-mono text-xs text-muted-foreground">
-                          {request.paymentReference}
-                        </span>
-                      ) : null}
+                        {request.status === "REQUESTED" ? (
+                          <>
+                            <Button
+                              onClick={() => openAction(request, "APPROVE")}
+                              size="sm"
+                              variant="outline"
+                            >
+                              Duyệt
+                            </Button>
+                            <Button
+                              onClick={() => openAction(request, "REJECT")}
+                              size="sm"
+                              variant="destructive"
+                            >
+                              Từ chối
+                            </Button>
+                          </>
+                        ) : null}
+                        {request.status === "APPROVED" ? (
+                          <Button
+                            onClick={() => openAction(request, "MARK_PAID")}
+                            size="sm"
+                          >
+                            Xác nhận đã chuyển
+                          </Button>
+                        ) : null}
+                        {request.status === "PAID" &&
+                        request.paymentReference ? (
+                          <span className="font-mono text-xs text-muted-foreground">
+                            {request.paymentReference}
+                          </span>
+                        ) : null}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
