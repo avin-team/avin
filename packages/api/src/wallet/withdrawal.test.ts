@@ -1,6 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { user } from "@avin/db/schema/auth";
+import { describe, expect, it, vi } from "vitest";
 
+import type { WalletExecutor } from "./ledger";
 import {
+  assertSellerCanRequestWithdrawal,
   getWithdrawalStatusTransition,
   validateWithdrawalAmount,
   WITHDRAWAL_MINIMUM_AMOUNT,
@@ -30,5 +33,33 @@ describe("seller withdrawal rules", () => {
     expect(() => getWithdrawalStatusTransition("PAID", "REJECT")).toThrow(
       "Withdrawal request cannot transition from PAID"
     );
+  });
+
+  it("locks the user specifically with { of: user } to support PostgreSQL outer join", async () => {
+    const forUpdateMock = vi.fn().mockReturnValue({
+      limit: vi.fn().mockResolvedValue([
+        {
+          role: "SELLER",
+          sellerEnforcementExpiresAt: null,
+          sellerEnforcementState: null,
+        },
+      ]),
+    });
+
+    const executor = {
+      select: vi.fn().mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          leftJoin: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              for: forUpdateMock,
+            }),
+          }),
+        }),
+      }),
+    } as unknown as WalletExecutor;
+
+    await assertSellerCanRequestWithdrawal(executor, "seller-1", new Date());
+
+    expect(forUpdateMock).toHaveBeenCalledWith("update", { of: user });
   });
 });

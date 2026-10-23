@@ -171,14 +171,10 @@ export const ensureWalletAccounts = async (
     },
   ];
 
-  await Promise.all(
-    accountValues.map((account) =>
-      executor
-        .insert(ledgerAccount)
-        .values(account)
-        .onConflictDoNothing({ target: ledgerAccount.accountKey })
-    )
-  );
+  await executor
+    .insert(ledgerAccount)
+    .values(accountValues)
+    .onConflictDoNothing({ target: ledgerAccount.accountKey });
 
   const accounts = await executor
     .select()
@@ -265,14 +261,10 @@ export const ensureSellerWalletAccounts = async (
     },
   ];
 
-  await Promise.all(
-    accountValues.map((account) =>
-      executor
-        .insert(ledgerAccount)
-        .values(account)
-        .onConflictDoNothing({ target: ledgerAccount.accountKey })
-    )
-  );
+  await executor
+    .insert(ledgerAccount)
+    .values(accountValues)
+    .onConflictDoNothing({ target: ledgerAccount.accountKey });
 
   const accounts = await executor
     .select()

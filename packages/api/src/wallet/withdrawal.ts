@@ -190,7 +190,7 @@ const getSellerBankAccount = async (
   return parsed.data;
 };
 
-const assertSellerCanRequestWithdrawal = async (
+export const assertSellerCanRequestWithdrawal = async (
   executor: WalletExecutor,
   sellerId: string,
   now: Date
@@ -204,7 +204,7 @@ const assertSellerCanRequestWithdrawal = async (
     .from(user)
     .leftJoin(sellerEnforcement, eq(sellerEnforcement.sellerId, user.id))
     .where(eq(user.id, sellerId))
-    .for("update")
+    .for("update", { of: user })
     .limit(1);
 
   if (!account || account.role !== "SELLER" || isSellerEnforced(account, now)) {

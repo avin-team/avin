@@ -1,5 +1,22 @@
 # Avin Agent Configuration
 
+## Quick Reference
+
+- **API Tests**: `bun run --cwd packages/api test <file>`
+- **Web Tests**: `bun run --cwd apps/web test <file>`
+- **E2E Tests**: `bun run test:e2e` (targeted: `bun run test:e2e:smoke`, `bun run test:e2e:seller`)
+- **Lint & Types**: `bun run check` (fix: `bun run fix`) | `bun run check-types`
+- **Database Query (Prod/Linked)**: `bun x supabase db query --linked "<SQL>"`
+- **Schema Definitions**: `packages/db/src/schema/`
+
+## Navigation
+
+- `apps/web`: Frontend UI, routes, TanStack Router/Query/Form, feature modules (`src/features/<feature>`).
+- `packages/api`: Business logic, domain services, oRPC procedures, Zod contracts & schemas.
+- `packages/db`: Drizzle schemas, migrations, seeders, database clients.
+- `packages/ui`: Shared design system primitives (`@avin/ui`).
+- `e2e`: Playwright E2E test suites.
+
 ## Coding Standards
 
 All coding standards are documented in [`CODING_STANDARDS.md`](CODING_STANDARDS.md). That file is the single source of truth for code review and implementation conventions.
