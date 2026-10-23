@@ -88,8 +88,8 @@ const withdrawalPaymentInput = withdrawalRequestIdInput.extend({
   paymentReference: z
     .string()
     .trim()
-    .min(1)
-    .max(WITHDRAWAL_PAYMENT_REFERENCE_MAX_LENGTH),
+    .max(WITHDRAWAL_PAYMENT_REFERENCE_MAX_LENGTH)
+    .optional(),
 });
 
 const mapReconciliationEvent = (

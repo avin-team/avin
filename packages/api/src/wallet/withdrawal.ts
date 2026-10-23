@@ -739,13 +739,10 @@ export const markWithdrawalRequestPaid = ({
   adminUserId: string;
   database?: typeof db;
   now?: Date;
-  paymentReference: string;
+  paymentReference?: string | null;
   withdrawalRequestId: string;
 }): Promise<WithdrawalRequestView> => {
-  const normalizedPaymentReference = paymentReference.trim();
-  if (!normalizedPaymentReference) {
-    throw new Error("Withdrawal payment reference is required");
-  }
+  const normalizedPaymentReference = paymentReference?.trim() || null;
 
   return database.transaction(async (transaction) => {
     const request = await findWithdrawalRequest(
@@ -758,7 +755,10 @@ export const markWithdrawalRequestPaid = ({
       });
     }
     if (request.status === "PAID") {
-      if (request.paymentReference !== normalizedPaymentReference) {
+      if (
+        normalizedPaymentReference &&
+        request.paymentReference !== normalizedPaymentReference
+      ) {
         throw new ORPCError("CONFLICT", {
           message: "Yêu cầu rút tiền đã được ghi nhận với reference khác.",
         });
@@ -797,7 +797,7 @@ export const markWithdrawalRequestPaid = ({
           creditAmount: request.amount,
         },
       ],
-      reference: normalizedPaymentReference,
+      reference: createWithdrawalReference("PAID"),
       type: "WITHDRAWAL_PAID",
     });
     const [updatedRequest] = await transaction

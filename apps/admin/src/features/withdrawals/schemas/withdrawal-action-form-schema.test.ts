@@ -17,7 +17,11 @@ describe("withdrawal action form schema", () => {
     ).toBe(false);
   });
 
-  it("requires a bank payment reference", () => {
+  it("allows bank payment reference to be optional", () => {
+    expect(
+      createWithdrawalActionFormSchema("MARK_PAID").safeParse({ value: "" })
+        .success
+    ).toBe(true);
     expect(
       createWithdrawalActionFormSchema("MARK_PAID").safeParse({ value: "TX-1" })
         .success

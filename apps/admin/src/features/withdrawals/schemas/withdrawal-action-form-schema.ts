@@ -8,13 +8,10 @@ export const createWithdrawalActionFormSchema = (
   z
     .object({ value: z.string().trim().max(5000) })
     .superRefine((form, context) => {
-      if (action !== "APPROVE" && action !== "VIEW_QR" && !form.value) {
+      if (action === "REJECT" && !form.value) {
         context.addIssue({
           code: "custom",
-          message:
-            action === "REJECT"
-              ? "Vui lòng nhập lý do từ chối."
-              : "Vui lòng nhập mã giao dịch ngân hàng.",
+          message: "Vui lòng nhập lý do từ chối.",
           path: ["value"],
         });
       }

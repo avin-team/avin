@@ -79,9 +79,9 @@ export const WithdrawalQueuePage = () => {
           withdrawalRequestId: selected.id,
         });
       }
-      if (action === "MARK_PAID" && value) {
+      if (action === "MARK_PAID") {
         await paidMutation.mutateAsync({
-          paymentReference: value,
+          paymentReference: value?.trim() || undefined,
           withdrawalRequestId: selected.id,
         });
       }

@@ -269,7 +269,7 @@ export const WithdrawalActionDialog = ({
                         <FieldLabel htmlFor="withdrawal-action-value">
                           {isReason
                             ? "Lý do từ chối"
-                            : "Mã giao dịch ngân hàng"}
+                            : "Mã giao dịch ngân hàng (tùy chọn)"}
                         </FieldLabel>
                         {isReason ? (
                           <Textarea
@@ -294,7 +294,7 @@ export const WithdrawalActionDialog = ({
                             onChange={(event) =>
                               field.handleChange(event.target.value)
                             }
-                            placeholder="VD: FT123456789..."
+                            placeholder="VD: FT123456789... (không bắt buộc)"
                             value={field.state.value}
                           />
                         )}
